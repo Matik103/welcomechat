@@ -1,3 +1,4 @@
+
 import { format } from "date-fns";
 import {
   Table,
@@ -14,14 +15,9 @@ import { Badge } from "@/components/ui/badge";
 interface ClientListTableProps {
   clients: Client[];
   onDeleteClick: (client: Client) => void;
-  isLoading?: boolean;
 }
 
-export function ClientListTable({
-  clients,
-  onDeleteClick,
-  isLoading = false
-}: ClientListTableProps) {
+export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps) => {
   return (
     <Table>
       <TableHeader>
@@ -97,11 +93,10 @@ export function ClientListTable({
                     : 'Never'
                   }
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell>
                   <ClientActions 
-                    clientId={client.id} 
-                    client={client}
-                    onDeleteClick={onDeleteClick} 
+                    clientId={client.id}
+                    onDeleteClick={() => onDeleteClick(client)}
                   />
                 </TableCell>
               </TableRow>
@@ -111,4 +106,4 @@ export function ClientListTable({
       </TableBody>
     </Table>
   );
-}
+};

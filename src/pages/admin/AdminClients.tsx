@@ -4,22 +4,14 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { AddClientModal } from '@/components/client/AddClientModal';
-import { DeleteClientDialog } from '@/components/client/DeleteClientDialog';
-import { Client } from '@/types/client';
 
 export default function AdminClientsPage() {
-  const { clients, isLoading, searchQuery, handleSearch, refetch } = useClientList();
+  const { clients, isLoading, searchQuery, handleSearch } = useClientList();
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-
-  const handleDeleteClick = (client: Client) => {
-    setSelectedClient(client);
-    setIsDeleteDialogOpen(true);
-  };
 
   return (
     <AdminLayout>
@@ -58,7 +50,9 @@ export default function AdminClientsPage() {
             ) : (
               <ClientListTable
                 clients={clients}
-                onDeleteClick={handleDeleteClick}
+                onDeleteClick={() => {
+                  toast.info("Client deletion has been disabled");
+                }}
               />
             )}
           </div>
@@ -68,13 +62,6 @@ export default function AdminClientsPage() {
       <AddClientModal 
         isOpen={isAddClientModalOpen}
         onClose={() => setIsAddClientModalOpen(false)}
-      />
-
-      <DeleteClientDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        client={selectedClient}
-        onClientsUpdated={refetch}
       />
     </AdminLayout>
   );

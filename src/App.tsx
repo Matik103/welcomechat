@@ -26,9 +26,6 @@ import { isAdminClientConfigured, initializeBotLogosBucket } from "./integration
 import ErrorDisplay from "./components/ErrorDisplay";
 import { useAuthSafetyTimeout } from "./hooks/useAuthSafetyTimeout";
 
-// Import admin dashboard explicitly 
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-
 const LoadingFallback = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
     <div className="flex flex-col items-center">
@@ -181,7 +178,7 @@ function App() {
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/dashboard" element={<Index />} />
             <Route path="/admin/clients" element={<ClientList />} />
             <Route path="/admin/agents" element={<Agents />} />
             <Route path="/admin/agents/:agentId" element={<Agents />} />

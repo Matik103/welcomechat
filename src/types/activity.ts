@@ -33,8 +33,6 @@ export type ActivityType =
   | 'client_updated'
   | 'client_deleted'
   | 'client_recovered'
-  | 'client_reactivated'
-  | 'client_deletion_scheduled'
   | 'agent_created'
   | 'agent_updated'
   | 'agent_deleted'
