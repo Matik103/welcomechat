@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { WidgetSettings } from "@/types/widget-settings";
 
@@ -25,46 +24,36 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
     }
     
     // Convert to regular object if it's not already
-    let settingsObj = { ...defaultSettings };
+    let settingsObj: Partial<WidgetSettings> = {};
     
-    if (data.settings && typeof data.settings === 'object') {
-      settingsObj = {
-        ...settingsObj,
-        ...data.settings
-      };
-    } else if (data.settings && typeof data.settings === 'string') {
-      try {
-        const parsedSettings = JSON.parse(data.settings);
-        settingsObj = {
-          ...settingsObj,
-          ...parsedSettings
-        };
-      } catch (e) {
-        console.error("Error parsing settings:", e);
+    if (data.settings) {
+      if (typeof data.settings === 'object') {
+        settingsObj = data.settings as Partial<WidgetSettings>;
+      } else if (typeof data.settings === 'string') {
+        try {
+          settingsObj = JSON.parse(data.settings) as Partial<WidgetSettings>;
+        } catch (e) {
+          settingsObj = {};
+        }
       }
     }
     
-    // Ensure agent name is set from the name field if not in settings
-    if (data.name && !settingsObj.agent_name) {
-      settingsObj.agent_name = data.name;
-    }
-
-    // Ensure agent description is set
-    if (data.agent_description && !settingsObj.agent_description) {
-      settingsObj.agent_description = data.agent_description;
-    }
-
-    // Ensure logo URL is set
-    if (data.logo_url && !settingsObj.logo_url) {
-      settingsObj.logo_url = data.logo_url;
-    }
-
-    // Ensure logo storage path is set
-    if (data.logo_storage_path && !settingsObj.logo_storage_path) {
-      settingsObj.logo_storage_path = data.logo_storage_path;
-    }
+    // Merge settings with other fields from the record
+    const recordSettings = {
+      agent_name: data.name || settingsObj.agent_name,
+      agent_description: data.agent_description || settingsObj.agent_description,
+      logo_url: data.logo_url || settingsObj.logo_url,
+      logo_storage_path: data.logo_storage_path || settingsObj.logo_storage_path,
+      ...settingsObj
+    };
     
-    return settingsObj as WidgetSettings;
+    // Ensure we have a complete settings object by merging with defaults
+    const mergedSettings = {
+      ...defaultSettings,
+      ...recordSettings
+    };
+    
+    return mergedSettings as WidgetSettings;
   } catch (error) {
     console.error('Error getting widget settings:', error);
     return { ...defaultSettings };
@@ -98,16 +87,19 @@ export async function updateWidgetSettings(
       
     if (checkError) throw checkError;
     
+    // Extract fields that should be stored in separate columns
+    const { agent_name, agent_description, logo_url, logo_storage_path, ...otherSettings } = updatedSettings;
+    
     if (data) {
       // Update existing record
       const { error } = await supabase
         .from('ai_agents')
         .update({
-          settings: updatedSettings,
-          name: updatedSettings.agent_name, // Also update the name field directly
-          agent_description: updatedSettings.agent_description, // Update agent_description field
-          logo_url: updatedSettings.logo_url, // Update logo_url field
-          logo_storage_path: updatedSettings.logo_storage_path // Update logo_storage_path field
+          settings: otherSettings,
+          name: agent_name,
+          agent_description: agent_description,
+          logo_url: logo_url,
+          logo_storage_path: logo_storage_path
         })
         .eq('client_id', clientId)
         .eq('interaction_type', 'config');
@@ -119,11 +111,11 @@ export async function updateWidgetSettings(
         .from('ai_agents')
         .insert({
           client_id: clientId,
-          name: updatedSettings.agent_name,
-          agent_description: updatedSettings.agent_description,
-          logo_url: updatedSettings.logo_url,
-          logo_storage_path: updatedSettings.logo_storage_path,
-          settings: updatedSettings,
+          name: agent_name,
+          agent_description: agent_description,
+          logo_url: logo_url,
+          logo_storage_path: logo_storage_path,
+          settings: otherSettings,
           interaction_type: 'config'
         });
         

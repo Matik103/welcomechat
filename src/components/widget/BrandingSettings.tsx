@@ -1,4 +1,3 @@
-
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -22,7 +21,7 @@ export function BrandingSettings({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
         <Label htmlFor="agent_name">AI Agent Name</Label>
         <Input
@@ -45,6 +44,9 @@ export function BrandingSettings({
           onLogoUpload={onLogoUpload}
           onRemoveLogo={handleRemoveLogo}
         />
+        <p className="text-sm text-muted-foreground mt-1">
+          Upload your brand logo to personalize the chat widget
+        </p>
       </div>
 
       <div>
@@ -56,6 +58,9 @@ export function BrandingSettings({
           placeholder="Hi 👋, how can I help?"
           className="mt-1"
         />
+        <p className="text-sm text-muted-foreground mt-1">
+          The first message users see when they open the chat
+        </p>
       </div>
 
       <div>
@@ -67,6 +72,9 @@ export function BrandingSettings({
           placeholder="I typically respond right away"
           className="mt-1"
         />
+        <p className="text-sm text-muted-foreground mt-1">
+          Let users know how quickly they can expect a response
+        </p>
       </div>
     </div>
   );
