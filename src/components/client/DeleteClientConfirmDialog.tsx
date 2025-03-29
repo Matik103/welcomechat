@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from 'lucide-react';
+import { Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Client } from "@/types/client";
 import { supabase } from '@/integrations/supabase/client';
@@ -137,44 +137,63 @@ export const DeleteClientConfirmDialog = ({
   
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="text-destructive">Schedule Client Deletion</DialogTitle>
-          <DialogDescription>
-            This action will schedule the client for deletion in 30 days. The client will receive an email with recovery instructions.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
+        <div className="bg-red-50 p-4 border-b border-red-100">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" />
+              <DialogTitle className="text-red-700 text-xl">Schedule Client Deletion</DialogTitle>
+            </div>
+            <DialogDescription className="text-gray-600 mt-2">
+              This action will schedule the client for deletion after a 30-day grace period.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
         {client && (
-          <div className="py-4">
-            <div className="space-y-4">
-              <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-800">
-                <p className="font-medium">Warning:</p>
-                <p>After 30 days, all client data will be permanently removed, including:</p>
-                <ul className="list-disc ml-5 mt-1">
-                  <li>Website URLs and content</li>
-                  <li>Document links and content</li>
-                  <li>Chat history and interactions</li>
-                  <li>All client settings</li>
-                </ul>
-                <p className="mt-2">The client can recover their account within the 30-day period by clicking the recovery link in the email notification.</p>
+          <div className="p-6">
+            <div className="space-y-6">
+              <div className="flex items-start gap-4 p-4 bg-amber-50 border border-amber-200 rounded-md text-sm">
+                <Clock className="h-5 w-5 text-amber-600 mt-1 flex-shrink-0" />
+                <div className="text-amber-800">
+                  <p className="font-semibold mb-2">30-Day Grace Period</p>
+                  <p className="mb-2">The client will have 30 days to recover their account before permanent deletion.</p>
+                  <p className="text-sm">An email with recovery instructions will be sent to <span className="font-medium">{client.email}</span>.</p>
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="confirm" className="text-sm">
-                  Type <span className="font-bold">{confirmationText}</span> to confirm
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-sm text-gray-800">
+                <p className="font-medium mb-2">The following data will be permanently deleted after 30 days:</p>
+                <ul className="list-disc ml-5 space-y-1">
+                  <li>All client website data and content</li>
+                  <li>Document uploads and linked content</li>
+                  <li>Chat history and interactions</li>
+                  <li>Client settings and preferences</li>
+                </ul>
+              </div>
+              
+              <div className="space-y-3">
+                <Label htmlFor="confirm" className="text-sm font-medium block">
+                  Type <span className="font-bold text-red-600 px-1 py-0.5 bg-red-50 rounded">{confirmationText}</span> to confirm
                 </Label>
                 <Input
                   id="confirm"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder={confirmationText}
+                  className="border-gray-300 focus:border-red-300 focus:ring focus:ring-red-200 focus:ring-opacity-50"
                   disabled={isDeleting}
                 />
+                
+                {!isConfirmEnabled && confirmText.length > 0 && (
+                  <p className="text-xs text-amber-600">
+                    Text doesn't match. Please type exactly "{confirmationText}".
+                  </p>
+                )}
               </div>
               
               {error && (
-                <div className="text-sm text-red-600">
+                <div className="text-sm text-red-600 p-3 bg-red-50 border border-red-100 rounded">
                   {error}
                 </div>
               )}
@@ -182,14 +201,20 @@ export const DeleteClientConfirmDialog = ({
           </div>
         )}
         
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isDeleting}>
+        <DialogFooter className="p-6 pt-2 border-t border-gray-100 gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleClose} 
+            disabled={isDeleting}
+            className="border-gray-300 text-gray-700"
+          >
             Cancel
           </Button>
           <Button 
             variant="destructive" 
             onClick={handleDelete}
             disabled={!isConfirmEnabled || isDeleting}
+            className="bg-red-600 hover:bg-red-700 text-white"
           >
             {isDeleting ? (
               <>
