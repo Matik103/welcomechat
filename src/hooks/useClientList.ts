@@ -59,7 +59,13 @@ export const useClientList = () => {
         };
       });
       
-      setClients(formattedClients);
+      // Filter out clients with "Deletion Scheduled" status or those that have deletion_scheduled_at set
+      const filteredClients = formattedClients.filter(client => 
+        client.status !== 'scheduled_deletion' && 
+        !client.deletion_scheduled_at
+      );
+      
+      setClients(filteredClients);
     } catch (error) {
       console.error('Error fetching clients:', error);
       setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
