@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export const DashboardSkeleton = () => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in-50 duration-300">
       {/* Stats Skeleton */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         {[1, 2, 3, 4].map((i) => (
@@ -27,14 +27,14 @@ export const DashboardSkeleton = () => {
           <div className="bg-card rounded-lg p-4 border">
             <Skeleton className="h-6 w-40 mb-2" />
             <Skeleton className="h-4 w-60 mb-4" />
-            <Skeleton className="h-[300px] w-full" />
+            <Skeleton className="h-[250px] w-full" />
           </div>
         </div>
 
         <div className="bg-card rounded-lg p-4 border">
           <Skeleton className="h-6 w-40 mb-2" />
           <Skeleton className="h-4 w-60 mb-4" />
-          <div className="flex items-center justify-center h-[300px]">
+          <div className="flex items-center justify-center h-[250px]">
             <div className="text-center">
               <Skeleton className="h-16 w-16 rounded-full mx-auto mb-4" />
               <Skeleton className="h-8 w-32 mx-auto mb-2" />

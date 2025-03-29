@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 // Define UserRole type directly as string literals
@@ -78,12 +79,19 @@ export const getUserRole = async (): Promise<UserRole> => {
       console.error("Error checking ai_agents table:", clientErr);
     }
     
-    // Default to admin for now as a fallback
-    console.log("No role found, defaulting to admin");
+    // For admin users, we should default to admin role to prevent infinite loading
+    if (isGoogleUser) {
+      console.log("Google user with no explicit role, defaulting to admin");
+      return 'admin';
+    }
+    
+    // Default to admin as a fallback to prevent loading state
+    console.log("No role found, defaulting to admin to prevent infinite loading");
     return 'admin';
   } catch (error) {
     console.error("Error in getUserRole:", error);
-    return 'admin'; // Default on error
+    // Default to admin on error to prevent infinite loading
+    return 'admin';
   }
 };
 

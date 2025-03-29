@@ -1,12 +1,13 @@
 
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 
 export const ClientViewLoading: React.FC = () => {
   return (
-    <div className="container py-12 flex justify-center items-center min-h-[60vh]">
-      <div className="animate-pulse flex flex-col items-center">
-        <div className="h-8 w-64 bg-gray-200 rounded mb-4"></div>
-        <div className="h-4 w-48 bg-gray-200 rounded"></div>
+    <div className="container py-12 flex justify-center items-center min-h-[calc(100vh-200px)]">
+      <div className="flex flex-col items-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+        <div className="text-base text-muted-foreground">Loading client view...</div>
       </div>
     </div>
   );

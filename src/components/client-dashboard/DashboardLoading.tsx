@@ -10,10 +10,10 @@ export const DashboardLoading: React.FC<DashboardLoadingProps> = ({
   message = "Loading your dashboard..."
 }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="flex items-center justify-center py-12 min-h-[calc(100vh-200px)]">
       <div className="flex flex-col items-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        <p className="mt-4 text-sm text-gray-600">{message}</p>
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+        <p className="text-base text-muted-foreground">{message}</p>
       </div>
     </div>
   );
