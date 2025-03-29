@@ -100,10 +100,13 @@ export const DeleteClientDialog = ({
       
       // Log the activity using a valid activity type
       const { error: activityError } = await supabase
-        .from('activities')
+        .from('ai_agents')
         .insert({
-          ai_agent_id: client.id,
-          type: 'client_deleted',
+          client_id: client.id,
+          interaction_type: 'activity_log',
+          name: 'Activity Logger',
+          type: 'client_deletion_scheduled',
+          content: `Deletion scheduled for client: ${client.client_name}`,
           metadata: {
             action: 'deletion_scheduled',
             client_name: client.client_name,

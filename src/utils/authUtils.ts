@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ActivityType } from '@/types/activity';
 
 /**
  * Reactivates a client account that was scheduled for deletion
@@ -47,20 +48,28 @@ export const reactivateClientAccount = async (email: string): Promise<boolean> =
         continue;
       }
       
-      // Log the reactivation - using 'client_recovered' as an acceptable activity type
-      const { error: activityError } = await supabase
-        .from('activities')
-        .insert({
-          ai_agent_id: client.id,
-          type: 'client_recovered',
-          metadata: {
-            reactivated_at: new Date().toISOString(),
-            previously_scheduled_deletion: client.deletion_scheduled_at
-          }
-        });
-        
-      if (activityError) {
-        console.error("Error creating reactivation activity:", activityError);
+      // Log the reactivation as an activity
+      try {
+        // Insert directly into ai_agents table with activity_log interaction_type
+        const { error: activityError } = await supabase
+          .from('ai_agents')
+          .insert({
+            client_id: client.id,
+            interaction_type: 'activity_log',
+            name: 'Activity Logger',
+            type: 'client_reactivated',
+            content: `Client account reactivated: ${client.client_name}`,
+            metadata: {
+              reactivated_at: new Date().toISOString(),
+              previously_scheduled_deletion: client.deletion_scheduled_at
+            }
+          });
+          
+        if (activityError) {
+          console.error("Error creating reactivation activity:", activityError);
+        }
+      } catch (activityError) {
+        console.error("Error logging reactivation activity:", activityError);
         // Continue even if activity logging fails
       }
       
@@ -83,7 +92,7 @@ export const reactivateClientAccount = async (email: string): Promise<boolean> =
  * @param role The role to assign (admin, client, etc)
  * @returns True if successful, false otherwise
  */
-export const createUserRole = async (userId: string, role: string): Promise<boolean> => {
+export const createUserRole = async (userId: string, role: 'admin' | 'client'): Promise<boolean> => {
   if (!userId || !role) {
     console.error("Invalid parameters: userId and role are required");
     return false;

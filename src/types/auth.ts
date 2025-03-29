@@ -1,8 +1,7 @@
-
 /**
  * User role types for the application
  */
-export type UserRole = 'admin' | 'client';
+export type UserRole = 'admin' | 'client' | null;
 
 /**
  * Auth context interface

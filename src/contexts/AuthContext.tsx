@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Extract user role from app_metadata
         const role = session?.user?.app_metadata?.role || null;
-        setUserRole(role as string || null);
+        setUserRole(role as UserRole);
         
         console.log("Initial session data:", session);
         console.log("Initial user role:", role);
@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Extract user role from app_metadata
       const role = session?.user?.app_metadata?.role || null;
-      setUserRole(role as string || null);
+      setUserRole(role as UserRole);
       
       console.log("Updated user role:", role);
 
