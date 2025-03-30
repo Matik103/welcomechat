@@ -12,10 +12,9 @@ import { useNavigation } from '@/hooks/useNavigation';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
 import { ClientLayout } from '@/components/layout/ClientLayout';
 import ErrorDisplay from '@/components/ErrorDisplay';
-import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
 
-export default function EditClientInfo() {
+export default function EditClientInfoPage() {
   const { user } = useAuth();
   const navigation = useNavigation();
   
@@ -75,7 +74,7 @@ export default function EditClientInfo() {
   };
 
   const handleNavigateBack = () => {
-    navigation.goBack();
+    navigation.goToClientDashboard();
   };
 
   // Force a refetch if client is null but we have a clientId
@@ -140,9 +139,9 @@ export default function EditClientInfo() {
         </Button>
         
         <PageHeading>
-          Manage Your Resources
+          Edit Your Information
           <p className="text-sm font-normal text-muted-foreground">
-            Add websites, documents, and other resources for your AI assistant
+            Update your profile and manage your AI assistant resources
           </p>
         </PageHeading>
 
@@ -163,13 +162,27 @@ export default function EditClientInfo() {
             </Button>
           </div>
         ) : (
-          <div className="mt-6">
-            {clientId && (
-              <ClientResourceSections 
-                clientId={clientId}
-                logClientActivity={logActivityWrapper}
-                onResourceChange={refetchClient}
+          <div className="mt-6 space-y-8">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold mb-4">Profile Information</h2>
+              <ClientForm 
+                initialData={client}
+                onSubmit={handleSubmit}
+                isLoading={isLoadingClient || clientMutation.isPending}
+                error={error ? (error instanceof Error ? error.message : String(error)) : null}
+                submitButtonText="Save Changes"
               />
+            </div>
+            
+            {clientId && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-xl font-semibold mb-4">Resource Management</h2>
+                <ClientResourceSections 
+                  clientId={clientId}
+                  logClientActivity={logActivityWrapper}
+                  onResourceChange={refetchClient}
+                />
+              </div>
             )}
           </div>
         )}
