@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
@@ -7,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Trash2, Upload, AlertCircle, FileIcon, Link as LinkIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatFileSize } from '@/utils/formatters';
+import { DocumentType } from '@/types/document-processing';
 
 interface DocumentLinksProps {
   clientId: string;
@@ -36,7 +38,7 @@ export function DocumentLinks({ clientId }: DocumentLinksProps) {
     try {
       await addDocumentLink.mutateAsync({
         link: newLink,
-        document_type: 'url',
+        document_type: 'web_page' as DocumentType,
         refresh_rate: 30
       });
       setNewLink('');
