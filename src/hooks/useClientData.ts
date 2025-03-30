@@ -16,6 +16,14 @@ export const useClientData = (id: string | undefined) => {
     clientId = user.user_metadata.client_id;
   }
   
+  // Log detailed information for debugging
+  useEffect(() => {
+    console.log("useClientData hook initialized with ID:", id);
+    console.log("User role:", userRole);
+    console.log("User metadata:", user?.user_metadata);
+    console.log("Using clientId:", clientId);
+  }, [id, user, userRole, clientId]);
+  
   // Get client data with staleTime to prevent excessive refetching
   const { 
     client, 

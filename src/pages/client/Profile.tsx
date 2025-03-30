@@ -21,6 +21,10 @@ export default function ClientProfile() {
   const clientId = user?.user_metadata?.client_id;
   const { logClientActivity } = useClientActivity(clientId || '');
 
+  // Log that we're attempting to fetch client data
+  console.log("Attempting to fetch client data with ID:", clientId);
+  console.log("User metadata:", user?.user_metadata);
+
   const { 
     client, 
     isLoadingClient,
@@ -31,10 +35,8 @@ export default function ClientProfile() {
 
   // For debugging - log what we have
   useEffect(() => {
-    console.log("User metadata:", user?.user_metadata);
-    console.log("Client ID from metadata:", clientId);
     console.log("Current client state:", { client, isLoadingClient, error });
-  }, [user, clientId, client, isLoadingClient, error]);
+  }, [client, isLoadingClient, error]);
 
   // If no user found or not authenticated, redirect to auth
   useEffect(() => {
