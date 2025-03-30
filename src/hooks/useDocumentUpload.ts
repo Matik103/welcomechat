@@ -1,46 +1,63 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
+import { DocumentProcessingResult } from '@/types/document-processing';
+import { v4 as uuidv4 } from 'uuid';
+
+interface UploadResult {
+  success: boolean;
+  error?: string;
+  documentId?: number;
+}
+
+const getEffectiveClientId = async (clientId: string) => {
+  try {
+    const { data: clientData, error: clientError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("interaction_type", "config")
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .single();
+      
+    if (clientError) {
+      console.error("Error finding client:", clientError);
+      throw new Error("Could not find client record");
+    }
+    
+    if (!clientData) {
+      throw new Error("Client not found");
+    }
+    
+    return clientData.id;
+  } catch (error) {
+    console.error("Error getting effective client ID:", error);
+    throw error;
+  }
+};
 
 export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
 
-  const uploadDocument = async (file: File) => {
+  const uploadDocument = async (file: File): Promise<UploadResult> => {
     if (!clientId) {
-      toast.error('Client ID is required for uploading documents');
-      return Promise.reject(new Error('Client ID is required'));
+      toast.error('Client ID is required');
+      return { success: false, error: 'Client ID is required' };
     }
 
     setIsUploading(true);
     console.log("Starting document upload for client:", clientId);
-    
+
     try {
-      // First, find the correct client record
-      const { data: clientRecord, error: clientError } = await supabase
-        .from("ai_agents")
-        .select("id")
-        .eq("interaction_type", "config")
-        .or(`id.eq.${clientId},client_id.eq.${clientId}`)
-        .single();
-        
-      if (clientError) {
-        console.error("Error finding client:", clientError);
-        throw new Error("Could not find client record");
-      }
-      
-      if (!clientRecord) {
-        throw new Error("Client record not found");
-      }
-      
-      const actualClientId = clientRecord.id;
+      // Get the effective client ID
+      const actualClientId = await getEffectiveClientId(clientId);
       console.log("Found client record with ID:", actualClientId);
 
-      // Create a unique file path
-      const timestamp = Date.now();
-      const sanitizedFileName = file.name.replace(/[^\w\s.-]/g, ''); // Remove special characters
-      const filePath = `${actualClientId}/${timestamp}_${sanitizedFileName}`;
+      // Create a unique file path with a clean filename
+      const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').toLowerCase();
+      const uniqueFileName = `${uuidv4()}-${cleanFileName}`;
+      const filePath = `${actualClientId}/${uniqueFileName}`;
       
       console.log("Uploading document to path:", filePath);
 
@@ -52,70 +69,77 @@ export function useDocumentUpload(clientId: string) {
         // Continue anyway, the bucket might already exist
       }
 
-      // Upload the file
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: file.type // Ensure proper content type is set
         });
 
       if (uploadError) {
-        console.error("Error uploading document:", uploadError);
-        throw new Error(`Upload failed: ${uploadError.message}`);
+        console.error('Error uploading file:', uploadError);
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
       }
-
-      console.log("Document uploaded successfully:", uploadData);
 
       // Get the public URL
       const { data: urlData } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
         .getPublicUrl(filePath);
 
-      if (!urlData || !urlData.publicUrl) {
-        throw new Error('Failed to get public URL for document');
+      if (!urlData?.publicUrl) {
+        throw new Error('Failed to get document URL');
       }
 
-      const publicUrl = urlData.publicUrl;
-      console.log("Document public URL:", publicUrl);
-
       // Determine document type from file extension
-      const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
       let documentType = 'document';
-      
       if (fileExtension === 'pdf') documentType = 'pdf';
       else if (['doc', 'docx'].includes(fileExtension)) documentType = 'word';
       else if (['xls', 'xlsx'].includes(fileExtension)) documentType = 'excel';
       else if (['ppt', 'pptx'].includes(fileExtension)) documentType = 'powerpoint';
-      
-      // Add document link to document_links table
-      const { data: linkData, error: linkError } = await supabase
+
+      // Create document link record
+      const { data: documentLink, error: linkError } = await supabase
         .from('document_links')
         .insert({
           client_id: actualClientId,
-          link: publicUrl,
+          link: urlData.publicUrl,
           document_type: documentType,
-          refresh_rate: 30, // Default 30 days
+          refresh_rate: 30,
           access_status: 'accessible',
+          file_name: cleanFileName,
+          file_size: file.size,
+          mime_type: file.type,
           storage_path: filePath
         })
         .select()
         .single();
 
       if (linkError) {
-        console.error("Error creating document link record:", linkError);
-        // Try to clean up the uploaded file
-        await supabase.storage.from(DOCUMENTS_BUCKET).remove([filePath]);
-        throw linkError;
+        // If link creation fails, try to delete the uploaded file
+        await supabase.storage
+          .from(DOCUMENTS_BUCKET)
+          .remove([filePath]);
+          
+        console.error('Error creating document link:', linkError);
+        throw new Error(`Error creating document link: ${linkError.message}`);
       }
 
-      console.log("Document link record created:", linkData);
-      return linkData;
-      
+      console.log("Document link record created:", documentLink);
+      toast.success('Document uploaded successfully');
+      return {
+        success: true,
+        documentId: documentLink.id
+      };
+
     } catch (error) {
-      console.error("Document upload failed:", error);
-      toast.error(`Failed to upload document: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      throw error;
+      console.error('Document upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Unknown error');
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     } finally {
       setIsUploading(false);
     }
@@ -137,12 +161,12 @@ export function useDocumentUpload(clientId: string) {
       console.log(`Creating ${DOCUMENTS_BUCKET} bucket...`);
       const { error: createError } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
         public: true,
-        fileSizeLimit: 10485760, // 10MB
-        allowedMimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']
+        allowedMimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        fileSizeLimit: 52428800 // 50MB
       });
       
       if (createError) {
-        console.error(`Error creating ${DOCUMENTS_BUCKET} bucket:`, createError);
+        console.error("Error creating bucket:", createError);
         throw createError;
       }
     }

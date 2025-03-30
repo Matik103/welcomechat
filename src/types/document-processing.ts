@@ -1,4 +1,3 @@
-
 /**
  * Types for document processing functionality
  */
@@ -25,6 +24,10 @@ export interface DocumentLink {
   refresh_rate: number;
   notified_at?: string;
   access_status?: AccessStatus;
+  file_name?: string;
+  file_size?: number;
+  mime_type?: string;
+  storage_path?: string;
 }
 
 export interface DocumentLinkFormData {
