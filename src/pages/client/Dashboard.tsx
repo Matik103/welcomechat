@@ -6,9 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { DashboardHeader } from "@/components/client-dashboard/DashboardHeader";
 import { DashboardLoading } from "@/components/client-dashboard/DashboardLoading";
 import { DashboardContent } from "@/components/client-dashboard/DashboardContent";
-import { ClientLayout } from '@/components/layout/ClientLayout';
-import { toast } from "sonner";
-import { checkAndRefreshAuth } from "@/services/authService";
+import { QueryItem } from "@/types/client-dashboard";
 
 export interface ClientDashboardProps {
   clientId?: string;
@@ -20,22 +18,8 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
   const [isPageVisible, setIsPageVisible] = useState(true);
   const [firstLoadComplete, setFirstLoadComplete] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
   
-  useEffect(() => {
-    // Check auth status on component mount
-    const verifyAuth = async () => {
-      const isValid = await checkAndRefreshAuth();
-      setAuthChecked(true);
-      if (!isValid) {
-        toast.error("Your session has expired. Please log in again.");
-        navigate("/auth", { replace: true });
-      }
-    };
-    
-    verifyAuth();
-  }, [navigate]);
-  
+  // Handle page visibility changes
   useEffect(() => {
     const handleVisibilityChange = () => {
       setIsPageVisible(!document.hidden);
@@ -45,6 +29,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
   
+  // Set a short timeout to prevent getting stuck in loading state
   useEffect(() => {
     if (firstLoadComplete) return;
     
@@ -56,23 +41,18 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     return () => clearTimeout(timeout);
   }, [firstLoadComplete]);
   
+  // Redirect if not authenticated
   useEffect(() => {
     if (!user && loadTimeout) {
       navigate("/auth", { replace: true });
     }
   }, [user, navigate, loadTimeout]);
 
-  const effectiveClientId = useMemo(() => {
-    console.log("Getting effective client ID:", { 
-      providedClientId: clientId, 
-      userMetadataClientId: user?.user_metadata?.client_id
-    });
-    return clientId || user?.user_metadata?.client_id;
-  }, [clientId, user?.user_metadata?.client_id]);
-  
-  useEffect(() => {
-    console.log("Effective client ID in Dashboard:", effectiveClientId);
-  }, [effectiveClientId]);
+  // Get client ID from user metadata if not provided
+  const effectiveClientId = useMemo(() => 
+    clientId || user?.user_metadata?.client_id, 
+    [clientId, user?.user_metadata?.client_id]
+  );
   
   const {
     stats,
@@ -82,22 +62,28 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     agentName
   } = useClientDashboard(effectiveClientId || '', user?.user_metadata?.agent_name || 'AI Assistant');
 
+  // Only show loading state if we're actually loading and the page is visible
   const shouldShowLoading = useMemo(() => 
     isLoading && !loadTimeout && isPageVisible && !firstLoadComplete,
     [isLoading, loadTimeout, isPageVisible, firstLoadComplete]
   );
 
+  // Convert stats to the expected format for the InteractionStats component
+  // Making sure we have both snake_case and camelCase versions to satisfy the type
   const formattedStats = useMemo(() => stats ? {
+    // Snake case versions
     total_interactions: stats.total_interactions,
     active_days: stats.active_days,
     average_response_time: stats.average_response_time,
     top_queries: stats.top_queries,
     
+    // CamelCase versions required by InteractionStats type
     totalInteractions: stats.totalInteractions || stats.total_interactions,
     activeDays: stats.activeDays || stats.active_days,
     averageResponseTime: stats.averageResponseTime || stats.average_response_time,
     topQueries: stats.topQueries || stats.top_queries
   } : {
+    // Default values with both naming conventions
     total_interactions: 0,
     active_days: 0,
     average_response_time: 0,
@@ -109,6 +95,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     topQueries: []
   }, [stats]);
 
+  // Format top queries for the QueryList component
   const queries = useMemo(() => stats?.topQueries?.map(q => ({
     id: `query-${Math.random().toString(36).substr(2, 9)}`,
     query_text: q.query_text,
@@ -120,48 +107,25 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     window.location.reload();
+    // This timeout is just for UI feedback, the page will reload before it completes
     setTimeout(() => setIsRefreshing(false), 1000);
   }, []);
 
-  if (!authChecked || shouldShowLoading) {
+  // Very minimal loading state - only show if we don't have a user yet
+  if (shouldShowLoading) {
     return <DashboardLoading />;
   }
 
-  if (!effectiveClientId) {
-    return (
-      <ClientLayout>
-        <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 pb-6">
-          <div className="p-8 bg-red-50 border border-red-200 rounded-md text-center">
-            <h3 className="text-lg font-medium text-red-800 mb-2">Client ID Not Found</h3>
-            <p className="text-red-600 mb-4">Unable to find client ID in your profile. Please make sure you're properly logged in.</p>
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={() => navigate("/auth", { replace: true })}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-              >
-                Go to Login
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        </div>
-      </ClientLayout>
-    );
-  }
-
   return (
-    <ClientLayout>
-      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 pb-6 space-y-8">
+    <div className="bg-[#F8F9FA] min-h-screen">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
+        {/* Refresh button */}
         <DashboardHeader 
           isRefreshing={isRefreshing} 
           onRefresh={handleRefresh} 
         />
         
+        {/* Dashboard content */}
         <DashboardContent 
           stats={formattedStats}
           recentInteractions={recentInteractions}
@@ -169,7 +133,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           isLoading={shouldShowLoading}
         />
       </div>
-    </ClientLayout>
+    </div>
   );
 };
 

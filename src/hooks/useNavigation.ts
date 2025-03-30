@@ -49,15 +49,6 @@ export const useNavigation = () => {
     navigate('/admin/settings');
   }, [navigate]);
   
-  const goToAuth = useCallback(() => {
-    // Navigate to the appropriate auth page based on the user role
-    if (isAdmin) {
-      navigate('/auth', { replace: true });
-    } else {
-      navigate('/client/auth', { replace: true });
-    }
-  }, [isAdmin, navigate]);
-  
   const goBack = useCallback(() => {
     if (isAdmin) {
       navigate('/admin/clients');
@@ -77,7 +68,6 @@ export const useNavigation = () => {
     goToClientDashboard,
     goToAdminDashboard,
     goToSettings,
-    goToAuth,
     goBack,
   };
 };

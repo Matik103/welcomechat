@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -47,7 +46,6 @@ interface DashboardData {
 
 export function useAdminDashboardData() {
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     clients: {
       total: 0,
@@ -106,22 +104,14 @@ export function useAdminDashboardData() {
   
   const lastFetchTimeRef = useRef<number>(0);
   const initialLoadDoneRef = useRef<boolean>(false);
-  const fetchInProgressRef = useRef<boolean>(false);
   
   const fetchDashboardData = useCallback(async (force = false) => {
-    // Prevent multiple concurrent fetches
-    if (fetchInProgressRef.current && !force) {
-      console.log('Fetch already in progress, skipping');
-      return;
-    }
-    
     const now = Date.now();
     if (!force && now - lastFetchTimeRef.current < 10000) {
       console.log('Skipping dashboard refresh - too soon after last fetch');
       return;
     }
     
-    fetchInProgressRef.current = true;
     lastFetchTimeRef.current = now;
     
     if (!initialLoadDoneRef.current) {
@@ -129,9 +119,6 @@ export function useAdminDashboardData() {
     }
     
     try {
-      console.log('Fetching dashboard data...');
-      
-      // Get all agents
       const agents = await getAllAgents();
       const totalAgents = agents.length;
       
@@ -142,7 +129,6 @@ export function useAdminDashboardData() {
         agent.last_active && new Date(agent.last_active) > timeAgo
       ).length;
       
-      // Get agent data from database
       const { data: agentsData, error: agentsError } = await supabase
         .from('ai_agents')
         .select('client_id, last_active, status, deleted_at')
@@ -152,11 +138,10 @@ export function useAdminDashboardData() {
       
       if (agentsError) throw agentsError;
       
-      // Process client data
       const uniqueClientIds = new Set();
       const activeClientIds = new Set();
       
-      for (const agent of agentsData || []) {
+      for (const agent of agentsData) {
         if (agent.client_id) {
           uniqueClientIds.add(agent.client_id);
           
@@ -170,9 +155,9 @@ export function useAdminDashboardData() {
       const activeClients = activeClientIds.size;
       
       const clientGrowthRate = totalClients > 0 ? Math.round((activeClients / totalClients) * 100) : 0;
+      
       const agentGrowthRate = totalAgents > 0 ? Math.round((activeAgents / totalAgents) * 100) : 0;
       
-      // Get interaction count
       const { count: interactionsCount, error: interactionsError } = await supabase
         .from('ai_agents')
         .select('id', { count: 'exact', head: true })
@@ -180,7 +165,6 @@ export function useAdminDashboardData() {
       
       if (interactionsError) throw interactionsError;
       
-      // Get training resources count
       const { count: websiteUrlsCount, error: websiteUrlsError } = await supabase
         .from('website_urls')
         .select('id', { count: 'exact', head: true });
@@ -201,7 +185,6 @@ export function useAdminDashboardData() {
       
       const trainingsTotal = (websiteUrlsCount || 0) + (documentLinksCount || 0) + (driveLinksCount || 0);
       
-      // Get admin activities count
       const { count: adminActivitiesCount, error: adminActivitiesError } = await supabase
         .from('activities')
         .select('id', { count: 'exact', head: true })
@@ -209,46 +192,12 @@ export function useAdminDashboardData() {
       
       if (adminActivitiesError) throw adminActivitiesError;
       
-      // Get chart data
-      let chartData;
-      try {
-        const { data: rpcData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
-        
-        if (chartError) throw chartError;
-        
-        chartData = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
-      } catch (chartErr) {
-        console.error('Error fetching chart data:', chartErr);
-        // Provide fallback chart data
-        chartData = {
-          database: {
-            value: "0",
-            title: "Database",
-            subtitle: "REST Requests",
-            data: generateChartData()
-          },
-          auth: {
-            value: "0",
-            title: "Auth",
-            subtitle: "Auth Requests",
-            data: generateChartData()
-          },
-          storage: {
-            value: "0",
-            title: "Storage",
-            subtitle: "Storage Requests",
-            data: generateChartData()
-          },
-          realtime: {
-            value: "0",
-            title: "Realtime",
-            subtitle: "Realtime Requests",
-            data: generateChartData()
-          }
-        };
-      }
+      const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
       
-      // Update dashboard data
+      if (chartError) throw chartError;
+      
+      const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
+      
       setDashboardData({
         clients: {
           total: totalClients,
@@ -277,36 +226,30 @@ export function useAdminDashboardData() {
           changePercentage: 3,
           chartData: generateChartData()
         },
-        activityCharts: chartData
+        activityCharts: parsedChartData
       });
       
-      setError(null);
       initialLoadDoneRef.current = true;
-      console.log('Dashboard data fetched successfully');
-    } catch (err) {
-      console.error('Error loading dashboard data:', err);
-      setError(err instanceof Error ? err : new Error('Failed to load dashboard data'));
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
       toast.error('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
-      fetchInProgressRef.current = false;
     }
   }, []);
 
-  // Fetch data on mount
   useEffect(() => {
     fetchDashboardData(true);
     
     const pollingInterval = setInterval(() => {
       fetchDashboardData();
-    }, 5 * 60 * 1000); // 5 minutes polling
+    }, 5 * 60 * 1000);
     
     return () => {
       clearInterval(pollingInterval);
     };
   }, [fetchDashboardData]);
   
-  // Refresh on visibility change (tab focus)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -329,7 +272,6 @@ export function useAdminDashboardData() {
 
   return {
     isLoading,
-    error,
     dashboardData,
     fetchDashboardData
   };

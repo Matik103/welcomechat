@@ -50,6 +50,12 @@ export const ClientHeader = () => {
             >
               Dashboard
             </Link>
+            <Link to="/client/edit-info">
+              <Button variant="ghost" className="flex items-center gap-1">
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </Button>
+            </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="font-semibold">
@@ -60,13 +66,6 @@ export const ClientHeader = () => {
                 <DropdownMenuLabel>
                   {clientName}
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <Link to="/client/edit-profile">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Profile Settings
-                  </DropdownMenuItem>
-                </Link>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
                   Sign out
