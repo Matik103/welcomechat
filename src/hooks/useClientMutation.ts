@@ -17,6 +17,7 @@ export const useClientMutation = () => {
         console.log('Updating client with params:', params);
         
         if (!params.client_id) {
+          console.error('No client_id provided to mutation');
           throw new Error('Client ID is required to update client');
         }
         

@@ -63,12 +63,15 @@ export const useClientData = (id: string | undefined) => {
     return Promise.resolve();
   }, [clientId, refetch]);
 
+  // Get the effective client ID (either client.id or client.client_id)
+  const effectiveClientId = client?.id || client?.client_id || clientId;
+
   return {
     client,
     isLoadingClient: isLoading,
     error,
     clientMutation,
-    clientId, // Keep the property name as clientId for backward compatibility
+    clientId: effectiveClientId, // Return the effective client ID
     refetchClient
   };
 };

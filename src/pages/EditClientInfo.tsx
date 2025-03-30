@@ -42,13 +42,23 @@ export function EditClientInfo() {
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
-      if (!client || !client.id) {
-        toast.error("Client ID is required to update client");
+      if (!client) {
+        toast.error("Client information not available");
         return;
       }
       
+      // First try to use the client ID from the client object
+      const updateClientId = client.id || client.client_id;
+      
+      if (!updateClientId) {
+        toast.error("Client ID not found");
+        return;
+      }
+      
+      console.log("Submitting with client ID:", updateClientId);
+      
       await clientMutation.mutateAsync({
-        client_id: client.id,
+        client_id: updateClientId,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
@@ -170,9 +180,9 @@ export function EditClientInfo() {
             </TabsContent>
             
             <TabsContent value="resources">
-              {client && client.id && (
+              {client && (
                 <ClientResourceSections 
-                  clientId={client.id} 
+                  clientId={client.id || client.client_id}
                   logClientActivity={logClientActivity}
                   onResourceChange={refetchClient}
                 />
