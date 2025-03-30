@@ -859,6 +859,7 @@ export type Database = {
           link: string
           notified_at: string | null
           refresh_rate: number
+          updated_at: string | null
         }
         Insert: {
           access_status?: string | null
@@ -869,6 +870,7 @@ export type Database = {
           link: string
           notified_at?: string | null
           refresh_rate?: number
+          updated_at?: string | null
         }
         Update: {
           access_status?: string | null
@@ -879,6 +881,7 @@ export type Database = {
           link?: string
           notified_at?: string | null
           refresh_rate?: number
+          updated_at?: string | null
         }
         Relationships: [
           {
