@@ -23,7 +23,7 @@ export const useClientData = (id: string | undefined) => {
     error,
     refetch
   } = useClient(clientId || '', {
-    staleTime: 1000, // Reduced to 1 second for testing
+    staleTime: 0, // No stale time to ensure fresh data
     cacheTime: 60000,  // 1 minute
     retry: 3,
     enabled: Boolean(clientId),
@@ -34,14 +34,12 @@ export const useClientData = (id: string | undefined) => {
   useEffect(() => {
     if (error) {
       console.error("Error in useClientData hook:", error);
-      if (id) {
-        console.log(`Attempted to fetch client with ID: ${id}`);
-      }
+      console.log(`Attempted to fetch client with ID: ${clientId}`);
       if (user?.user_metadata?.client_id) {
         console.log(`User metadata contains client_id: ${user.user_metadata.client_id}`);
       }
     }
-  }, [error, id, user?.user_metadata?.client_id]);
+  }, [error, clientId, user?.user_metadata?.client_id]);
   
   // Log client data for debugging
   useEffect(() => {
