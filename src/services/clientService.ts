@@ -58,57 +58,116 @@ export const getActiveClientsCount = async (): Promise<{ total: number, active: 
  */
 export const updateClient = async (clientId: string, data: Partial<ClientFormData>) => {
   try {
-    // First, check if the client exists
-    const { data: existingClient, error: fetchError } = await supabase
-      .from('clients')
+    console.log(`Attempting to update client with ID: ${clientId}`);
+    
+    // First, check if the client exists in the ai_agents table (preferred source)
+    const { data: aiAgent, error: aiAgentError } = await supabase
+      .from('ai_agents')
       .select('*')
       .eq('id', clientId)
+      .eq('interaction_type', 'config')
       .single();
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch client: ${fetchError.message}`);
-    }
+    // If not found in ai_agents as direct ID, try looking for it as client_id
+    if (aiAgentError) {
+      console.log(`Client not found in ai_agents by id, trying client_id field`);
+      const { data: aiAgent2, error: aiAgentError2 } = await supabase
+        .from('ai_agents')
+        .select('*')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .single();
+        
+      if (aiAgentError2) {
+        // As last resort, try searching in clients table
+        console.log(`Client not found in ai_agents by client_id, trying clients table`);
+        const { data: clientRecord, error: clientError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('id', clientId)
+          .single();
+          
+        if (clientError) {
+          throw new Error(`Failed to fetch client: ${clientError.message}`);
+        }
+        
+        if (!clientRecord) {
+          throw new Error(`Client with ID ${clientId} not found`);
+        }
+        
+        // Update the client record in clients table
+        const { data: updatedClient, error: updateError } = await supabase
+          .from('clients')
+          .update({
+            client_name: data.client_name,
+            email: data.email,
+            agent_name: data.agent_name,
+            agent_description: data.agent_description,
+            logo_url: data.logo_url,
+            logo_storage_path: data.logo_storage_path,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', clientId)
+          .select()
+          .single();
 
-    if (!existingClient) {
-      throw new Error(`Client with ID ${clientId} not found`);
-    }
-
-    // Update the client record
-    const { data: updatedClient, error: updateError } = await supabase
-      .from('clients')
-      .update({
+        if (updateError) {
+          throw new Error(`Failed to update client: ${updateError.message}`);
+        }
+        
+        return updatedClient;
+      }
+      
+      // Use the agent found by client_id
+      const updateData = {
+        name: data.agent_name,
+        agent_description: data.agent_description,
         client_name: data.client_name,
         email: data.email,
-        agent_name: data.agent_name,
-        agent_description: data.agent_description,
         logo_url: data.logo_url,
         logo_storage_path: data.logo_storage_path,
         updated_at: new Date().toISOString()
-      })
-      .eq('id', clientId)
+      };
+      
+      // Update the ai_agents record
+      const { data: updatedAgent, error: updateError } = await supabase
+        .from('ai_agents')
+        .update(updateData)
+        .eq('id', aiAgent2.id)
+        .select()
+        .single();
+        
+      if (updateError) {
+        throw new Error(`Failed to update ai_agent: ${updateError.message}`);
+      }
+      
+      return updatedAgent;
+    }
+    
+    // Use the agent found directly by id
+    const updateData = {
+      name: data.agent_name,
+      agent_description: data.agent_description,
+      client_name: data.client_name,
+      email: data.email,
+      logo_url: data.logo_url,
+      logo_storage_path: data.logo_storage_path,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Update the ai_agents record
+    const { data: updatedAgent, error: updateError } = await supabase
+      .from('ai_agents')
+      .update(updateData)
+      .eq('id', aiAgent.id)
       .select()
       .single();
-
+      
     if (updateError) {
-      throw new Error(`Failed to update client: ${updateError.message}`);
+      throw new Error(`Failed to update ai_agent: ${updateError.message}`);
     }
-
-    // Update the corresponding ai_agents record if it exists
-    const { error: agentUpdateError } = await supabase
-      .from('ai_agents')
-      .update({
-        name: data.agent_name,
-        description: data.agent_description,
-        updated_at: new Date().toISOString()
-      })
-      .eq('client_id', clientId);
-
-    if (agentUpdateError) {
-      console.error('Failed to update AI agent:', agentUpdateError);
-      // Don't throw here as the client update was successful
-    }
-
-    return updatedClient;
+    
+    return updatedAgent;
   } catch (error) {
     console.error('Error in updateClient:', error);
     throw error;

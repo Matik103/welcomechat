@@ -1,3 +1,4 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { updateClient } from '@/services/clientService';
@@ -14,6 +15,10 @@ export const useClientMutation = () => {
     mutationFn: async (params: MutationParams) => {
       try {
         console.log('Updating client with params:', params);
+        
+        if (!params.client_id) {
+          throw new Error('Client ID is required to update client');
+        }
         
         // Prepare the update data
         const updateData = {

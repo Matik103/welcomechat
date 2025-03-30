@@ -5890,6 +5890,18 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      update_client_and_agent: {
+        Args: {
+          p_client_id: string
+          p_client_name: string
+          p_email: string
+          p_agent_name: string
+          p_agent_description: string
+          p_logo_url: string
+          p_logo_storage_path: string
+        }
+        Returns: Json
+      }
       update_logo_url: {
         Args: {
           client_id: string
