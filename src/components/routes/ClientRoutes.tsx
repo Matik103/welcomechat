@@ -19,4 +19,4 @@ export const ClientRoutes = () => {
       <Route path="*" element={<Navigate to="/client/dashboard" replace />} />
     </Routes>
   );
-}
+};
