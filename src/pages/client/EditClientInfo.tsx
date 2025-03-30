@@ -9,10 +9,11 @@ import { useNavigation } from '@/hooks/useNavigation';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ErrorDisplay from '@/components/ErrorDisplay';
-import { ClientLayout } from '@/components/layout/ClientLayout';
 import { ClientProfileSection } from '@/components/client/settings/ClientProfileSection';
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
+import { toast } from 'sonner';
+import { ActivityType } from '@/types/client-form';
 
 export default function EditClientInfo() {
   const { user } = useAuth();
@@ -41,6 +42,13 @@ export default function EditClientInfo() {
       refetchClient();
     }
   }, [client, isLoadingClient, clientId, error, refetchClient]);
+
+  // Log view activity when component mounts
+  useEffect(() => {
+    if (clientId && client) {
+      logClientActivity('view_profile', 'Client viewed their profile settings');
+    }
+  }, [clientId, client]);
 
   const handleNavigateBack = () => {
     navigation.goToClientDashboard();
@@ -74,7 +82,7 @@ export default function EditClientInfo() {
     );
   }
 
-  const handleLogClientActivity = async (type: string, description: string, metadata?: Record<string, any>) => {
+  const handleLogClientActivity = async (type: ActivityType, description: string, metadata?: Record<string, any>) => {
     if (!clientId) return;
     try {
       await logClientActivity(type, description, metadata);

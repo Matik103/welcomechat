@@ -50,12 +50,6 @@ export const ClientHeader = () => {
             >
               Dashboard
             </Link>
-            <Link 
-              to="/client/settings" 
-              className="text-xl font-semibold text-gray-900 hover:text-gray-700 transition-colors"
-            >
-              Settings
-            </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="font-semibold">

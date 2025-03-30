@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { ClientLayout } from '@/components/layout/ClientLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
