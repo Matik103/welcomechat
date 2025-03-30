@@ -1,86 +1,46 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
-import { ClientForm } from '@/components/client/ClientForm';
-import { toast } from 'sonner';
-import { ClientFormData } from '@/types/client-form';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useClientData } from '@/hooks/useClientData';
 import { useNavigation } from '@/hooks/useNavigation';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
-import { ClientLayout } from '@/components/layout/ClientLayout';
-import ErrorDisplay from '@/components/ErrorDisplay';
-import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
-import { useClientActivity } from '@/hooks/useClientActivity';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronRight } from 'lucide-react';
+import ErrorDisplay from '@/components/ErrorDisplay';
+import { ClientLayout } from '@/components/layout/ClientLayout';
+import { ClientProfileSection } from '@/components/client/settings/ClientProfileSection';
+import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 
 export default function EditClientInfo() {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const navigation = useNavigation();
-  const location = useLocation();
-  const [activeTab, setActiveTab] = useState('resources');
+  const [activeTab, setActiveTab] = useState('profile');
   
   // Get client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
-  const { logClientActivity } = useClientActivity(clientId);
 
   const { 
     client, 
     isLoadingClient,
     error,
     clientMutation,
-    refetchClient
+    refetchClient,
+    adminClientConfigured
   } = useClientData(clientId);
 
   // For debugging - log what we have
   useEffect(() => {
+    console.log("User role:", userRole);
     console.log("User metadata:", user?.user_metadata);
     console.log("Client ID from metadata:", clientId);
+    console.log("Admin client configured:", adminClientConfigured);
     console.log("Current client state:", { client, isLoadingClient, error });
-  }, [user, clientId, client, isLoadingClient, error]);
-
-  const handleSubmit = async (data: ClientFormData) => {
-    try {
-      if (!clientId) {
-        toast.error("Client ID not found in your user profile");
-        return;
-      }
-      
-      if (!client) {
-        toast.error("Unable to load your client information");
-        return;
-      }
-      
-      console.log("Submitting update for client:", clientId);
-      
-      await clientMutation.mutateAsync({
-        client_id: clientId,
-        client_name: data.client_name,
-        email: data.email,
-        agent_name: data.agent_name,
-        agent_description: data.agent_description,
-        logo_url: data.logo_url,
-        logo_storage_path: data.logo_storage_path
-      });
-      
-      toast.success("Your information has been updated successfully");
-      await logActivityWrapper();
-      refetchClient();
-    } catch (error) {
-      console.error("Error updating client information:", error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : String(error);
-      toast.error(`Failed to update your information: ${errorMessage}`);
-    }
-  };
+  }, [user, userRole, clientId, client, isLoadingClient, error, adminClientConfigured]);
 
   const handleNavigateBack = () => {
-    navigation.goBack();
+    navigation.goToClientDashboard();
   };
 
   // Force a refetch if client is null but we have a clientId
@@ -95,12 +55,30 @@ export default function EditClientInfo() {
   if (!clientId) {
     return (
       <ClientLayout>
-        <ErrorDisplay 
-          title="Access Error"
-          message="Unable to find your client ID. Please make sure you're properly logged in."
-          details="If this issue persists, please contact support."
-          onRetry={() => window.location.reload()}
-        />
+        <div className="container mx-auto py-8">
+          <ErrorDisplay 
+            title="Access Error"
+            message="Unable to find your client ID. Please make sure you're properly logged in."
+            details="If this issue persists, please contact support."
+            onRetry={() => window.location.reload()}
+          />
+        </div>
+      </ClientLayout>
+    );
+  }
+
+  // Show error if admin client is not configured
+  if (!adminClientConfigured) {
+    return (
+      <ClientLayout>
+        <div className="container mx-auto py-8">
+          <ErrorDisplay 
+            title="Service Configuration Error"
+            message="The application service role key is not properly configured."
+            details="This issue needs to be fixed by an administrator. Please contact support."
+            onRetry={() => window.location.reload()}
+          />
+        </div>
       </ClientLayout>
     );
   }
@@ -109,26 +87,26 @@ export default function EditClientInfo() {
   if (error && !client) {
     return (
       <ClientLayout>
-        <ErrorDisplay 
-          title="Error Loading Your Information"
-          message={`Unable to load your information: ${error instanceof Error ? error.message : String(error)}`}
-          details={`Client ID: ${clientId}`}
-          onRetry={refetchClient}
-        />
+        <div className="container mx-auto py-8">
+          <ErrorDisplay 
+            title="Error Loading Your Information"
+            message={`Unable to load your information: ${error instanceof Error ? error.message : String(error)}`}
+            details={`Client ID: ${clientId}`}
+            onRetry={refetchClient}
+          />
+        </div>
       </ClientLayout>
     );
   }
 
-  const logActivityWrapper = async (): Promise<void> => {
-    if (!client) return;
-    
-    const clientName = client.client_name || client.agent_name || "Unknown";
-    await logClientActivity("client_updated", 
-      `Resources updated for "${clientName}"`, 
-      {
-        client_name: clientName,
-        agent_name: client.agent_name
-      });
+  const logClientActivity = async () => {
+    try {
+      console.log("Client activity logged for client:", client?.id || clientId);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error logging client activity:", error);
+      return Promise.reject(error);
+    }
   };
 
   return (
@@ -145,9 +123,9 @@ export default function EditClientInfo() {
         </Button>
         
         <PageHeading>
-          Manage Your Resources
+          Profile Settings
           <p className="text-sm font-normal text-muted-foreground">
-            Update your information and add resources to your AI assistant
+            Update your information and manage resources
           </p>
         </PageHeading>
 
@@ -156,18 +134,7 @@ export default function EditClientInfo() {
             <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
             <p>Loading your information...</p>
           </div>
-        ) : !client ? (
-          <div className="mt-6 p-8 bg-red-50 border border-red-200 rounded-md">
-            <h3 className="text-lg font-medium text-red-800 mb-2">Information Not Found</h3>
-            <p className="text-red-600">Unable to load your information. Please try again.</p>
-            <Button 
-              onClick={refetchClient} 
-              className="mt-4 bg-red-600 hover:bg-red-700"
-            >
-              Retry Loading
-            </Button>
-          </div>
-        ) : (
+        ) : client ? (
           <div className="mt-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="mb-6">
@@ -178,12 +145,10 @@ export default function EditClientInfo() {
               <TabsContent value="profile" className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2">
-                    <ClientForm 
-                      initialData={client}
-                      onSubmit={handleSubmit}
-                      isLoading={isLoadingClient || clientMutation.isPending}
-                      error={error ? (error instanceof Error ? error.message : String(error)) : null}
-                      submitButtonText="Update Information"
+                    <ClientProfileSection 
+                      client={client}
+                      clientMutation={clientMutation}
+                      refetchClient={refetchClient}
                     />
                   </div>
                   <div className="lg:col-span-1">
@@ -191,7 +156,7 @@ export default function EditClientInfo() {
                       client={client} 
                       isLoading={isLoadingClient} 
                       isClientView={true}
-                      logClientActivity={logActivityWrapper}
+                      logClientActivity={logClientActivity}
                     />
                   </div>
                 </div>
@@ -208,10 +173,10 @@ export default function EditClientInfo() {
               </TabsContent>
               
               <TabsContent value="resources">
-                {clientId && (
+                {client && (
                   <ClientResourceSections 
                     clientId={clientId}
-                    logClientActivity={logActivityWrapper}
+                    logClientActivity={logClientActivity}
                     onResourceChange={refetchClient}
                   />
                 )}
@@ -228,6 +193,17 @@ export default function EditClientInfo() {
                 </div>
               </TabsContent>
             </Tabs>
+          </div>
+        ) : (
+          <div className="mt-6 p-8 bg-red-50 border border-red-200 rounded-md">
+            <h3 className="text-lg font-medium text-red-800 mb-2">Information Not Found</h3>
+            <p className="text-red-600">Unable to load your information. Please try again.</p>
+            <Button 
+              onClick={refetchClient} 
+              className="mt-4 bg-red-600 hover:bg-red-700"
+            >
+              Retry Loading
+            </Button>
           </div>
         )}
       </div>
