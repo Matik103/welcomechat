@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useClientData } from "@/hooks/useClientData";
-import { Settings, User, LogOut } from "lucide-react";
+import { Settings } from "lucide-react";
 
 export const ClientHeader = () => {
   const { user, signOut } = useAuth();
@@ -29,7 +29,6 @@ export const ClientHeader = () => {
   if (!user) return null;
   
   const clientName = client?.client_name || user.user_metadata?.full_name || user.email;
-  const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -47,27 +46,14 @@ export const ClientHeader = () => {
           <div className="flex items-center gap-4">
             <Link 
               to="/client/dashboard" 
-              className="text-sm font-medium text-gray-900 hover:text-gray-700 transition-colors"
+              className="text-xl font-semibold text-gray-900 hover:text-gray-700 transition-colors"
             >
               Dashboard
             </Link>
-            <Link 
-              to="/client/resource-settings" 
-              className="text-sm font-medium text-gray-900 hover:text-gray-700 transition-colors"
-            >
-              Resources
-            </Link>
-            <Link 
-              to="/client/widget-settings" 
-              className="text-sm font-medium text-gray-900 hover:text-gray-700 transition-colors"
-            >
-              Widget
-            </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="font-medium flex items-center gap-1">
-                  <User className="h-4 w-4" />
-                  {displayName}
+                <Button variant="ghost" className="font-semibold">
+                  {clientName}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -75,15 +61,14 @@ export const ClientHeader = () => {
                   {clientName}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <Link to="/client/account-settings">
+                <Link to="/client/edit-profile">
                   <DropdownMenuItem className="cursor-pointer">
                     <Settings className="h-4 w-4 mr-2" />
-                    Account Settings
+                    Profile Settings
                   </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
-                  <LogOut className="h-4 w-4 mr-2" />
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>

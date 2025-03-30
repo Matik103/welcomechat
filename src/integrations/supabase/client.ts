@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 // Supabase configuration - using direct values instead of relying on environment variables
 export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is";
+const SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
 
 // Create a singleton instance to avoid multiple instances
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
@@ -32,6 +33,21 @@ export const supabase = (() => {
     );
   }
   return supabaseInstance;
+})();
+
+// Create a service role admin client for privileged operations
+export const supabaseAdmin = (() => {
+  console.log("Initializing Supabase admin client...");
+  return createClient<Database>(
+    SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    }
+  );
 })();
 
 // Export a function to force refresh the session if needed
