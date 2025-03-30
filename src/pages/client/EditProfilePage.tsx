@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -14,13 +15,36 @@ import ErrorDisplay from '@/components/ErrorDisplay';
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { checkAndRefreshAuth } from '@/services/authService';
 
 export default function EditProfilePage() {
   const { user } = useAuth();
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('profile');
+  const [authChecked, setAuthChecked] = useState(false);
   
+  useEffect(() => {
+    // Check auth status on component mount
+    const verifyAuth = async () => {
+      const isValid = await checkAndRefreshAuth();
+      setAuthChecked(true);
+      if (!isValid) {
+        toast.error("Your session has expired. Please log in again.");
+        navigation.goToAuth();
+      }
+    };
+    
+    verifyAuth();
+  }, [navigation]);
+  
+  // Use the client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
+  
+  useEffect(() => {
+    console.log("User metadata in EditProfilePage:", user?.user_metadata);
+    console.log("Client ID from metadata:", clientId);
+  }, [user, clientId]);
+  
   const { logClientActivity } = useClientActivity(clientId);
 
   const { 
@@ -80,6 +104,17 @@ export default function EditProfilePage() {
         agent_name: client.agent_name
       });
   };
+
+  if (!authChecked) {
+    return (
+      <ClientLayout>
+        <div className="mt-6 p-8 text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Verifying your authentication...</p>
+        </div>
+      </ClientLayout>
+    );
+  }
 
   if (!clientId) {
     return (
