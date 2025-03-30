@@ -4,11 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { DocumentLink, DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
 
-export interface DocumentLinkFormData {
-  link: string;
-  document_type: DocumentType;
-  refresh_rate?: number;
-}
+// Use the DocumentLinkFormData from types/document-processing instead of redefining it
+import { DocumentLinkFormData } from '@/types/document-processing';
 
 export function useDocumentLinks(clientId: string) {
   const queryClient = useQueryClient();
@@ -79,13 +76,16 @@ export function useDocumentLinks(clientId: string) {
           throw new Error("Client record not found");
         }
       
+        // Cast document_type to ensure type safety
+        const documentType = data.document_type as DocumentType;
+        
         // Insert the document link with the correct client ID
         const { data: newLink, error } = await supabase
           .from('document_links')
           .insert({
             client_id: clientRecord.id,
             link: data.link,
-            document_type: data.document_type,
+            document_type: documentType,
             refresh_rate: data.refresh_rate || 7,
             access_status: 'pending'
           })

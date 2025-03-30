@@ -30,10 +30,10 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
 
   const handleAddDocumentLink = async (data: DocumentLinkFormData) => {
     try {
-      // Ensure document_type is provided
+      // Ensure document_type is properly typed as DocumentType
       const completeData = {
         ...data,
-        document_type: data.document_type as DocumentType || 'document' as DocumentType
+        document_type: (data.document_type || 'document') as DocumentType
       };
       
       await addDocumentLinkMutation.mutateAsync(completeData);
