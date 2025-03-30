@@ -97,18 +97,18 @@ export const useClient = (clientId: string, options = {}) => {
         status: data.status as 'active' | 'inactive' | 'deleted' || 'active',
         created_at: data.created_at || '',
         updated_at: data.updated_at || '',
-        agent_name: data.name || '',
+        agent_name: data.name || '', // Using name as fallback
         agent_description: data.agent_description || data.description || '',
         logo_url: data.logo_url || '',
         widget_settings: widgetSettings,
-        user_id: data.id || '', // Using id as fallback for user_id
+        user_id: data.id || '', // Using id as user_id
         company: data.company || '',
         description: data.description || data.agent_description || '',
         logo_storage_path: data.logo_storage_path || '',
         deletion_scheduled_at: data.deletion_scheduled_at || null,
         deleted_at: data.deleted_at || null,
         last_active: data.last_active || null,
-        name: data.name || '',
+        name: data.name || '', 
         is_error: data.is_error || false,
         website_urls: (data.website_urls || []).map(url => ({
           ...url,
