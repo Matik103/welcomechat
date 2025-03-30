@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientForm } from '@/components/client/ClientForm';
@@ -14,6 +14,8 @@ import { ClientLayout } from '@/components/layout/ClientLayout';
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 export default function EditProfilePage() {
   const { user } = useAuth();
@@ -31,6 +33,13 @@ export default function EditProfilePage() {
     clientMutation,
     refetchClient
   } = useClientData(clientId);
+
+  // Add an effect to show a toast if no clientId is found
+  useEffect(() => {
+    if (user && !clientId && !isLoadingClient) {
+      toast.error("No client ID found in your user profile. Please contact support.");
+    }
+  }, [user, clientId, isLoadingClient]);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
@@ -81,6 +90,44 @@ export default function EditProfilePage() {
         agent_name: client.agent_name
       });
   };
+
+  // No ClientId scenario
+  if (!clientId && !isLoadingClient) {
+    return (
+      <ClientLayout>
+        <div className="container mx-auto py-8">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="mb-4 flex items-center gap-1"
+            onClick={handleNavigateBack}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          
+          <PageHeading>
+            Profile Settings
+            <p className="text-sm font-normal text-muted-foreground">
+              Manage your profile information and resources
+            </p>
+          </PageHeading>
+          
+          <Alert variant="destructive" className="mt-8">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Access Error</AlertTitle>
+            <AlertDescription>
+              Your user profile does not have a client ID associated with it. Please contact support for assistance.
+            </AlertDescription>
+          </Alert>
+          
+          <div className="mt-4">
+            <Button onClick={handleNavigateBack}>Return to Dashboard</Button>
+          </div>
+        </div>
+      </ClientLayout>
+    );
+  }
 
   // Loading state
   if (isLoadingClient) {
@@ -151,6 +198,7 @@ export default function EditProfilePage() {
     );
   }
 
+  // Main content - only shown when we have client data
   return (
     <ClientLayout>
       <div className="container mx-auto py-8">
