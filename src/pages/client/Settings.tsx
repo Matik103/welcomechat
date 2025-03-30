@@ -3,7 +3,7 @@ import React from 'react';
 import { ClientLayout } from '@/components/layout/ClientLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { User, FileText, Bot, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientData } from '@/hooks/useClientData';
@@ -13,6 +13,7 @@ export default function ClientSettings() {
   const { user } = useAuth();
   const clientId = user?.user_metadata?.client_id;
   const { client, isLoadingClient, error } = useClientData(clientId);
+  const navigate = useNavigate();
 
   if (error) {
     return (
@@ -28,6 +29,10 @@ export default function ClientSettings() {
       </ClientLayout>
     );
   }
+
+  const handleProfileClick = () => {
+    navigate('/client/edit-info');
+  };
 
   return (
     <ClientLayout>
@@ -50,10 +55,8 @@ export default function ClientSettings() {
               <p className="text-sm text-gray-500 mb-4">
                 Manage your profile, company information, AI assistant details, and customize your logo.
               </p>
-              <Button asChild>
-                <Link to="/client/edit-info" className="w-full">
-                  Manage Profile
-                </Link>
+              <Button onClick={handleProfileClick} className="w-full">
+                Manage Profile
               </Button>
             </CardContent>
           </Card>

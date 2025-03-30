@@ -2,9 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
-import { ClientForm } from '@/components/client/ClientForm';
-import { toast } from 'sonner';
-import { ClientFormData } from '@/types/client-form';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useClientData } from '@/hooks/useClientData';
@@ -13,12 +10,13 @@ import { ClientResourceSections } from '@/components/client/ClientResourceSectio
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { ClientLayout } from '@/components/layout/ClientLayout';
-import { Card, CardContent } from '@/components/ui/card';
+import { ClientProfileSection } from '@/components/client/settings/ClientProfileSection';
+import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 
 export default function EditClientInfo() {
   const { user, userRole } = useAuth();
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = React.useState('profile');
+  const [activeTab, setActiveTab] = useState('profile');
   
   // Get client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
@@ -40,41 +38,6 @@ export default function EditClientInfo() {
     console.log("Admin client configured:", adminClientConfigured);
     console.log("Current client state:", { client, isLoadingClient, error });
   }, [user, userRole, clientId, client, isLoadingClient, error, adminClientConfigured]);
-
-  const handleSubmit = async (data: ClientFormData) => {
-    try {
-      if (!clientId) {
-        toast.error("Client ID not found in your user profile");
-        return;
-      }
-      
-      if (!client) {
-        toast.error("Unable to load your client information");
-        return;
-      }
-      
-      console.log("Submitting update for client:", clientId);
-      
-      await clientMutation.mutateAsync({
-        client_id: clientId,
-        client_name: data.client_name,
-        email: data.email,
-        agent_name: data.agent_name,
-        agent_description: data.agent_description,
-        logo_url: data.logo_url,
-        logo_storage_path: data.logo_storage_path
-      });
-      
-      toast.success("Your information has been updated successfully");
-      refetchClient();
-    } catch (error) {
-      console.error("Error updating client information:", error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : String(error);
-      toast.error(`Failed to update your information: ${errorMessage}`);
-    }
-  };
 
   const handleNavigateBack = () => {
     navigation.goToClientDashboard();
@@ -180,17 +143,23 @@ export default function EditClientInfo() {
               </TabsList>
               
               <TabsContent value="profile" className="space-y-6">
-                <Card>
-                  <CardContent className="pt-6">
-                    <ClientForm 
-                      initialData={client}
-                      onSubmit={handleSubmit}
-                      isLoading={isLoadingClient || clientMutation.isPending}
-                      error={error ? (error instanceof Error ? error.message : String(error)) : null}
-                      submitButtonText="Update Information"
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <ClientProfileSection 
+                      client={client}
+                      clientMutation={clientMutation}
+                      refetchClient={refetchClient}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="lg:col-span-1">
+                    <ClientDetailsCard 
+                      client={client} 
+                      isLoading={isLoadingClient} 
+                      isClientView={true}
+                      logClientActivity={logClientActivity}
+                    />
+                  </div>
+                </div>
                 
                 <div className="flex justify-end mt-4">
                   <Button 
