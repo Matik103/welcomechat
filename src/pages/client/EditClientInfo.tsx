@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -41,7 +40,7 @@ export default function EditClientInfo() {
       console.log("Submitting with client ID:", client.id);
       
       await clientMutation.mutateAsync({
-        client_id: client.id, // Use client.id instead of clientId
+        client_id: client.id,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
@@ -78,7 +77,6 @@ export default function EditClientInfo() {
     );
   }
 
-  // Type-safe logClientActivity with client name
   const logActivityWrapper = async (): Promise<void> => {
     const clientName = client?.client_name || client?.agent_name || "Unknown";
     await logClientActivity("client_updated", 

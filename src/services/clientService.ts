@@ -60,7 +60,7 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
   try {
     console.log(`Attempting to update client with ID: ${clientId}`);
     
-    // First, check if the client exists in the ai_agents table (preferred source)
+    // Check if the client exists in the ai_agents table
     const { data: aiAgent, error: aiAgentError } = await supabase
       .from('ai_agents')
       .select('*')
@@ -68,7 +68,6 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
       .eq('interaction_type', 'config')
       .single();
 
-    // If not found in ai_agents as direct ID, try looking for it as client_id
     if (aiAgentError) {
       console.log(`Client not found in ai_agents by id, trying client_id field`);
       const { data: aiAgent2, error: aiAgentError2 } = await supabase
@@ -79,43 +78,7 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
         .single();
         
       if (aiAgentError2) {
-        // As last resort, try searching in clients table
-        console.log(`Client not found in ai_agents by client_id, trying clients table`);
-        const { data: clientRecord, error: clientError } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('id', clientId)
-          .single();
-          
-        if (clientError) {
-          throw new Error(`Failed to fetch client: ${clientError.message}`);
-        }
-        
-        if (!clientRecord) {
-          throw new Error(`Client with ID ${clientId} not found`);
-        }
-        
-        // Update the client record in clients table
-        const { data: updatedClient, error: updateError } = await supabase
-          .from('clients')
-          .update({
-            client_name: data.client_name,
-            email: data.email,
-            agent_name: data.agent_name,
-            agent_description: data.agent_description,
-            logo_url: data.logo_url,
-            logo_storage_path: data.logo_storage_path,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', clientId)
-          .select()
-          .single();
-
-        if (updateError) {
-          throw new Error(`Failed to update client: ${updateError.message}`);
-        }
-        
-        return updatedClient;
+        throw new Error(`Failed to fetch client: ${aiAgentError2.message}`);
       }
       
       // Use the agent found by client_id

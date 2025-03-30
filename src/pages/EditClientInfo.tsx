@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
@@ -42,13 +41,13 @@ export function EditClientInfo() {
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
-      if (!clientId) {
+      if (!client || !client.id) {
         toast.error("Client ID is required to update client");
         return;
       }
       
       await clientMutation.mutateAsync({
-        client_id: clientId,
+        client_id: client.id,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
@@ -73,11 +72,8 @@ export function EditClientInfo() {
     setServiceKeyError(!isAdminClientConfigured());
   };
 
-  // Function to log client activity
   const logClientActivity = async () => {
     try {
-      // In a real implementation, we would log client activity
-      // This is a placeholder for now
       console.log("Logging client activity for client:", clientId);
       return Promise.resolve();
     } catch (error) {

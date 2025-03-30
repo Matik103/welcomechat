@@ -39,7 +39,7 @@ export const useClientMutation = () => {
       }
     },
     onSuccess: (data, variables) => {
-      // Invalidate both possible query key patterns to ensure UI updates
+      // Invalidate queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ['client', variables.client_id] });
       toast.success('Client updated successfully');
     },
