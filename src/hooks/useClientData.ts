@@ -5,6 +5,7 @@ import { ClientFormData } from "@/types/client-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
+import { isAdminClientConfigured } from "@/integrations/supabase/admin";
 
 export const useClientData = (id: string | undefined) => {
   const { user, userRole } = useAuth();
@@ -15,6 +16,9 @@ export const useClientData = (id: string | undefined) => {
     clientId = user.user_metadata.client_id;
     console.log("Using client_id from user metadata:", clientId);
   }
+  
+  // Check if service role key is configured
+  const isServiceKeyConfigured = isAdminClientConfigured();
   
   // Get client data with staleTime to prevent excessive refetching
   const { 
@@ -38,12 +42,16 @@ export const useClientData = (id: string | undefined) => {
       console.log("User metadata:", user?.user_metadata);
       console.log(`Attempted to fetch client with ID: ${clientId}`);
       
-      // Show error toast for client users
+      // Show appropriate error toast for client users
       if (userRole === 'client') {
-        toast.error("Unable to load your client information. Please try refreshing the page.");
+        if (!isServiceKeyConfigured) {
+          toast.error("Server configuration error: VITE_SUPABASE_SERVICE_ROLE_KEY is missing or invalid. Please check your environment variables.");
+        } else {
+          toast.error("Unable to load your client information. Please try refreshing the page.");
+        }
       }
     }
-  }, [error, clientId, user?.user_metadata, userRole]);
+  }, [error, clientId, user?.user_metadata, userRole, isServiceKeyConfigured]);
   
   // Log client data for debugging
   useEffect(() => {
@@ -77,6 +85,7 @@ export const useClientData = (id: string | undefined) => {
     error,
     clientMutation,
     clientId: effectiveClientId,
-    refetchClient
+    refetchClient,
+    isServiceKeyConfigured
   };
 };
