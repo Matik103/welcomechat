@@ -2,7 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// Hardcoded Supabase configuration (no reliance on environment variables)
+// Supabase configuration - using direct values instead of relying on environment variables
+// These values should match the ones in client-admin.ts
 export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
 const SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
 
@@ -19,14 +20,14 @@ export const supabaseAdmin = createClient<Database>(
   }
 );
 
-// Export additional utility functions
+// Export additional utility functions related to admin operations
 export const isAdminClientConfigured = (): boolean => {
-  return Boolean(SUPABASE_SERVICE_KEY) && Boolean(SUPABASE_URL);
+  return !!SUPABASE_SERVICE_KEY && !!SUPABASE_URL;
 };
 
 // Initialize a bucket if it doesn't exist
 export const initializeBucket = async (bucketName: string, options: {
-  public: boolean,
+  public: boolean, // Changed from optional to required
   allowedMimeTypes?: string[],
   fileSizeLimit?: string | number
 }): Promise<boolean> => {
@@ -62,10 +63,10 @@ export const initializeBucket = async (bucketName: string, options: {
   }
 };
 
-// Initialize bot logos bucket
+// For backward compatibility, export the bot logos bucket initialization function
 export const initializeBotLogosBucket = (): Promise<boolean> => {
   return initializeBucket('bot-logos', {
-    public: true,
+    public: true, // This is now properly required
     allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
   });
 };

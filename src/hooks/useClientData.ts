@@ -1,29 +1,25 @@
 
 import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
+import { ClientFormData } from "@/types/client-form";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import { isAdminClientConfigured } from "@/integrations/supabase/admin";
 
 export const useClientData = (id: string | undefined) => {
   const { user, userRole } = useAuth();
-  const [initialCheckDone, setInitialCheckDone] = useState(false);
   
-  // For client users, always use their metadata client_id
+  // Determine the appropriate clientId to use
+  // Try the explicitly provided ID first, then fall back to user metadata
   let clientId = id;
-  if (userRole === 'client' && user?.user_metadata?.client_id) {
+  if (!clientId && userRole === 'client' && user?.user_metadata?.client_id) {
     clientId = user.user_metadata.client_id;
-    console.log("Using client_id from user metadata:", clientId);
-  } else if (userRole === 'client' && !user?.user_metadata?.client_id) {
-    // Log warning if client user doesn't have client_id in metadata
-    console.warn("Client user doesn't have client_id in metadata:", user?.user_metadata);
   }
   
-  // Get client data with no stale time to prevent excessive caching
+  // Get client data with staleTime to prevent excessive refetching
   const { 
-    data: client, 
-    isLoading: isLoadingClient, 
+    client, 
+    isLoading, 
     error,
     refetch
   } = useClient(clientId || '', {
@@ -34,41 +30,25 @@ export const useClientData = (id: string | undefined) => {
     refetchOnWindowFocus: true, // This will refetch when the window regains focus
   });
   
-  // Check if admin client is properly configured
-  const adminClientConfigured = isAdminClientConfigured();
-  
   // Log errors for debugging purposes
   useEffect(() => {
     if (error) {
       console.error("Error in useClientData hook:", error);
-      console.log("Current user role:", userRole);
-      console.log("User metadata:", user?.user_metadata);
       console.log(`Attempted to fetch client with ID: ${clientId}`);
-      console.log("Admin client configured:", adminClientConfigured);
-      
-      // Show error toast for client users only once
-      if (userRole === 'client' && !initialCheckDone) {
-        toast.error("Unable to load your client information. Please try refreshing the page.");
-        setInitialCheckDone(true);
+      if (user?.user_metadata?.client_id) {
+        console.log(`User metadata contains client_id: ${user.user_metadata.client_id}`);
       }
     }
-  }, [error, clientId, user?.user_metadata, userRole, adminClientConfigured, initialCheckDone]);
+  }, [error, clientId, user?.user_metadata?.client_id]);
   
-  // Log client data and admin configuration for debugging
+  // Log client data for debugging
   useEffect(() => {
     if (client) {
       console.log("Client data loaded:", client);
-      setInitialCheckDone(true);
-    } else if (!isLoadingClient && !error && clientId && !initialCheckDone) {
+    } else if (!isLoading) {
       console.log("No client data found with ID:", clientId);
-      console.log("Admin client configured:", adminClientConfigured);
-      
-      if (userRole === 'client') {
-        toast.error("Unable to find your client information. Please contact support.");
-        setInitialCheckDone(true);
-      }
     }
-  }, [client, isLoadingClient, clientId, error, userRole, adminClientConfigured, initialCheckDone]);
+  }, [client, isLoading, clientId]);
   
   const clientMutation = useClientMutation();
 
@@ -76,7 +56,6 @@ export const useClientData = (id: string | undefined) => {
   const refetchClient = useCallback(() => {
     if (clientId) {
       console.log("Refetching client data for:", clientId);
-      setInitialCheckDone(false); // Reset the initial check to allow for new toasts
       return refetch();
     }
     return Promise.resolve();
@@ -87,11 +66,10 @@ export const useClientData = (id: string | undefined) => {
 
   return {
     client,
-    isLoadingClient,
+    isLoadingClient: isLoading,
     error,
     clientMutation,
-    clientId: effectiveClientId,
-    refetchClient,
-    adminClientConfigured
+    clientId: effectiveClientId, // Return the effective client ID
+    refetchClient
   };
 };

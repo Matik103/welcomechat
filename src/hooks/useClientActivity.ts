@@ -1,13 +1,13 @@
 
 import { useMutation } from '@tanstack/react-query';
-import { ActivityType, ActivityTypeString } from '@/types/activity';
+import { ActivityType } from '@/types/client-form';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { getSafeActivityType } from '@/utils/activityTypeUtils';
 
 export const useClientActivity = (clientId: string | undefined) => {
   const logActivity = useMutation({
     mutationFn: async (params: {
-      activity_type: ActivityType | ActivityTypeString; 
+      activity_type: ActivityType; 
       description: string;
       metadata?: Record<string, any>;
     }) => {
@@ -16,18 +16,11 @@ export const useClientActivity = (clientId: string | undefined) => {
         return null;
       }
       
-      // Get safe activity type string for database
-      const safeActivityType = getSafeActivityType(
-        typeof params.activity_type === 'string' 
-          ? params.activity_type 
-          : String(params.activity_type)
-      );
-      
       const { data, error } = await supabase
         .from('client_activities')
         .insert({
           client_id: clientId,
-          activity_type: safeActivityType,
+          activity_type: params.activity_type,
           description: params.description,
           activity_data: params.metadata || {}
         })
@@ -44,7 +37,7 @@ export const useClientActivity = (clientId: string | undefined) => {
   });
 
   const logClientActivity = async (
-    activity_type: ActivityType | ActivityTypeString,
+    activity_type: ActivityType,
     description: string,
     metadata?: Record<string, any>
   ): Promise<void> => {

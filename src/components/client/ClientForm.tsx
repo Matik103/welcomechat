@@ -24,13 +24,12 @@ const clientFormSchema = z.object({
   agent_description: z.string().optional(),
 });
 
-export interface ClientFormProps {
+interface ClientFormProps {
   initialData?: Client | null;
   onSubmit: (data: ClientFormData) => Promise<void>;
   isLoading?: boolean;
   error?: string | null;
   submitButtonText?: string;
-  isClientView?: boolean;
 }
 
 export function ClientForm({
@@ -38,8 +37,7 @@ export function ClientForm({
   onSubmit,
   isLoading = false,
   error,
-  submitButtonText = 'Save Changes',
-  isClientView = false
+  submitButtonText = 'Save Changes'
 }: ClientFormProps) {
   const [logoUrl, setLogoUrl] = useState<string>(initialData?.logo_url || '');
   const [logoStoragePath, setLogoStoragePath] = useState<string>(initialData?.logo_storage_path || '');
