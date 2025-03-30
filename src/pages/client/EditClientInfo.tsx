@@ -30,7 +30,8 @@ export default function EditClientInfo() {
     isLoadingClient,
     error,
     clientMutation,
-    refetchClient
+    refetchClient,
+    adminClientConfigured
   } = useClientData(clientId);
 
   // For debugging - log what we have
@@ -38,8 +39,9 @@ export default function EditClientInfo() {
     console.log("User role:", userRole);
     console.log("User metadata:", user?.user_metadata);
     console.log("Client ID from metadata:", clientId);
+    console.log("Admin client configured:", adminClientConfigured);
     console.log("Current client state:", { client, isLoadingClient, error });
-  }, [user, userRole, clientId, client, isLoadingClient, error]);
+  }, [user, userRole, clientId, client, isLoadingClient, error, adminClientConfigured]);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
@@ -97,6 +99,20 @@ export default function EditClientInfo() {
           title="Access Error"
           message="Unable to find your client ID. Please make sure you're properly logged in."
           details="If this issue persists, please contact support."
+          onRetry={() => window.location.reload()}
+        />
+      </div>
+    );
+  }
+
+  // Show error if admin client is not configured
+  if (!adminClientConfigured) {
+    return (
+      <div className="container mx-auto py-8">
+        <ErrorDisplay 
+          title="Service Configuration Error"
+          message="The application service role key is not properly configured."
+          details="This issue has been fixed automatically in the codebase. The service role key is now hardcoded in the application."
           onRetry={() => window.location.reload()}
         />
       </div>

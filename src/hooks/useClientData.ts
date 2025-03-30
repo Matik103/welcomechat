@@ -1,9 +1,10 @@
+
 import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
-import { ClientFormData } from "@/types/client-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
+import { isAdminClientConfigured } from "@/integrations/supabase/admin";
 
 export const useClientData = (id: string | undefined) => {
   const { user, userRole } = useAuth();
@@ -29,6 +30,9 @@ export const useClientData = (id: string | undefined) => {
     refetchOnWindowFocus: true, // This will refetch when the window regains focus
   });
   
+  // Check if admin client is properly configured
+  const adminClientConfigured = isAdminClientConfigured();
+  
   // Log errors for debugging purposes
   useEffect(() => {
     if (error) {
@@ -36,25 +40,28 @@ export const useClientData = (id: string | undefined) => {
       console.log("Current user role:", userRole);
       console.log("User metadata:", user?.user_metadata);
       console.log(`Attempted to fetch client with ID: ${clientId}`);
+      console.log("Admin client configured:", adminClientConfigured);
       
       // Show error toast for client users
       if (userRole === 'client') {
         toast.error("Unable to load your client information. Please try refreshing the page.");
       }
     }
-  }, [error, clientId, user?.user_metadata, userRole]);
+  }, [error, clientId, user?.user_metadata, userRole, adminClientConfigured]);
   
-  // Log client data for debugging
+  // Log client data and admin configuration for debugging
   useEffect(() => {
     if (client) {
       console.log("Client data loaded:", client);
-    } else if (!isLoading && !error) {
+    } else if (!isLoading && !error && clientId) {
       console.log("No client data found with ID:", clientId);
+      console.log("Admin client configured:", adminClientConfigured);
+      
       if (userRole === 'client') {
         toast.error("Unable to find your client information. Please contact support.");
       }
     }
-  }, [client, isLoading, clientId, error, userRole]);
+  }, [client, isLoading, clientId, error, userRole, adminClientConfigured]);
   
   const clientMutation = useClientMutation();
 
@@ -76,6 +83,7 @@ export const useClientData = (id: string | undefined) => {
     error,
     clientMutation,
     clientId: effectiveClientId,
-    refetchClient
+    refetchClient,
+    adminClientConfigured
   };
 };

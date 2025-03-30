@@ -15,7 +15,7 @@ export const useClient = (clientId: string, options = {}) => {
     try {
       console.log(`Fetching client with ID: ${clientId}`);
       
-      // First try fetching by client_id field since that's what we use for client users
+      // First try fetching by client_id field 
       let { data, error } = await supabase
         .from('ai_agents')
         .select(`
@@ -85,7 +85,7 @@ export const useClient = (clientId: string, options = {}) => {
 
       console.log('Raw client data from ai_agents:', data);
 
-      // Ensure widget_settings is an object, not a string
+      // Ensure widget_settings is an object
       const widgetSettings = safeParseSettings(data.settings);
 
       // Map the ai_agents fields to the Client type
@@ -97,11 +97,11 @@ export const useClient = (clientId: string, options = {}) => {
         status: data.status as 'active' | 'inactive' | 'deleted' || 'active',
         created_at: data.created_at || '',
         updated_at: data.updated_at || '',
-        agent_name: data.name || '', // Using name as fallback
+        agent_name: data.name || '', 
         agent_description: data.agent_description || data.description || '',
         logo_url: data.logo_url || '',
         widget_settings: widgetSettings,
-        user_id: data.id || '', // Using id as user_id
+        user_id: data.id || '', 
         company: data.company || '',
         description: data.description || data.agent_description || '',
         logo_storage_path: data.logo_storage_path || '',
@@ -112,12 +112,12 @@ export const useClient = (clientId: string, options = {}) => {
         is_error: data.is_error || false,
         website_urls: (data.website_urls || []).map(url => ({
           ...url,
-          client_id: clientId // Add the required client_id property
+          client_id: clientId
         })) as WebsiteUrl[],
         document_links: (data.document_links || []).map(link => ({
           ...link,
-          client_id: clientId, // Add the required client_id property
-          updated_at: link.created_at // Use created_at as fallback for updated_at
+          client_id: clientId,
+          updated_at: link.created_at
         })) as DocumentLink[]
       };
 
