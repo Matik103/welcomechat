@@ -7,6 +7,7 @@ import ClientSettings from "@/pages/client/Settings";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
+import EditProfilePage from "@/pages/client/EditProfilePage";
 import WidgetSettings from "@/pages/WidgetSettings";
 import NotFound from "@/pages/NotFound";
 import { Toaster } from "sonner";
@@ -24,6 +25,7 @@ export const ClientRoutes = () => {
           <Route path="/client/account-settings" element={<AccountSettings />} />
           <Route path="/client/resource-settings" element={<ResourceSettings />} />
           <Route path="/client/edit-info" element={<EditClientInfo />} />
+          <Route path="/client/edit-profile" element={<EditProfilePage />} />
           <Route path="/client/widget-settings" element={<WidgetSettings />} />
           <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
           <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
