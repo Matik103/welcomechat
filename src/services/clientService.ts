@@ -59,6 +59,10 @@ export const getActiveClientsCount = async (): Promise<{ total: number, active: 
  */
 export const updateClient = async (clientId: string, data: Partial<ClientFormData>) => {
   try {
+    if (!clientId) {
+      throw new Error('Client ID is required for update operation');
+    }
+    
     console.log(`Attempting to update client with ID: ${clientId}`);
     
     // Check if the client exists in the ai_agents table
@@ -79,6 +83,7 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
         .single();
         
       if (aiAgentError2) {
+        console.error(`Failed to fetch client by ID ${clientId} or client_id:`, aiAgentError2);
         throw new Error(`Failed to fetch client: ${aiAgentError2.message}`);
       }
       
@@ -102,6 +107,7 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
         .single();
         
       if (updateError) {
+        console.error(`Failed to update ai_agent ${aiAgent2.id}:`, updateError);
         throw new Error(`Failed to update ai_agent: ${updateError.message}`);
       }
       
@@ -129,6 +135,7 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
       .single();
       
     if (updateError) {
+      console.error(`Failed to update ai_agent ${aiAgent.id}:`, updateError);
       throw new Error(`Failed to update ai_agent: ${updateError.message}`);
     }
     
