@@ -1,3 +1,4 @@
+
 import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
 import { ClientFormData } from "@/types/client-form";
@@ -48,7 +49,7 @@ export const useClientData = (id: string | undefined) => {
   useEffect(() => {
     if (client) {
       console.log("Client data loaded:", client);
-    } else if (!isLoading && !error) {
+    } else if (!isLoading && !error && clientId) {
       console.log("No client data found with ID:", clientId);
       if (userRole === 'client') {
         toast.error("Unable to find your client information. Please contact support.");

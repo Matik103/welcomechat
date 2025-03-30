@@ -4,7 +4,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import ClientDashboard from "@/pages/client/Dashboard";
 import ClientSettings from "@/pages/client/Settings";
-import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
 import WidgetSettings from "@/pages/WidgetSettings";
@@ -21,7 +20,6 @@ export const ClientRoutes = () => {
           <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
           <Route path="/client/dashboard" element={<ClientDashboard />} />
           <Route path="/client/settings" element={<ClientSettings />} />
-          <Route path="/client/account-settings" element={<AccountSettings />} />
           <Route path="/client/resource-settings" element={<ResourceSettings />} />
           <Route path="/client/edit-info" element={<EditClientInfo />} />
           <Route path="/client/widget-settings" element={<WidgetSettings />} />

@@ -97,7 +97,7 @@ export const useClient = (clientId: string, options = {}) => {
         status: data.status as 'active' | 'inactive' | 'deleted' || 'active',
         created_at: data.created_at || '',
         updated_at: data.updated_at || '',
-        agent_name: data.name || '', // Using name as fallback
+        agent_name: data.name || '', // Using name as agent_name
         agent_description: data.agent_description || data.description || '',
         logo_url: data.logo_url || '',
         widget_settings: widgetSettings,
@@ -108,7 +108,7 @@ export const useClient = (clientId: string, options = {}) => {
         deletion_scheduled_at: data.deletion_scheduled_at || null,
         deleted_at: data.deleted_at || null,
         last_active: data.last_active || null,
-        name: data.name || '', 
+        name: data.name || '', // Including name field for compatibility
         is_error: data.is_error || false,
         website_urls: (data.website_urls || []).map(url => ({
           ...url,
