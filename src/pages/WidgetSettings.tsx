@@ -1,5 +1,7 @@
 
 import { useState, useEffect } from "react";
+import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
+import { useParams } from "react-router-dom";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
@@ -9,20 +11,18 @@ import { handleLogoUpload } from "@/services/uploadService";
 import { defaultSettings } from "@/types/widget-settings";
 import type { WidgetSettings as WidgetSettingsType } from "@/types/widget-settings";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useClientData } from "@/hooks/useClientData";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
-import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 
 export default function WidgetSettings() {
+  const { clientId } = useParams<{ clientId: string }>();
   const { user, userRole } = useAuth();
   const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
   const [isUploading, setIsUploading] = useState(false);
-  
-  // Use client ID from user metadata when in client view
-  const clientId = isAdmin ? undefined : user?.user_metadata?.client_id;
-  
   const { logClientActivity } = useClientActivity(clientId);
   const widgetSettingsHook = useWidgetSettings(clientId || "");
   
@@ -70,7 +70,11 @@ export default function WidgetSettings() {
     },
     onSuccess: () => {
       refetch();
-      toast.success("Your AI assistant settings have been updated");
+      if (isAdmin) {
+        toast.success("Widget settings updated successfully");
+      } else {
+        toast.success("Your AI assistant settings have been updated");
+      }
     },
     onError: (error) => {
       toast.error(`Failed to update settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -78,7 +82,7 @@ export default function WidgetSettings() {
   });
 
   const handleNavigateBack = () => {
-    navigation.goToClientDashboard();
+    navigation.goBack();
   };
 
   const handleLogoUploadChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,17 +140,29 @@ export default function WidgetSettings() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <WidgetSettingsContainer
-        clientId={clientId}
-        settings={settings || defaultSettings}
-        isClientView={true}
-        isUploading={isUploading}
-        updateSettingsMutation={updateSettingsWrapper}
-        handleBack={handleNavigateBack}
-        handleLogoUpload={handleLogoUploadChange}
-        logClientActivity={logActivityWrapper}
-      />
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="mb-4 flex items-center gap-1"
+          onClick={handleNavigateBack}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Clients
+        </Button>
+        
+        <WidgetSettingsContainer
+          clientId={clientId}
+          settings={settings || defaultSettings}
+          isClientView={!isAdmin}
+          isUploading={isUploading}
+          updateSettingsMutation={updateSettingsWrapper}
+          handleBack={handleNavigateBack}
+          handleLogoUpload={handleLogoUploadChange}
+          logClientActivity={logActivityWrapper}
+        />
+      </div>
     </div>
   );
 }

@@ -5,12 +5,11 @@ import WebsiteUrlsListEmpty from './WebsiteUrlsListEmpty';
 import { WebsiteUrlsTable } from './WebsiteUrlsTable';
 import { useWebsiteUrlsFetch } from '@/hooks/website-urls/useWebsiteUrlsFetch';
 import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutation';
-import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 export interface WebsiteUrlsProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => Promise<void>;
+  logClientActivity?: () => Promise<void>;
 }
 
 export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: WebsiteUrlsProps) {
@@ -34,8 +33,10 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
     try {
       await deleteWebsiteUrl(websiteUrlId);
       
-      // Log client activity with proper activity type
-      await logClientActivity(ActivityType.URL_REMOVED, 'Website URL deleted');
+      // Log client activity
+      if (logClientActivity) {
+        await logClientActivity();
+      }
       
       // Trigger refetch after delete
       refetchWebsiteUrls();

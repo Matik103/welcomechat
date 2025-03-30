@@ -6,12 +6,11 @@ import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinks
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { toast } from 'sonner';
 import { DocumentLinkFormData, DocumentType } from '@/types/document-processing';
-import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 interface DocumentResourcesSectionProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => Promise<void>;
+  logClientActivity: () => Promise<void>;
 }
 
 export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> = ({
@@ -39,8 +38,8 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       
       await addDocumentLinkMutation.mutateAsync(completeData);
       
-      // Log the activity with appropriate type
-      await logClientActivity(ActivityType.DOCUMENT_ADDED, 'Document link added successfully');
+      // Log the activity
+      await logClientActivity();
       
       toast.success('Document link added successfully');
       
@@ -64,8 +63,8 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
     try {
       await deleteDocumentLinkMutation.mutateAsync(linkId);
       
-      // Log the activity with appropriate type
-      await logClientActivity(ActivityType.DOCUMENT_REMOVED, 'Document link deleted successfully');
+      // Log the activity
+      await logClientActivity();
       
       toast.success('Document link deleted successfully');
       

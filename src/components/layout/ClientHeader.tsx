@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useClientData } from "@/hooks/useClientData";
-import { Settings, User, LogOut, Bot } from "lucide-react";
 
 export const ClientHeader = () => {
   const { user, signOut } = useAuth();
@@ -61,21 +60,7 @@ export const ClientHeader = () => {
                   {clientName}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/client/edit-info" className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Profile Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/client/widget-settings" className="flex items-center gap-2">
-                    <Bot className="h-4 w-4" />
-                    Widget Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-red-600 flex items-center gap-2">
-                  <LogOut className="h-4 w-4" />
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>

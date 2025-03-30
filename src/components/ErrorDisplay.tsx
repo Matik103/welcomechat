@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { AlertTriangle, XCircle, RefreshCw } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Card } from '@/components/ui/card';
+import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface ErrorDisplayProps {
   title: string;
@@ -11,42 +12,40 @@ interface ErrorDisplayProps {
   onRetry?: () => void;
 }
 
-const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
-  title,
-  message,
-  details,
-  onRetry
-}) => {
+export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ title, message, details, onRetry }) => {
   return (
-    <Card className="border-red-200 bg-red-50 max-w-2xl mx-auto">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-red-700">
-          <XCircle className="h-5 w-5" />
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="text-red-600 font-medium">{message}</div>
-        {details && (
-          <div className="text-red-500 text-sm bg-red-100 p-3 rounded">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="font-semibold">Details</span>
-            </div>
+    <Card className="p-6 max-w-4xl mx-auto my-8">
+      <Alert variant="destructive" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle className="font-medium">{title}</AlertTitle>
+        <AlertDescription>{message}</AlertDescription>
+      </Alert>
+      
+      {details && (
+        <div className="mt-4 text-sm text-muted-foreground bg-muted p-4 rounded-md whitespace-pre-wrap">
+          <h4 className="font-semibold mb-2">Technical Details:</h4>
+          <div className="overflow-auto">
             {details}
           </div>
-        )}
-      </CardContent>
+        </div>
+      )}
+      
+      <div className="mt-4 text-sm text-muted-foreground">
+        <h4 className="font-semibold mb-2">Next Steps:</h4>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Check that <code className="bg-muted p-1 rounded">VITE_SUPABASE_SERVICE_ROLE_KEY</code> is properly set in your .env file</li>
+          <li>Make sure you've copied the Service Role Key (not the anon/public key) from your Supabase project</li>
+          <li>Restart your development server after updating environment variables</li>
+        </ul>
+      </div>
+      
       {onRetry && (
-        <CardFooter>
-          <Button 
-            onClick={onRetry} 
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Retry
-          </Button>
-        </CardFooter>
+        <Button 
+          onClick={onRetry}
+          className="mt-4"
+        >
+          Retry
+        </Button>
       )}
     </Card>
   );

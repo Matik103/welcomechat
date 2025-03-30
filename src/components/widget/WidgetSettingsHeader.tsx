@@ -8,14 +8,9 @@ interface WidgetSettingsHeaderProps {
 
 export function WidgetSettingsHeader({ onBack }: WidgetSettingsHeaderProps) {
   return (
-    <Button 
-      variant="ghost" 
-      size="sm" 
-      className="mb-4 flex items-center gap-1"
-      onClick={onBack}
-    >
-      <ArrowLeft className="h-4 w-4" />
-      Back to Dashboard
-    </Button>
+    <div className="mb-6">
+      <h1 className="text-2xl font-bold">Widget Settings</h1>
+      <p className="text-gray-500">Customize how your chat widget looks and behaves</p>
+    </div>
   );
 }

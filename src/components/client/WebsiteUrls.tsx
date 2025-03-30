@@ -6,7 +6,6 @@ import { WebsiteUrlForm } from './website-urls/WebsiteUrlForm';
 import { WebsiteUrlsList } from './website-urls/WebsiteUrlsList';
 import WebsiteUrlsLoading from './website-urls/WebsiteUrlsLoading';
 import WebsiteUrlsListEmpty from './website-urls/WebsiteUrlsListEmpty';
-import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
@@ -19,9 +18,6 @@ interface WebsiteUrlsProps {
   agentName: string;
   isClientView?: boolean;
   deletingUrlId?: number;
-  clientId?: string;
-  onResourceChange?: () => void;
-  logClientActivity: (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => Promise<void>;
 }
 
 export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
@@ -34,28 +30,19 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
   deletingId,
   agentName,
   isClientView = false,
-  deletingUrlId,
-  clientId,
-  onResourceChange,
-  logClientActivity
+  deletingUrlId
 }) => {
   const handleDelete = async (urlId: number) => {
     if (confirm('Are you sure you want to delete this URL?')) {
       await onDelete(urlId);
-      await logClientActivity(ActivityType.URL_REMOVED, 'Removed website URL');
     }
-  };
-
-  const handleAdd = async (data: WebsiteUrlFormData) => {
-    await onAdd(data);
-    await logClientActivity(ActivityType.URL_ADDED, 'Added website URL', { url: data.url });
   };
 
   return (
     <div className="space-y-6">
       <WebsiteUrlForm 
-        onSubmit={handleAdd} 
-        onAdd={handleAdd}
+        onSubmit={onAdd} 
+        onAdd={onAdd}
         isSubmitting={isAdding}
         isAdding={isAdding}
         agentName={agentName} 

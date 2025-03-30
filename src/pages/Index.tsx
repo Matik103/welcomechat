@@ -1,4 +1,4 @@
-import { ActivityType, ActivityTypeString, ClientActivity } from "@/types/activity";
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { SmallStat } from "@/components/dashboard/SmallStat";
 import { PageHeading } from "@/components/dashboard/PageHeading";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { ClientActivity } from "@/types/activity";
 import { BarChart } from "@/components/dashboard/BarChart";
 import { NewClientModal } from "@/components/client/NewClientModal";
 import { getAllAgents } from "@/services/agentService";
@@ -347,7 +348,7 @@ export default function Index() {
             </CardHeader>
             <CardContent>
               <RecentActivityList
-                activities={activities}
+                activities={activities as ClientActivity[]}
                 isLoading={isActivitiesLoading}
                 highlightedId={highlightedActivity}
                 onActivityClick={handleActivityClick}

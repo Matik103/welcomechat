@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
 import { safeParseSettings } from '@/utils/clientSettingsUtils';
-import { WebsiteUrl, DocumentLink } from '@/types/client';
 
 export const useClient = (clientId: string, options = {}) => {
   const fetchClient = async (): Promise<Client | null> => {
@@ -15,57 +14,21 @@ export const useClient = (clientId: string, options = {}) => {
     try {
       console.log(`Fetching client with ID: ${clientId}`);
       
-      // First try fetching by client_id field 
+      // Try fetching by direct ID from ai_agents table with interaction_type = 'config'
       let { data, error } = await supabase
         .from('ai_agents')
-        .select(`
-          *,
-          website_urls (
-            id,
-            url,
-            refresh_rate,
-            status,
-            created_at,
-            updated_at
-          ),
-          document_links (
-            id,
-            link,
-            document_type,
-            refresh_rate,
-            access_status,
-            created_at
-          )
-        `)
-        .eq('client_id', clientId)
+        .select('*')
+        .eq('id', clientId)
         .eq('interaction_type', 'config')
         .maybeSingle();
 
-      // If no results from client_id, try direct ID
+      // If no results from direct ID, try client_id field
       if (!data && !error) {
-        console.log(`No client found with client_id: ${clientId}, trying direct ID`);
+        console.log(`No client found with ID: ${clientId}, trying client_id field`);
         const { data: altData, error: altError } = await supabase
           .from('ai_agents')
-          .select(`
-            *,
-            website_urls (
-              id,
-              url,
-              refresh_rate,
-              status,
-              created_at,
-              updated_at
-            ),
-            document_links (
-              id,
-              link,
-              document_type,
-              refresh_rate,
-              access_status,
-              created_at
-            )
-          `)
-          .eq('id', clientId)
+          .select('*')
+          .eq('client_id', clientId)
           .eq('interaction_type', 'config')
           .maybeSingle();
           
@@ -79,46 +42,37 @@ export const useClient = (clientId: string, options = {}) => {
       }
 
       if (!data) {
-        console.log(`No client found with client_id or ID: ${clientId}`);
+        console.log(`No client found with ID or client_id: ${clientId}`);
         return null;
       }
 
       console.log('Raw client data from ai_agents:', data);
 
-      // Ensure widget_settings is an object
+      // Ensure widget_settings is an object, not a string
       const widgetSettings = safeParseSettings(data.settings);
 
       // Map the ai_agents fields to the Client type
       const client: Client = {
         id: data.id,
         client_id: data.client_id || data.id,
-        client_name: data.client_name || data.name || '',
+        client_name: data.client_name || '',
         email: data.email || '',
         status: data.status as 'active' | 'inactive' | 'deleted' || 'active',
         created_at: data.created_at || '',
         updated_at: data.updated_at || '',
-        agent_name: data.name || '', 
-        agent_description: data.agent_description || data.description || '',
+        agent_name: data.name || '',
+        agent_description: data.agent_description || '',
         logo_url: data.logo_url || '',
         widget_settings: widgetSettings,
-        user_id: data.id || '', 
+        user_id: '',
         company: data.company || '',
-        description: data.description || data.agent_description || '',
+        description: data.description || '',
         logo_storage_path: data.logo_storage_path || '',
         deletion_scheduled_at: data.deletion_scheduled_at || null,
         deleted_at: data.deleted_at || null,
         last_active: data.last_active || null,
-        name: data.name || '', 
-        is_error: data.is_error || false,
-        website_urls: (data.website_urls || []).map(url => ({
-          ...url,
-          client_id: clientId
-        })) as WebsiteUrl[],
-        document_links: (data.document_links || []).map(link => ({
-          ...link,
-          client_id: clientId,
-          updated_at: link.created_at
-        })) as DocumentLink[]
+        name: data.name || '',
+        is_error: data.is_error || false
       };
 
       console.log('Client data mapped successfully:', client);

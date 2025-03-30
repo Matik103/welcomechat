@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useAdminDashboard } from "@/hooks/useAdminDashboard";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
-import { ActivityType, ActivityTypeString, ClientActivity } from "@/types/activity";
+import { ClientActivity } from "@/types/activity";
 import { NewActionButtons } from "@/components/dashboard/NewActionButtons";
 
 export default function NewIndex() {

@@ -6,12 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { toast } from 'sonner';
-import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 interface ClientResourceSectionsProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => Promise<void>;
+  logClientActivity: () => Promise<void>;
 }
 
 export const ClientResourceSections = ({
@@ -26,8 +25,8 @@ export const ClientResourceSections = ({
       await uploadDocument(file);
       toast.success('Document uploaded successfully');
       
-      // Log activity with proper type
-      await logClientActivity(ActivityType.DOCUMENT_ADDED, 'Document uploaded successfully');
+      // Log activity
+      await logClientActivity();
       
       // Notify parent component about the change
       if (onResourceChange) {

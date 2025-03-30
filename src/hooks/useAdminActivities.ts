@@ -1,5 +1,6 @@
+
 import { useState } from 'react';
-import { ActivityType, ActivityTypeString, ClientActivity } from "@/types/activity";
+import { ClientActivity } from '@/types/activity';
 import { getRecentActivities } from '@/services/activitiesService';
 
 export const useAdminActivities = () => {

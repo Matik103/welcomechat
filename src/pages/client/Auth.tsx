@@ -149,54 +149,27 @@ const ClientAuth = () => {
     try {
       console.log("Starting email login for:", email);
       
-      // First, check if this email belongs to a client
       const { data: clientData, error: clientLookupError } = await supabase
         .from('ai_agents')
-        .select('id, client_id, client_name, name')
+        .select('id, client_id')
         .eq('email', email)
         .eq('interaction_type', 'config')
         .single();
           
       if (clientLookupError) {
         console.error("Error looking up client by email:", clientLookupError);
-        setErrorMessage("This email is not associated with a client account.");
-        toast.error("This email is not associated with a client account.");
-        setLoading(false);
-        return;
+        // Continue with regular login anyway
+      } else if (clientData) {
+        console.log("Found client_id for email:", clientData.client_id || clientData.id);
       }
-
-      if (!clientData) {
-        setErrorMessage("No client account found for this email.");
-        toast.error("No client account found for this email.");
-        setLoading(false);
-        return;
-      }
-
-      console.log("Found client data:", clientData);
         
-      // Now attempt to sign in
-      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
         
-      if (signInError) {
-        throw signInError;
-      }
-
-      // Update the user's metadata with client info
-      if (authData?.user) {
-        const { error: updateError } = await supabase.auth.updateUser({
-          data: {
-            client_id: clientData.client_id || clientData.id,
-            role: 'client',
-            client_name: clientData.client_name || clientData.name
-          }
-        });
-
-        if (updateError) {
-          console.error("Error updating user metadata:", updateError);
-        }
+      if (error) {
+        throw error;
       }
         
       console.log("Email login successful for:", email);

@@ -24,9 +24,6 @@ export interface Client {
   name?: string;
   is_error?: boolean;
   user_id?: string; // Added for compatibility
-  // Adding resource relationships
-  website_urls?: WebsiteUrl[];
-  document_links?: DocumentLink[];
 }
 
 // Export these types from client-dashboard.ts to avoid circular dependencies

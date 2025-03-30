@@ -1,30 +1,19 @@
-import React, { useEffect } from 'react';
+
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { Client } from '@/types/client';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 interface ClientDetailsCardProps {
   client: Client | null;
   isLoading?: boolean;
   isClientView?: boolean;
-  logClientActivity?: (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => Promise<void>;
+  logClientActivity?: () => Promise<void>;
 }
 
 export function ClientDetailsCard({ client, isLoading = false, isClientView = false, logClientActivity }: ClientDetailsCardProps) {
-  // Log activity when component mounts if function is provided
-  useEffect(() => {
-    if (logClientActivity && client) {
-      logClientActivity(ActivityType.CLIENT_UPDATED, "Viewed client details", {
-        client_name: client.client_name
-      }).catch(error => {
-        console.error("Error logging client activity in ClientDetailsCard:", error);
-      });
-    }
-  }, [logClientActivity, client]);
-
   if (isLoading) {
     return (
       <Card className="shadow-sm">
@@ -69,14 +58,17 @@ export function ClientDetailsCard({ client, isLoading = false, isClientView = fa
     }
   };
 
+  // Format creation date as time ago
   const timeAgo = client.created_at
     ? formatDistanceToNow(new Date(client.created_at), { addSuffix: true })
     : 'unknown';
 
+  // Format last active time
   const lastActive = client.last_active
     ? formatDistanceToNow(new Date(client.last_active), { addSuffix: true })
     : 'never';
 
+  // Get client initials for avatar fallback
   const getInitials = () => {
     if (!client.client_name) return 'CL';
     return client.client_name

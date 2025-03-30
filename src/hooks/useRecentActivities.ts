@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from 'react';
-import { ActivityType, ActivityTypeString, ClientActivity } from "@/types/activity";
+import { ClientActivity } from '@/types/activity';
 import { getRecentActivities } from '@/services/activitiesService';
 import { supabase } from '@/integrations/supabase/client';
 

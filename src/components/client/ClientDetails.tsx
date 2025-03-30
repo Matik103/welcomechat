@@ -1,13 +1,12 @@
 
 import { Client } from "@/types/client";
 import { ClientDetailsCard } from "./ClientDetailsCard";
-import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 interface ClientDetailsProps {
   client: Client | null;
   clientId?: string;
   isClientView: boolean;
-  logClientActivity: (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => Promise<void>;
+  logClientActivity: () => Promise<void>;
 }
 
 export const ClientDetails = ({ 
@@ -15,16 +14,11 @@ export const ClientDetails = ({
   isClientView,
   logClientActivity 
 }: ClientDetailsProps) => {
-  // Pass the logClientActivity function directly to the ClientDetailsCard
-  const handleLogActivity = (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => {
-    return logClientActivity(type, description, metadata);
-  };
-
   return (
     <ClientDetailsCard
       client={client}
       isClientView={isClientView}
-      logClientActivity={handleLogActivity}
+      logClientActivity={logClientActivity}
     />
   );
 };

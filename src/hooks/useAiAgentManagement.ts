@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { createClientActivity } from '@/services/clientActivityService';
-import { ActivityType, ActivityTypeString } from "@/types/activity";
 
 export const useAiAgentManagement = () => {
   const [isCreating, setIsCreating] = useState(false);
@@ -129,7 +128,7 @@ export const useAiAgentManagement = () => {
         await createClientActivity(
           clientId,
           clientName || agentName,
-          ActivityType.AGENT_CREATED,
+          'agent_created',
           `Created AI agent "${agentName}" for client ${clientName || 'Unknown'}`,
           {
             agent_name: agentName,
