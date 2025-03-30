@@ -14,7 +14,7 @@ export const useClient = (clientId: string, options = {}) => {
     try {
       console.log(`Fetching client with ID: ${clientId}`);
       
-      // Try fetching by direct ID first from ai_agents table
+      // Try fetching by direct ID from ai_agents table
       let { data, error } = await supabase
         .from('ai_agents')
         .select('*')
