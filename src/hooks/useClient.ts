@@ -1,7 +1,9 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
 import { safeParseSettings } from '@/utils/clientSettingsUtils';
+import { WebsiteUrl, DocumentLink } from '@/types/client';
 
 export const useClient = (clientId: string, options = {}) => {
   const fetchClient = async (): Promise<Client | null> => {
@@ -32,8 +34,7 @@ export const useClient = (clientId: string, options = {}) => {
             document_type,
             refresh_rate,
             access_status,
-            created_at,
-            updated_at
+            created_at
           )
         `)
         .eq('client_id', clientId)
@@ -61,8 +62,7 @@ export const useClient = (clientId: string, options = {}) => {
               document_type,
               refresh_rate,
               access_status,
-              created_at,
-              updated_at
+              created_at
             )
           `)
           .eq('id', clientId)
@@ -97,21 +97,28 @@ export const useClient = (clientId: string, options = {}) => {
         status: data.status as 'active' | 'inactive' | 'deleted' || 'active',
         created_at: data.created_at || '',
         updated_at: data.updated_at || '',
-        agent_name: data.name || data.agent_name || '',
+        agent_name: data.name || '',
         agent_description: data.agent_description || data.description || '',
         logo_url: data.logo_url || '',
         widget_settings: widgetSettings,
-        user_id: data.user_id || '',
+        user_id: data.id || '', // Using id as fallback for user_id
         company: data.company || '',
         description: data.description || data.agent_description || '',
         logo_storage_path: data.logo_storage_path || '',
         deletion_scheduled_at: data.deletion_scheduled_at || null,
         deleted_at: data.deleted_at || null,
         last_active: data.last_active || null,
-        name: data.name || data.agent_name || '',
+        name: data.name || '',
         is_error: data.is_error || false,
-        website_urls: data.website_urls || [],
-        document_links: data.document_links || []
+        website_urls: (data.website_urls || []).map(url => ({
+          ...url,
+          client_id: clientId // Add the required client_id property
+        })) as WebsiteUrl[],
+        document_links: (data.document_links || []).map(link => ({
+          ...link,
+          client_id: clientId, // Add the required client_id property
+          updated_at: link.created_at // Use created_at as fallback for updated_at
+        })) as DocumentLink[]
       };
 
       console.log('Client data mapped successfully:', client);
