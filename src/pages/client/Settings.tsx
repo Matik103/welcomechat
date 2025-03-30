@@ -21,7 +21,7 @@ export default function ClientSettings() {
                 Profile Settings
               </CardTitle>
               <CardDescription>
-                Update your profile information and resources
+                Update your information and resources
               </CardDescription>
             </CardHeader>
             <CardContent>

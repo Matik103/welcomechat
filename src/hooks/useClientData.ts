@@ -16,7 +16,7 @@ export const useClientData = (id: string | undefined) => {
     console.log("Using client_id from user metadata:", clientId);
   }
   
-  // Get client data with staleTime to prevent excessive refetching
+  // Get client data with no stale time to prevent excessive caching
   const { 
     client, 
     isLoading, 
