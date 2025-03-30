@@ -1,22 +1,37 @@
 
-import { Navigate, Route, Routes } from "react-router-dom";
-import ClientDashboard from "@/pages/client/ClientDashboard";
-import Dashboard from "@/pages/client/Dashboard";
+import { Suspense } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { ClientHeader } from "@/components/layout/ClientHeader";
+import ClientDashboard from "@/pages/client/Dashboard";
+import ClientSettings from "@/pages/client/Settings";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
-import Settings from "@/pages/client/Settings";
-import EditClientInfo from "@/pages/client/EditClientInfo";
+import EditClientInfo from "@/pages/EditClientInfo";
+import WidgetSettings from "@/pages/WidgetSettings";
+import NotFound from "@/pages/NotFound";
+import { Toaster } from "sonner";
+import { LoadingFallback } from "./LoadingFallback";
 
-export default function ClientRoutes() {
+export const ClientRoutes = () => {
   return (
-    <Routes>
-      <Route path="dashboard" element={<Dashboard />} />
-      <Route path="old-dashboard" element={<ClientDashboard />} />
-      <Route path="settings" element={<Settings />} />
-      <Route path="account-settings" element={<AccountSettings />} />
-      <Route path="resource-settings" element={<ResourceSettings />} />
-      <Route path="profile" element={<EditClientInfo />} />
-      <Route path="*" element={<Navigate to="/client/dashboard" replace />} />
-    </Routes>
+    <div className="min-h-screen bg-background">
+      <ClientHeader />
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
+          <Route path="/client/dashboard" element={<ClientDashboard />} />
+          <Route path="/client/settings" element={<ClientSettings />} />
+          <Route path="/client/account-settings" element={<AccountSettings />} />
+          <Route path="/client/resource-settings" element={<ResourceSettings />} />
+          <Route path="/client/edit-info" element={<EditClientInfo />} />
+          <Route path="/client/widget-settings" element={<WidgetSettings />} />
+          <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
+          <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
+          <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+      <Toaster />
+    </div>
   );
-}
+};
