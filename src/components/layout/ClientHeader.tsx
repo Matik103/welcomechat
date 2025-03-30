@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useClientData } from "@/hooks/useClientData";
-import { Settings, User, LogOut } from "lucide-react";
+import { Settings, User, LogOut, Bot } from "lucide-react";
 
 export const ClientHeader = () => {
   const { user, signOut } = useAuth();
@@ -71,6 +71,12 @@ export const ClientHeader = () => {
                   <Link to="/client/edit-info" className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     Profile Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/client/widget-settings" className="flex items-center gap-2">
+                    <Bot className="h-4 w-4" />
+                    Widget Settings
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>

@@ -34,4 +34,3 @@ export const ClientRoutes = () => {
       <Toaster />
     </div>
   );
-};

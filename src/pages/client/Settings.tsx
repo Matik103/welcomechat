@@ -34,6 +34,10 @@ export default function ClientSettings() {
     navigate('/client/edit-info');
   };
 
+  const handleWidgetClick = () => {
+    navigate('/client/widget-settings');
+  };
+
   return (
     <ClientLayout>
       <div className="container mx-auto py-8">
@@ -61,6 +65,27 @@ export default function ClientSettings() {
             </CardContent>
           </Card>
           
+          {/* Widget Settings Card */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-blue-500" />
+                Widget Settings
+              </CardTitle>
+              <CardDescription>
+                Customize your AI chat widget
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-500 mb-4">
+                Customize the appearance, behavior, and messaging of your AI chat widget.
+              </p>
+              <Button onClick={handleWidgetClick} className="w-full">
+                Customize Widget
+              </Button>
+            </CardContent>
+          </Card>
+          
           {/* Resource Settings Card */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
@@ -79,29 +104,6 @@ export default function ClientSettings() {
               <Button asChild>
                 <Link to="/client/resource-settings" className="w-full">
                   Manage Resources
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-          
-          {/* Widget Settings Card */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-blue-500" />
-                Widget Settings
-              </CardTitle>
-              <CardDescription>
-                Customize your AI chat widget
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-500 mb-4">
-                Customize the appearance, behavior, and messaging of your AI chat widget.
-              </p>
-              <Button asChild>
-                <Link to="/client/widget-settings" className="w-full">
-                  Customize Widget
                 </Link>
               </Button>
             </CardContent>
