@@ -144,17 +144,7 @@ export default function WidgetSettings() {
 
   return (
     <ClientLayout>
-      <div className="container mx-auto px-4 py-8">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="mb-4 flex items-center gap-1"
-          onClick={handleNavigateBack}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
-        </Button>
-        
+      <div className="mx-auto px-4 py-8">
         <WidgetSettingsContainer
           clientId={clientId}
           settings={settings || defaultSettings}
