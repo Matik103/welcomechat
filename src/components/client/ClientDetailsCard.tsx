@@ -1,10 +1,10 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { Client } from '@/types/client';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 interface ClientDetailsCardProps {
   client: Client | null;
@@ -14,6 +14,15 @@ interface ClientDetailsCardProps {
 }
 
 export function ClientDetailsCard({ client, isLoading = false, isClientView = false, logClientActivity }: ClientDetailsCardProps) {
+  // Log activity when component mounts if function is provided
+  useEffect(() => {
+    if (logClientActivity) {
+      logClientActivity().catch(error => {
+        console.error("Error logging client activity in ClientDetailsCard:", error);
+      });
+    }
+  }, [logClientActivity]);
+
   if (isLoading) {
     return (
       <Card className="shadow-sm">
@@ -75,12 +84,6 @@ export function ClientDetailsCard({ client, isLoading = false, isClientView = fa
       .toUpperCase()
       .substring(0, 2);
   };
-
-  React.useEffect(() => {
-    if (logClientActivity) {
-      logClientActivity();
-    }
-  }, [logClientActivity]);
 
   return (
     <Card className="shadow-sm">

@@ -13,7 +13,7 @@ import { ClientProfileSection } from '@/components/client/settings/ClientProfile
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
 import { toast } from 'sonner';
-import { ActivityType, ActivityTypeString } from '@/types/activity';
+import { ActivityType } from '@/types/activity';
 
 export default function EditClientInfo() {
   const { user } = useAuth();
@@ -46,7 +46,14 @@ export default function EditClientInfo() {
   // Log view activity when component mounts
   useEffect(() => {
     if (clientId && client) {
-      logClientActivity(ActivityType.CLIENT_UPDATED, 'Client viewed their profile settings');
+      const logActivity = async () => {
+        try {
+          await logClientActivity(ActivityType.CLIENT_VIEWED, 'Client viewed their profile settings');
+        } catch (error) {
+          console.error("Error logging client activity:", error);
+        }
+      };
+      logActivity();
     }
   }, [clientId, client, logClientActivity]);
 
@@ -69,7 +76,7 @@ export default function EditClientInfo() {
   }
 
   // Show error if client data failed to load
-  if (error && !client) {
+  if (error && !isLoadingClient) {
     return (
       <div className="container mx-auto py-8">
         <ErrorDisplay 
@@ -82,13 +89,15 @@ export default function EditClientInfo() {
     );
   }
 
-  const handleLogClientActivity = async (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => {
-    if (!clientId) return;
+  const handleLogClientActivity = async (type: ActivityType, description: string, metadata?: Record<string, any>) => {
+    if (!clientId) return Promise.resolve();
     try {
       await logClientActivity(type, description, metadata);
       console.log("Client activity logged for client:", client?.id || clientId);
+      return Promise.resolve();
     } catch (error) {
       console.error("Error logging client activity:", error);
+      return Promise.reject(error);
     }
   };
 
@@ -138,7 +147,7 @@ export default function EditClientInfo() {
                     client={client} 
                     isLoading={isLoadingClient} 
                     isClientView={true}
-                    logClientActivity={() => handleLogClientActivity(ActivityType.CLIENT_UPDATED, 'Client viewed their details')}
+                    logClientActivity={() => handleLogClientActivity(ActivityType.CLIENT_VIEWED, 'Client viewed their details')}
                   />
                 </div>
               </div>

@@ -15,6 +15,9 @@ export const useClientData = (id: string | undefined) => {
   if (userRole === 'client' && user?.user_metadata?.client_id) {
     clientId = user.user_metadata.client_id;
     console.log("Using client_id from user metadata:", clientId);
+  } else if (userRole === 'client' && !user?.user_metadata?.client_id) {
+    // Log warning if client user doesn't have client_id in metadata
+    console.warn("Client user doesn't have client_id in metadata:", user?.user_metadata);
   }
   
   // Get client data with no stale time to prevent excessive caching

@@ -30,6 +30,8 @@ export function ClientProfileSection({
         return;
       }
       
+      console.log("Submitting client update with ID:", clientId);
+      
       await clientMutation.mutateAsync({
         client_id: clientId,
         client_name: data.client_name,
@@ -41,7 +43,7 @@ export function ClientProfileSection({
       });
       
       toast.success("Your information has been updated successfully");
-      refetchClient();
+      await refetchClient();
     } catch (error) {
       console.error("Error updating profile:", error);
       toast.error(`Failed to update profile: ${error instanceof Error ? error.message : String(error)}`);
