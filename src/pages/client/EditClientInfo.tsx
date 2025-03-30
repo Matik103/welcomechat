@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -6,18 +5,21 @@ import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'sonner';
 import { ClientFormData } from '@/types/client-form';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useClientData } from '@/hooks/useClientData';
 import { useNavigation } from '@/hooks/useNavigation';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClientLayout } from '@/components/layout/ClientLayout';
 import ErrorDisplay from '@/components/ErrorDisplay';
-import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
+import { ActivityType } from '@/types/activity';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function EditClientInfo() {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const navigation = useNavigation();
+  const [activeTab, setActiveTab] = React.useState('profile');
   
   // Get client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
@@ -33,10 +35,11 @@ export default function EditClientInfo() {
 
   // For debugging - log what we have
   useEffect(() => {
+    console.log("User role:", userRole);
     console.log("User metadata:", user?.user_metadata);
     console.log("Client ID from metadata:", clientId);
     console.log("Current client state:", { client, isLoadingClient, error });
-  }, [user, clientId, client, isLoadingClient, error]);
+  }, [user, userRole, clientId, client, isLoadingClient, error]);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
@@ -115,14 +118,12 @@ export default function EditClientInfo() {
   }
 
   const logActivityWrapper = async (): Promise<void> => {
-    if (!client) return;
-    
-    const clientName = client.client_name || client.agent_name || "Unknown";
-    await logClientActivity("client_updated", 
-      `Resources updated for "${clientName}"`, 
+    const clientName = client?.client_name || client?.agent_name || "Unknown";
+    await logClientActivity(ActivityType.CLIENT_UPDATED, 
+      `Profile information updated for "${clientName}"`, 
       {
         client_name: clientName,
-        agent_name: client.agent_name
+        agent_name: client?.agent_name
       });
   };
 
@@ -140,9 +141,9 @@ export default function EditClientInfo() {
         </Button>
         
         <PageHeading>
-          Manage Your Resources
+          Profile Settings
           <p className="text-sm font-normal text-muted-foreground">
-            Add websites, documents, and other resources for your AI assistant
+            Update your information and manage resources
           </p>
         </PageHeading>
 
@@ -151,7 +152,61 @@ export default function EditClientInfo() {
             <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
             <p>Loading your information...</p>
           </div>
-        ) : !client ? (
+        ) : client ? (
+          <div className="mt-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="mb-6">
+                <TabsTrigger value="profile">Profile Information</TabsTrigger>
+                <TabsTrigger value="resources">Resources</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="profile" className="space-y-6">
+                <Card>
+                  <CardContent className="pt-6">
+                    <ClientForm 
+                      initialData={client}
+                      onSubmit={handleSubmit}
+                      isLoading={isLoadingClient || clientMutation.isPending}
+                      error={error ? (error instanceof Error ? error.message : String(error)) : null}
+                      submitButtonText="Update Information"
+                    />
+                  </CardContent>
+                </Card>
+                
+                <div className="flex justify-end mt-4">
+                  <Button 
+                    type="button" 
+                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                    onClick={() => setActiveTab('resources')}
+                  >
+                    Next: Resources <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="resources">
+                {client && (
+                  <ClientResourceSections 
+                    clientId={clientId}
+                    logClientActivity={logActivityWrapper}
+                    onResourceChange={refetchClient}
+                  />
+                )}
+                
+                <div className="flex justify-start mt-4">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setActiveTab('profile')}
+                  >
+                    <ArrowLeft className="h-4 w-4" /> Back to Profile
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        ) : (
           <div className="mt-6 p-8 bg-red-50 border border-red-200 rounded-md">
             <h3 className="text-lg font-medium text-red-800 mb-2">Information Not Found</h3>
             <p className="text-red-600">Unable to load your information. Please try again.</p>
@@ -161,16 +216,6 @@ export default function EditClientInfo() {
             >
               Retry Loading
             </Button>
-          </div>
-        ) : (
-          <div className="mt-6">
-            {clientId && (
-              <ClientResourceSections 
-                clientId={clientId}
-                logClientActivity={logActivityWrapper}
-                onResourceChange={refetchClient}
-              />
-            )}
           </div>
         )}
       </div>
