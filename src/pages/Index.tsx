@@ -11,6 +11,8 @@ import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { SmallStat } from "@/components/dashboard/SmallStat";
 import { PageHeading } from "@/components/dashboard/PageHeading";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { BarChart } from "@/components/dashboard/BarChart";
+import { NewClientModal } from "@/components/client/NewClientModal";
 import { getAllAgents } from "@/services/agentService";
 import { getActiveClientsCount } from "@/services/clientService";
 import { getTotalInteractionsCount } from "@/services/aiInteractionService";
@@ -345,7 +347,7 @@ export default function Index() {
             </CardHeader>
             <CardContent>
               <RecentActivityList
-                activities={activities as ClientActivity[]}
+                activities={activities}
                 isLoading={isActivitiesLoading}
                 highlightedId={highlightedActivity}
                 onActivityClick={handleActivityClick}

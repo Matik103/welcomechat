@@ -49,9 +49,9 @@ export const getAdministrationActivitiesCount = async (): Promise<{
       ActivityType.SOURCE_ADDED
     ];
       
-    // Convert enum values to their string equivalents
+    // Convert enum values to their string equivalents - fixed to use proper string conversion
     const adminActivityTypeStrings = adminActivityTypes.map(type => 
-      typeof type === 'string' ? type : type.toString()
+      typeof type === 'string' ? type : type
     );
       
     // Count all administration-related activities

@@ -15,11 +15,16 @@ export const ClientDetails = ({
   isClientView,
   logClientActivity 
 }: ClientDetailsProps) => {
+  // Pass the logClientActivity function directly to the ClientDetailsCard
+  const handleLogActivity = (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => {
+    return logClientActivity(type, description, metadata);
+  };
+
   return (
     <ClientDetailsCard
       client={client}
       isClientView={isClientView}
-      logClientActivity={logClientActivity}
+      logClientActivity={handleLogActivity}
     />
   );
 };

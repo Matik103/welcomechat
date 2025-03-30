@@ -24,6 +24,11 @@ export const ClientProfileLayout: React.FC<ClientProfileLayoutProps> = ({
   const { userRole } = useAuth();
   const isAdmin = userRole === 'admin';
 
+  // Create a handler that will forward proper parameters to logClientActivity
+  const handleLogActivity = (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => {
+    return logClientActivity(type, description, metadata);
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2">
@@ -40,7 +45,7 @@ export const ClientProfileLayout: React.FC<ClientProfileLayoutProps> = ({
         <ClientDetailsCard 
           client={client} 
           isLoading={isLoading} 
-          logClientActivity={logClientActivity}
+          logClientActivity={handleLogActivity}
         />
       </div>
     </div>
