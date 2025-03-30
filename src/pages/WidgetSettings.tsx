@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from "react";
-import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
@@ -10,12 +9,11 @@ import { handleLogoUpload } from "@/services/uploadService";
 import { defaultSettings } from "@/types/widget-settings";
 import type { WidgetSettings as WidgetSettingsType } from "@/types/widget-settings";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useClientData } from "@/hooks/useClientData";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
 import { ClientLayout } from "@/components/layout/ClientLayout";
+import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 
 export default function WidgetSettings() {
   const { user, userRole } = useAuth();
@@ -144,7 +142,7 @@ export default function WidgetSettings() {
 
   return (
     <ClientLayout>
-      <div className="mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto">
         <WidgetSettingsContainer
           clientId={clientId}
           settings={settings || defaultSettings}

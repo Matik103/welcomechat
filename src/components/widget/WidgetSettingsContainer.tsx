@@ -5,7 +5,7 @@ import { WidgetSettingsForm } from "@/components/widget/WidgetSettingsForm";
 import { WidgetPreviewCard } from "@/components/widget/WidgetPreviewCard";
 import { EmbedCodeCard } from "@/components/widget/EmbedCodeCard";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 interface WidgetSettingsContainerProps {
@@ -57,6 +57,16 @@ export function WidgetSettingsContainer({
 
   return (
     <div className="space-y-6">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="mb-4 flex items-center gap-1"
+        onClick={handleBack}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Dashboard
+      </Button>
+      
       <div>
         <h1 className="text-2xl font-bold mb-1">Widget Settings</h1>
         <p className="text-gray-500">Customize how your chat widget looks and behaves</p>
