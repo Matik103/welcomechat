@@ -11,27 +11,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { useClientActivity } from '@/hooks/useClientActivity';
 import { useNavigation } from '@/hooks/useNavigation';
-import { Button } from '@/components/ui/button';
 
 export default function ClientProfile() {
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const navigation = useNavigation();
   
-  // Get client ID from user metadata or try to determine it 
+  // Get client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
-  const userEmail = user?.email;
   const { logClientActivity } = useClientActivity(clientId || '');
 
-  // Enhanced logging to debug client profile access
-  useEffect(() => {
-    console.log("ClientProfile component mounted");
-    console.log("Current user:", user?.id);
-    console.log("User role:", userRole);
-    console.log("User email:", userEmail);
-    console.log("User metadata:", user?.user_metadata);
-    console.log("Client ID from metadata:", clientId);
-  }, [user, userRole, userEmail, clientId]);
+  // Log that we're attempting to fetch client data
+  console.log("Attempting to fetch client data with ID:", clientId);
+  console.log("User metadata:", user?.user_metadata);
 
   const { 
     client, 
@@ -80,23 +72,6 @@ export default function ClientProfile() {
       
       toast.success("Your information has been updated successfully");
       await logActivityWrapper();
-      
-      // Update client ID in user metadata if needed
-      if (user && clientId) {
-        const { error: updateError } = await supabase.auth.updateUser({
-          data: { 
-            client_id: clientId,
-            client_name: data.client_name || data.agent_name
-          }
-        });
-        
-        if (updateError) {
-          console.error("Error updating user metadata:", updateError);
-        } else {
-          console.log("Updated user metadata with client information");
-        }
-      }
-      
       refetchClient();
     } catch (error) {
       console.error("Error updating client information:", error);
@@ -115,55 +90,6 @@ export default function ClientProfile() {
     }
   }, [client, isLoadingClient, clientId, error, refetchClient]);
 
-  // If no client ID but user is present, attempt to lookup client by email
-  useEffect(() => {
-    const lookupClientByEmail = async () => {
-      if (!clientId && userEmail && userRole === 'client' && user) {
-        console.log("No client ID found, attempting to look up by email:", userEmail);
-        
-        try {
-          const { data, error } = await supabase
-            .from('ai_agents')
-            .select('id, client_id')
-            .eq('email', userEmail)
-            .eq('interaction_type', 'config')
-            .maybeSingle();
-            
-          if (error) {
-            console.error("Error looking up client by email:", error);
-            return;
-          }
-          
-          if (data) {
-            const foundClientId = data.client_id || data.id;
-            console.log("Found client by email, updating user metadata with client_id:", foundClientId);
-            
-            const { error: updateError } = await supabase.auth.updateUser({
-              data: { 
-                client_id: foundClientId,
-                role: 'client'
-              }
-            });
-            
-            if (updateError) {
-              console.error("Error updating user metadata with found client_id:", updateError);
-            } else {
-              console.log("Successfully updated user metadata with client_id");
-              // Force reload the page to pickup the new metadata
-              window.location.reload();
-            }
-          } else {
-            console.log("No client found with email:", userEmail);
-          }
-        } catch (lookupError) {
-          console.error("Exception looking up client by email:", lookupError);
-        }
-      }
-    };
-    
-    lookupClientByEmail();
-  }, [clientId, userEmail, userRole, user]);
-
   // Show error if no client ID in metadata
   if (!clientId) {
     return (
@@ -171,14 +97,9 @@ export default function ClientProfile() {
         <ErrorDisplay 
           title="Access Error"
           message="Unable to find your client ID. Please make sure you're properly logged in."
-          details="If this issue persists, please contact support or try logging out and back in."
+          details="If this issue persists, please contact support."
           onRetry={() => window.location.reload()}
         />
-        <div className="mt-6 flex justify-center">
-          <Button onClick={() => navigation.goToAuth()}>
-            Return to Login Page
-          </Button>
-        </div>
       </div>
     );
   }

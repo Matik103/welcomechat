@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate, useSearchParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -150,53 +149,27 @@ const ClientAuth = () => {
     try {
       console.log("Starting email login for:", email);
       
-      // First, look up the client in the ai_agents table to get the client_id
       const { data: clientData, error: clientLookupError } = await supabase
         .from('ai_agents')
-        .select('id, client_id, client_name, name')
+        .select('id, client_id')
         .eq('email', email)
         .eq('interaction_type', 'config')
         .single();
           
-      if (clientLookupError && clientLookupError.code !== 'PGRST116') {
+      if (clientLookupError) {
         console.error("Error looking up client by email:", clientLookupError);
         // Continue with regular login anyway
       } else if (clientData) {
-        console.log("Found client in database:", clientData);
+        console.log("Found client_id for email:", clientData.client_id || clientData.id);
       }
         
-      // Sign in the user
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
         
       if (error) {
         throw error;
-      }
-
-      // If we found client data and login was successful, update the user metadata with client_id
-      if (clientData && data?.user) {
-        const clientId = clientData.client_id || clientData.id;
-        console.log("Updating user metadata with client_id:", clientId);
-        
-        const { error: updateError } = await supabase.auth.updateUser({
-          data: { 
-            client_id: clientId,
-            role: 'client',
-            client_name: clientData.client_name || clientData.name || ''
-          }
-        });
-
-        if (updateError) {
-          console.error("Error updating user metadata with client_id:", updateError);
-          // Don't throw error, just log warning and continue
-          console.warn("User may have issues accessing client-specific features");
-        } else {
-          console.log("Successfully updated user metadata with client_id");
-        }
-      } else if (data?.user) {
-        console.warn("User authenticated but no client data found - may not have proper access");
       }
         
       console.log("Email login successful for:", email);
