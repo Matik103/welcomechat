@@ -1,126 +1,155 @@
 
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
-import { DocumentProcessingResult } from '@/types/document-processing';
 
 export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadError, setUploadError] = useState<Error | null>(null);
-  
-  const uploadDocument = async (file: File): Promise<DocumentProcessingResult> => {
+
+  const uploadDocument = async (file: File) => {
     if (!clientId) {
-      throw new Error('Client ID is required to upload documents');
+      toast.error('Client ID is required for uploading documents');
+      return Promise.reject(new Error('Client ID is required'));
     }
-    
+
     setIsUploading(true);
-    setUploadProgress(0);
-    setUploadError(null);
+    console.log("Starting document upload for client:", clientId);
     
     try {
-      // Generate a unique file path
-      const timestamp = Date.now();
-      const fileExt = file.name.split('.').pop();
-      const filePath = `documents/${clientId}/${timestamp}-${file.name}`;
-      
-      // Mock upload progress since onUploadProgress is not available
-      const startProgress = () => {
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += 10;
-          if (progress >= 95) {
-            clearInterval(interval);
-            progress = 95;
-          }
-          setUploadProgress(progress);
-        }, 300);
+      // First, find the correct client record
+      const { data: clientRecord, error: clientError } = await supabase
+        .from("ai_agents")
+        .select("id")
+        .eq("interaction_type", "config")
+        .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+        .single();
         
-        return () => clearInterval(interval);
-      };
+      if (clientError) {
+        console.error("Error finding client:", clientError);
+        throw new Error("Could not find client record");
+      }
       
-      const stopProgress = startProgress();
+      if (!clientRecord) {
+        throw new Error("Client record not found");
+      }
       
-      // Upload file to Supabase Storage
+      const actualClientId = clientRecord.id;
+      console.log("Found client record with ID:", actualClientId);
+
+      // Create a unique file path
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name.replace(/[^\w\s.-]/g, ''); // Remove special characters
+      const filePath = `${actualClientId}/${timestamp}_${sanitizedFileName}`;
+      
+      console.log("Uploading document to path:", filePath);
+
+      // Ensure the bucket exists
+      try {
+        await ensureDocumentBucketExists();
+      } catch (bucketError) {
+        console.error("Error ensuring bucket exists:", bucketError);
+        // Continue anyway, the bucket might already exist
+      }
+
+      // Upload the file
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
         });
-      
+
       if (uploadError) {
-        throw uploadError;
+        console.error("Error uploading document:", uploadError);
+        throw new Error(`Upload failed: ${uploadError.message}`);
       }
-      
-      setUploadProgress(95);
-      
-      // Get public URL for the uploaded file
-      const { data: publicUrlData } = supabase.storage
+
+      console.log("Document uploaded successfully:", uploadData);
+
+      // Get the public URL
+      const { data: urlData } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
         .getPublicUrl(filePath);
-      
-      const fileUrl = publicUrlData.publicUrl;
-      
-      // Create a document processing record
-      const documentType = fileExt || 'unknown';
-      
-      const { data: documentData, error: documentError } = await supabase
-        .from('document_processing')
-        .insert({
-          document_url: fileUrl,
-          client_id: clientId,
-          agent_name: 'AI Assistant',
-          document_type: documentType,
-          status: 'pending',
-          started_at: new Date().toISOString(),
-          metadata: {
-            original_filename: file.name,
-            file_size: file.size,
-            content_type: file.type
-          }
-        })
-        .select('id')
-        .single();
-      
-      if (documentError) {
-        throw documentError;
+
+      if (!urlData || !urlData.publicUrl) {
+        throw new Error('Failed to get public URL for document');
       }
+
+      const publicUrl = urlData.publicUrl;
+      console.log("Document public URL:", publicUrl);
+
+      // Determine document type from file extension
+      const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
+      let documentType = 'document';
       
-      stopProgress();
-      setUploadProgress(100);
+      if (fileExtension === 'pdf') documentType = 'pdf';
+      else if (['doc', 'docx'].includes(fileExtension)) documentType = 'word';
+      else if (['xls', 'xlsx'].includes(fileExtension)) documentType = 'excel';
+      else if (['ppt', 'pptx'].includes(fileExtension)) documentType = 'powerpoint';
       
-      toast.success('Document uploaded successfully');
+      // Add document link to document_links table
+      const { data: linkData, error: linkError } = await supabase
+        .from('document_links')
+        .insert({
+          client_id: actualClientId,
+          link: publicUrl,
+          document_type: documentType,
+          refresh_rate: 30, // Default 30 days
+          access_status: 'accessible',
+          storage_path: filePath
+        })
+        .select()
+        .single();
+
+      if (linkError) {
+        console.error("Error creating document link record:", linkError);
+        // Try to clean up the uploaded file
+        await supabase.storage.from(DOCUMENTS_BUCKET).remove([filePath]);
+        throw linkError;
+      }
+
+      console.log("Document link record created:", linkData);
+      return linkData;
       
-      return {
-        success: true,
-        documentId: documentData.id.toString(),
-        processed: 0,
-        failed: 0,
-        status: 'pending',
-        message: 'Document uploaded and queued for processing'
-      };
     } catch (error) {
-      console.error('Error uploading document:', error);
-      setUploadError(error as Error);
-      toast.error('Failed to upload document');
-      
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-        processed: 0,
-        failed: 1
-      };
+      console.error("Document upload failed:", error);
+      toast.error(`Failed to upload document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
     } finally {
       setIsUploading(false);
     }
   };
-  
+
+  // Helper function to ensure the documents bucket exists
+  const ensureDocumentBucketExists = async () => {
+    // First check if the bucket already exists
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    
+    if (bucketsError) {
+      console.error("Error listing buckets:", bucketsError);
+      throw bucketsError;
+    }
+    
+    const bucketExists = buckets?.some(bucket => bucket.name === DOCUMENTS_BUCKET);
+    
+    if (!bucketExists) {
+      console.log(`Creating ${DOCUMENTS_BUCKET} bucket...`);
+      const { error: createError } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
+        public: true,
+        fileSizeLimit: 10485760, // 10MB
+        allowedMimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']
+      });
+      
+      if (createError) {
+        console.error(`Error creating ${DOCUMENTS_BUCKET} bucket:`, createError);
+        throw createError;
+      }
+    }
+  };
+
   return {
     uploadDocument,
-    isUploading,
-    uploadProgress,
-    uploadError
+    isUploading
   };
 }

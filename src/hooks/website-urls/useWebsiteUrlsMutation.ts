@@ -21,57 +21,48 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
       
       console.log("Adding website URL with client ID:", effectiveClientId);
       console.log("Input data:", input);
-      console.log("Current user:", user?.id);
       
-      try {
-        // First, find the correct client record in ai_agents table
-        const { data: clientRecord, error: clientError } = await supabase
-          .from("ai_agents")
-          .select("id, interaction_type")
-          .or(`id.eq.${effectiveClientId},client_id.eq.${effectiveClientId}`)
-          .order('created_at', { ascending: false })
-          .maybeSingle();
+      // Find the correct client record in ai_agents table
+      const { data: clientRecord, error: clientError } = await supabase
+        .from("ai_agents")
+        .select("id")
+        .eq("interaction_type", "config")
+        .or(`id.eq.${effectiveClientId},client_id.eq.${effectiveClientId}`)
+        .single();
           
-        if (clientError) {
-          console.error("Error finding client:", clientError);
-          throw new Error("Could not find client record: " + clientError.message);
-        }
-        
-        if (!clientRecord) {
-          throw new Error(`Client record not found for ID: ${effectiveClientId}`);
-        }
-        
-        console.log("Found client record:", clientRecord);
-        
-        // Use the actual ID from the client record
-        const actualClientId = clientRecord.id;
-        
-        // Insert the website URL with the correct client ID
-        const { data, error } = await supabaseAdmin
-          .from("website_urls")
-          .insert({
-            client_id: actualClientId,
-            url: input.url,
-            refresh_rate: input.refresh_rate || 30,
-            status: input.status || 'pending'
-          })
-          .select()
-          .single();
-          
-        if (error) {
-          console.error("Error inserting website URL:", error);
-          throw error;
-        }
-        
-        if (!data) {
-          throw new Error("Failed to create website URL - no data returned");
-        }
-        
-        return data as WebsiteUrl;
-      } catch (insertError) {
-        console.error("Error inserting website URL:", insertError);
-        throw insertError;
+      if (clientError) {
+        console.error("Error finding client:", clientError);
+        throw new Error(`Could not find client record: ${clientError.message}`);
       }
+      
+      if (!clientRecord) {
+        throw new Error(`Client record not found for ID: ${effectiveClientId}`);
+      }
+      
+      console.log("Found client record:", clientRecord);
+      
+      // Insert the website URL with the correct client ID
+      const { data, error } = await supabaseAdmin
+        .from("website_urls")
+        .insert({
+          client_id: clientRecord.id,
+          url: input.url,
+          refresh_rate: input.refresh_rate || 30,
+          status: input.status || 'pending'
+        })
+        .select()
+        .single();
+          
+      if (error) {
+        console.error("Error inserting website URL:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error("Failed to create website URL - no data returned");
+      }
+      
+      return data as WebsiteUrl;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });

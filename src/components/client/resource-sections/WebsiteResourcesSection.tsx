@@ -29,8 +29,7 @@ export function WebsiteResourcesSection({
     setIsAddingUrl(true);
     try {
       console.log("Adding URL with client ID:", clientId);
-      console.log("Current user:", user?.id);
-      console.log("User metadata:", user?.user_metadata);
+      console.log("URL data:", data);
       
       if (!clientId) {
         toast.error("Client ID is missing. Please reload the page or contact support.");
@@ -51,6 +50,8 @@ export function WebsiteResourcesSection({
       if (onResourceChange) {
         onResourceChange();
       }
+      
+      toast.success("Website URL added successfully");
     } catch (error) {
       console.error("Error adding website URL:", error);
       if (error instanceof Error) {

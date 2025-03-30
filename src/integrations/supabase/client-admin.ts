@@ -33,11 +33,22 @@ export const initializeBotLogosBucket = async (): Promise<boolean> => {
       console.error('Error creating bot-logos bucket:', error);
       return false;
     }
+    
+    // Also create document-storage bucket
+    const { error: docError } = await supabaseAdmin.storage.createBucket('document-storage', {
+      public: true,
+      fileSizeLimit: 20971520, // 20MB
+    });
 
-    console.log('bot-logos bucket initialized successfully');
+    if (docError && !docError.message.includes('already exists')) {
+      console.error('Error creating document-storage bucket:', docError);
+      // Continue anyway, since we at least created the bot-logos bucket
+    }
+
+    console.log('Storage buckets initialized successfully');
     return true;
   } catch (error) {
-    console.error('Error initializing bot-logos bucket:', error);
+    console.error('Error initializing storage buckets:', error);
     return false;
   }
 };
