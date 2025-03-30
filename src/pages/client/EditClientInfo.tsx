@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -19,7 +18,6 @@ export default function EditClientInfo() {
   const { user } = useAuth();
   const navigation = useNavigation();
   
-  // Get client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
   const { logClientActivity } = useClientActivity(clientId);
 
@@ -31,7 +29,6 @@ export default function EditClientInfo() {
     refetchClient
   } = useClientData(clientId);
 
-  // For debugging - log what we have
   useEffect(() => {
     console.log("User metadata:", user?.user_metadata);
     console.log("Client ID from metadata:", clientId);
@@ -78,7 +75,6 @@ export default function EditClientInfo() {
     navigation.goBack();
   };
 
-  // Force a refetch if client is null but we have a clientId
   useEffect(() => {
     if (!client && !isLoadingClient && clientId && !error) {
       console.log("No client data but have clientId, forcing refetch for:", clientId);
@@ -86,7 +82,6 @@ export default function EditClientInfo() {
     }
   }, [client, isLoadingClient, clientId, error, refetchClient]);
 
-  // Show error if no client ID in metadata
   if (!clientId) {
     return (
       <ClientLayout>
@@ -100,7 +95,6 @@ export default function EditClientInfo() {
     );
   }
 
-  // Show error if client data failed to load
   if (error && !client) {
     return (
       <ClientLayout>

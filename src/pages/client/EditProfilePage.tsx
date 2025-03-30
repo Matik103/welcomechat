@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -21,7 +20,6 @@ export default function EditProfilePage() {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('profile');
   
-  // Get client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
   const { logClientActivity } = useClientActivity(clientId);
 
@@ -71,7 +69,18 @@ export default function EditProfilePage() {
     navigation.goToClientDashboard();
   };
 
-  // Show error if no client ID in metadata
+  const logActivityWrapper = async (): Promise<void> => {
+    if (!client) return;
+    
+    const clientName = client.client_name || client.agent_name || "Unknown";
+    await logClientActivity("profile_updated", 
+      `Profile information updated for "${clientName}"`, 
+      {
+        client_name: clientName,
+        agent_name: client.agent_name
+      });
+  };
+
   if (!clientId) {
     return (
       <ClientLayout>
@@ -85,7 +94,6 @@ export default function EditProfilePage() {
     );
   }
 
-  // Show error if client data failed to load
   if (error && !client) {
     return (
       <ClientLayout>
@@ -98,18 +106,6 @@ export default function EditProfilePage() {
       </ClientLayout>
     );
   }
-
-  const logActivityWrapper = async (): Promise<void> => {
-    if (!client) return;
-    
-    const clientName = client.client_name || client.agent_name || "Unknown";
-    await logClientActivity("profile_updated", 
-      `Profile information updated for "${clientName}"`, 
-      {
-        client_name: clientName,
-        agent_name: client.agent_name
-      });
-  };
 
   return (
     <ClientLayout>
