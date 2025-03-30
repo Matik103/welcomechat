@@ -47,8 +47,9 @@ export function EditClientInfo() {
         return;
       }
       
-      // First try to use the client ID from the client object
-      const updateClientId = client.id || client.client_id;
+      // Use the correct client_id for the update
+      // First check if client.id exists, then fall back to client.client_id, then the clientId from the hook
+      const updateClientId = client.id || client.client_id || clientId;
       
       if (!updateClientId) {
         toast.error("Client ID not found");
