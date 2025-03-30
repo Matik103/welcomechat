@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
+import { safeParseSettings } from '@/utils/clientSettingsUtils';
 
 export const useClient = (clientId: string, options = {}) => {
   const fetchClient = async (): Promise<Client | null> => {
@@ -44,6 +45,9 @@ export const useClient = (clientId: string, options = {}) => {
         return null;
       }
 
+      // Ensure widget_settings is an object, not a string
+      const widgetSettings = safeParseSettings(data.settings);
+
       // Map the ai_agents fields to the Client type
       const client: Client = {
         id: data.id,
@@ -56,7 +60,7 @@ export const useClient = (clientId: string, options = {}) => {
         agent_name: data.name || '',
         agent_description: data.agent_description || '',
         logo_url: data.logo_url || '',
-        widget_settings: data.settings || {},
+        widget_settings: widgetSettings,
         user_id: '',
         company: data.company || '',
         description: data.description || '',
@@ -76,10 +80,15 @@ export const useClient = (clientId: string, options = {}) => {
     }
   };
 
-  return useQuery({
+  const result = useQuery({
     queryKey: ['client', clientId],
     queryFn: fetchClient,
     enabled: Boolean(clientId),
     ...options,
   });
+  
+  return {
+    ...result,
+    client: result.data
+  };
 };
