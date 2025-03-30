@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,6 +14,15 @@ interface ClientDetailsCardProps {
 }
 
 export function ClientDetailsCard({ client, isLoading = false, isClientView = false, logClientActivity }: ClientDetailsCardProps) {
+  // Log activity when component mounts if function is provided
+  useEffect(() => {
+    if (logClientActivity) {
+      logClientActivity().catch(error => {
+        console.error("Error logging client activity in ClientDetailsCard:", error);
+      });
+    }
+  }, [logClientActivity]);
+
   if (isLoading) {
     return (
       <Card className="shadow-sm">
@@ -58,17 +67,14 @@ export function ClientDetailsCard({ client, isLoading = false, isClientView = fa
     }
   };
 
-  // Format creation date as time ago
   const timeAgo = client.created_at
     ? formatDistanceToNow(new Date(client.created_at), { addSuffix: true })
     : 'unknown';
 
-  // Format last active time
   const lastActive = client.last_active
     ? formatDistanceToNow(new Date(client.last_active), { addSuffix: true })
     : 'never';
 
-  // Get client initials for avatar fallback
   const getInitials = () => {
     if (!client.client_name) return 'CL';
     return client.client_name

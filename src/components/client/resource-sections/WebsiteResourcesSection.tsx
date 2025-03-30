@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { WebsiteUrlForm } from "../website-urls/WebsiteUrlForm";
 import { WebsiteUrls } from "../website-urls";
 import { useWebsiteUrlsMutation } from "@/hooks/website-urls/useWebsiteUrlsMutation";
+import { ActivityType, ActivityTypeString } from "@/types/activity";
 
 interface WebsiteResourcesSectionProps {
   clientId: string;
-  logClientActivity: () => Promise<void>;
+  logClientActivity: (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => Promise<void>;
   onResourceChange?: () => void;
 }
 
@@ -32,8 +33,8 @@ export function WebsiteResourcesSection({
         status: 'pending'
       });
       
-      // Log activity
-      await logClientActivity();
+      // Log activity with type and description
+      await logClientActivity(ActivityType.URL_ADDED, "Website URL added successfully");
       
       // Notify parent component if needed
       if (onResourceChange) {

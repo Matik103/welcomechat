@@ -1,208 +1,87 @@
 
-import { useEffect, useState } from "react";
-import { execSql } from "@/utils/rpcUtils";
-import { useAuth } from "@/contexts/AuthContext";
-import { ProfileSection } from "@/components/settings/ProfileSection";
-import { SecuritySection } from "@/components/settings/SecuritySection";
-import { SignOutSection } from "@/components/settings/SignOutSection";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, InfoIcon } from "lucide-react";
-import { toast } from "sonner";
+import React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { User, Bot } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useClientData } from '@/hooks/useClientData';
+import ErrorDisplay from '@/components/ErrorDisplay';
 
-const ClientSettings = () => {
+export default function ClientSettings() {
   const { user } = useAuth();
-  const [clientInfo, setClientInfo] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    
-    // Set a timeout to ensure we don't get stuck in a loading state - reduced from 5000 to 1000
-    const timeout = setTimeout(() => {
-      if (isMounted) {
-        setLoadTimeout(true);
-      }
-    }, 1000);
-
-    const fetchClientInfo = async () => {
-      if (!user?.email) {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-        return;
-      }
-      
-      try {
-        console.log("Fetching client info for email:", user.email);
-        
-        // Use execSql to query ai_agents table instead of clients
-        const query = `
-          SELECT * FROM ai_agents
-          WHERE email = '${user.email}'
-          AND interaction_type = 'config'
-          LIMIT 1
-        `;
-        
-        const result = await execSql(query);
-        
-        if (!result || !Array.isArray(result) || result.length === 0) {
-          throw new Error("Client not found");
-        }
-        
-        const clientData = result[0];
-        console.log("Client info fetched:", clientData);
-        
-        if (isMounted) {
-          setClientInfo(clientData);
-        }
-      } catch (error: any) {
-        console.error("Error in fetchClientInfo:", error);
-        if (isMounted) {
-          setError(error.message || "Failed to load client information");
-          toast.error("Failed to load client information");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-    
-    fetchClientInfo();
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timeout);
-    };
-  }, [user]);
-
-  // If we've been loading for too long or there's a data issue, try to provide a graceful experience
-  if ((isLoading && loadTimeout) || (!isLoading && !clientInfo && !error && user)) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
-            <p className="text-gray-500">Manage your account preferences</p>
-          </div>
-
-          <ProfileSection 
-            initialFullName={user?.user_metadata?.full_name || ""}
-            initialEmail={user?.email || ""}
-          />
-
-          <SecuritySection />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <InfoIcon className="h-5 w-5" />
-                Client Information
-              </CardTitle>
-              <CardDescription>
-                Information about your AI assistant
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-500">There was an issue loading your client information. Your core account settings are still accessible above.</p>
-            </CardContent>
-          </Card>
-
-          <SignOutSection />
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading && !loadTimeout) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const clientId = user?.user_metadata?.client_id;
+  const { client, isLoadingClient, error } = useClientData(clientId);
+  const navigate = useNavigate();
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center flex-col">
-        <div className="text-red-500 mb-4">Error loading settings: {error}</div>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="px-4 py-2 bg-primary text-white rounded-md"
-        >
-          Retry
-        </button>
+      <div className="container mx-auto py-8">
+        <ErrorDisplay 
+          title="Error Loading Settings"
+          message={`Unable to load your information: ${error instanceof Error ? error.message : String(error)}`}
+          details="Please try again or contact support if the issue persists."
+          onRetry={() => window.location.reload()}
+        />
       </div>
     );
   }
 
+  const handleProfileClick = () => {
+    navigate('/client/edit-info');
+  };
+
+  const handleWidgetClick = () => {
+    navigate('/client/widget-settings');
+  };
+
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-4">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
-          <p className="text-gray-500">Manage your account preferences</p>
-        </div>
-
-        <ProfileSection 
-          initialFullName={user?.user_metadata?.full_name || ""}
-          initialEmail={user?.email || ""}
-        />
-
-        <SecuritySection />
-
-        <Card>
+    <div className="container mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-6">Account Settings</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Profile Settings Card */}
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <InfoIcon className="h-5 w-5" />
-              Client Information
+              <User className="h-5 w-5 text-blue-500" />
+              Profile Settings
             </CardTitle>
             <CardDescription>
-              Information about your AI assistant
+              Update your company information and AI assistant details
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {clientInfo ? (
-              <>
-                <div>
-                  <p className="text-sm text-gray-500">Company Name</p>
-                  <p className="font-medium">{clientInfo.client_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">AI Assistant Name</p>
-                  <p className="font-medium">{clientInfo.name}</p>
-                </div>
-                {clientInfo.agent_description && (
-                  <div>
-                    <p className="text-sm text-gray-500">Description</p>
-                    <p className="font-medium">{clientInfo.agent_description}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      clientInfo.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {clientInfo.status || "active"}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <p className="text-gray-500">No client information available</p>
-            )}
+          <CardContent>
+            <p className="text-sm text-gray-500 mb-4">
+              Manage your profile, company information, AI assistant details, and customize your logo.
+            </p>
+            <Button onClick={handleProfileClick} className="w-full">
+              Manage Profile
+            </Button>
           </CardContent>
         </Card>
-
-        <SignOutSection />
+        
+        {/* Widget Settings Card */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bot className="h-5 w-5 text-blue-500" />
+              Widget Settings
+            </CardTitle>
+            <CardDescription>
+              Customize your AI chat widget
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-500 mb-4">
+              Customize the appearance, behavior, and messaging of your AI chat widget.
+            </p>
+            <Button onClick={handleWidgetClick} className="w-full">
+              Customize Widget
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
-};
-
-export default ClientSettings;
+}

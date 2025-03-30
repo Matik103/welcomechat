@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { DashboardHeader } from "@/components/client-dashboard/DashboardHeader";
 import { DashboardLoading } from "@/components/client-dashboard/DashboardLoading";
 import { DashboardContent } from "@/components/client-dashboard/DashboardContent";
-import { QueryItem } from "@/types/client-dashboard";
 
 export interface ClientDashboardProps {
   clientId?: string;
@@ -117,22 +116,20 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   }
 
   return (
-    <div className="bg-[#F8F9FA] min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
-        {/* Refresh button */}
-        <DashboardHeader 
-          isRefreshing={isRefreshing} 
-          onRefresh={handleRefresh} 
-        />
-        
-        {/* Dashboard content */}
-        <DashboardContent 
-          stats={formattedStats}
-          recentInteractions={recentInteractions}
-          queries={queries}
-          isLoading={shouldShowLoading}
-        />
-      </div>
+    <div className="space-y-8">
+      {/* Refresh button */}
+      <DashboardHeader 
+        isRefreshing={isRefreshing} 
+        onRefresh={handleRefresh} 
+      />
+      
+      {/* Dashboard content */}
+      <DashboardContent 
+        stats={formattedStats}
+        recentInteractions={recentInteractions}
+        queries={queries}
+        isLoading={shouldShowLoading}
+      />
     </div>
   );
 };
