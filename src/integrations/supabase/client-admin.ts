@@ -5,7 +5,7 @@ import type { Database } from './types';
 import { SUPABASE_URL } from './client';
 
 // Get the service role key from environment
-const SUPABASE_SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
 
 // Create a singleton instance for the admin client
 let supabaseAdminInstance: ReturnType<typeof createClient<Database>> | null = null;
@@ -46,7 +46,7 @@ export const initializeBotLogosBucket = async (): Promise<boolean> => {
 export const supabaseAdmin = (() => {
   if (isAdminClientConfigured()) {
     if (!supabaseAdminInstance) {
-      console.log('Initializing Supabase admin client...');
+      console.log('Initializing Supabase admin client with service role key:', SUPABASE_SERVICE_ROLE_KEY.substring(0, 10) + '...');
       supabaseAdminInstance = createClient<Database>(
         SUPABASE_URL,
         SUPABASE_SERVICE_ROLE_KEY,
