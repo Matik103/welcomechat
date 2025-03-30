@@ -3,7 +3,7 @@ import { ClientForm } from "@/components/client/ClientForm";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { getClient, updateClient } from "@/services/clientService";
+import { updateClient } from "@/services/clientService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Client } from "@/types/client";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useClientActivity } from "@/hooks/useClientActivity";
+import { useClient } from "@/hooks/useClient";
 
 const EditClientInfo = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,9 +27,8 @@ const EditClientInfo = () => {
   // Use activity logging hook
   const { logClientActivity } = useClientActivity(clientId);
   
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ["client", clientId],
-    queryFn: () => getClient(clientId!),
+  // Use the useClient hook instead of a direct query
+  const { data, isLoading, refetch } = useClient(clientId || '', {
     enabled: !!clientId,
   });
 
@@ -136,7 +136,7 @@ const EditClientInfo = () => {
         <ClientForm
           initialData={clientData}
           onSubmit={handleSubmit}
-          isSubmitting={updateClientMutation.isPending}
+          isLoading={updateClientMutation.isPending}
           isClientView={!isAdmin}
         />
       )}
