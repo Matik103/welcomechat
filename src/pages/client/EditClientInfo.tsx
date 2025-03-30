@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -148,7 +149,7 @@ export default function EditClientInfo() {
             <TabsContent value="resources">
               {clientId && (
                 <ClientResourceSections 
-                  clientId={clientId}
+                  clientId={client?.id || clientId}
                   logClientActivity={logActivityWrapper}
                   onResourceChange={refetchClient}
                 />

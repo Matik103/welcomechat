@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
@@ -74,7 +75,7 @@ export function EditClientInfo() {
 
   const logClientActivity = async () => {
     try {
-      console.log("Logging client activity for client:", clientId);
+      console.log("Logging client activity for client:", client?.id || clientId);
       return Promise.resolve();
     } catch (error) {
       console.error("Error logging client activity:", error);
@@ -169,9 +170,9 @@ export function EditClientInfo() {
             </TabsContent>
             
             <TabsContent value="resources">
-              {clientId && (
+              {client && client.id && (
                 <ClientResourceSections 
-                  clientId={clientId} 
+                  clientId={client.id} 
                   logClientActivity={logClientActivity}
                   onResourceChange={refetchClient}
                 />

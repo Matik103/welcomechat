@@ -14,7 +14,7 @@ export const useClient = (clientId: string, options = {}) => {
     try {
       console.log(`Fetching client with ID: ${clientId}`);
       
-      // Try fetching by direct ID first
+      // Try fetching by direct ID first from ai_agents table
       let { data, error } = await supabase
         .from('ai_agents')
         .select('*')
@@ -24,6 +24,7 @@ export const useClient = (clientId: string, options = {}) => {
 
       // If no results from direct ID, try client_id field
       if (!data && !error) {
+        console.log(`No client found with ID: ${clientId}, trying client_id field`);
         const { data: altData, error: altError } = await supabase
           .from('ai_agents')
           .select('*')
@@ -41,7 +42,7 @@ export const useClient = (clientId: string, options = {}) => {
       }
 
       if (!data) {
-        console.log(`No client found with ID: ${clientId}`);
+        console.log(`No client found with ID or client_id: ${clientId}`);
         return null;
       }
 

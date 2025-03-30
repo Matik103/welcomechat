@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseAdmin } from "@/integrations/supabase/client-admin";
 import { Client } from "@/types/client";
@@ -104,6 +105,7 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
         throw new Error(`Failed to update ai_agent: ${updateError.message}`);
       }
       
+      console.log('Successfully updated client with client_id match:', updatedAgent.id);
       return updatedAgent;
     }
     
@@ -130,6 +132,7 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
       throw new Error(`Failed to update ai_agent: ${updateError.message}`);
     }
     
+    console.log('Successfully updated client with direct id match:', updatedAgent.id);
     return updatedAgent;
   } catch (error) {
     console.error('Error in updateClient:', error);
