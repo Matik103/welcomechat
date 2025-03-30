@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'sonner';
@@ -21,8 +21,12 @@ export function EditClientInfo() {
   const { userRole } = useAuth();
   const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('profile');
   const [serviceKeyError, setServiceKeyError] = useState<boolean>(!isAdminClientConfigured());
+  
+  // Determine if we're in admin or client context
+  const viewContext = location.pathname.includes('/admin/') ? 'admin' : 'client';
   
   const { 
     client, 
@@ -116,6 +120,12 @@ export function EditClientInfo() {
     );
   }
 
+  // Customize page title and description based on context
+  const pageTitle = viewContext === 'admin' ? "Edit Client Information" : "Manage Your Resources";
+  const pageDescription = viewContext === 'admin' 
+    ? "Update client details and manage resources" 
+    : "Update your profile and manage your resources";
+
   return (
     <div className="container mx-auto py-8">
       <Button 
@@ -125,13 +135,13 @@ export function EditClientInfo() {
         onClick={handleNavigateBack}
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Clients
+        {viewContext === 'admin' ? 'Back to Clients' : 'Back to Dashboard'}
       </Button>
       
       <PageHeading>
-        Edit Client Information
+        {pageTitle}
         <p className="text-sm font-normal text-muted-foreground">
-          Update client details and manage resources
+          {pageDescription}
         </p>
       </PageHeading>
 
@@ -157,13 +167,14 @@ export function EditClientInfo() {
                     onSubmit={handleSubmit}
                     isLoading={isLoadingClient || clientMutation.isPending}
                     error={error ? (error instanceof Error ? error.message : String(error)) : null}
-                    submitButtonText="Update Client"
+                    submitButtonText={viewContext === 'admin' ? "Update Client" : "Update Information"}
                   />
                 </div>
                 <div className="lg:col-span-1">
                   <ClientDetailsCard 
                     client={client} 
                     isLoading={isLoadingClient} 
+                    isClientView={viewContext === 'client'}
                     logClientActivity={logClientActivity}
                   />
                 </div>
