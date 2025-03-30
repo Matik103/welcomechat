@@ -22,8 +22,8 @@ export const useClientData = (id: string | undefined) => {
   
   // Get client data with no stale time to prevent excessive caching
   const { 
-    client, 
-    isLoading, 
+    data: client, 
+    isLoading: isLoadingClient, 
     error,
     refetch
   } = useClient(clientId || '', {
@@ -59,7 +59,7 @@ export const useClientData = (id: string | undefined) => {
     if (client) {
       console.log("Client data loaded:", client);
       setInitialCheckDone(true);
-    } else if (!isLoading && !error && clientId && !initialCheckDone) {
+    } else if (!isLoadingClient && !error && clientId && !initialCheckDone) {
       console.log("No client data found with ID:", clientId);
       console.log("Admin client configured:", adminClientConfigured);
       
@@ -68,7 +68,7 @@ export const useClientData = (id: string | undefined) => {
         setInitialCheckDone(true);
       }
     }
-  }, [client, isLoading, clientId, error, userRole, adminClientConfigured, initialCheckDone]);
+  }, [client, isLoadingClient, clientId, error, userRole, adminClientConfigured, initialCheckDone]);
   
   const clientMutation = useClientMutation();
 
@@ -87,7 +87,7 @@ export const useClientData = (id: string | undefined) => {
 
   return {
     client,
-    isLoadingClient: isLoading,
+    isLoadingClient,
     error,
     clientMutation,
     clientId: effectiveClientId,

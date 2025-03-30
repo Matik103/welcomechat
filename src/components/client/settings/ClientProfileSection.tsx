@@ -63,6 +63,7 @@ export function ClientProfileSection({
           onSubmit={handleSubmit}
           isLoading={isSubmitting || clientMutation.isPending}
           submitButtonText="Save Changes"
+          isClientView={true}
         />
       </CardContent>
     </Card>

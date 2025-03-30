@@ -1,7 +1,7 @@
 
 import { ClientForm } from "@/components/client/ClientForm";
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { updateClient } from "@/services/clientService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,47 +10,41 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { useClient } from "@/hooks/useClient";
+import { useClientData } from "@/hooks/useClientData";
 
 const EditClientInfo = () => {
-  const { id } = useParams<{ id: string }>();
   const { user, userRole } = useAuth();
   const isAdmin = userRole === "admin";
   const navigate = useNavigate();
   const navigation = useNavigation();
   const [clientData, setClientData] = useState<Client | null>(null);
   
-  // Get client ID - either from URL param (admin view) or user metadata (client view)
-  const clientId = isAdmin ? id : user?.user_metadata?.client_id;
+  // Get client ID from user metadata (for client view)
+  const clientId = user?.user_metadata?.client_id;
   
-  // Use activity logging hook
-  const { logClientActivity } = useClientActivity(clientId);
-  
-  // Use the useClient hook instead of a direct query
-  const { data, isLoading, refetch } = useClient(clientId || '', {
-    enabled: !!clientId,
-  });
+  // Use the useClientData hook to fetch client data
+  const { 
+    client, 
+    isLoadingClient,
+    error,
+    clientMutation,
+    refetchClient
+  } = useClientData(clientId);
 
   // Set client data when data is loaded
   useEffect(() => {
-    if (data) {
-      setClientData(data);
-      
-      // Log that client was viewed/accessed (only in admin view)
-      if (isAdmin && clientId) {
-        logClientActivity(
-          "client_updated",
-          `Client ${data.client_name} accessed for editing`,
-          {
-            client_id: clientId,
-            client_name: data.client_name,
-            viewed_by: user?.email
-          }
-        );
-      }
+    if (client) {
+      setClientData(client);
+      console.log("Client data loaded:", client);
     }
-  }, [data, isAdmin, clientId, user?.email, logClientActivity]);
+  }, [client]);
+
+  useEffect(() => {
+    if (error) {
+      console.error("Error loading client data:", error);
+      toast.error("Failed to load your profile information");
+    }
+  }, [error]);
 
   // Update client mutation
   const updateClientMutation = useMutation({
@@ -59,28 +53,15 @@ const EditClientInfo = () => {
       return updateClient(clientId, updatedClient);
     },
     onSuccess: () => {
-      refetch();
-      toast.success("Client information updated successfully");
-      
-      // Log client update activity
-      if (clientId && clientData) {
-        logClientActivity(
-          "client_updated",
-          `Client ${clientData.client_name} information updated`,
-          {
-            client_id: clientId,
-            client_name: clientData.client_name,
-            updated_by: user?.email
-          }
-        );
-      }
+      refetchClient();
+      toast.success("Your information has been updated successfully");
       
       // Navigate back after successful update
       handleBack();
     },
     onError: (error) => {
       console.error("Error updating client:", error);
-      toast.error("Failed to update client information");
+      toast.error("Failed to update your information");
     },
   });
 
@@ -89,14 +70,10 @@ const EditClientInfo = () => {
   };
 
   const handleBack = () => {
-    if (isAdmin) {
-      navigate(`/admin/clients/view/${clientId}`);
-    } else {
-      navigation.goToClientDashboard();
-    }
+    navigation.goToClientDashboard();
   };
 
-  if (isLoading) {
+  if (isLoadingClient) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -104,12 +81,12 @@ const EditClientInfo = () => {
     );
   }
 
-  if (!data && !isLoading) {
+  if (!client && !isLoadingClient) {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold mb-2">Client Not Found</h2>
         <p className="text-muted-foreground mb-6">
-          The client you're looking for could not be found.
+          Your profile information could not be found.
         </p>
         <Button onClick={handleBack}>Go Back</Button>
       </div>
@@ -129,16 +106,44 @@ const EditClientInfo = () => {
       </Button>
       
       <h1 className="text-2xl font-bold mb-6">
-        {isAdmin ? 'Edit Client Information' : 'Edit Your Information'}
+        Edit Your Profile
       </h1>
       
       {clientData && (
-        <ClientForm
-          initialData={clientData}
-          onSubmit={handleSubmit}
-          isLoading={updateClientMutation.isPending}
-          isClientView={!isAdmin}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <ClientForm
+              initialData={clientData}
+              onSubmit={handleSubmit}
+              isLoading={updateClientMutation.isPending || isLoadingClient}
+              isClientView={true}
+              submitButtonText="Save Changes"
+            />
+          </div>
+          <div className="lg:col-span-1 bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium mb-4">Profile Information</h3>
+            <div className="space-y-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Client Name</p>
+                <p className="font-medium">{clientData.client_name}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Email</p>
+                <p className="font-medium">{clientData.email}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">AI Agent Name</p>
+                <p className="font-medium">{clientData.agent_name}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Created On</p>
+                <p className="font-medium">
+                  {new Date(clientData.created_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
