@@ -41,13 +41,23 @@ export function EditClientInfo() {
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
-      if (!client || !client.id) {
-        toast.error("Client ID is required to update client");
+      if (!client) {
+        toast.error("Client information not available");
         return;
       }
       
+      const clientIdForUpdate = client.id;
+      
+      if (!clientIdForUpdate) {
+        toast.error("Client ID is required to update client");
+        console.error("Missing client ID for update. Client object:", client);
+        return;
+      }
+      
+      console.log("Admin submitting update with client ID:", clientIdForUpdate);
+      
       await clientMutation.mutateAsync({
-        client_id: client.id,
+        client_id: clientIdForUpdate,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
@@ -74,7 +84,7 @@ export function EditClientInfo() {
 
   const logClientActivity = async () => {
     try {
-      console.log("Logging client activity for client:", clientId);
+      console.log("Logging client activity for client:", client?.id || clientId);
       return Promise.resolve();
     } catch (error) {
       console.error("Error logging client activity:", error);
@@ -169,9 +179,9 @@ export function EditClientInfo() {
             </TabsContent>
             
             <TabsContent value="resources">
-              {clientId && (
+              {client && client.id && (
                 <ClientResourceSections 
-                  clientId={clientId} 
+                  clientId={client.id} 
                   logClientActivity={logClientActivity}
                   onResourceChange={refetchClient}
                 />
