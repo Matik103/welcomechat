@@ -7,7 +7,7 @@ import ResourceSettings from "@/pages/client/ResourceSettings";
 import Settings from "@/pages/client/Settings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
 
-export default function ClientRoutes() {
+export const ClientRoutes = () => {
   return (
     <Routes>
       <Route path="dashboard" element={<Dashboard />} />
