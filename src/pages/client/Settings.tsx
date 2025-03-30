@@ -4,7 +4,7 @@ import { ClientLayout } from '@/components/layout/ClientLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { Settings, User, FileText, Bot } from 'lucide-react';
+import { User, FileText, Bot } from 'lucide-react';
 
 export default function ClientSettings() {
   return (
@@ -31,29 +31,6 @@ export default function ClientSettings() {
               <Button asChild>
                 <Link to="/client/edit-info" className="w-full">
                   Manage Profile
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-          
-          {/* Account Settings Card */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-blue-500" />
-                Account Settings
-              </CardTitle>
-              <CardDescription>
-                Manage your account settings and preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-500 mb-4">
-                Update your notification preferences, security settings, and account information.
-              </p>
-              <Button asChild>
-                <Link to="/client/account-settings" className="w-full">
-                  Manage Account
                 </Link>
               </Button>
             </CardContent>
