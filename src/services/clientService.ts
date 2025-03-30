@@ -112,6 +112,8 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
     }
     
     // Use the agent found directly by id
+    const settingsObj = typeof aiAgent.settings === 'object' ? aiAgent.settings : {};
+    
     const updateData = {
       name: data.agent_name,
       agent_description: data.agent_description,
@@ -122,7 +124,7 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
       updated_at: new Date().toISOString(),
       // Also update the settings with the new data
       settings: {
-        ...aiAgent.settings,
+        ...settingsObj,
         agent_name: data.agent_name,
         agent_description: data.agent_description,
         logo_url: data.logo_url,
