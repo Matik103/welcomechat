@@ -1,9 +1,9 @@
 
 import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import LoadingFallback from './LoadingFallback';
-import ProtectedRoute from '../ProtectedRoute';
-import ClientRoute from '../auth/ClientRoute';
+import { LoadingFallback } from './LoadingFallback';
+import { ProtectedRoute } from '../ProtectedRoute';
+import { ClientRoute } from '../auth/ClientRoute';
 
 // Lazy-loaded client pages
 const ClientDashboard = lazy(() => import('@/pages/client/Dashboard'));

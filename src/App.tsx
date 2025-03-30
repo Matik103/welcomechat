@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 import { PublicRoutes } from "./components/routes/PublicRoutes";
 import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes";
 import { AdminRoutes } from "./components/routes/AdminRoutes";
-import { ClientRoutes } from "./components/routes/ClientRoutes";
+import ClientRoutes from "./components/routes/ClientRoutes";
 import { ConfigError } from "./components/routes/ErrorDisplay";
 
 function App() {
