@@ -7,6 +7,9 @@ import { DashboardHeader } from "@/components/client-dashboard/DashboardHeader";
 import { DashboardLoading } from "@/components/client-dashboard/DashboardLoading";
 import { DashboardContent } from "@/components/client-dashboard/DashboardContent";
 import { QueryItem } from "@/types/client-dashboard";
+import { Button } from "@/components/ui/button";
+import { Settings, Upload, FileText } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export interface ClientDashboardProps {
   clientId?: string;
@@ -124,6 +127,31 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           isRefreshing={isRefreshing} 
           onRefresh={handleRefresh} 
         />
+        
+        {/* Quick Actions Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <h2 className="text-xl font-medium mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Link to="/client/edit-info">
+              <Button variant="outline" className="w-full justify-start">
+                <Settings className="mr-2 h-4 w-4" />
+                Edit Information & Resources
+              </Button>
+            </Link>
+            <Link to="/client/widget-settings">
+              <Button variant="outline" className="w-full justify-start">
+                <FileText className="mr-2 h-4 w-4" />
+                Widget Settings
+              </Button>
+            </Link>
+            <Link to="/client/resource-settings">
+              <Button variant="outline" className="w-full justify-start">
+                <Upload className="mr-2 h-4 w-4" />
+                Upload Resources
+              </Button>
+            </Link>
+          </div>
+        </div>
         
         {/* Dashboard content */}
         <DashboardContent 
