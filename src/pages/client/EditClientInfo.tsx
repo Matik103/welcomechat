@@ -118,8 +118,8 @@ export default function EditClientInfo() {
     if (!client) return;
     
     const clientName = client.client_name || client.agent_name || "Unknown";
-    await logClientActivity("client_updated", 
-      `Resources updated for "${clientName}"`, 
+    await logClientActivity("profile_updated", 
+      `Profile information updated for "${clientName}"`, 
       {
         client_name: clientName,
         agent_name: client.agent_name
