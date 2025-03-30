@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWidgetSettings } from '@/hooks/useWidgetSettings';
 import { useClientData } from '@/hooks/useClientData';
@@ -13,6 +13,9 @@ import { useNavigation } from '@/hooks/useNavigation';
 import { toast } from 'sonner';
 import { defaultSettings } from '@/types/widget-settings';
 import { handleLogoUpload } from '@/services/uploadService';
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { getWidgetSettings, updateWidgetSettings } from '@/services/widgetSettingsService';
+import type { WidgetSettings as WidgetSettingsType } from '@/types/widget-settings';
 
 export default function WidgetSettings() {
   const { user } = useAuth();
@@ -22,12 +25,43 @@ export default function WidgetSettings() {
   
   const { client } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
+  
+  // Use React Query to fetch widget settings
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["widget-settings", clientId],
+    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
+    enabled: !!clientId,
+  });
+
+  // Widget settings hook for operations like updating logo
   const { 
-    settings, 
-    isLoading, 
-    updateSettingsMutation, 
-    updateLogo 
+    updateLogo,
+    isUpdating
   } = useWidgetSettings(clientId || "");
+
+  // Update widget settings mutation
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
+      if (clientId) {
+        await updateWidgetSettings(clientId, newSettings);
+        
+        // Log with the correct client name
+        await logClientActivity("widget_settings_updated", 
+          `Widget settings updated for "${client?.client_name || 'your account'}"`, 
+          {
+            client_name: client?.client_name,
+            agent_name: newSettings.agent_name,
+            settings_changed: true
+          });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Widget settings updated successfully");
+    },
+    onError: (error) => {
+      toast.error(`Failed to update settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    },
+  });
 
   const handleNavigateBack = () => {
     navigation.goToClientDashboard();
@@ -100,7 +134,7 @@ export default function WidgetSettings() {
           clientId={clientId}
           settings={settings || defaultSettings}
           isClientView={true}
-          isUploading={isUploading}
+          isUploading={isUploading || isUpdating}
           updateSettingsMutation={updateSettingsWrapper}
           handleBack={handleNavigateBack}
           handleLogoUpload={handleLogoUploadChange}
