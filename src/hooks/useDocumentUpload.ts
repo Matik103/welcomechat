@@ -1,126 +1,123 @@
-
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { DocumentProcessingResult } from '@/types/document-processing';
+import { v4 as uuidv4 } from 'uuid';
+
+interface UploadResult {
+  success: boolean;
+  error?: string;
+  documentId?: number;
+}
+
+const getEffectiveClientId = async (clientId: string) => {
+  try {
+    const { data: clientData, error: clientError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("interaction_type", "config")
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .single();
+      
+    if (clientError) {
+      console.error("Error finding client:", clientError);
+      throw new Error("Could not find client record");
+    }
+    
+    if (!clientData) {
+      throw new Error("Client not found");
+    }
+    
+    return clientData.id;
+  } catch (error) {
+    console.error("Error getting effective client ID:", error);
+    throw error;
+  }
+};
 
 export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadError, setUploadError] = useState<Error | null>(null);
-  
-  const uploadDocument = async (file: File): Promise<DocumentProcessingResult> => {
+
+  const uploadDocument = async (file: File): Promise<UploadResult> => {
     if (!clientId) {
-      throw new Error('Client ID is required to upload documents');
+      toast.error('Client ID is required');
+      return { success: false, error: 'Client ID is required' };
     }
-    
+
     setIsUploading(true);
-    setUploadProgress(0);
-    setUploadError(null);
-    
+
     try {
-      // Generate a unique file path
-      const timestamp = Date.now();
-      const fileExt = file.name.split('.').pop();
-      const filePath = `documents/${clientId}/${timestamp}-${file.name}`;
-      
-      // Mock upload progress since onUploadProgress is not available
-      const startProgress = () => {
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += 10;
-          if (progress >= 95) {
-            clearInterval(interval);
-            progress = 95;
-          }
-          setUploadProgress(progress);
-        }, 300);
-        
-        return () => clearInterval(interval);
-      };
-      
-      const stopProgress = startProgress();
-      
+      // Create a unique file path
+      const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
+      const uniqueFileName = `${uuidv4()}.${fileExtension}`;
+      const filePath = `documents/${clientId}/${uniqueFileName}`;
+
       // Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(DOCUMENTS_BUCKET)
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
         });
-      
+
       if (uploadError) {
-        throw uploadError;
+        console.error('Error uploading file:', uploadError);
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
       }
-      
-      setUploadProgress(95);
-      
-      // Get public URL for the uploaded file
-      const { data: publicUrlData } = supabase.storage
-        .from(DOCUMENTS_BUCKET)
+
+      // Get the public URL
+      const { data: urlData } = await supabase.storage
+        .from('documents')
         .getPublicUrl(filePath);
-      
-      const fileUrl = publicUrlData.publicUrl;
-      
-      // Create a document processing record
-      const documentType = fileExt || 'unknown';
-      
-      const { data: documentData, error: documentError } = await supabase
-        .from('document_processing')
-        .insert({
-          document_url: fileUrl,
-          client_id: clientId,
-          agent_name: 'AI Assistant',
-          document_type: documentType,
-          status: 'pending',
-          started_at: new Date().toISOString(),
-          metadata: {
-            original_filename: file.name,
-            file_size: file.size,
-            content_type: file.type
-          }
-        })
-        .select('id')
-        .single();
-      
-      if (documentError) {
-        throw documentError;
+
+      if (!urlData?.publicUrl) {
+        throw new Error('Failed to get document URL');
       }
-      
-      stopProgress();
-      setUploadProgress(100);
-      
+
+      // Create document link record
+      const { data: documentLink, error: linkError } = await supabase
+        .from('document_links')
+        .insert({
+          client_id: clientId,
+          link: urlData.publicUrl,
+          document_type: fileExtension || 'document',
+          refresh_rate: 30,
+          access_status: 'accessible'
+        })
+        .select()
+        .single();
+
+      if (linkError) {
+        // If link creation fails, try to delete the uploaded file
+        await supabase.storage
+          .from('documents')
+          .remove([filePath]);
+          
+        console.error('Error creating document link:', linkError);
+        throw new Error(`Error creating document link: ${linkError.message}`);
+      }
+
       toast.success('Document uploaded successfully');
-      
       return {
         success: true,
-        documentId: documentData.id.toString(),
-        processed: 0,
-        failed: 0,
-        status: 'pending',
-        message: 'Document uploaded and queued for processing'
+        documentId: documentLink.id
       };
+
     } catch (error) {
-      console.error('Error uploading document:', error);
-      setUploadError(error as Error);
-      toast.error('Failed to upload document');
-      
+      console.error('Document upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Unknown error');
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
-        processed: 0,
-        failed: 1
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     } finally {
       setIsUploading(false);
     }
   };
-  
+
   return {
     uploadDocument,
-    isUploading,
-    uploadProgress,
-    uploadError
+    isUploading
   };
 }

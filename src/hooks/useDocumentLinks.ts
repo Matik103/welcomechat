@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +21,31 @@ export interface DocumentLinkFormData {
   refresh_rate: number;
 }
 
+const getEffectiveClientId = async (clientId: string) => {
+  try {
+    const { data: clientData, error: clientError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("interaction_type", "config")
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .single();
+      
+    if (clientError) {
+      console.error("Error finding client:", clientError);
+      throw new Error("Could not find client record");
+    }
+    
+    if (!clientData) {
+      throw new Error("Client not found");
+    }
+    
+    return clientData.id;
+  } catch (error) {
+    console.error("Error getting effective client ID:", error);
+    throw error;
+  }
+};
+
 export const useDocumentLinks = (clientId?: string) => {
   const [isValidating, setIsValidating] = useState(false);
   const queryClient = useQueryClient();
@@ -35,25 +59,43 @@ export const useDocumentLinks = (clientId?: string) => {
   } = useQuery({
     queryKey: ['document-links', clientId],
     queryFn: async () => {
-      if (!clientId) return [];
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
       
-      const { data, error } = await supabase
-        .from('document_links')
-        .select('*')
-        .eq('client_id', clientId);
-      
-      if (error) throw error;
-      return data as DocumentLink[];
+      try {
+        const effectiveClientId = await getEffectiveClientId(clientId);
+        
+        const { data, error } = await supabase
+          .from('document_links')
+          .select('*')
+          .eq('client_id', effectiveClientId)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (!data) {
+          return [];
+        }
+        
+        return data as DocumentLink[];
+      } catch (error) {
+        console.error('Error fetching document links:', error);
+        throw error;
+      }
     },
-    enabled: !!clientId
+    enabled: !!clientId,
+    retry: 2,
+    retryDelay: 1000
   });
 
   // Mutation to add a document link
   const addDocumentLink = useMutation({
     mutationFn: async (data: DocumentLinkFormData) => {
-      if (!clientId) throw new Error('Client ID is required');
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
       
-      // Start validation process
       setIsValidating(true);
       
       try {
@@ -61,15 +103,28 @@ export const useDocumentLinks = (clientId?: string) => {
         try {
           new URL(data.link);
         } catch (error) {
-          toast.error('Please enter a valid URL');
-          return;
+          throw new Error('Please enter a valid URL');
         }
         
-        // Add the document link - we'll trust the user's selection of document type
+        const effectiveClientId = await getEffectiveClientId(clientId);
+        
+        // Check if the link already exists for this client
+        const { data: existingLink } = await supabase
+          .from('document_links')
+          .select('id')
+          .eq('client_id', effectiveClientId)
+          .eq('link', data.link)
+          .single();
+          
+        if (existingLink) {
+          throw new Error('This document link already exists');
+        }
+        
+        // Add the document link with the correct client ID
         const { data: newLink, error } = await supabase
           .from('document_links')
           .insert({
-            client_id: clientId,
+            client_id: effectiveClientId,
             link: data.link,
             document_type: data.document_type,
             refresh_rate: data.refresh_rate,
@@ -80,13 +135,9 @@ export const useDocumentLinks = (clientId?: string) => {
         
         if (error) throw error;
         
-        toast.success('Document link added successfully');
         return newLink.id;
       } catch (error) {
-        if (error instanceof Error) {
-          console.error('Error adding document link:', error);
-          toast.error('Failed to add document link');
-        }
+        console.error('Error adding document link:', error);
         throw error;
       } finally {
         setIsValidating(false);
@@ -94,37 +145,52 @@ export const useDocumentLinks = (clientId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-links', clientId] });
-    },
-    onError: (error) => {
-      console.error('Error adding document link:', error);
-      // Toast is already shown in the mutation function
     }
   });
 
   // Mutation to delete a document link
   const deleteDocumentLink = useMutation({
     mutationFn: async (linkId: number) => {
-      const { error } = await supabase
-        .from('document_links')
-        .delete()
-        .eq('id', linkId);
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
       
-      if (error) throw error;
-      
-      return linkId;
+      try {
+        const effectiveClientId = await getEffectiveClientId(clientId);
+        
+        // Verify the link belongs to this client before deleting
+        const { data: existingLink } = await supabase
+          .from('document_links')
+          .select('id')
+          .eq('id', linkId)
+          .eq('client_id', effectiveClientId)
+          .single();
+          
+        if (!existingLink) {
+          throw new Error('Document link not found or access denied');
+        }
+        
+        const { error } = await supabase
+          .from('document_links')
+          .delete()
+          .eq('id', linkId)
+          .eq('client_id', effectiveClientId);
+        
+        if (error) throw error;
+        
+        return linkId;
+      } catch (error) {
+        console.error('Error deleting document link:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-links', clientId] });
-      toast.success('Document link deleted successfully');
-    },
-    onError: (error) => {
-      console.error('Error deleting document link:', error);
-      toast.error('Failed to delete document link');
     }
   });
 
   return {
-    documentLinks,
+    documentLinks: documentLinks || [],
     isLoading,
     error,
     isValidating,

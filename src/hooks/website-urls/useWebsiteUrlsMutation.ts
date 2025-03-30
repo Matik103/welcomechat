@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabaseAdmin } from "@/integrations/supabase/admin";
 import { WebsiteUrl, WebsiteUrlFormData } from "@/types/website-url";
@@ -23,10 +22,30 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
       console.log("Current user:", user?.id);
       
       try {
+        // First, get the client record to ensure we have the correct ID
+        const { data: clientData, error: clientError } = await supabaseAdmin
+          .from("ai_agents")
+          .select("id")
+          .eq("interaction_type", "config")
+          .or(`id.eq.${effectiveClientId},client_id.eq.${effectiveClientId}`)
+          .single();
+          
+        if (clientError) {
+          console.error("Error finding client:", clientError);
+          throw new Error("Could not find client record");
+        }
+        
+        if (!clientData) {
+          throw new Error("Client not found");
+        }
+        
+        console.log("Found client record:", clientData);
+        
+        // Now insert the website URL with the correct client ID
         const { data, error } = await supabaseAdmin
           .from("website_urls")
           .insert({
-            client_id: effectiveClientId,
+            client_id: clientData.id, // Use the actual UUID from the client record
             url: input.url,
             refresh_rate: input.refresh_rate,
             status: input.status || 'pending'

@@ -1,396 +1,196 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useDocumentLinks } from '@/hooks/useDocumentLinks';
+import { useDocumentUpload } from '@/hooks/useDocumentUpload';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Loader2, Plus, Trash2, Upload, RefreshCw, FileText, File } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { DocumentLink } from '@/types/agent';
-import { toast } from 'sonner';
-import { truncateString, formatDate } from '@/utils/stringUtils';
-import { Progress } from '@/components/ui/progress';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useDriveAccessCheck } from '@/hooks/useDriveAccessCheck';
-import { AccessStatus } from '@/types/document-processing';
+import { Loader2, Trash2, Upload, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface DocumentLinksProps {
-  documentLinks: DocumentLink[];
-  onAdd: (data: { 
-    link: string; 
-    document_type: string; 
-    refresh_rate: number;
-  }) => Promise<void>;
-  onDelete: (linkId: number) => Promise<void>;
-  onUpload: (file: File) => Promise<void>;
-  isLoading: boolean;
-  isAdding: boolean;
-  isDeleting: boolean;
-  isUploading: boolean;
-  uploadProgress: number;
-  agentName: string;
+  clientId: string;
 }
 
-export const DocumentLinks = ({
-  documentLinks,
-  onAdd,
-  onDelete,
-  onUpload,
-  isLoading,
-  isAdding,
-  isDeleting,
-  isUploading,
-  uploadProgress,
-  agentName
-}: DocumentLinksProps) => {
+export function DocumentLinks({ clientId }: DocumentLinksProps) {
   const [newLink, setNewLink] = useState('');
-  const [documentType, setDocumentType] = useState<string>('google_drive');
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { documentLinks, isLoading, addDocumentLink, deleteDocumentLink, refetch } = useDocumentLinks(clientId);
+  const { uploadDocument, isUploading } = useDocumentUpload(clientId);
 
-  // Helper function to detect URL type and set the appropriate document type
-  const detectAndSetDocumentType = (url: string) => {
-    if (!url) return;
-    
-    try {
-      new URL(url); // Simple URL validation
-      
-      if (url.includes('docs.google.com/document')) {
-        setDocumentType('google_doc');
-      } else if (url.includes('docs.google.com/spreadsheets') || url.includes('sheets.google.com')) {
-        setDocumentType('google_sheet');
-      } else if (url.includes('drive.google.com/drive') || url.includes('drive.google.com/folder')) {
-        setDocumentType('google_drive');
-      } else if (url.toLowerCase().endsWith('.pdf')) {
-        setDocumentType('pdf');
-      } else if (url.toLowerCase().endsWith('.txt') || url.toLowerCase().endsWith('.md')) {
-        setDocumentType('text');
-      }
-      // If none of the above, leave the current selection
-    } catch (error) {
-      // Not a valid URL, don't change anything
+  useEffect(() => {
+    if (!clientId) {
+      setError('Client ID is required');
+      return;
     }
-  };
+    refetch();
+  }, [clientId, refetch]);
 
-  // Handle form submission for links
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAddLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!newLink) {
       toast.error('Please enter a valid link');
       return;
     }
-    
+
     try {
-      await onAdd({ 
-        link: newLink, 
-        document_type: documentType,
-        refresh_rate: 30 // Default refresh rate: 30 days
+      await addDocumentLink.mutateAsync({
+        link: newLink,
+        document_type: 'url',
+        refresh_rate: 30
       });
-      
       setNewLink('');
+      toast.success('Link added successfully');
+      refetch();
     } catch (error) {
       console.error('Error adding link:', error);
-      toast.error('Failed to add document link');
+      toast.error(error instanceof Error ? error.message : 'Failed to add link');
     }
   };
 
-  // Handle file upload
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setUploadFile(files[0]);
-    }
-  };
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleUpload = async () => {
-    if (!uploadFile) {
-      toast.error('Please select a file to upload');
-      return;
-    }
-    
     try {
-      await onUpload(uploadFile);
-      setUploadFile(null);
-      
-      // Reset the file input
-      const fileInput = document.getElementById('document-upload') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
+      const result = await uploadDocument(file);
+      if (result.success) {
+        refetch();
+      } else {
+        toast.error(result.error || 'Failed to upload document');
       }
     } catch (error) {
       console.error('Error uploading file:', error);
-      toast.error('Failed to upload file');
+      toast.error(error instanceof Error ? error.message : 'Failed to upload file');
     }
   };
 
-  // Handle delete
   const handleDelete = async (linkId: number) => {
-    if (confirm('Are you sure you want to delete this document link?')) {
-      await onDelete(linkId);
+    try {
+      await deleteDocumentLink.mutateAsync(linkId);
+      toast.success('Document deleted successfully');
+      refetch();
+    } catch (error) {
+      console.error('Error deleting link:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete document');
     }
   };
 
-  // Get document type icon
-  const getDocumentTypeIcon = (type: string) => {
-    switch (type) {
-      case 'google_doc':
-      case 'google_sheet':
-      case 'text':
-        return <FileText className="h-4 w-4 text-blue-500" />;
-      case 'pdf':
-        return <File className="h-4 w-4 text-red-500" />;
-      default:
-        return <File className="h-4 w-4 text-gray-500" />;
-    }
-  };
+  if (!clientId) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>Client ID is required to manage documents</AlertDescription>
+      </Alert>
+    );
+  }
 
-  // Format document type for display
-  const formatDocumentType = (type: string) => {
-    switch (type) {
-      case 'google_doc': return 'Google Doc';
-      case 'google_sheet': return 'Google Sheet';
-      case 'google_drive': return 'Google Drive';
-      case 'pdf': return 'PDF';
-      case 'text': return 'Text';
-      default: return type.charAt(0).toUpperCase() + type.slice(1);
-    }
-  };
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 space-y-4">
+        <Loader2 className="animate-spin h-8 w-8" />
+        <p className="text-sm text-gray-500">Loading documents...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Google Drive Link Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Add Document Link</Label>
-            <div className="space-y-2">
-              <Select 
-                value={documentType} 
-                onValueChange={setDocumentType}
+    <div className="space-y-4">
+      <form onSubmit={handleAddLink} className="flex gap-2">
+        <Input
+          type="url"
+          value={newLink}
+          onChange={(e) => setNewLink(e.target.value)}
+          placeholder="Enter document link (e.g., Google Drive)"
+          className="flex-1"
+          disabled={addDocumentLink.isPending}
+        />
+        <Button 
+          type="submit" 
+          disabled={!newLink || addDocumentLink.isPending}
+        >
+          {addDocumentLink.isPending ? (
+            <>
+              <Loader2 className="animate-spin mr-2 h-4 w-4" />
+              Adding...
+            </>
+          ) : 'Add Link'}
+        </Button>
+        <div className="relative">
+          <input
+            type="file"
+            onChange={handleFileUpload}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            accept=".pdf,.doc,.docx,.txt"
+            disabled={isUploading}
+          />
+          <Button type="button" disabled={isUploading}>
+            {isUploading ? (
+              <>
+                <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Upload className="mr-2 h-4 w-4" />
+                Upload
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+
+      <div className="space-y-2">
+        {documentLinks?.map((link) => (
+          <div key={link.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+            <div className="flex-1 min-w-0">
+              <a
+                href={link.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline truncate block"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select document type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="google_drive">Google Drive</SelectItem>
-                  <SelectItem value="google_doc">Google Doc</SelectItem>
-                  <SelectItem value="google_sheet">Google Sheet</SelectItem>
-                  <SelectItem value="pdf">PDF</SelectItem>
-                  <SelectItem value="text">Text Document</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <div className="flex gap-2">
-                <Input
-                  placeholder="https://drive.google.com/drive/folders/..."
-                  value={newLink}
-                  onChange={(e) => {
-                    setNewLink(e.target.value);
-                    detectAndSetDocumentType(e.target.value);
-                  }}
-                  disabled={isAdding}
-                  className="flex-1"
-                />
-                <Button type="submit" disabled={isAdding || !newLink}>
-                  {isAdding ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add
-                    </>
-                  )}
-                </Button>
+                {link.link}
+              </a>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-gray-500">
+                  Type: {link.document_type}
+                </span>
+                <span className="text-xs text-gray-500">
+                  Added: {new Date(link.created_at).toLocaleDateString()}
+                </span>
               </div>
             </div>
-          </div>
-        </form>
-
-        {/* File Upload Form */}
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="document-upload">Upload Document</Label>
-            <div className="space-y-2">
-              <Input
-                id="document-upload"
-                type="file"
-                onChange={handleFileChange}
-                disabled={isUploading}
-                accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
-              />
-              <Button
-                type="button"
-                onClick={handleUpload}
-                disabled={isUploading || !uploadFile}
-                className="w-full"
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload
-                  </>
-                )}
-              </Button>
-              {isUploading && (
-                <Progress value={uploadProgress} className="h-2" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleDelete(link.id)}
+              disabled={deleteDocumentLink.isPending}
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              {deleteDocumentLink.isPending ? (
+                <Loader2 className="animate-spin h-4 w-4" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
               )}
-            </div>
+            </Button>
           </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="font-medium mb-2">Document Links</h3>
-        {isLoading ? (
-          <div className="text-center py-4">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p className="mt-2 text-sm text-muted-foreground">Loading document links...</p>
+        ))}
+        {(!documentLinks || documentLinks.length === 0) && (
+          <div className="text-center p-8 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">No documents added yet</p>
+            <p className="text-sm text-gray-400 mt-1">Upload a file or add a document link to get started</p>
           </div>
-        ) : documentLinks.length === 0 ? (
-          <Card className="p-4 text-center text-muted-foreground">
-            No document links have been added yet.
-          </Card>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Link</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Added</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {documentLinks.map((link) => (
-                <DocumentLinkRow
-                  key={link.id}
-                  link={link}
-                  onDelete={handleDelete}
-                  isDeleting={isDeleting}
-                />
-              ))}
-            </TableBody>
-          </Table>
         )}
       </div>
     </div>
   );
-};
-
-// Helper component to show document link rows
-const DocumentLinkRow = ({ 
-  link, 
-  onDelete, 
-  isDeleting 
-}: { 
-  link: DocumentLink; 
-  onDelete: (id: number) => Promise<void>;
-  isDeleting: boolean;
-}) => {
-  const { accessStatus, refreshStatus, isLoading } = useDriveAccessCheck(link.id);
-  
-  // Get document type icon
-  const getDocumentTypeIcon = (type: string) => {
-    switch (type) {
-      case 'google_doc':
-      case 'google_sheet':
-      case 'text':
-        return <FileText className="h-4 w-4 mr-1 text-blue-500" />;
-      case 'pdf':
-        return <File className="h-4 w-4 mr-1 text-red-500" />;
-      default:
-        return <File className="h-4 w-4 mr-1 text-gray-500" />;
-    }
-  };
-
-  // Format document type for display
-  const formatDocumentType = (type: string) => {
-    switch (type) {
-      case 'google_doc': return 'Google Doc';
-      case 'google_sheet': return 'Google Sheet';
-      case 'google_drive': return 'Google Drive';
-      case 'pdf': return 'PDF';
-      case 'text': return 'Text';
-      default: return type.charAt(0).toUpperCase() + type.slice(1);
-    }
-  };
-  
-  return (
-    <TableRow>
-      <TableCell>
-        <a
-          href={link.link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:underline"
-        >
-          {truncateString(link.link, 40)}
-        </a>
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center">
-          {getDocumentTypeIcon(link.document_type)}
-          <span>{formatDocumentType(link.document_type)}</span>
-        </div>
-      </TableCell>
-      <TableCell>{formatDate(link.created_at)}</TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <span className={`capitalize ${
-            accessStatus === 'granted' || accessStatus === 'accessible' ? 'text-green-600' :
-            accessStatus === 'denied' || accessStatus === 'inaccessible' ? 'text-red-600' :
-            accessStatus === 'pending' ? 'text-amber-600' : 'text-gray-600'
-          }`}>
-            {accessStatus || 'unknown'}
-          </span>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => refreshStatus()}
-            disabled={isLoading}
-            className="h-6 w-6"
-          >
-            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-      </TableCell>
-      <TableCell>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onDelete(link.id)}
-          disabled={isDeleting}
-        >
-          {isDeleting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Trash2 className="h-4 w-4 text-destructive" />
-          )}
-        </Button>
-      </TableCell>
-    </TableRow>
-  );
-};
+}
