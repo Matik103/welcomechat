@@ -12,7 +12,6 @@ import { toast } from "sonner";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useClientData } from "@/hooks/useClientData";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
-import { ClientLayout } from "@/components/layout/ClientLayout";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 
 export default function WidgetSettings() {
@@ -114,11 +113,7 @@ export default function WidgetSettings() {
   };
 
   if (isLoading || isLoadingClient) {
-    return (
-      <ClientLayout>
-        <ClientViewLoading />
-      </ClientLayout>
-    );
+    return <ClientViewLoading />;
   }
 
   // Create a wrapper for updateSettingsMutation to match expected props
@@ -141,19 +136,17 @@ export default function WidgetSettings() {
   };
 
   return (
-    <ClientLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <WidgetSettingsContainer
-          clientId={clientId}
-          settings={settings || defaultSettings}
-          isClientView={true}
-          isUploading={isUploading}
-          updateSettingsMutation={updateSettingsWrapper}
-          handleBack={handleNavigateBack}
-          handleLogoUpload={handleLogoUploadChange}
-          logClientActivity={logActivityWrapper}
-        />
-      </div>
-    </ClientLayout>
+    <div className="max-w-7xl mx-auto">
+      <WidgetSettingsContainer
+        clientId={clientId}
+        settings={settings || defaultSettings}
+        isClientView={true}
+        isUploading={isUploading}
+        updateSettingsMutation={updateSettingsWrapper}
+        handleBack={handleNavigateBack}
+        handleLogoUpload={handleLogoUploadChange}
+        logClientActivity={logActivityWrapper}
+      />
+    </div>
   );
 }

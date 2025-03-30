@@ -18,12 +18,14 @@ export const ClientRoutes = () => {
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
-          <Route path="/client/dashboard" element={<ClientDashboard />} />
-          <Route path="/client/settings" element={<ClientSettings />} />
-          <Route path="/client/account-settings" element={<AccountSettings />} />
-          <Route path="/client/resource-settings" element={<ResourceSettings />} />
-          <Route path="/client/edit-info" element={<EditClientInfo />} />
-          <Route path="/client/widget-settings" element={<WidgetSettings />} />
+          <Route path="/client" element={<ClientLayout />}>
+            <Route path="dashboard" element={<ClientDashboard />} />
+            <Route path="settings" element={<ClientSettings />} />
+            <Route path="account-settings" element={<AccountSettings />} />
+            <Route path="resource-settings" element={<ResourceSettings />} />
+            <Route path="edit-info" element={<EditClientInfo />} />
+            <Route path="widget-settings" element={<WidgetSettings />} />
+          </Route>
           <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
           <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
           <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
