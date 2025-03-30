@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -11,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { useClientActivity } from '@/hooks/useClientActivity';
 import { useNavigation } from '@/hooks/useNavigation';
+import { supabase } from '@/lib/supabase';
 
 export default function ClientProfile() {
   const { user } = useAuth();
@@ -45,6 +45,60 @@ export default function ClientProfile() {
       navigation.goToAuth();
     }
   }, [user, isLoadingClient, navigation]);
+
+  // Enhanced debugging logs
+  useEffect(() => {
+    const logDebugInfo = async () => {
+      console.log("=== Debug Information ===");
+      console.log("Current client state:", { client, isLoadingClient, error });
+      console.log("User object:", user);
+      console.log("User metadata:", user?.user_metadata);
+      console.log("Client ID from metadata:", clientId);
+      
+      // Check current session
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("Current session:", sessionData?.session);
+      
+      // Verify user metadata directly from Supabase
+      const { data: userData } = await supabase.auth.getUser();
+      console.log("User data from Supabase:", userData?.user);
+      
+      if (!clientId) {
+        console.warn("No client ID found in user metadata");
+        if (user?.email) {
+          // Try to find client ID from ai_agents table
+          const { data: clientData, error: clientError } = await supabase
+            .from('ai_agents')
+            .select('id, client_id')
+            .eq('email', user.email)
+            .eq('interaction_type', 'config')
+            .single();
+            
+          if (clientError) {
+            console.error("Error looking up client by email:", clientError);
+          } else if (clientData) {
+            console.log("Found client ID in ai_agents table:", clientData.client_id || clientData.id);
+            // Update user metadata with client ID
+            const { error: updateError } = await supabase.auth.updateUser({
+              data: { 
+                client_id: clientData.client_id || clientData.id,
+                role: 'client'
+              }
+            });
+            
+            if (updateError) {
+              console.error("Error updating user metadata:", updateError);
+            } else {
+              console.log("Updated user metadata with client ID");
+              window.location.reload(); // Reload to get updated metadata
+            }
+          }
+        }
+      }
+    };
+    
+    logDebugInfo();
+  }, [user, clientId, client, isLoadingClient, error]);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
