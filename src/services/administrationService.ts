@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { ActivityTypeString } from "@/types/activity";
+import { ActivityType, ActivityTypeString } from "@/types/activity";
 
 /**
  * Get total count of administration activities across all clients
@@ -13,47 +13,52 @@ export const getAdministrationActivitiesCount = async (): Promise<{
 }> => {
   try {
     // Define the activity types that are considered administration activities
-    const adminActivityTypes: ActivityTypeString[] = [
-      'client_created', 
-      'client_updated', 
-      'client_deleted',
-      'client_recovered',
-      'agent_created',
-      'agent_updated',
-      'agent_deleted',
-      'agent_name_updated',
-      'agent_description_updated',
-      'agent_error',
-      'agent_logo_updated',
-      'document_added',
-      'document_removed',
-      'document_processed',
-      'document_processing_failed',
-      'url_added',
-      'url_removed',
-      'url_processed',
-      'url_processing_failed',
-      'webhook_sent',
-      'email_sent',
-      'invitation_sent',
-      'invitation_accepted',
-      'widget_previewed',
-      'user_role_updated',
-      'login_success',
-      'login_failed',
-      'signed_out',
-      'widget_settings_updated',
-      'logo_uploaded',
-      'system_update',
-      'source_deleted',
-      'source_added'
+    const adminActivityTypes: (ActivityType | ActivityTypeString)[] = [
+      ActivityType.CLIENT_CREATED, 
+      ActivityType.CLIENT_UPDATED, 
+      ActivityType.CLIENT_DELETED,
+      ActivityType.CLIENT_RECOVERED,
+      ActivityType.AGENT_CREATED,
+      ActivityType.AGENT_UPDATED,
+      ActivityType.AGENT_DELETED,
+      ActivityType.AGENT_NAME_UPDATED,
+      ActivityType.AGENT_DESCRIPTION_UPDATED,
+      ActivityType.AGENT_ERROR,
+      ActivityType.AGENT_LOGO_UPDATED,
+      ActivityType.DOCUMENT_ADDED,
+      ActivityType.DOCUMENT_REMOVED,
+      ActivityType.DOCUMENT_PROCESSED,
+      ActivityType.DOCUMENT_PROCESSING_FAILED,
+      ActivityType.URL_ADDED,
+      ActivityType.URL_REMOVED,
+      ActivityType.URL_PROCESSED,
+      ActivityType.URL_PROCESSING_FAILED,
+      ActivityType.WEBHOOK_SENT,
+      ActivityType.EMAIL_SENT,
+      ActivityType.INVITATION_SENT,
+      ActivityType.INVITATION_ACCEPTED,
+      ActivityType.WIDGET_PREVIEWED,
+      ActivityType.USER_ROLE_UPDATED,
+      ActivityType.LOGIN_SUCCESS,
+      ActivityType.LOGIN_FAILED,
+      ActivityType.SIGNED_OUT,
+      ActivityType.WIDGET_SETTINGS_UPDATED,
+      ActivityType.LOGO_UPLOADED,
+      ActivityType.SYSTEM_UPDATE,
+      ActivityType.SOURCE_DELETED,
+      ActivityType.SOURCE_ADDED
     ];
+      
+    // Convert enum values to their string equivalents
+    const adminActivityTypeStrings = adminActivityTypes.map(type => 
+      typeof type === 'string' ? type : type.toString()
+    );
       
     // Count all administration-related activities
     const { count: totalCount, error: countError } = await supabase
       .from('activities')
       .select('*', { count: 'exact', head: true })
-      .in('type', adminActivityTypes as any); // Use type assertion to bypass type checking
+      .in('type', adminActivityTypeStrings as any); // Use type assertion to bypass type checking
       
     if (countError) throw countError;
     
@@ -65,7 +70,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
     const { count: recentCount, error: recentError } = await supabase
       .from('activities')
       .select('*', { count: 'exact', head: true })
-      .in('type', adminActivityTypes as any) // Use type assertion to bypass type checking
+      .in('type', adminActivityTypeStrings as any) // Use type assertion to bypass type checking
       .gt('created_at', timeAgoStr);
       
     if (recentError) throw recentError;

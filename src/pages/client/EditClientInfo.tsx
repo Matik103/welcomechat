@@ -76,7 +76,7 @@ export function EditClientInfo() {
   };
 
   const handleNavigateBack = () => {
-    navigation.navigate('/client/dashboard');
+    navigation.goToClientDashboard();
   };
 
   const handleRetryServiceKey = () => {
