@@ -13,11 +13,28 @@ import { ClientLayout } from '@/components/layout/ClientLayout';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
+import { checkAndRefreshAuth } from '@/services/authService';
 
 export default function EditClientInfo() {
   const { user } = useAuth();
   const navigation = useNavigation();
+  const [authChecked, setAuthChecked] = useState(false);
   
+  useEffect(() => {
+    // Check auth status on component mount
+    const verifyAuth = async () => {
+      const isValid = await checkAndRefreshAuth();
+      setAuthChecked(true);
+      if (!isValid) {
+        toast.error("Your session has expired. Please log in again.");
+        navigation.goToAuth();
+      }
+    };
+    
+    verifyAuth();
+  }, [navigation]);
+  
+  // Use the client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
   const { logClientActivity } = useClientActivity(clientId);
 
@@ -30,7 +47,7 @@ export default function EditClientInfo() {
   } = useClientData(clientId);
 
   useEffect(() => {
-    console.log("User metadata:", user?.user_metadata);
+    console.log("User metadata in EditClientInfo:", user?.user_metadata);
     console.log("Client ID from metadata:", clientId);
     console.log("Current client state:", { client, isLoadingClient, error });
   }, [user, clientId, client, isLoadingClient, error]);
@@ -81,6 +98,17 @@ export default function EditClientInfo() {
       refetchClient();
     }
   }, [client, isLoadingClient, clientId, error, refetchClient]);
+
+  if (!authChecked) {
+    return (
+      <ClientLayout>
+        <div className="mt-6 p-8 text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Verifying your authentication...</p>
+        </div>
+      </ClientLayout>
+    );
+  }
 
   if (!clientId) {
     return (

@@ -50,10 +50,11 @@ export const useNavigation = () => {
   }, [navigate]);
   
   const goToAuth = useCallback(() => {
+    // Navigate to the appropriate auth page based on the user role
     if (isAdmin) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
     } else {
-      navigate('/client/auth');
+      navigate('/client/auth', { replace: true });
     }
   }, [isAdmin, navigate]);
   
