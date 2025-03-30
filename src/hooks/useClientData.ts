@@ -36,8 +36,11 @@ export const useClientData = (id: string | undefined) => {
       if (id) {
         console.log(`Attempted to fetch client with ID: ${id}`);
       }
+      if (user?.user_metadata?.client_id) {
+        console.log(`User metadata contains client_id: ${user.user_metadata.client_id}`);
+      }
     }
-  }, [error, id]);
+  }, [error, id, user?.user_metadata?.client_id]);
   
   const clientMutation = useClientMutation();
 
