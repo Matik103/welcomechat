@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientForm } from '@/components/client/ClientForm';
@@ -33,24 +33,15 @@ export default function EditClientInfo() {
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
-      if (!client) {
+      if (!client || !client.id) {
         toast.error("Client information not available");
         return;
       }
       
-      // Ensure we always have a client ID for the update
-      const clientIdForUpdate = client.id;
-      
-      if (!clientIdForUpdate) {
-        toast.error("Client ID is required to update client");
-        console.error("Missing client ID for update. Client object:", client);
-        return;
-      }
-      
-      console.log("Submitting update with client ID:", clientIdForUpdate);
+      console.log("Submitting with client ID:", client.id);
       
       await clientMutation.mutateAsync({
-        client_id: clientIdForUpdate,
+        client_id: client.id,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,

@@ -64,6 +64,9 @@ export const ClientHeader = () => {
                 <DropdownMenuItem asChild>
                   <Link to="/client/edit-info">Profile Settings</Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/client/widget-settings">Widget Settings</Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
                   Sign out
@@ -76,3 +79,4 @@ export const ClientHeader = () => {
     </header>
   );
 };
+

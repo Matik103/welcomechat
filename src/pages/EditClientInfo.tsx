@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
@@ -41,23 +42,13 @@ export function EditClientInfo() {
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
-      if (!client) {
-        toast.error("Client information not available");
-        return;
-      }
-      
-      const clientIdForUpdate = client.id;
-      
-      if (!clientIdForUpdate) {
+      if (!client || !client.id) {
         toast.error("Client ID is required to update client");
-        console.error("Missing client ID for update. Client object:", client);
         return;
       }
-      
-      console.log("Admin submitting update with client ID:", clientIdForUpdate);
       
       await clientMutation.mutateAsync({
-        client_id: clientIdForUpdate,
+        client_id: client.id,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
