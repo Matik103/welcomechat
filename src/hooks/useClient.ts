@@ -14,7 +14,7 @@ export const useClient = (clientId: string, options = {}) => {
     try {
       console.log(`Fetching client with ID: ${clientId}`);
       
-      // Try fetching by direct ID first from ai_agents table
+      // Try fetching by direct ID from ai_agents table with interaction_type = 'config'
       let { data, error } = await supabase
         .from('ai_agents')
         .select('*')
@@ -46,6 +46,8 @@ export const useClient = (clientId: string, options = {}) => {
         return null;
       }
 
+      console.log('Raw client data from ai_agents:', data);
+
       // Ensure widget_settings is an object, not a string
       const widgetSettings = safeParseSettings(data.settings);
 
@@ -73,7 +75,7 @@ export const useClient = (clientId: string, options = {}) => {
         is_error: data.is_error || false
       };
 
-      console.log('Client data retrieved successfully:', client.id);
+      console.log('Client data mapped successfully:', client);
       return client;
     } catch (error) {
       console.error('Error in fetchClient:', error);

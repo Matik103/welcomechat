@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
@@ -46,18 +47,18 @@ export function EditClientInfo() {
         return;
       }
       
-      const clientIdForUpdate = client.id;
+      // First try to use the client ID from the client object
+      const updateClientId = client.id || client.client_id;
       
-      if (!clientIdForUpdate) {
-        toast.error("Client ID is required to update client");
-        console.error("Missing client ID for update. Client object:", client);
+      if (!updateClientId) {
+        toast.error("Client ID not found");
         return;
       }
       
-      console.log("Admin submitting update with client ID:", clientIdForUpdate);
+      console.log("Submitting with client ID:", updateClientId);
       
       await clientMutation.mutateAsync({
-        client_id: clientIdForUpdate,
+        client_id: updateClientId,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
@@ -179,9 +180,9 @@ export function EditClientInfo() {
             </TabsContent>
             
             <TabsContent value="resources">
-              {client && client.id && (
+              {client && (
                 <ClientResourceSections 
-                  clientId={client.id} 
+                  clientId={client.id || client.client_id}
                   logClientActivity={logClientActivity}
                   onResourceChange={refetchClient}
                 />
