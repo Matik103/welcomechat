@@ -1,7 +1,7 @@
 
 import { Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { ClientHeader } from "@/components/layout/ClientHeader";
+import { ClientLayout } from "@/components/layout/ClientLayout";
 import ClientDashboard from "@/pages/client/Dashboard";
 import ClientSettings from "@/pages/client/Settings";
 import AccountSettings from "@/pages/client/AccountSettings";
@@ -14,7 +14,6 @@ import { LoadingFallback } from "./LoadingFallback";
 export const ClientRoutes = () => {
   return (
     <div className="min-h-screen bg-background">
-      <ClientHeader />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
