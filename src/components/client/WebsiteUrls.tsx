@@ -44,6 +44,9 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
           onResourceChange();
         }
         await logClientActivity();
+        
+        // Add success message for better user feedback
+        toast.success("URL deleted successfully");
       } catch (error) {
         console.error("Error deleting URL:", error);
         toast.error("Failed to delete URL. Please try again.");
@@ -66,6 +69,9 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
       }
       
       await logClientActivity();
+      
+      // Add success message for better user feedback
+      toast.success("URL added successfully");
     } catch (error) {
       console.error("Error adding URL:", error);
       toast.error(`Failed to add URL: ${error instanceof Error ? error.message : 'Unknown error'}`);

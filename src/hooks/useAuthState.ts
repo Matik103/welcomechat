@@ -12,8 +12,26 @@ export function useAuthState() {
   const focusHandled = useRef(false);
   const lastFocusTime = useRef(0);
   const lastSessionRestoreTime = useRef(0);
+  const loadingTimeoutRef = useRef<number | null>(null);
 
-  // Handle window focus events - with improved debouncing
+  // Set a maximum loading time to prevent infinite loading
+  useEffect(() => {
+    if (isLoading) {
+      // Force loading to complete after 5 seconds
+      loadingTimeoutRef.current = window.setTimeout(() => {
+        console.log('Maximum loading time reached - forcing completion');
+        setIsLoading(false);
+      }, 5000);
+    }
+    
+    return () => {
+      if (loadingTimeoutRef.current !== null) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, [isLoading]);
+
+  // Handle window focus events - with improved debouncing and error handling
   useEffect(() => {
     const handleFocus = () => {
       // Prevent rapid re-focus handling by adding a time threshold
@@ -46,33 +64,47 @@ export function useAuthState() {
       window.addEventListener('blur', handleBlur, { once: true });
       
       // Check if we have stored auth state
-      const storedState = sessionStorage.getItem('auth_state');
-      if (storedState) {
-        try {
-          const { session: storedSession, user: storedUser, userRole: storedRole, timestamp } = JSON.parse(storedState);
-          // Only restore if the stored state is less than 1 hour old
-          if (Date.now() - timestamp < 60 * 60 * 1000) {
-            console.log('Restoring auth state from session storage');
-            setSession(storedSession);
-            setUser(storedUser);
-            setUserRole(storedRole);
-            setIsLoading(false);
-            
-            lastSessionRestoreTime.current = Date.now();
-            
-            // Dispatch a custom event to notify the app that auth state has been restored
-            // but only if we actually had state to restore
-            if (storedSession && storedUser) {
-              window.dispatchEvent(new CustomEvent('authStateRestored'));
+      try {
+        const storedState = sessionStorage.getItem('auth_state');
+        if (storedState) {
+          try {
+            const { session: storedSession, user: storedUser, userRole: storedRole, timestamp } = JSON.parse(storedState);
+            // Only restore if the stored state is less than 1 hour old
+            if (Date.now() - timestamp < 60 * 60 * 1000) {
+              console.log('Restoring auth state from session storage');
+              setSession(storedSession);
+              setUser(storedUser);
+              setUserRole(storedRole);
+              setIsLoading(false);
+              
+              lastSessionRestoreTime.current = Date.now();
+              
+              // Dispatch a custom event to notify the app that auth state has been restored
+              // but only if we actually had state to restore
+              if (storedSession && storedUser) {
+                window.dispatchEvent(new CustomEvent('authStateRestored'));
+              }
+            } else {
+              console.log('Stored auth state is too old, not restoring');
+              sessionStorage.removeItem('auth_state');
+              setIsLoading(false);
             }
-          } else {
-            console.log('Stored auth state is too old, not restoring');
+          } catch (error) {
+            console.error('Error restoring auth state on focus:', error);
             sessionStorage.removeItem('auth_state');
+            setIsLoading(false);
           }
-        } catch (error) {
-          console.error('Error restoring auth state on focus:', error);
-          sessionStorage.removeItem('auth_state');
+        } else {
+          // If no stored state exists, make sure we're not in loading state
+          if (isLoading) {
+            console.log('No stored auth state, setting loading to false');
+            setIsLoading(false);
+          }
         }
+      } catch (error) {
+        console.error('Error accessing sessionStorage:', error);
+        // In case of any errors, make sure we're not stuck in loading state
+        setIsLoading(false);
       }
       
       return () => window.removeEventListener('blur', handleBlur);
@@ -88,21 +120,25 @@ export function useAuthState() {
     }
     
     return () => window.removeEventListener('focus', handleFocus);
-  }, [session, user]);
+  }, [session, user, isLoading]);
 
   // Use useCallback to memoize the setter functions
   const setSessionCallback = useCallback((newSession: Session | null) => {
     setSession(newSession);
     // Update sessionStorage when session changes
     if (newSession && user && userRole) {
-      const authState = {
-        session: newSession,
-        user,
-        userRole,
-        timestamp: Date.now()
-      };
-      sessionStorage.setItem('auth_state', JSON.stringify(authState));
-      lastSessionRestoreTime.current = Date.now();
+      try {
+        const authState = {
+          session: newSession,
+          user,
+          userRole,
+          timestamp: Date.now()
+        };
+        sessionStorage.setItem('auth_state', JSON.stringify(authState));
+        lastSessionRestoreTime.current = Date.now();
+      } catch (error) {
+        console.error('Error saving auth state to sessionStorage:', error);
+      }
     }
   }, [user, userRole]);
 
@@ -110,14 +146,18 @@ export function useAuthState() {
     setUser(newUser);
     // Update sessionStorage when user changes
     if (session && newUser && userRole) {
-      const authState = {
-        session,
-        user: newUser,
-        userRole,
-        timestamp: Date.now()
-      };
-      sessionStorage.setItem('auth_state', JSON.stringify(authState));
-      lastSessionRestoreTime.current = Date.now();
+      try {
+        const authState = {
+          session,
+          user: newUser,
+          userRole,
+          timestamp: Date.now()
+        };
+        sessionStorage.setItem('auth_state', JSON.stringify(authState));
+        lastSessionRestoreTime.current = Date.now();
+      } catch (error) {
+        console.error('Error saving auth state to sessionStorage:', error);
+      }
     }
   }, [session, userRole]);
 
@@ -125,19 +165,37 @@ export function useAuthState() {
     setUserRole(newRole);
     // Update sessionStorage when role changes
     if (session && user && newRole) {
-      const authState = {
-        session,
-        user,
-        userRole: newRole,
-        timestamp: Date.now()
-      };
-      sessionStorage.setItem('auth_state', JSON.stringify(authState));
-      lastSessionRestoreTime.current = Date.now();
+      try {
+        const authState = {
+          session,
+          user,
+          userRole: newRole,
+          timestamp: Date.now()
+        };
+        sessionStorage.setItem('auth_state', JSON.stringify(authState));
+        lastSessionRestoreTime.current = Date.now();
+      } catch (error) {
+        console.error('Error saving auth state to sessionStorage:', error);
+      }
     }
   }, [session, user]);
 
   const setIsLoadingCallback = useCallback((loading: boolean) => {
     setIsLoading(loading);
+    
+    // Ensure we can't get stuck in loading state
+    if (loading) {
+      if (loadingTimeoutRef.current !== null) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      loadingTimeoutRef.current = window.setTimeout(() => {
+        console.log('Loading safety timeout triggered');
+        setIsLoading(false);
+      }, 5000);
+    } else if (loadingTimeoutRef.current !== null) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
   }, []);
 
   const setAuthInitializedCallback = useCallback((initialized: boolean) => {

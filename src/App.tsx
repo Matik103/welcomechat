@@ -26,6 +26,29 @@ function App() {
     isAuthPage || isClientAuthPage || isAuthCallback || isHomePage || isAboutPage || isContactPage
   ), [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage]);
 
+  // Enhanced loading state handling
+  useEffect(() => {
+    // If we're on a client route but still loading, use a shorter timeout
+    if (isLoading && location.pathname.includes('/client/')) {
+      const clientRouteTimeout = setTimeout(() => {
+        console.log("Client route detected - using shorter loading timeout");
+        setIsLoading(false);
+      }, 1500);
+      
+      return () => clearTimeout(clientRouteTimeout);
+    }
+    
+    // General loading timeout as a fallback
+    if (isLoading && !isAuthCallback) {
+      const generalTimeout = setTimeout(() => {
+        console.log("General timeout triggered to prevent infinite loading");
+        setIsLoading(false);
+      }, 5000);
+      
+      return () => clearTimeout(generalTimeout);
+    }
+  }, [isLoading, location.pathname, isAuthCallback, setIsLoading]);
+  
   // Check for stored auth state
   useEffect(() => {
     const storedState = sessionStorage.getItem('auth_state');
@@ -38,6 +61,9 @@ function App() {
         }
       } catch (error) {
         console.error('Error checking stored auth state:', error);
+        // If error parsing stored state, clear it and don't show loading
+        sessionStorage.removeItem('auth_state');
+        setIsLoading(false);
       }
     }
   }, [setIsLoading]);
@@ -96,8 +122,16 @@ function App() {
 
   // User authenticated but role not determined
   if (!userRole && user) {
-    console.log('User is authenticated but role is not determined, defaulting to admin');
-    return <Navigate to="/admin/dashboard" replace />;
+    const roleFromMetadata = user.user_metadata?.role;
+    
+    if (roleFromMetadata === 'admin') {
+      return <AdminRoutes />;
+    } else if (roleFromMetadata === 'client') {
+      return <ClientRoutes />;
+    }
+    
+    console.log('User is authenticated but role is not determined, defaulting to client view');
+    return <Navigate to="/client/dashboard" replace />;
   }
 
   // Admin routes
