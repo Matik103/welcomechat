@@ -33,13 +33,15 @@ export default function EditClientInfo() {
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
-      if (!clientId) {
-        toast.error("Client ID is required to update client");
+      if (!client || !client.id) {
+        toast.error("Client information not available");
         return;
       }
       
+      console.log("Submitting with client ID:", client.id);
+      
       await clientMutation.mutateAsync({
-        client_id: clientId,
+        client_id: client.id, // Use client.id instead of clientId
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,

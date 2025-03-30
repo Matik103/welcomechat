@@ -64,14 +64,28 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     console.log("Updating client with ID:", clientId);
     console.log("Update data:", JSON.stringify(updateData));
 
-    // First, get the client record to determine if we're dealing with id or client_id
-    const { data: clientRecordResult, error: findError } = await supabaseAdmin
+    // First, try to find the client by id directly
+    let { data: clientRecordResult, error: findError } = await supabaseAdmin
       .from('ai_agents')
       .select('id, client_id')
-      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .eq('id', clientId)
       .eq('interaction_type', 'config')
       .limit(1)
       .maybeSingle();
+
+    // If not found by id, try by client_id
+    if (!clientRecordResult && !findError) {
+      const { data: altResult, error: altError } = await supabaseAdmin
+        .from('ai_agents')
+        .select('id, client_id')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .limit(1)
+        .maybeSingle();
+        
+      clientRecordResult = altResult;
+      findError = altError;
+    }
 
     if (findError) {
       console.error("Error finding client:", findError);
@@ -86,9 +100,8 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     const clientRecord = clientRecordResult;
     console.log("Found client record:", clientRecord);
     
-    // Determine the field to query on (id or client_id)
-    const queryField = clientId === clientRecord.id ? 'id' : 'client_id';
-    const queryValue = queryField === 'id' ? clientRecord.id : clientRecord.client_id;
+    // Always use 'id' for the update query since we have confirmed the record exists
+    const recordId = clientRecord.id;
 
     // Create an object for the settings to update
     const settingsToUpdate = {
@@ -112,18 +125,18 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
         logo_storage_path: updateData.logo_storage_path,
         updated_at: new Date().toISOString()
       })
-      .eq(queryField, queryValue)
+      .eq('id', recordId)
       .eq('interaction_type', 'config')
       .select('*')
       .maybeSingle();
 
     if (updateError) {
-      console.error(`Error updating client by ${queryField}:`, updateError);
+      console.error(`Error updating client by id:`, updateError);
       throw new Error(`Failed to update client: ${updateError.message}`);
     }
 
     if (!updateResult) {
-      throw new Error(`Failed to update client with ${queryField}: ${queryValue}`);
+      throw new Error(`Failed to update client with id: ${recordId}`);
     }
 
     // Update the settings with an RPC call to safely merge JSON
@@ -136,7 +149,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
           )
           UPDATE ai_agents
           SET settings = COALESCE(settings, '{}'::jsonb) || (SELECT new_settings FROM settings_json)
-          WHERE ${queryField} = '${queryValue}' AND interaction_type = 'config'
+          WHERE id = '${recordId}' AND interaction_type = 'config'
           RETURNING settings;
         `,
         query_params: [JSON.stringify(settingsToUpdate)]

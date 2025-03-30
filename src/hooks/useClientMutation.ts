@@ -14,6 +14,8 @@ export const useClientMutation = () => {
   return useMutation({
     mutationFn: async (params: MutationParams) => {
       try {
+        console.log("Mutation params:", params);
+        
         // Prepare the update data
         const updateData = {
           client_name: params.client_name,
@@ -33,7 +35,7 @@ export const useClientMutation = () => {
       }
     },
     onSuccess: (data, variables) => {
-      // Invalidate only the specific client query to prevent excessive refetching
+      // Invalidate both possible query key patterns to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ['client', variables.client_id] });
       toast.success('Client updated successfully');
     },
