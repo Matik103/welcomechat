@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -10,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { useClientActivity } from '@/hooks/useClientActivity';
 import { useNavigation } from '@/hooks/useNavigation';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client'; // Fixed import
 
 export default function ClientProfile() {
   const { user } = useAuth();
