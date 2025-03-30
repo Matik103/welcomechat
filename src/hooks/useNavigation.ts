@@ -53,6 +53,10 @@ export const useNavigation = () => {
     navigate('/admin/settings');
   }, [navigate]);
   
+  const goToAuth = useCallback(() => {
+    navigate('/auth');
+  }, [navigate]);
+  
   const goBack = useCallback(() => {
     if (isAdmin) {
       navigate('/admin/clients');
@@ -73,6 +77,7 @@ export const useNavigation = () => {
     goToClientDashboard,
     goToAdminDashboard,
     goToSettings,
+    goToAuth,
     goBack,
   };
 };

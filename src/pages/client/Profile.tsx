@@ -11,10 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClientLayout } from '@/components/layout/ClientLayout';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { useClientActivity } from '@/hooks/useClientActivity';
+import { useNavigation } from '@/hooks/useNavigation';
 
 export default function ClientProfile() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
+  const navigation = useNavigation();
   
   // Get client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
@@ -34,6 +36,14 @@ export default function ClientProfile() {
     console.log("Client ID from metadata:", clientId);
     console.log("Current client state:", { client, isLoadingClient, error });
   }, [user, clientId, client, isLoadingClient, error]);
+
+  // If no user found or not authenticated, redirect to auth
+  useEffect(() => {
+    if (!user && !isLoadingClient) {
+      console.log("No user found, redirecting to auth");
+      navigation.goToAuth();
+    }
+  }, [user, isLoadingClient, navigation]);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
