@@ -40,8 +40,7 @@ export function useDocumentLinks(clientId: string) {
   
   const { 
     data: documentLinks = [], 
-    isLoading, 
-    isValidating, 
+    isLoading,
     refetch 
   } = useQuery({
     queryKey: ['documentLinks', clientId],
@@ -101,7 +100,6 @@ export function useDocumentLinks(clientId: string) {
     documentLinks,
     isLoading,
     error,
-    isValidating,
     addDocumentLink,
     deleteDocumentLink,
     refetch

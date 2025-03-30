@@ -24,8 +24,7 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
   const { 
     websiteUrls, 
     isLoading: isLoadingUrls, 
-    refetchWebsiteUrls,
-    error: urlsError
+    refetchWebsiteUrls
   } = useWebsiteUrls(clientId);
   
   const { 
@@ -39,13 +38,9 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
     console.log("WebsiteUrls Component - Client ID:", clientId);
     console.log("WebsiteUrls Component - URLs:", websiteUrls);
     
-    if (urlsError) {
-      console.error("Error loading website URLs:", urlsError);
-    }
-    
     // Initial fetch
     refetchWebsiteUrls();
-  }, [user, clientId, urlsError, refetchWebsiteUrls]);
+  }, [user, clientId, refetchWebsiteUrls, websiteUrls]);
 
   const handleDelete = async (urlId: number) => {
     if (confirm('Are you sure you want to delete this URL?')) {

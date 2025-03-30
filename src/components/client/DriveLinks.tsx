@@ -7,7 +7,7 @@ import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
-import { DocumentLinkFormData, DocumentType } from '@/types/document-processing';
+import { DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
 
 interface DriveLinksProps {
@@ -25,16 +25,15 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
     error,
     addDocumentLink,
     deleteDocumentLink,
-    isValidating,
     refetch
   } = useDocumentLinks(clientId);
 
   const { uploadDocument, isUploading } = useDocumentUpload(clientId);
 
-  const handleAddLink = async (data: DocumentLinkFormData) => {
+  const handleAddLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
     try {
       // Ensure document_type is set with the correct type
-      const enhancedData: DocumentLinkFormData = {
+      const enhancedData = {
         ...data,
         document_type: (data.document_type || 'document') as DocumentType
       };

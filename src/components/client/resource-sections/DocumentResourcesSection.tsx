@@ -5,7 +5,7 @@ import { DocumentLinkForm } from '@/components/client/drive-links/DocumentLinkFo
 import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { toast } from 'sonner';
-import { DocumentLinkFormData, DocumentType } from '@/types/document-processing';
+import { DocumentType } from '@/types/document-processing';
 
 interface DocumentResourcesSectionProps {
   clientId: string;
@@ -46,7 +46,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
     return () => clearTimeout(timer);
   }, [clientId, documentLinks, error]);
 
-  const handleAddDocumentLink = async (data: DocumentLinkFormData) => {
+  const handleAddDocumentLink = async (data: { link: string; refresh_rate: number; document_type?: string }) => {
     try {
       // Ensure document_type is properly typed as DocumentType
       const completeData = {
