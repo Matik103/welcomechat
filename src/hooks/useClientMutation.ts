@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { updateClient } from '@/services/clientService';
@@ -14,7 +13,7 @@ export const useClientMutation = () => {
   return useMutation({
     mutationFn: async (params: MutationParams) => {
       try {
-        console.log("Mutation params:", params);
+        console.log('Updating client with params:', params);
         
         // Prepare the update data
         const updateData = {
@@ -26,7 +25,7 @@ export const useClientMutation = () => {
           logo_storage_path: params.logo_storage_path
         };
   
-        // Update the client in the database
+        // Update the client in the database using the ID
         const updated = await updateClient(params.client_id, updateData);
         return updated;
       } catch (error) {
