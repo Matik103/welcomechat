@@ -42,7 +42,7 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
       console.log("Found client record:", clientRecord);
       
       // Insert the website URL with the correct client ID
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from("website_urls")
         .insert({
           client_id: clientRecord.id,
@@ -76,7 +76,7 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
   const deleteWebsiteUrlMutation = useMutation({
     mutationFn: async (urlId: number): Promise<number> => {
       try {
-        const { error } = await supabaseAdmin
+        const { error } = await supabase
           .from("website_urls")
           .delete()
           .eq("id", urlId);

@@ -44,7 +44,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       toast.success('Document link added successfully');
       
       if (refetch) {
-        refetch();
+        await refetch();
       }
       
       if (onResourceChange) {
@@ -69,7 +69,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       toast.success('Document link deleted successfully');
       
       if (refetch) {
-        refetch();
+        await refetch();
       }
       
       if (onResourceChange) {

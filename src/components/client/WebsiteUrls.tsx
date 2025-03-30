@@ -1,8 +1,6 @@
 
 import React from 'react';
-import { Card } from '@/components/ui/card';
-import { WebsiteUrl, WebsiteUrlFormData } from '@/types/website-url';
-import { WebsiteUrlForm } from './website-urls/WebsiteUrlForm';
+import { WebsiteUrlFormData } from '@/types/website-url';
 import { WebsiteUrlsList } from './website-urls/WebsiteUrlsList';
 import WebsiteUrlsLoading from './website-urls/WebsiteUrlsLoading';
 import WebsiteUrlsListEmpty from './website-urls/WebsiteUrlsListEmpty';
@@ -23,7 +21,7 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
   logClientActivity
 }) => {
   const { user } = useAuth();
-  const { websiteUrls, isLoading: isLoadingUrls } = useWebsiteUrls(clientId);
+  const { websiteUrls, isLoading: isLoadingUrls, refetchWebsiteUrls } = useWebsiteUrls(clientId);
   const { 
     addWebsiteUrlMutation, 
     deleteWebsiteUrlMutation 
@@ -40,12 +38,16 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
     if (confirm('Are you sure you want to delete this URL?')) {
       try {
         await deleteWebsiteUrlMutation.mutateAsync(urlId);
+        
+        // Refetch the list of URLs
+        refetchWebsiteUrls();
+        
         if (onResourceChange) {
           onResourceChange();
         }
+        
         await logClientActivity();
         
-        // Add success message for better user feedback
         toast.success("URL deleted successfully");
       } catch (error) {
         console.error("Error deleting URL:", error);
@@ -64,13 +66,15 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
         client_id: clientId
       });
       
+      // Refetch the list of URLs
+      refetchWebsiteUrls();
+      
       if (onResourceChange) {
         onResourceChange();
       }
       
       await logClientActivity();
       
-      // Add success message for better user feedback
       toast.success("URL added successfully");
     } catch (error) {
       console.error("Error adding URL:", error);
@@ -80,14 +84,6 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
 
   return (
     <div className="space-y-6">
-      <WebsiteUrlForm 
-        onSubmit={handleAdd} 
-        onAdd={handleAdd}
-        isSubmitting={addWebsiteUrlMutation.isPending}
-        isAdding={addWebsiteUrlMutation.isPending}
-        agentName="AI Assistant"
-      />
-      
       <div>
         <h3 className="font-medium mb-2">Website URLs</h3>
         {isLoadingUrls ? (
