@@ -4,8 +4,9 @@ import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Trash2, Upload, AlertCircle } from 'lucide-react';
+import { Loader2, Trash2, Upload, AlertCircle, FileIcon, Link as LinkIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { formatFileSize } from '@/utils/formatters';
 
 interface DocumentLinksProps {
   clientId: string;
@@ -122,7 +123,12 @@ export function DocumentLinks({ clientId }: DocumentLinksProps) {
               <Loader2 className="animate-spin mr-2 h-4 w-4" />
               Adding...
             </>
-          ) : 'Add Link'}
+          ) : (
+            <>
+              <LinkIcon className="mr-2 h-4 w-4" />
+              Add Link
+            </>
+          )}
         </Button>
         <div className="relative">
           <input
@@ -152,18 +158,30 @@ export function DocumentLinks({ clientId }: DocumentLinksProps) {
         {documentLinks?.map((link) => (
           <div key={link.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
             <div className="flex-1 min-w-0">
-              <a
-                href={link.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline truncate block"
-              >
-                {link.link}
-              </a>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2">
+                {link.storage_path ? (
+                  <FileIcon className="h-4 w-4 text-blue-500" />
+                ) : (
+                  <LinkIcon className="h-4 w-4 text-green-500" />
+                )}
+                <a
+                  href={link.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline truncate block"
+                >
+                  {link.file_name || link.link}
+                </a>
+              </div>
+              <div className="flex items-center gap-4 mt-1">
                 <span className="text-xs text-gray-500">
                   Type: {link.document_type}
                 </span>
+                {link.file_size && (
+                  <span className="text-xs text-gray-500">
+                    Size: {formatFileSize(link.file_size)}
+                  </span>
+                )}
                 <span className="text-xs text-gray-500">
                   Added: {new Date(link.created_at).toLocaleDateString()}
                 </span>

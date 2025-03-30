@@ -48,17 +48,19 @@ export function useDocumentUpload(clientId: string) {
     setIsUploading(true);
 
     try {
-      // Create a unique file path
+      // Create a unique file path with a clean filename
       const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
-      const uniqueFileName = `${uuidv4()}.${fileExtension}`;
-      const filePath = `documents/${clientId}/${uniqueFileName}`;
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').toLowerCase();
+      const uniqueFileName = `${uuidv4()}-${cleanFileName}`;
+      const filePath = `${clientId}/${uniqueFileName}`;
 
-      // Upload file to Supabase Storage
+      // Upload file to Supabase Storage in document-storage bucket
       const { error: uploadError } = await supabase.storage
-        .from('documents')
+        .from('document-storage')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: file.type // Ensure proper content type is set
         });
 
       if (uploadError) {
@@ -68,7 +70,7 @@ export function useDocumentUpload(clientId: string) {
 
       // Get the public URL
       const { data: urlData } = await supabase.storage
-        .from('documents')
+        .from('document-storage')
         .getPublicUrl(filePath);
 
       if (!urlData?.publicUrl) {
@@ -83,7 +85,11 @@ export function useDocumentUpload(clientId: string) {
           link: urlData.publicUrl,
           document_type: fileExtension || 'document',
           refresh_rate: 30,
-          access_status: 'accessible'
+          access_status: 'accessible',
+          file_name: cleanFileName,
+          file_size: file.size,
+          mime_type: file.type,
+          storage_path: filePath
         })
         .select()
         .single();
@@ -91,7 +97,7 @@ export function useDocumentUpload(clientId: string) {
       if (linkError) {
         // If link creation fails, try to delete the uploaded file
         await supabase.storage
-          .from('documents')
+          .from('document-storage')
           .remove([filePath]);
           
         console.error('Error creating document link:', linkError);
