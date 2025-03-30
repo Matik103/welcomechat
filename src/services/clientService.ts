@@ -119,7 +119,15 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
       email: data.email,
       logo_url: data.logo_url,
       logo_storage_path: data.logo_storage_path,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // Also update the settings with the new data
+      settings: {
+        ...aiAgent.settings,
+        agent_name: data.agent_name,
+        agent_description: data.agent_description,
+        logo_url: data.logo_url,
+        logo_storage_path: data.logo_storage_path
+      }
     };
     
     console.log('Updating ai_agent with direct id match:', updateData);
