@@ -51,13 +51,21 @@ export const useAuthSafetyTimeout = ({
         } else if (session) {
           // If we have a session, check role in session storage
           const userRole = sessionStorage.getItem('user_role_set');
-          if (userRole === 'admin') {
+          
+          // First check user_metadata from session
+          const roleFromMetadata = session.user?.user_metadata?.role;
+          
+          if (roleFromMetadata === 'admin') {
+            navigate('/admin/dashboard', { replace: true });
+          } else if (roleFromMetadata === 'client') {
+            navigate('/client/dashboard', { replace: true });
+          } else if (userRole === 'admin') {
             navigate('/admin/dashboard', { replace: true });
           } else if (userRole === 'client') {
             navigate('/client/dashboard', { replace: true });
           } else {
-            // Default to admin dashboard if no role found
-            navigate('/admin/dashboard', { replace: true });
+            // Default to client dashboard if we have a session but no role
+            navigate('/client/dashboard', { replace: true });
           }
         }
       }

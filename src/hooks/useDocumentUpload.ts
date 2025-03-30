@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { DocumentProcessingResult } from '@/types/document-processing';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,17 +46,32 @@ export function useDocumentUpload(clientId: string) {
     }
 
     setIsUploading(true);
+    console.log("Starting document upload for client:", clientId);
 
     try {
+      // Get the effective client ID
+      const actualClientId = await getEffectiveClientId(clientId);
+      console.log("Found client record with ID:", actualClientId);
+
       // Create a unique file path with a clean filename
       const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
       const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').toLowerCase();
       const uniqueFileName = `${uuidv4()}-${cleanFileName}`;
-      const filePath = `${clientId}/${uniqueFileName}`;
+      const filePath = `${actualClientId}/${uniqueFileName}`;
+      
+      console.log("Uploading document to path:", filePath);
 
-      // Upload file to Supabase Storage in document-storage bucket
+      // Ensure the bucket exists
+      try {
+        await ensureDocumentBucketExists();
+      } catch (bucketError) {
+        console.error("Error ensuring bucket exists:", bucketError);
+        // Continue anyway, the bucket might already exist
+      }
+
+      // Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from('document-storage')
+        .from(DOCUMENTS_BUCKET)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
@@ -70,20 +85,27 @@ export function useDocumentUpload(clientId: string) {
 
       // Get the public URL
       const { data: urlData } = await supabase.storage
-        .from('document-storage')
+        .from(DOCUMENTS_BUCKET)
         .getPublicUrl(filePath);
 
       if (!urlData?.publicUrl) {
         throw new Error('Failed to get document URL');
       }
 
+      // Determine document type from file extension
+      let documentType = 'document';
+      if (fileExtension === 'pdf') documentType = 'pdf';
+      else if (['doc', 'docx'].includes(fileExtension)) documentType = 'word';
+      else if (['xls', 'xlsx'].includes(fileExtension)) documentType = 'excel';
+      else if (['ppt', 'pptx'].includes(fileExtension)) documentType = 'powerpoint';
+
       // Create document link record
       const { data: documentLink, error: linkError } = await supabase
         .from('document_links')
         .insert({
-          client_id: clientId,
+          client_id: actualClientId,
           link: urlData.publicUrl,
-          document_type: fileExtension || 'document',
+          document_type: documentType,
           refresh_rate: 30,
           access_status: 'accessible',
           file_name: cleanFileName,
@@ -97,13 +119,14 @@ export function useDocumentUpload(clientId: string) {
       if (linkError) {
         // If link creation fails, try to delete the uploaded file
         await supabase.storage
-          .from('document-storage')
+          .from(DOCUMENTS_BUCKET)
           .remove([filePath]);
           
         console.error('Error creating document link:', linkError);
         throw new Error(`Error creating document link: ${linkError.message}`);
       }
 
+      console.log("Document link record created:", documentLink);
       toast.success('Document uploaded successfully');
       return {
         success: true,
@@ -119,6 +142,33 @@ export function useDocumentUpload(clientId: string) {
       };
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Helper function to ensure the documents bucket exists
+  const ensureDocumentBucketExists = async () => {
+    // First check if the bucket already exists
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    
+    if (bucketsError) {
+      console.error("Error listing buckets:", bucketsError);
+      throw bucketsError;
+    }
+    
+    const bucketExists = buckets?.some(bucket => bucket.name === DOCUMENTS_BUCKET);
+    
+    if (!bucketExists) {
+      console.log(`Creating ${DOCUMENTS_BUCKET} bucket...`);
+      const { error: createError } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
+        public: true,
+        allowedMimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        fileSizeLimit: 52428800 // 50MB
+      });
+      
+      if (createError) {
+        console.error("Error creating bucket:", createError);
+        throw createError;
+      }
     }
   };
 

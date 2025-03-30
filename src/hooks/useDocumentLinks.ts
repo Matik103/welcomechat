@@ -1,24 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { AccessStatus } from '@/types/extended-supabase';
-
-export interface DocumentLink {
-  id: number;
-  client_id: string;
-  link: string;
-  refresh_rate: number;
-  created_at: string;
-  document_type: string;
-  access_status?: AccessStatus;
-  notified_at?: string;
-}
+import { DocumentLink, DocumentType } from '@/types/document-processing';
 
 export interface DocumentLinkFormData {
   link: string;
-  document_type: string;
   refresh_rate: number;
+  document_type: DocumentType;
 }
 
 const getEffectiveClientId = async (clientId: string) => {
@@ -46,50 +34,53 @@ const getEffectiveClientId = async (clientId: string) => {
   }
 };
 
-export const useDocumentLinks = (clientId?: string) => {
-  const [isValidating, setIsValidating] = useState(false);
+export function useDocumentLinks(clientId: string) {
   const queryClient = useQueryClient();
-
-  // Query to fetch document links for a client
-  const {
-    data: documentLinks,
-    isLoading,
-    error,
-    refetch
-  } = useQuery({
-    queryKey: ['document-links', clientId],
-    queryFn: async () => {
-      if (!clientId) {
-        throw new Error('Client ID is required');
-      }
+  const [isValidating, setIsValidating] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  
+  // Fetch document links
+  const fetchDocumentLinks = useCallback(async () => {
+    try {
+      console.log("Fetching document links for client:", clientId);
       
-      try {
-        const effectiveClientId = await getEffectiveClientId(clientId);
-        
-        const { data, error } = await supabase
-          .from('document_links')
-          .select('*')
-          .eq('client_id', effectiveClientId)
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        
-        if (!data) {
-          return [];
-        }
-        
-        return data as DocumentLink[];
-      } catch (error) {
-        console.error('Error fetching document links:', error);
+      const effectiveClientId = await getEffectiveClientId(clientId);
+      
+      const { data, error } = await supabase
+        .from('document_links')
+        .select('*')
+        .eq('client_id', effectiveClientId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error("Error fetching document links:", error);
+        setError(error);
         throw error;
       }
-    },
+      
+      console.log("Retrieved document links:", data);
+      return data as DocumentLink[];
+    } catch (error) {
+      console.error("Error in document links fetch:", error);
+      setError(error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+  }, [clientId]);
+  
+  const { 
+    data: documentLinks = [], 
+    isLoading,
+    refetch 
+  } = useQuery({
+    queryKey: ['documentLinks', clientId],
+    queryFn: fetchDocumentLinks,
     enabled: !!clientId,
+    staleTime: 1000 * 60, // 1 minute
     retry: 2,
     retryDelay: 1000
   });
-
-  // Mutation to add a document link
+  
+  // Add document link
   const addDocumentLink = useMutation({
     mutationFn: async (data: DocumentLinkFormData) => {
       if (!clientId) {
@@ -99,6 +90,8 @@ export const useDocumentLinks = (clientId?: string) => {
       setIsValidating(true);
       
       try {
+        console.log("Adding document link with data:", data, "for client:", clientId);
+        
         // Basic validation - check if it's a valid URL
         try {
           new URL(data.link);
@@ -144,11 +137,11 @@ export const useDocumentLinks = (clientId?: string) => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-links', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
     }
   });
-
-  // Mutation to delete a document link
+  
+  // Delete document link
   const deleteDocumentLink = useMutation({
     mutationFn: async (linkId: number) => {
       if (!clientId) {
@@ -156,6 +149,8 @@ export const useDocumentLinks = (clientId?: string) => {
       }
       
       try {
+        console.log("Deleting document link with ID:", linkId);
+        
         const effectiveClientId = await getEffectiveClientId(clientId);
         
         // Verify the link belongs to this client before deleting
@@ -185,12 +180,12 @@ export const useDocumentLinks = (clientId?: string) => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-links', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
     }
   });
 
   return {
-    documentLinks: documentLinks || [],
+    documentLinks,
     isLoading,
     error,
     isValidating,
@@ -198,4 +193,4 @@ export const useDocumentLinks = (clientId?: string) => {
     deleteDocumentLink,
     refetch
   };
-};
+}

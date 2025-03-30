@@ -855,42 +855,45 @@ export type Database = {
           client_id: string
           created_at: string | null
           document_type: string | null
-          id: number
-          link: string
-          notified_at: string | null
-          refresh_rate: number
           file_name: string | null
           file_size: number | null
+          id: number
+          link: string
           mime_type: string | null
+          notified_at: string | null
+          refresh_rate: number
           storage_path: string | null
+          updated_at: string | null
         }
         Insert: {
           access_status?: string | null
           client_id: string
           created_at?: string | null
           document_type?: string | null
-          id?: number
-          link: string
-          notified_at?: string | null
-          refresh_rate?: number
           file_name?: string | null
           file_size?: number | null
+          id?: number
+          link: string
           mime_type?: string | null
+          notified_at?: string | null
+          refresh_rate?: number
           storage_path?: string | null
+          updated_at?: string | null
         }
         Update: {
           access_status?: string | null
           client_id?: string
           created_at?: string | null
           document_type?: string | null
-          id?: number
-          link?: string
-          notified_at?: string | null
-          refresh_rate?: number
           file_name?: string | null
           file_size?: number | null
+          id?: number
+          link?: string
           mime_type?: string | null
+          notified_at?: string | null
+          refresh_rate?: number
           storage_path?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -3879,30 +3882,45 @@ export type Database = {
           client_id: string
           created_at: string | null
           document_type: string | null
+          file_name: string | null
+          file_size: number | null
           id: number
           link: string
+          mime_type: string | null
           notified_at: string | null
           refresh_rate: number
+          storage_path: string | null
+          updated_at: string | null
         }
         Insert: {
           access_status?: string | null
           client_id: string
           created_at?: string | null
           document_type?: string | null
+          file_name?: string | null
+          file_size?: number | null
           id?: number
           link: string
+          mime_type?: string | null
           notified_at?: string | null
           refresh_rate?: number
+          storage_path?: string | null
+          updated_at?: string | null
         }
         Update: {
           access_status?: string | null
           client_id?: string
           created_at?: string | null
           document_type?: string | null
+          file_name?: string | null
+          file_size?: number | null
           id?: number
           link?: string
+          mime_type?: string | null
           notified_at?: string | null
           refresh_rate?: number
+          storage_path?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {

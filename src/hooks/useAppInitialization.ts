@@ -26,27 +26,39 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
       const isConfigured = isAdminClientConfigured();
       setAdminConfigError(!isConfigured);
       
+      // Initialize bucket with error handling and retries
       if (isConfigured) {
         try {
           await initializeBotLogosBucket();
         } catch (error) {
           console.error('Error initializing bot-logos bucket:', error);
+          // Do not block app initialization for bucket errors
         }
       }
       
+      // Limit initialization time
+      setTimeout(() => {
+        if (isInitializing) {
+          console.log('Forcing initialization completion due to timeout');
+          setIsInitializing(false);
+          setIsLoading(false);
+        }
+      }, 3000);
+      
+      // Finish initialization
       setIsInitializing(false);
     };
     
     initializeApp();
   }, [location.pathname, user, userRole, isLoading, isInitializing, setIsLoading]);
   
-  // Timeout for dashboard loading
+  // Additional safety timeout for dashboard loading
   useEffect(() => {
     if (isLoading && location.pathname.includes('/dashboard')) {
       const timer = setTimeout(() => {
         console.log('Forcing loading state to complete due to dashboard path');
         setIsLoading(false);
-      }, 3000);
+      }, 2000);
       
       return () => clearTimeout(timer);
     }
@@ -58,7 +70,7 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
       const forceLoadingTimeout = setTimeout(() => {
         console.log('Forcing loading state to complete after timeout');
         setIsLoading(false);
-      }, 5000);
+      }, 3000);
       
       return () => clearTimeout(forceLoadingTimeout);
     }

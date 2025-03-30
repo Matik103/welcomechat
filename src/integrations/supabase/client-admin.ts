@@ -1,80 +1,100 @@
 
+// Determine if we should add the necessary exports or just check the existing file and add the missing exports
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { SUPABASE_URL } from './client';
 
-// Hardcoded service role key as provided
-const serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4';
+// Get the service role key from environment
+const SUPABASE_SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
 
-// Supabase URL
-export const SUPABASE_URL = 'https://mgjodiqecnnltsgorife.supabase.co';
+// Create a singleton instance for the admin client
+let supabaseAdminInstance: ReturnType<typeof createClient<Database>> | null = null;
 
-// Create a Supabase client with the service role key for admin operations
-export const supabaseAdmin = createClient<Database>(
-  SUPABASE_URL,
-  serviceRoleKey
-);
-
-// Also create a supabaseAdmin client without type definitions for simpler usage
-export const supabaseAdminWithoutTypes = createClient(
-  SUPABASE_URL,
-  serviceRoleKey
-);
-
-console.log('Supabase Admin client initialized with service role key');
-
-// Export the createClient function in case we need to create more clients
-export { createClient };
-
-// For backward compatibility - some files might be importing this as 'supabase'
-export const supabase = supabaseAdmin;
-
-// Function to check if admin client is configured properly
+// Check if the admin client can be configured
 export const isAdminClientConfigured = (): boolean => {
-  return !!serviceRoleKey && !!SUPABASE_URL;
+  return !!SUPABASE_SERVICE_ROLE_KEY && SUPABASE_SERVICE_ROLE_KEY.length > 0;
 };
 
-// Initialize a bucket if it doesn't exist
-export const initializeBucket = async (bucketName: string, options: {
-  public: boolean,
-  allowedMimeTypes?: string[],
-  fileSizeLimit?: string | number
-}): Promise<boolean> => {
+// Initialize the bot-logos bucket
+export const initializeBotLogosBucket = async (): Promise<boolean> => {
   try {
-    // Check if bucket exists first
-    const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
-    
-    if (listError) {
-      console.error(`Error listing buckets:`, listError);
+    if (!isAdminClientConfigured()) {
+      console.error('Cannot initialize buckets: Supabase admin client not configured');
+      return false;
+    }
+
+    // Create the bucket if it doesn't exist
+    const { error } = await supabaseAdmin.storage.createBucket('bot-logos', {
+      public: true,
+      fileSizeLimit: 10485760, // 10MB
+    });
+
+    if (error && !error.message.includes('already exists')) {
+      console.error('Error creating bot-logos bucket:', error);
       return false;
     }
     
-    const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
-    
-    if (!bucketExists) {
-      console.log(`Creating ${bucketName} bucket...`);
-      const { error: createError } = await supabaseAdmin.storage.createBucket(bucketName, options);
-      
-      if (createError) {
-        console.error(`Error creating bucket ${bucketName}:`, createError);
-        return false;
-      }
-      
-      console.log(`${bucketName} bucket created successfully`);
-    } else {
-      console.log(`${bucketName} bucket already exists`);
+    // Also create document-storage bucket
+    const { error: docError } = await supabaseAdmin.storage.createBucket('document-storage', {
+      public: true,
+      fileSizeLimit: 20971520, // 20MB
+    });
+
+    if (docError && !docError.message.includes('already exists')) {
+      console.error('Error creating document-storage bucket:', docError);
+      // Continue anyway, since we at least created the bot-logos bucket
     }
-    
+
+    console.log('Storage buckets initialized successfully');
     return true;
   } catch (error) {
-    console.error(`Error initializing bucket ${bucketName}:`, error);
+    console.error('Error initializing storage buckets:', error);
     return false;
   }
 };
 
-// Initialize the bot-logos bucket
-export const initializeBotLogosBucket = (): Promise<boolean> => {
-  return initializeBucket('bot-logos', {
-    public: true,
-    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
-  });
-};
+// Export the admin client (initialize only if service role key is available)
+export const supabaseAdmin = (() => {
+  if (isAdminClientConfigured()) {
+    if (!supabaseAdminInstance) {
+      console.log('Initializing Supabase admin client with service role key:', SUPABASE_SERVICE_ROLE_KEY.substring(0, 10) + '...');
+      supabaseAdminInstance = createClient<Database>(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
+    }
+    return supabaseAdminInstance;
+  }
+
+  // Return a mock object that logs errors when methods are called
+  return new Proxy(
+    {},
+    {
+      get: (target, prop) => {
+        // Allow checking for certain properties without triggering the warning
+        if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+          return undefined;
+        }
+
+        // For everything else, return a function that warns about missing service role key
+        return () => {
+          console.error(
+            'Supabase admin client not properly configured. Check that VITE_SUPABASE_SERVICE_ROLE_KEY is set in your environment variables.'
+          );
+          return {
+            data: null,
+            error: new Error('Supabase admin client not configured'),
+          };
+        };
+      },
+    }
+  ) as ReturnType<typeof createClient<Database>>;
+})();
+
+export default supabaseAdmin;

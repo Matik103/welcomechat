@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
 import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { toast } from 'sonner';
@@ -20,8 +20,14 @@ export const ClientResourceSections = ({
 }: ClientResourceSectionsProps) => {
   const { uploadDocument, isUploading } = useDocumentUpload(clientId);
 
+  // Debug client ID to make sure it's being passed correctly
+  useEffect(() => {
+    console.log("ClientResourceSections rendered with clientId:", clientId);
+  }, [clientId]);
+
   const handleUploadDocument = async (file: File) => {
     try {
+      console.log("Uploading document for client:", clientId);
       await uploadDocument(file);
       toast.success('Document uploaded successfully');
       
@@ -34,7 +40,7 @@ export const ClientResourceSections = ({
       }
     } catch (error) {
       console.error('Error uploading document:', error);
-      toast.error('Failed to upload document');
+      toast.error(`Failed to upload document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
   
@@ -55,6 +61,9 @@ export const ClientResourceSections = ({
       <Card>
         <CardHeader>
           <CardTitle>Upload Documents</CardTitle>
+          <CardDescription>
+            Upload PDF, Word, or text documents to enhance your AI assistant's knowledge
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <DocumentUploadForm
