@@ -6,7 +6,7 @@ import ClientDashboard from "@/pages/client/Dashboard";
 import ClientSettings from "@/pages/client/Settings";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
-import EditClientInfo from "@/pages/client/EditClientInfo";
+import EditClientInfo from "@/pages/EditClientInfo";
 import WidgetSettings from "@/pages/WidgetSettings";
 import NotFound from "@/pages/NotFound";
 import { Toaster } from "sonner";
