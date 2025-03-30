@@ -3,8 +3,8 @@ import React from 'react';
 import { ClientLayout } from '@/components/layout/ClientLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Link, useNavigate } from 'react-router-dom';
-import { User, FileText, Bot, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, Bot } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientData } from '@/hooks/useClientData';
 import ErrorDisplay from '@/components/ErrorDisplay';
@@ -82,52 +82,6 @@ export default function ClientSettings() {
               </p>
               <Button onClick={handleWidgetClick} className="w-full">
                 Customize Widget
-              </Button>
-            </CardContent>
-          </Card>
-          
-          {/* Resource Settings Card */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-blue-500" />
-                Resource Settings
-              </CardTitle>
-              <CardDescription>
-                Manage your website and document resources
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-500 mb-4">
-                Add, edit, or remove websites and documents that your AI assistant uses for training.
-              </p>
-              <Button asChild>
-                <Link to="/client/resource-settings" className="w-full">
-                  Manage Resources
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-          
-          {/* Account Security Card */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-blue-500" />
-                Account Security
-              </CardTitle>
-              <CardDescription>
-                Manage your account security settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-500 mb-4">
-                Update your password, enable two-factor authentication, and manage other security features.
-              </p>
-              <Button asChild>
-                <Link to="/client/account-settings" className="w-full">
-                  Manage Security
-                </Link>
               </Button>
             </CardContent>
           </Card>

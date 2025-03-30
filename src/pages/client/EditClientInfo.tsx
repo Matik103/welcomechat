@@ -14,7 +14,7 @@ import { ClientProfileSection } from '@/components/client/settings/ClientProfile
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 
 export default function EditClientInfo() {
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('profile');
   
@@ -30,19 +30,6 @@ export default function EditClientInfo() {
     adminClientConfigured
   } = useClientData(clientId);
 
-  // For debugging - log what we have
-  useEffect(() => {
-    console.log("User role:", userRole);
-    console.log("User metadata:", user?.user_metadata);
-    console.log("Client ID from metadata:", clientId);
-    console.log("Admin client configured:", adminClientConfigured);
-    console.log("Current client state:", { client, isLoadingClient, error });
-  }, [user, userRole, clientId, client, isLoadingClient, error, adminClientConfigured]);
-
-  const handleNavigateBack = () => {
-    navigation.goToClientDashboard();
-  };
-
   // Force a refetch if client is null but we have a clientId
   useEffect(() => {
     if (!client && !isLoadingClient && clientId && !error) {
@@ -51,21 +38,9 @@ export default function EditClientInfo() {
     }
   }, [client, isLoadingClient, clientId, error, refetchClient]);
 
-  // Show error if no client ID in metadata
-  if (!clientId) {
-    return (
-      <ClientLayout>
-        <div className="container mx-auto py-8">
-          <ErrorDisplay 
-            title="Access Error"
-            message="Unable to find your client ID. Please make sure you're properly logged in."
-            details="If this issue persists, please contact support."
-            onRetry={() => window.location.reload()}
-          />
-        </div>
-      </ClientLayout>
-    );
-  }
+  const handleNavigateBack = () => {
+    navigation.goToClientDashboard();
+  };
 
   // Show error if admin client is not configured
   if (!adminClientConfigured) {
@@ -91,7 +66,7 @@ export default function EditClientInfo() {
           <ErrorDisplay 
             title="Error Loading Your Information"
             message={`Unable to load your information: ${error instanceof Error ? error.message : String(error)}`}
-            details={`Client ID: ${clientId}`}
+            details={`Client ID: ${clientId || 'unknown'}`}
             onRetry={refetchClient}
           />
         </div>
@@ -175,7 +150,7 @@ export default function EditClientInfo() {
               <TabsContent value="resources">
                 {client && (
                   <ClientResourceSections 
-                    clientId={clientId}
+                    clientId={clientId || ''}
                     logClientActivity={logClientActivity}
                     onResourceChange={refetchClient}
                   />
