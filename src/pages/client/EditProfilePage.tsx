@@ -12,11 +12,14 @@ import { useNavigation } from '@/hooks/useNavigation';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
 import { ClientLayout } from '@/components/layout/ClientLayout';
 import ErrorDisplay from '@/components/ErrorDisplay';
+import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-export default function EditClientInfoPage() {
+export default function EditProfilePage() {
   const { user } = useAuth();
   const navigation = useNavigation();
+  const [activeTab, setActiveTab] = useState('profile');
   
   // Get client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
@@ -30,13 +33,6 @@ export default function EditClientInfoPage() {
     refetchClient
   } = useClientData(clientId);
 
-  // For debugging - log what we have
-  useEffect(() => {
-    console.log("User metadata:", user?.user_metadata);
-    console.log("Client ID from metadata:", clientId);
-    console.log("Current client state:", { client, isLoadingClient, error });
-  }, [user, clientId, client, isLoadingClient, error]);
-
   const handleSubmit = async (data: ClientFormData) => {
     try {
       if (!clientId) {
@@ -45,11 +41,9 @@ export default function EditClientInfoPage() {
       }
       
       if (!client) {
-        toast.error("Unable to load your client information");
+        toast.error("Unable to load your information");
         return;
       }
-      
-      console.log("Submitting update for client:", clientId);
       
       await clientMutation.mutateAsync({
         client_id: clientId,
@@ -61,29 +55,21 @@ export default function EditClientInfoPage() {
         logo_storage_path: data.logo_storage_path
       });
       
-      toast.success("Your information has been updated successfully");
+      toast.success("Your profile has been updated successfully");
       await logActivityWrapper();
       refetchClient();
     } catch (error) {
-      console.error("Error updating client information:", error);
+      console.error("Error updating profile information:", error);
       const errorMessage = error instanceof Error 
         ? error.message 
         : String(error);
-      toast.error(`Failed to update your information: ${errorMessage}`);
+      toast.error(`Failed to update your profile: ${errorMessage}`);
     }
   };
 
   const handleNavigateBack = () => {
     navigation.goToClientDashboard();
   };
-
-  // Force a refetch if client is null but we have a clientId
-  useEffect(() => {
-    if (!client && !isLoadingClient && clientId && !error) {
-      console.log("No client data but have clientId, forcing refetch for:", clientId);
-      refetchClient();
-    }
-  }, [client, isLoadingClient, clientId, error, refetchClient]);
 
   // Show error if no client ID in metadata
   if (!clientId) {
@@ -139,9 +125,9 @@ export default function EditClientInfoPage() {
         </Button>
         
         <PageHeading>
-          Edit Your Information
+          Profile Settings
           <p className="text-sm font-normal text-muted-foreground">
-            Update your profile and manage your AI assistant resources
+            Manage your profile information and resources
           </p>
         </PageHeading>
 
@@ -162,28 +148,54 @@ export default function EditClientInfoPage() {
             </Button>
           </div>
         ) : (
-          <div className="mt-6 space-y-8">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-semibold mb-4">Profile Information</h2>
-              <ClientForm 
-                initialData={client}
-                onSubmit={handleSubmit}
-                isLoading={isLoadingClient || clientMutation.isPending}
-                error={error ? (error instanceof Error ? error.message : String(error)) : null}
-                submitButtonText="Save Changes"
-              />
-            </div>
-            
-            {clientId && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold mb-4">Resource Management</h2>
-                <ClientResourceSections 
-                  clientId={clientId}
-                  logClientActivity={logActivityWrapper}
-                  onResourceChange={refetchClient}
-                />
-              </div>
-            )}
+          <div className="mt-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="mb-6">
+                <TabsTrigger value="profile">Profile Information</TabsTrigger>
+                <TabsTrigger value="resources">Resources</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="profile" className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <ClientForm 
+                      initialData={client}
+                      onSubmit={handleSubmit}
+                      isLoading={isLoadingClient || clientMutation.isPending}
+                      error={error ? (error instanceof Error ? error.message : String(error)) : null}
+                      submitButtonText="Update Profile"
+                    />
+                  </div>
+                  <div className="lg:col-span-1">
+                    <ClientDetailsCard 
+                      client={client} 
+                      isLoading={isLoadingClient} 
+                      logClientActivity={logActivityWrapper}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end mt-4">
+                  <Button 
+                    type="button" 
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => setActiveTab('resources')}
+                  >
+                    Manage Resources
+                  </Button>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="resources">
+                {client && (
+                  <ClientResourceSections 
+                    clientId={client.id || client.client_id}
+                    logClientActivity={logActivityWrapper}
+                    onResourceChange={refetchClient}
+                  />
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </div>
