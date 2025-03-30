@@ -62,9 +62,6 @@ export const ClientHeader = () => {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/client/edit-info">Profile Settings</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
                   <Link to="/client/widget-settings">Widget Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

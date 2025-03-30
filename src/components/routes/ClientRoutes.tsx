@@ -23,7 +23,6 @@ export const ClientRoutes = () => {
           <Route path="/client/settings" element={<ClientSettings />} />
           <Route path="/client/account-settings" element={<AccountSettings />} />
           <Route path="/client/resource-settings" element={<ResourceSettings />} />
-          <Route path="/client/edit-info" element={<EditClientInfo />} />
           <Route path="/client/widget-settings" element={<WidgetSettings />} />
           <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
           <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
