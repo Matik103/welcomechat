@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ClientEditHeaderProps {
   title: string;
@@ -14,6 +15,9 @@ export const ClientEditHeader: React.FC<ClientEditHeaderProps> = ({
   subtitle,
   onBack
 }) => {
+  const { userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
+  
   return (
     <>
       <Button 
@@ -23,13 +27,13 @@ export const ClientEditHeader: React.FC<ClientEditHeaderProps> = ({
         onClick={onBack}
       >
         <ArrowLeft className="h-4 w-4" />
-        Back
+        {isAdmin ? 'Back to Client List' : 'Back to Dashboard'}
       </Button>
       
       <h1 className="text-2xl font-bold mb-6">
         {title}
         {subtitle && (
-          <p className="text-sm font-normal text-muted-foreground">
+          <p className="text-sm font-normal text-muted-foreground mt-1">
             {subtitle}
           </p>
         )}
