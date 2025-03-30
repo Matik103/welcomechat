@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseAdmin } from "@/integrations/supabase/client-admin";
 import { Client } from "@/types/client";
@@ -63,7 +64,6 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
     }
     
     console.log(`Attempting to update client with ID: ${clientId}`);
-    console.log('Update data:', data);
     
     // Check if the client exists in the ai_agents table
     const { data: aiAgent, error: aiAgentError } = await supabase
@@ -98,8 +98,6 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
         updated_at: new Date().toISOString()
       };
       
-      console.log('Updating client with these fields:', updateData);
-      
       // Update the ai_agents record
       const { data: updatedAgent, error: updateError } = await supabase
         .from('ai_agents')
@@ -127,8 +125,6 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
       logo_storage_path: data.logo_storage_path,
       updated_at: new Date().toISOString()
     };
-    
-    console.log('Updating client with these fields:', updateData);
     
     // Update the ai_agents record
     const { data: updatedAgent, error: updateError } = await supabase
