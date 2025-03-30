@@ -1,88 +1,149 @@
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { useNavigation } from "@/hooks/useNavigation";
-import { useClientData } from "@/hooks/useClientData";
-import { ClientProfileSection } from "@/components/client/settings/ClientProfileSection";
-import { Client } from "@/types/client";
+import React, { useEffect, useState } from 'react';
+import { useClientData } from '@/hooks/useClientData';
+import { Client } from '@/types/client';
+import { toast } from 'sonner';
+import { ClientFormData } from '@/types/client-form';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigation } from '@/hooks/useNavigation';
+import { isAdminClientConfigured } from '@/integrations/supabase/admin';
+import { ClientEditHeader } from '@/components/client/edit/ClientEditHeader';
+import { ClientEditSkeleton } from '@/components/client/edit/ClientEditSkeleton';
+import { ClientEditError } from '@/components/client/edit/ClientEditError';
+import { ClientProfileLayout } from '@/components/client/edit/ClientProfileLayout';
+import { ClientResourceTabs } from '@/components/client/edit/ClientResourceTabs';
 
-const EditClientInfo = () => {
+export function EditClientInfo() {
+  const { userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
-  const [clientData, setClientData] = useState<Client | null>(null);
+  const [activeTab, setActiveTab] = useState('profile');
+  const [serviceKeyError, setServiceKeyError] = useState<boolean>(!isAdminClientConfigured());
   
-  // Use the useClientData hook without passing an ID - it will use the client ID from user metadata
   const { 
     client, 
     isLoadingClient,
     error,
     clientMutation,
+    clientId,
     refetchClient
-  } = useClientData(undefined);
-
-  // Set client data when data is loaded
-  useEffect(() => {
-    if (client) {
-      setClientData(client);
-      console.log("Client data loaded:", client);
-    }
-  }, [client]);
+  } = useClientData(undefined); // Will use client ID from user metadata
 
   useEffect(() => {
     if (error) {
       console.error("Error loading client data:", error);
+      toast.error(`Error loading client: ${error instanceof Error ? error.message : String(error)}`);
     }
   }, [error]);
 
-  const handleBack = () => {
-    navigation.goToClientDashboard();
+  const handleSubmit = async (data: ClientFormData) => {
+    try {
+      if (!client) {
+        toast.error("Client information not available");
+        return;
+      }
+      
+      // Use the correct client_id for the update
+      const updateClientId = client.id || client.client_id || clientId;
+      
+      if (!updateClientId) {
+        toast.error("Client ID not found");
+        return;
+      }
+      
+      console.log("Submitting with client ID:", updateClientId);
+      
+      await clientMutation.mutateAsync({
+        client_id: updateClientId,
+        client_name: data.client_name,
+        email: data.email,
+        agent_name: data.agent_name,
+        agent_description: data.agent_description,
+        logo_url: data.logo_url,
+        logo_storage_path: data.logo_storage_path
+      });
+      
+      toast.success("Client information updated successfully");
+      refetchClient();
+    } catch (error) {
+      console.error("Error updating client:", error);
+      toast.error(`Failed to update client: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
-  if (isLoadingClient) {
+  const handleNavigateBack = () => {
+    navigation.goBack();
+  };
+
+  const handleRetryServiceKey = () => {
+    setServiceKeyError(!isAdminClientConfigured());
+  };
+
+  const logClientActivity = async () => {
+    try {
+      console.log("Logging client activity for client:", client?.id || clientId);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error logging client activity:", error);
+      return Promise.reject(error);
+    }
+  };
+
+  if (serviceKeyError) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ClientEditError
+        title="Supabase Service Role Key Missing"
+        message="The Supabase service role key is missing or invalid. Logo upload functionality requires this key."
+        details="To fix this issue, add your Supabase service role key to the .env file as VITE_SUPABASE_SERVICE_ROLE_KEY. This key is required for logo uploads and storage bucket management."
+        onRetry={handleRetryServiceKey}
+      />
     );
   }
 
-  if (!client && !isLoadingClient) {
+  if (error && !client) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold mb-2">Client Not Found</h2>
-        <p className="text-muted-foreground mb-6">
-          Your profile information could not be found.
-        </p>
-        <Button onClick={handleBack}>Go Back</Button>
-      </div>
+      <ClientEditError
+        title="Error Loading Client"
+        message={`Unable to load client data: ${error instanceof Error ? error.message : String(error)}`}
+        details={`Client ID: ${clientId || 'unknown'}`}
+        onRetry={refetchClient}
+      />
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="mb-6 flex items-center gap-1"
-        onClick={handleBack}
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </Button>
-      
-      <h1 className="text-2xl font-bold mb-6">
-        Edit Your Profile
-      </h1>
-      
-      {clientData && (
-        <ClientProfileSection 
-          client={clientData} 
-          clientMutation={clientMutation} 
-          refetchClient={refetchClient}
-        />
+    <div className="container mx-auto py-8">
+      <ClientEditHeader
+        title="Edit Client Information"
+        subtitle="Update client details and manage resources"
+        onBack={handleNavigateBack}
+      />
+
+      {isLoadingClient ? (
+        <ClientEditSkeleton />
+      ) : (
+        <div className="mt-6">
+          <ClientResourceTabs
+            client={client}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            refetchClient={refetchClient}
+            logClientActivity={logClientActivity}
+          />
+          
+          {activeTab === 'profile' && client && (
+            <ClientProfileLayout
+              client={client}
+              isLoading={isLoadingClient || clientMutation.isPending}
+              error={error ? (error instanceof Error ? error.message : String(error)) : null}
+              onSubmit={handleSubmit}
+              logClientActivity={logClientActivity}
+            />
+          )}
+        </div>
       )}
     </div>
   );
-};
+}
 
 export default EditClientInfo;
