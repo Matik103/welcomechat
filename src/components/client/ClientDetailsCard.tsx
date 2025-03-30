@@ -5,12 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { Client } from '@/types/client';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 interface ClientDetailsCardProps {
   client: Client | null;
   isLoading?: boolean;
   isClientView?: boolean;
-  logClientActivity?: () => Promise<void>;
+  logClientActivity?: () => Promise<void> | (() => Promise<void>);
 }
 
 export function ClientDetailsCard({ client, isLoading = false, isClientView = false, logClientActivity }: ClientDetailsCardProps) {

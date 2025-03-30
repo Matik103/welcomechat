@@ -13,7 +13,7 @@ import { ClientProfileSection } from '@/components/client/settings/ClientProfile
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
 import { toast } from 'sonner';
-import { ActivityType } from '@/types/client-form';
+import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 export default function EditClientInfo() {
   const { user } = useAuth();
@@ -46,9 +46,9 @@ export default function EditClientInfo() {
   // Log view activity when component mounts
   useEffect(() => {
     if (clientId && client) {
-      logClientActivity('view_profile', 'Client viewed their profile settings');
+      logClientActivity(ActivityType.CLIENT_UPDATED, 'Client viewed their profile settings');
     }
-  }, [clientId, client]);
+  }, [clientId, client, logClientActivity]);
 
   const handleNavigateBack = () => {
     navigation.goToClientDashboard();
@@ -82,7 +82,7 @@ export default function EditClientInfo() {
     );
   }
 
-  const handleLogClientActivity = async (type: ActivityType, description: string, metadata?: Record<string, any>) => {
+  const handleLogClientActivity = async (type: ActivityType | ActivityTypeString, description: string, metadata?: Record<string, any>) => {
     if (!clientId) return;
     try {
       await logClientActivity(type, description, metadata);
@@ -138,7 +138,7 @@ export default function EditClientInfo() {
                     client={client} 
                     isLoading={isLoadingClient} 
                     isClientView={true}
-                    logClientActivity={() => handleLogClientActivity('view_details', 'Client viewed their details')}
+                    logClientActivity={() => handleLogClientActivity(ActivityType.CLIENT_UPDATED, 'Client viewed their details')}
                   />
                 </div>
               </div>
@@ -158,7 +158,7 @@ export default function EditClientInfo() {
               {client && (
                 <ClientResourceSections 
                   clientId={clientId || ''}
-                  logClientActivity={logClientActivity}
+                  logClientActivity={handleLogClientActivity}
                   onResourceChange={refetchClient}
                 />
               )}
