@@ -6,6 +6,8 @@ import { WebsiteUrlForm } from './website-urls/WebsiteUrlForm';
 import { WebsiteUrlsList } from './website-urls/WebsiteUrlsList';
 import WebsiteUrlsLoading from './website-urls/WebsiteUrlsLoading';
 import WebsiteUrlsListEmpty from './website-urls/WebsiteUrlsListEmpty';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
@@ -32,17 +34,39 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
   isClientView = false,
   deletingUrlId
 }) => {
+  const { user } = useAuth();
+  
+  // Debug user metadata
+  React.useEffect(() => {
+    console.log("WebsiteUrls Component - User metadata:", user?.user_metadata);
+    console.log("WebsiteUrls Component - URLs:", urls);
+  }, [user, urls]);
+
   const handleDelete = async (urlId: number) => {
     if (confirm('Are you sure you want to delete this URL?')) {
-      await onDelete(urlId);
+      try {
+        await onDelete(urlId);
+      } catch (error) {
+        console.error("Error deleting URL:", error);
+        toast.error("Failed to delete URL. Please try again.");
+      }
+    }
+  };
+
+  const handleAdd = async (data: WebsiteUrlFormData) => {
+    try {
+      console.log("WebsiteUrls Component - Adding URL with data:", data);
+      await onAdd(data);
+    } catch (error) {
+      console.error("Error adding URL:", error);
     }
   };
 
   return (
     <div className="space-y-6">
       <WebsiteUrlForm 
-        onSubmit={onAdd} 
-        onAdd={onAdd}
+        onSubmit={handleAdd} 
+        onAdd={handleAdd}
         isSubmitting={isAdding}
         isAdding={isAdding}
         agentName={agentName} 

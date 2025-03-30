@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { WebsiteUrlForm } from "../website-urls/WebsiteUrlForm";
 import { WebsiteUrls } from "../website-urls";
 import { useWebsiteUrlsMutation } from "@/hooks/website-urls/useWebsiteUrlsMutation";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface WebsiteResourcesSectionProps {
   clientId: string;
@@ -17,6 +19,7 @@ export function WebsiteResourcesSection({
   onResourceChange
 }: WebsiteResourcesSectionProps) {
   const [isAddingUrl, setIsAddingUrl] = useState(false);
+  const { user } = useAuth();
   const { 
     addWebsiteUrl, 
     addWebsiteUrlMutation, 
@@ -25,6 +28,15 @@ export function WebsiteResourcesSection({
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     setIsAddingUrl(true);
     try {
+      console.log("Adding URL with client ID:", clientId);
+      console.log("Current user:", user?.id);
+      console.log("User metadata:", user?.user_metadata);
+      
+      if (!clientId) {
+        toast.error("Client ID is missing. Please reload the page or contact support.");
+        return;
+      }
+      
       await addWebsiteUrl({
         client_id: clientId,
         url: data.url,
@@ -41,6 +53,11 @@ export function WebsiteResourcesSection({
       }
     } catch (error) {
       console.error("Error adding website URL:", error);
+      if (error instanceof Error) {
+        toast.error(`Error adding website URL: ${error.message}`);
+      } else {
+        toast.error("An unknown error occurred while adding the website URL");
+      }
     } finally {
       setIsAddingUrl(false);
     }

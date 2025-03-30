@@ -1,3 +1,4 @@
+
 -- Create activities table
 CREATE TABLE IF NOT EXISTS client_activities (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -83,4 +84,4 @@ CREATE POLICY "Users can delete their own website URLs"
         auth.uid() IN (
             SELECT id FROM ai_agents WHERE id = client_id
         )
-    ); 
+    );
