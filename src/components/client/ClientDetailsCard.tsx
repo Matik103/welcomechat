@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +10,7 @@ interface ClientDetailsCardProps {
   client: Client | null;
   isLoading?: boolean;
   isClientView?: boolean;
-  logClientActivity?: () => Promise<void> | (() => Promise<void>);
+  logClientActivity?: () => Promise<void>;
 }
 
 export function ClientDetailsCard({ client, isLoading = false, isClientView = false, logClientActivity }: ClientDetailsCardProps) {
@@ -59,17 +58,14 @@ export function ClientDetailsCard({ client, isLoading = false, isClientView = fa
     }
   };
 
-  // Format creation date as time ago
   const timeAgo = client.created_at
     ? formatDistanceToNow(new Date(client.created_at), { addSuffix: true })
     : 'unknown';
 
-  // Format last active time
   const lastActive = client.last_active
     ? formatDistanceToNow(new Date(client.last_active), { addSuffix: true })
     : 'never';
 
-  // Get client initials for avatar fallback
   const getInitials = () => {
     if (!client.client_name) return 'CL';
     return client.client_name
@@ -79,6 +75,12 @@ export function ClientDetailsCard({ client, isLoading = false, isClientView = fa
       .toUpperCase()
       .substring(0, 2);
   };
+
+  React.useEffect(() => {
+    if (logClientActivity) {
+      logClientActivity();
+    }
+  }, [logClientActivity]);
 
   return (
     <Card className="shadow-sm">

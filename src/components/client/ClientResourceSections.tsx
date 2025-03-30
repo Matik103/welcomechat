@@ -26,7 +26,7 @@ export const ClientResourceSections = ({
       await uploadDocument(file);
       toast.success('Document uploaded successfully');
       
-      // Log activity
+      // Log activity with proper type
       await logClientActivity(ActivityType.DOCUMENT_ADDED, 'Document uploaded successfully');
       
       // Notify parent component about the change
