@@ -11,6 +11,7 @@ const ClientWidgetSettings = lazy(() => import('@/pages/client/WidgetSettings'))
 const ClientAccountSettings = lazy(() => import('@/pages/client/AccountSettings'));
 const ClientResourceSettings = lazy(() => import('@/pages/client/EditClientInfo'));
 const ClientAuth = lazy(() => import('@/pages/client/Auth'));
+const ClientProfileSettings = lazy(() => import('@/pages/client/EditProfilePage'));
 
 export default function ClientRoutes() {
   return (
@@ -63,6 +64,17 @@ export default function ClientRoutes() {
           <Suspense fallback={<LoadingFallback />}>
             <ClientRoute>
               <ClientAccountSettings />
+            </ClientRoute>
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="edit-profile"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <ClientRoute>
+              <ClientProfileSettings />
             </ClientRoute>
           </Suspense>
         }

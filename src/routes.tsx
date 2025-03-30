@@ -108,7 +108,7 @@ export const routes: RouteObject[] = [
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><DocumentExtractionPage /></React.Suspense></ProtectedRoute>,
   },
   {
-    path: '/client/edit-info',
+    path: '/client/edit-profile',
     element: (
       <ProtectedRoute requiredRole="client">
         <React.Suspense fallback={<div>Loading...</div>}>
