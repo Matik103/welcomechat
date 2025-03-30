@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -28,28 +27,29 @@ export const callRpcFunctionSafe = async <T>(
  */
 export const callRpcFunction = callRpcFunctionSafe;
 
-/**
- * Execute a raw SQL query via RPC
- * Uses the correct parameter names for the exec_sql function
- */
-export const execSql = async <T>(
-  query: string, 
-  params: any[] = []
-): Promise<T> => {
+interface SqlQuery {
+  sql: string;
+  values: any[];
+}
+
+export const execSql = async (query: SqlQuery | string): Promise<any[]> => {
   try {
-    const { data, error } = await supabase.rpc('exec_sql' as any, { 
-      sql_query: query,
-      query_params: params 
+    const response = await fetch('/api/sql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(typeof query === 'string' ? { sql: query } : query),
     });
-    
-    if (error) {
-      console.error('Error executing SQL:', error);
-      throw error;
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
-    return data as T;
+
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error('Failed to execute SQL:', error);
+    console.error('Error executing SQL:', error);
     throw error;
   }
 };
