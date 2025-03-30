@@ -11,14 +11,21 @@ CREATE TABLE IF NOT EXISTS client_activities (
 
 -- Create website_urls table if it doesn't exist
 CREATE TABLE IF NOT EXISTS website_urls (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     client_id UUID NOT NULL REFERENCES ai_agents(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
     title TEXT,
     description TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()),
+    status VARCHAR(255) DEFAULT 'pending',
+    error TEXT,
+    refresh_rate INTEGER DEFAULT 30,
+    last_crawled TIMESTAMP WITH TIME ZONE,
+    scrapable BOOLEAN DEFAULT true,
+    is_sitemap BOOLEAN DEFAULT false,
+    scrapability VARCHAR(255)
 );
 
 -- Add indexes for better performance
@@ -85,3 +92,54 @@ CREATE POLICY "Users can delete their own website URLs"
             SELECT id FROM ai_agents WHERE id = client_id
         )
     );
+
+-- Trigger to log website URL creation
+CREATE OR REPLACE FUNCTION log_website_url_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        INSERT INTO client_activities (
+            client_id,
+            activity_type,
+            activity_data
+        ) VALUES (
+            NEW.client_id,
+            'website_url_added',
+            jsonb_build_object(
+                'website_id', NEW.id,
+                'url', NEW.url,
+                'refresh_rate', NEW.refresh_rate,
+                'status', NEW.status
+            )
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER log_website_url_changes
+AFTER INSERT ON website_urls
+FOR EACH ROW EXECUTE FUNCTION log_website_url_changes();
+
+-- Functions to disable/enable website triggers for bulk operations
+CREATE OR REPLACE FUNCTION disable_website_triggers()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = 'public'
+AS $$
+BEGIN
+    ALTER TABLE website_urls DISABLE TRIGGER log_website_url_changes;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION enable_website_triggers()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = 'public'
+AS $$
+BEGIN
+    ALTER TABLE website_urls ENABLE TRIGGER log_website_url_changes;
+END;
+$$;

@@ -8,44 +8,42 @@ import WebsiteUrlsLoading from './website-urls/WebsiteUrlsLoading';
 import WebsiteUrlsListEmpty from './website-urls/WebsiteUrlsListEmpty';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useWebsiteUrls } from '@/hooks/website-urls';
+import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutation';
 
 interface WebsiteUrlsProps {
-  urls: WebsiteUrl[];
-  onAdd: (data: WebsiteUrlFormData) => Promise<void>;
-  onDelete: (urlId: number) => Promise<void>;
-  isLoading: boolean;
-  isAdding: boolean;
-  isDeleting: boolean;
-  deletingId?: number;
-  agentName: string;
-  isClientView?: boolean;
-  deletingUrlId?: number;
+  clientId: string;
+  onResourceChange?: () => void;
+  logClientActivity: () => Promise<void>;
 }
 
 export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
-  urls,
-  onAdd,
-  onDelete,
-  isLoading,
-  isAdding,
-  isDeleting,
-  deletingId,
-  agentName,
-  isClientView = false,
-  deletingUrlId
+  clientId,
+  onResourceChange,
+  logClientActivity
 }) => {
   const { user } = useAuth();
+  const { websiteUrls, isLoading: isLoadingUrls } = useWebsiteUrls(clientId);
+  const { 
+    addWebsiteUrlMutation, 
+    deleteWebsiteUrlMutation 
+  } = useWebsiteUrlsMutation(clientId);
   
   // Debug user metadata
   React.useEffect(() => {
     console.log("WebsiteUrls Component - User metadata:", user?.user_metadata);
-    console.log("WebsiteUrls Component - URLs:", urls);
-  }, [user, urls]);
+    console.log("WebsiteUrls Component - Client ID:", clientId);
+    console.log("WebsiteUrls Component - URLs:", websiteUrls);
+  }, [user, websiteUrls, clientId]);
 
   const handleDelete = async (urlId: number) => {
     if (confirm('Are you sure you want to delete this URL?')) {
       try {
-        await onDelete(urlId);
+        await deleteWebsiteUrlMutation.mutateAsync(urlId);
+        if (onResourceChange) {
+          onResourceChange();
+        }
+        await logClientActivity();
       } catch (error) {
         console.error("Error deleting URL:", error);
         toast.error("Failed to delete URL. Please try again.");
@@ -56,9 +54,21 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
   const handleAdd = async (data: WebsiteUrlFormData) => {
     try {
       console.log("WebsiteUrls Component - Adding URL with data:", data);
-      await onAdd(data);
+      console.log("WebsiteUrls Component - Client ID:", clientId);
+      
+      await addWebsiteUrlMutation.mutateAsync({
+        ...data,
+        client_id: clientId
+      });
+      
+      if (onResourceChange) {
+        onResourceChange();
+      }
+      
+      await logClientActivity();
     } catch (error) {
       console.error("Error adding URL:", error);
+      toast.error(`Failed to add URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -67,23 +77,23 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
       <WebsiteUrlForm 
         onSubmit={handleAdd} 
         onAdd={handleAdd}
-        isSubmitting={isAdding}
-        isAdding={isAdding}
-        agentName={agentName} 
+        isSubmitting={addWebsiteUrlMutation.isPending}
+        isAdding={addWebsiteUrlMutation.isPending}
+        agentName="AI Assistant"
       />
       
       <div>
         <h3 className="font-medium mb-2">Website URLs</h3>
-        {isLoading ? (
+        {isLoadingUrls ? (
           <WebsiteUrlsLoading />
-        ) : urls.length === 0 ? (
+        ) : websiteUrls.length === 0 ? (
           <WebsiteUrlsListEmpty />
         ) : (
           <WebsiteUrlsList 
-            urls={urls} 
+            urls={websiteUrls} 
             onDelete={handleDelete} 
-            isDeleting={isDeleting}
-            deletingId={deletingId || deletingUrlId}
+            isDeleting={deleteWebsiteUrlMutation.isPending}
+            deletingId={deleteWebsiteUrlMutation.variables}
           />
         )}
       </div>
