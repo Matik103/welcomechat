@@ -19,44 +19,43 @@ import { useClientActivity } from '@/hooks/useClientActivity';
 export default function EditClientInfo() {
   const { user } = useAuth();
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = React.useState('profile');
-  const { logClientActivity } = useClientActivity(user?.user_metadata?.client_id);
+  const [activeTab, setActiveTab] = useState('profile');
+  
+  // Get client ID from user metadata
+  const clientId = user?.user_metadata?.client_id;
+  const { logClientActivity } = useClientActivity(clientId);
 
   const { 
     client, 
     isLoadingClient,
     error,
     clientMutation,
-    clientId,
     refetchClient
-  } = useClientData(user?.user_metadata?.client_id);
+  } = useClientData(clientId);
 
   // For debugging - log what we have
   useEffect(() => {
     console.log("User metadata:", user?.user_metadata);
-    console.log("Current client state:", { client, isLoadingClient, error, clientId });
-  }, [user, client, isLoadingClient, error, clientId]);
+    console.log("Client ID from metadata:", clientId);
+    console.log("Current client state:", { client, isLoadingClient, error });
+  }, [user, clientId, client, isLoadingClient, error]);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
+      if (!clientId) {
+        toast.error("Client ID not found in your user profile");
+        return;
+      }
+      
       if (!client) {
-        toast.error("Client information not available");
+        toast.error("Unable to load your client information");
         return;
       }
       
-      // Use the correct client_id for the update
-      // First check if client.id exists, then fall back to client.client_id, then the clientId from the hook
-      const updateClientId = client.id || client.client_id || clientId;
-      
-      if (!updateClientId) {
-        toast.error("Client ID not found");
-        return;
-      }
-      
-      console.log("Submitting with client ID:", updateClientId);
+      console.log("Submitting update for client:", clientId);
       
       await clientMutation.mutateAsync({
-        client_id: updateClientId,
+        client_id: clientId,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
@@ -65,14 +64,15 @@ export default function EditClientInfo() {
         logo_storage_path: data.logo_storage_path
       });
       
-      toast.success("Client information updated successfully");
+      toast.success("Your information has been updated successfully");
+      await logActivityWrapper();
       refetchClient();
     } catch (error) {
-      console.error("Error updating client:", error);
+      console.error("Error updating client information:", error);
       const errorMessage = error instanceof Error 
         ? error.message 
         : String(error);
-      toast.error(`Failed to update client: ${errorMessage}`);
+      toast.error(`Failed to update your information: ${errorMessage}`);
     }
   };
 
@@ -88,13 +88,28 @@ export default function EditClientInfo() {
     }
   }, [client, isLoadingClient, clientId, error, refetchClient]);
 
+  // Show error if no client ID in metadata
+  if (!clientId) {
+    return (
+      <ClientLayout>
+        <ErrorDisplay 
+          title="Access Error"
+          message="Unable to find your client ID. Please make sure you're properly logged in."
+          details="If this issue persists, please contact support."
+          onRetry={() => window.location.reload()}
+        />
+      </ClientLayout>
+    );
+  }
+
+  // Show error if client data failed to load
   if (error && !client) {
     return (
       <ClientLayout>
         <ErrorDisplay 
-          title="Error Loading Client"
-          message={`Unable to load client data: ${error instanceof Error ? error.message : String(error)}`}
-          details={`Client ID: ${clientId || 'unknown'}`}
+          title="Error Loading Your Information"
+          message={`Unable to load your information: ${error instanceof Error ? error.message : String(error)}`}
+          details={`Client ID: ${clientId}`}
           onRetry={refetchClient}
         />
       </ClientLayout>
@@ -102,12 +117,14 @@ export default function EditClientInfo() {
   }
 
   const logActivityWrapper = async (): Promise<void> => {
-    const clientName = client?.client_name || client?.agent_name || "Unknown";
+    if (!client) return;
+    
+    const clientName = client.client_name || client.agent_name || "Unknown";
     await logClientActivity("client_updated", 
-      `Client information updated for "${clientName}"`, 
+      `Profile information updated for "${clientName}"`, 
       {
         client_name: clientName,
-        agent_name: client?.agent_name
+        agent_name: client.agent_name
       });
   };
 
@@ -125,21 +142,21 @@ export default function EditClientInfo() {
         </Button>
         
         <PageHeading>
-          Edit Client Information
+          Edit Your Information
           <p className="text-sm font-normal text-muted-foreground">
-            Update your details and manage resources
+            Update your details and manage your resources
           </p>
         </PageHeading>
 
         {isLoadingClient ? (
           <div className="mt-6 p-8 text-center">
             <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p>Loading client information...</p>
+            <p>Loading your information...</p>
           </div>
         ) : !client ? (
           <div className="mt-6 p-8 bg-red-50 border border-red-200 rounded-md">
-            <h3 className="text-lg font-medium text-red-800 mb-2">Client data not found</h3>
-            <p className="text-red-600">Unable to load client information. Client ID: {clientId || 'unknown'}</p>
+            <h3 className="text-lg font-medium text-red-800 mb-2">Information Not Found</h3>
+            <p className="text-red-600">Unable to load your information. Please try again.</p>
             <Button 
               onClick={refetchClient} 
               className="mt-4 bg-red-600 hover:bg-red-700"
@@ -170,6 +187,7 @@ export default function EditClientInfo() {
                     <ClientDetailsCard 
                       client={client} 
                       isLoading={isLoadingClient}
+                      isClientView={true}
                       logClientActivity={logActivityWrapper}
                     />
                   </div>
@@ -187,9 +205,9 @@ export default function EditClientInfo() {
               </TabsContent>
               
               <TabsContent value="resources">
-                {client && (
+                {clientId && (
                   <ClientResourceSections 
-                    clientId={client.id || client.client_id}
+                    clientId={clientId}
                     logClientActivity={logActivityWrapper}
                     onResourceChange={refetchClient}
                   />

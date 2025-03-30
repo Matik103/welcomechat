@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 import { WidgetDisplayMode } from './widget-settings';
 
@@ -21,7 +20,8 @@ export type ActivityType =
   | 'chat_interaction'
   | 'widget_settings_updated'  // Added this missing activity type
   | 'logo_uploaded'           // Added this missing activity type
-  | 'widget_previewed';       // Added this missing activity type
+  | 'widget_previewed'        // Added this missing activity type
+  | 'profile_updated';        // Added for profile updates
 
 // Define the structure for widget settings - align with widget-settings.ts
 export interface WidgetSettings {
