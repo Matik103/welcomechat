@@ -1,64 +1,56 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'sonner';
 import { ClientFormData } from '@/types/client-form';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useClientData } from '@/hooks/useClientData';
 import { useNavigation } from '@/hooks/useNavigation';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClientLayout } from '@/components/layout/ClientLayout';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronRight } from 'lucide-react';
 
 export default function EditClientInfo() {
   const { user } = useAuth();
   const navigation = useNavigation();
-  const location = useLocation();
-  const [activeTab, setActiveTab] = useState('resources');
-  
-  // Get client ID from user metadata
-  const clientId = user?.user_metadata?.client_id;
-  const { logClientActivity } = useClientActivity(clientId);
+  const [activeTab, setActiveTab] = React.useState('profile');
+  const { logClientActivity } = useClientActivity(user?.user_metadata?.client_id);
 
   const { 
     client, 
     isLoadingClient,
     error,
     clientMutation,
+    clientId,
     refetchClient
-  } = useClientData(clientId);
-
-  // For debugging - log what we have
-  useEffect(() => {
-    console.log("User metadata:", user?.user_metadata);
-    console.log("Client ID from metadata:", clientId);
-    console.log("Current client state:", { client, isLoadingClient, error });
-  }, [user, clientId, client, isLoadingClient, error]);
+  } = useClientData(user?.user_metadata?.client_id);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
-      if (!clientId) {
-        toast.error("Client ID not found in your user profile");
-        return;
-      }
-      
       if (!client) {
-        toast.error("Unable to load your client information");
+        toast.error("Client information not available");
         return;
       }
       
-      console.log("Submitting update for client:", clientId);
+      // Ensure we always have a client ID for the update
+      const clientIdForUpdate = client.id;
+      
+      if (!clientIdForUpdate) {
+        toast.error("Client ID is required to update client");
+        console.error("Missing client ID for update. Client object:", client);
+        return;
+      }
+      
+      console.log("Submitting update with client ID:", clientIdForUpdate);
       
       await clientMutation.mutateAsync({
-        client_id: clientId,
+        client_id: clientIdForUpdate,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
@@ -67,15 +59,14 @@ export default function EditClientInfo() {
         logo_storage_path: data.logo_storage_path
       });
       
-      toast.success("Your information has been updated successfully");
-      await logActivityWrapper();
+      toast.success("Client information updated successfully");
       refetchClient();
     } catch (error) {
-      console.error("Error updating client information:", error);
+      console.error("Error updating client:", error);
       const errorMessage = error instanceof Error 
         ? error.message 
         : String(error);
-      toast.error(`Failed to update your information: ${errorMessage}`);
+      toast.error(`Failed to update client: ${errorMessage}`);
     }
   };
 
@@ -83,36 +74,13 @@ export default function EditClientInfo() {
     navigation.goBack();
   };
 
-  // Force a refetch if client is null but we have a clientId
-  useEffect(() => {
-    if (!client && !isLoadingClient && clientId && !error) {
-      console.log("No client data but have clientId, forcing refetch for:", clientId);
-      refetchClient();
-    }
-  }, [client, isLoadingClient, clientId, error, refetchClient]);
-
-  // Show error if no client ID in metadata
-  if (!clientId) {
-    return (
-      <ClientLayout>
-        <ErrorDisplay 
-          title="Access Error"
-          message="Unable to find your client ID. Please make sure you're properly logged in."
-          details="If this issue persists, please contact support."
-          onRetry={() => window.location.reload()}
-        />
-      </ClientLayout>
-    );
-  }
-
-  // Show error if client data failed to load
   if (error && !client) {
     return (
       <ClientLayout>
         <ErrorDisplay 
-          title="Error Loading Your Information"
-          message={`Unable to load your information: ${error instanceof Error ? error.message : String(error)}`}
-          details={`Client ID: ${clientId}`}
+          title="Error Loading Client"
+          message={`Unable to load client data: ${error instanceof Error ? error.message : String(error)}`}
+          details={`Client ID: ${clientId || 'unknown'}`}
           onRetry={refetchClient}
         />
       </ClientLayout>
@@ -120,14 +88,12 @@ export default function EditClientInfo() {
   }
 
   const logActivityWrapper = async (): Promise<void> => {
-    if (!client) return;
-    
-    const clientName = client.client_name || client.agent_name || "Unknown";
+    const clientName = client?.client_name || client?.agent_name || "Unknown";
     await logClientActivity("client_updated", 
-      `Resources updated for "${clientName}"`, 
+      `Client information updated for "${clientName}"`, 
       {
         client_name: clientName,
-        agent_name: client.agent_name
+        agent_name: client?.agent_name
       });
   };
 
@@ -145,91 +111,72 @@ export default function EditClientInfo() {
         </Button>
         
         <PageHeading>
-          Manage Your Resources
+          Edit Client Information
           <p className="text-sm font-normal text-muted-foreground">
-            Update your information and add resources to your AI assistant
+            Update your details and manage resources
           </p>
         </PageHeading>
 
-        {isLoadingClient ? (
-          <div className="mt-6 p-8 text-center">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p>Loading your information...</p>
-          </div>
-        ) : !client ? (
-          <div className="mt-6 p-8 bg-red-50 border border-red-200 rounded-md">
-            <h3 className="text-lg font-medium text-red-800 mb-2">Information Not Found</h3>
-            <p className="text-red-600">Unable to load your information. Please try again.</p>
-            <Button 
-              onClick={refetchClient} 
-              className="mt-4 bg-red-600 hover:bg-red-700"
-            >
-              Retry Loading
-            </Button>
-          </div>
-        ) : (
-          <div className="mt-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="mb-6">
-                <TabsTrigger value="profile">Profile Information</TabsTrigger>
-                <TabsTrigger value="resources">Resources</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="profile" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
-                    <ClientForm 
-                      initialData={client}
-                      onSubmit={handleSubmit}
-                      isLoading={isLoadingClient || clientMutation.isPending}
-                      error={error ? (error instanceof Error ? error.message : String(error)) : null}
-                      submitButtonText="Update Information"
-                    />
-                  </div>
-                  <div className="lg:col-span-1">
-                    <ClientDetailsCard 
-                      client={client} 
-                      isLoading={isLoadingClient} 
-                      isClientView={true}
-                      logClientActivity={logActivityWrapper}
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex justify-end mt-4">
-                  <Button 
-                    type="button" 
-                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-                    onClick={() => setActiveTab('resources')}
-                  >
-                    Next: Resources <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="resources">
-                {clientId && (
-                  <ClientResourceSections 
-                    clientId={clientId}
-                    logClientActivity={logActivityWrapper}
-                    onResourceChange={refetchClient}
+        <div className="mt-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="profile">Profile Information</TabsTrigger>
+              <TabsTrigger value="resources">Resources</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="profile" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <ClientForm 
+                    initialData={client}
+                    onSubmit={handleSubmit}
+                    isLoading={isLoadingClient || clientMutation.isPending}
+                    error={error ? (error instanceof Error ? error.message : String(error)) : null}
+                    submitButtonText="Update Information"
                   />
-                )}
-                
-                <div className="flex justify-start mt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    className="flex items-center gap-2"
-                    onClick={() => setActiveTab('profile')}
-                  >
-                    <ArrowLeft className="h-4 w-4" /> Back to Profile
-                  </Button>
                 </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
+                <div className="lg:col-span-1">
+                  <ClientDetailsCard 
+                    client={client} 
+                    isLoading={isLoadingClient}
+                    logClientActivity={logActivityWrapper}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-4">
+                <Button 
+                  type="button" 
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                  onClick={() => setActiveTab('resources')}
+                >
+                  Next: Resources <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="resources">
+              {clientId && (
+                <ClientResourceSections 
+                  clientId={client?.id || clientId}
+                  logClientActivity={logActivityWrapper}
+                  onResourceChange={refetchClient}
+                />
+              )}
+              
+              <div className="flex justify-start mt-4">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => setActiveTab('profile')}
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back to Profile
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </ClientLayout>
   );

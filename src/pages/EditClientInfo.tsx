@@ -1,7 +1,6 @@
-
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'sonner';
@@ -21,12 +20,8 @@ export function EditClientInfo() {
   const { userRole } = useAuth();
   const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
-  const location = useLocation();
   const [activeTab, setActiveTab] = useState('profile');
   const [serviceKeyError, setServiceKeyError] = useState<boolean>(!isAdminClientConfigured());
-  
-  // Determine if we're in admin or client context
-  const viewContext = location.pathname.includes('/admin/') ? 'admin' : 'client';
   
   const { 
     client, 
@@ -51,19 +46,18 @@ export function EditClientInfo() {
         return;
       }
       
-      // Use the correct client_id for the update
-      // First check if client.id exists, then fall back to client.client_id, then the clientId from the hook
-      const updateClientId = client.id || client.client_id || clientId;
+      const clientIdForUpdate = client.id;
       
-      if (!updateClientId) {
-        toast.error("Client ID not found");
+      if (!clientIdForUpdate) {
+        toast.error("Client ID is required to update client");
+        console.error("Missing client ID for update. Client object:", client);
         return;
       }
       
-      console.log("Submitting with client ID:", updateClientId);
+      console.log("Admin submitting update with client ID:", clientIdForUpdate);
       
       await clientMutation.mutateAsync({
-        client_id: updateClientId,
+        client_id: clientIdForUpdate,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
@@ -120,12 +114,6 @@ export function EditClientInfo() {
     );
   }
 
-  // Customize page title and description based on context
-  const pageTitle = viewContext === 'admin' ? "Edit Client Information" : "Manage Your Resources";
-  const pageDescription = viewContext === 'admin' 
-    ? "Update client details and manage resources" 
-    : "Update your profile and manage your resources";
-
   return (
     <div className="container mx-auto py-8">
       <Button 
@@ -135,13 +123,13 @@ export function EditClientInfo() {
         onClick={handleNavigateBack}
       >
         <ArrowLeft className="h-4 w-4" />
-        {viewContext === 'admin' ? 'Back to Clients' : 'Back to Dashboard'}
+        Back to Clients
       </Button>
       
       <PageHeading>
-        {pageTitle}
+        Edit Client Information
         <p className="text-sm font-normal text-muted-foreground">
-          {pageDescription}
+          Update client details and manage resources
         </p>
       </PageHeading>
 
@@ -167,14 +155,13 @@ export function EditClientInfo() {
                     onSubmit={handleSubmit}
                     isLoading={isLoadingClient || clientMutation.isPending}
                     error={error ? (error instanceof Error ? error.message : String(error)) : null}
-                    submitButtonText={viewContext === 'admin' ? "Update Client" : "Update Information"}
+                    submitButtonText="Update Client"
                   />
                 </div>
                 <div className="lg:col-span-1">
                   <ClientDetailsCard 
                     client={client} 
                     isLoading={isLoadingClient} 
-                    isClientView={viewContext === 'client'}
                     logClientActivity={logClientActivity}
                   />
                 </div>
@@ -192,9 +179,9 @@ export function EditClientInfo() {
             </TabsContent>
             
             <TabsContent value="resources">
-              {client && (
+              {client && client.id && (
                 <ClientResourceSections 
-                  clientId={client.id || client.client_id}
+                  clientId={client.id} 
                   logClientActivity={logClientActivity}
                   onResourceChange={refetchClient}
                 />

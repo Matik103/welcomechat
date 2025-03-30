@@ -23,32 +23,24 @@ export const useClientData = (id: string | undefined) => {
     error,
     refetch
   } = useClient(clientId || '', {
-    staleTime: 0, // No stale time to ensure fresh data
-    cacheTime: 60000,  // 1 minute
+    staleTime: 300000, // 5 minutes
+    cacheTime: 600000,  // 10 minutes
     retry: 3,
-    enabled: Boolean(clientId),
-    refetchOnWindowFocus: true, // This will refetch when the window regains focus
+    enabled: Boolean(clientId)
   });
   
   // Log errors for debugging purposes
   useEffect(() => {
     if (error) {
       console.error("Error in useClientData hook:", error);
-      console.log(`Attempted to fetch client with ID: ${clientId}`);
+      if (id) {
+        console.log(`Attempted to fetch client with ID: ${id}`);
+      }
       if (user?.user_metadata?.client_id) {
         console.log(`User metadata contains client_id: ${user.user_metadata.client_id}`);
       }
     }
-  }, [error, clientId, user?.user_metadata?.client_id]);
-  
-  // Log client data for debugging
-  useEffect(() => {
-    if (client) {
-      console.log("Client data loaded:", client);
-    } else if (!isLoading) {
-      console.log("No client data found with ID:", clientId);
-    }
-  }, [client, isLoading, clientId]);
+  }, [error, id, user?.user_metadata?.client_id]);
   
   const clientMutation = useClientMutation();
 
@@ -61,15 +53,12 @@ export const useClientData = (id: string | undefined) => {
     return Promise.resolve();
   }, [clientId, refetch]);
 
-  // Get the effective client ID (either client.id or client.client_id)
-  const effectiveClientId = client?.id || client?.client_id || clientId;
-
   return {
     client,
     isLoadingClient: isLoading,
     error,
     clientMutation,
-    clientId: effectiveClientId, // Return the effective client ID
+    clientId, // Keep the property name as clientId for backward compatibility
     refetchClient
   };
 };

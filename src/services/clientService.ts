@@ -60,12 +60,12 @@ export const getActiveClientsCount = async (): Promise<{ total: number, active: 
 export const updateClient = async (clientId: string, data: Partial<ClientFormData>) => {
   try {
     if (!clientId) {
-      throw new Error("Client ID is required to update client");
+      throw new Error('Client ID is required for update operation');
     }
     
-    console.log(`Attempting to update client with ID: ${clientId}`, data);
+    console.log(`Attempting to update client with ID: ${clientId}`);
     
-    // First try to find the client record by direct ID match
+    // Check if the client exists in the ai_agents table
     const { data: aiAgent, error: aiAgentError } = await supabase
       .from('ai_agents')
       .select('*')
@@ -74,24 +74,20 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
       .single();
 
     if (aiAgentError) {
-      console.log(`Client not found in ai_agents by direct ID (${clientId}), trying client_id field`);
-      
-      // Try to find by client_id if direct ID failed
-      const { data: aiAgentByClientId, error: aiAgentByClientIdError } = await supabase
+      console.log(`Client not found in ai_agents by id, trying client_id field`);
+      const { data: aiAgent2, error: aiAgentError2 } = await supabase
         .from('ai_agents')
         .select('*')
         .eq('client_id', clientId)
         .eq('interaction_type', 'config')
         .single();
         
-      if (aiAgentByClientIdError) {
-        throw new Error(`Client not found with ID or client_id: ${clientId}`);
+      if (aiAgentError2) {
+        console.error(`Failed to fetch client by ID ${clientId} or client_id:`, aiAgentError2);
+        throw new Error(`Failed to fetch client: ${aiAgentError2.message}`);
       }
       
-      // Use the found record
-      const settingsObj = typeof aiAgentByClientId.settings === 'object' ? 
-        aiAgentByClientId.settings : {};
-      
+      // Use the agent found by client_id
       const updateData = {
         name: data.agent_name,
         agent_description: data.agent_description,
@@ -99,38 +95,27 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
         email: data.email,
         logo_url: data.logo_url,
         logo_storage_path: data.logo_storage_path,
-        updated_at: new Date().toISOString(),
-        // Also update the settings with the new data
-        settings: {
-          ...settingsObj,
-          agent_name: data.agent_name,
-          agent_description: data.agent_description,
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path
-        }
+        updated_at: new Date().toISOString()
       };
-      
-      console.log('Updating ai_agent found via client_id:', updateData);
       
       // Update the ai_agents record
       const { data: updatedAgent, error: updateError } = await supabase
         .from('ai_agents')
         .update(updateData)
-        .eq('id', aiAgentByClientId.id)
+        .eq('id', aiAgent2.id)
         .select()
         .single();
         
       if (updateError) {
+        console.error(`Failed to update ai_agent ${aiAgent2.id}:`, updateError);
         throw new Error(`Failed to update ai_agent: ${updateError.message}`);
       }
       
-      console.log('Successfully updated client via client_id match:', updatedAgent.id);
+      console.log('Successfully updated client with client_id match:', updatedAgent.id);
       return updatedAgent;
     }
     
-    // Direct ID match found, proceed with update
-    const settingsObj = typeof aiAgent.settings === 'object' ? aiAgent.settings : {};
-    
+    // Use the agent found directly by id
     const updateData = {
       name: data.agent_name,
       agent_description: data.agent_description,
@@ -138,18 +123,8 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
       email: data.email,
       logo_url: data.logo_url,
       logo_storage_path: data.logo_storage_path,
-      updated_at: new Date().toISOString(),
-      // Also update the settings with the new data
-      settings: {
-        ...settingsObj,
-        agent_name: data.agent_name,
-        agent_description: data.agent_description,
-        logo_url: data.logo_url,
-        logo_storage_path: data.logo_storage_path
-      }
+      updated_at: new Date().toISOString()
     };
-    
-    console.log('Updating ai_agent with direct id match:', updateData);
     
     // Update the ai_agents record
     const { data: updatedAgent, error: updateError } = await supabase
@@ -160,6 +135,7 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
       .single();
       
     if (updateError) {
+      console.error(`Failed to update ai_agent ${aiAgent.id}:`, updateError);
       throw new Error(`Failed to update ai_agent: ${updateError.message}`);
     }
     
