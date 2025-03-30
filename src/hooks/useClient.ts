@@ -46,6 +46,8 @@ export const useClient = (clientId: string, options = {}) => {
         return null;
       }
 
+      console.log("Client data retrieved:", data);
+
       // Ensure widget_settings is an object, not a string
       const widgetSettings = safeParseSettings(data.settings);
 
@@ -73,7 +75,7 @@ export const useClient = (clientId: string, options = {}) => {
         is_error: data.is_error || false
       };
 
-      console.log('Client data retrieved successfully:', client.id);
+      console.log('Client data processed successfully:', client.id);
       return client;
     } catch (error) {
       console.error('Error in fetchClient:', error);

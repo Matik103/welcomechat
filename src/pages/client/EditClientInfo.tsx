@@ -31,10 +31,18 @@ export default function EditClientInfo() {
     refetchClient
   } = useClientData(user?.user_metadata?.client_id);
 
+  useEffect(() => {
+    if (error) {
+      console.error("Error loading client data:", error);
+      toast.error(`Error loading client: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }, [error]);
+
   const handleSubmit = async (data: ClientFormData) => {
     try {
       if (!client) {
         toast.error("Client information not available");
+        console.error("No client data available when attempting to update");
         return;
       }
       
@@ -61,6 +69,14 @@ export default function EditClientInfo() {
       
       toast.success("Client information updated successfully");
       refetchClient();
+      
+      // Log client activity
+      await logClientActivity("client_updated", 
+        `Client information updated: ${data.client_name}`, 
+        {
+          client_name: data.client_name,
+          agent_name: data.agent_name
+        });
     } catch (error) {
       console.error("Error updating client:", error);
       const errorMessage = error instanceof Error 
@@ -99,7 +115,7 @@ export default function EditClientInfo() {
 
   return (
     <ClientLayout>
-      <div className="container mx-auto py-8">
+      <div className="py-8">
         <Button 
           variant="ghost" 
           size="sm" 
