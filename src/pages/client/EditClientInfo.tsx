@@ -2,7 +2,7 @@
 import { ClientForm } from "@/components/client/ClientForm";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { updateClient } from "@/services/clientService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Client } from "@/types/client";
