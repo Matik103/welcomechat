@@ -68,13 +68,29 @@ export const saveClientTempPassword = async (
     // Find the user by email - explicitly typing the users array
     const existingUser = userList.users.find((user: User) => user.email === email);
     
-    // If user exists, update their password
+    // Get client name for metadata
+    const { data: clientData, error: clientError } = await supabaseAdmin
+      .from('ai_agents')
+      .select('client_name, name')
+      .eq('id', agentId)
+      .single();
+      
+    const clientName = clientData?.client_name || clientData?.name || '';
+    
+    // If user exists, update their password and metadata
     if (existingUser) {
-      console.log("User exists, updating password");
+      console.log("User exists, updating password and metadata");
       
       const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
         existingUser.id,
-        { password: tempPassword }
+        { 
+          password: tempPassword,
+          user_metadata: {
+            role: 'client',
+            client_id: agentId,
+            client_name: clientName
+          }
+        }
       );
       
       if (updateError) {
@@ -86,14 +102,16 @@ export const saveClientTempPassword = async (
       }
     } else {
       // User doesn't exist, create them in Supabase Auth
-      console.log("User doesn't exist, creating new user");
+      console.log("User doesn't exist, creating new user with client_id in metadata");
       
       const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: tempPassword,
         email_confirm: true,
         user_metadata: {
-          role: 'client'
+          role: 'client',
+          client_id: agentId,
+          client_name: clientName
         }
       });
       
@@ -105,7 +123,7 @@ export const saveClientTempPassword = async (
         };
       }
       
-      console.log("Created user successfully:", userData?.user?.id);
+      console.log("Created user successfully with client_id in metadata:", userData?.user?.id);
     }
     
     // Store in client_temp_passwords table for future reference

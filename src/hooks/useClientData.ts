@@ -16,12 +16,25 @@ export const useClientData = (id: string | undefined) => {
     clientId = user.user_metadata.client_id;
   }
   
-  // Log detailed information for debugging
+  // Enhanced debugging for client ID retrieval
   useEffect(() => {
-    console.log("useClientData hook initialized with ID:", id);
+    console.log("[useClientData] Initialization ==========");
+    console.log("Provided ID:", id);
     console.log("User role:", userRole);
+    console.log("User object:", user?.id);
     console.log("User metadata:", user?.user_metadata);
-    console.log("Using clientId:", clientId);
+    
+    // More detailed debugging for user metadata
+    if (user?.user_metadata) {
+      console.log("User metadata type:", typeof user.user_metadata);
+      console.log("User metadata keys:", Object.keys(user.user_metadata));
+      console.log("client_id in metadata:", user.user_metadata.client_id);
+    } else {
+      console.log("No user metadata found");
+    }
+    
+    console.log("Resolved clientId:", clientId);
+    console.log("[useClientData] End initialization ==========");
   }, [id, user, userRole, clientId]);
   
   // Get client data with staleTime to prevent excessive refetching
@@ -41,10 +54,13 @@ export const useClientData = (id: string | undefined) => {
   // Log errors for debugging purposes
   useEffect(() => {
     if (error) {
-      console.error("Error in useClientData hook:", error);
+      console.error("[useClientData] Error fetching client data:", error);
       console.log(`Attempted to fetch client with ID: ${clientId}`);
+      
       if (user?.user_metadata?.client_id) {
         console.log(`User metadata contains client_id: ${user.user_metadata.client_id}`);
+      } else {
+        console.warn("No client_id found in user metadata");
       }
     }
   }, [error, clientId, user?.user_metadata?.client_id]);
@@ -52,9 +68,9 @@ export const useClientData = (id: string | undefined) => {
   // Log client data for debugging
   useEffect(() => {
     if (client) {
-      console.log("Client data loaded:", client);
-    } else if (!isLoading) {
-      console.log("No client data found with ID:", clientId);
+      console.log("[useClientData] Client data loaded:", client);
+    } else if (!isLoading && clientId) {
+      console.warn("[useClientData] No client data found with ID:", clientId);
     }
   }, [client, isLoading, clientId]);
   
@@ -63,9 +79,10 @@ export const useClientData = (id: string | undefined) => {
   // Memoized refetch function to avoid unnecessary re-renders
   const refetchClient = useCallback(() => {
     if (clientId) {
-      console.log("Refetching client data for:", clientId);
+      console.log("[useClientData] Refetching client data for:", clientId);
       return refetch();
     }
+    console.log("[useClientData] Skipping refetch - no clientId available");
     return Promise.resolve();
   }, [clientId, refetch]);
 

@@ -7,12 +7,12 @@ import { safeParseSettings } from '@/utils/clientSettingsUtils';
 export const useClient = (clientId: string, options = {}) => {
   const fetchClient = async (): Promise<Client | null> => {
     if (!clientId) {
-      console.log("No clientId provided to useClient");
+      console.log("[useClient] No clientId provided to useClient");
       return null;
     }
 
     try {
-      console.log(`Fetching client with ID: ${clientId}`);
+      console.log(`[useClient] Fetching client with ID: ${clientId}`);
       
       // Try fetching by direct ID from ai_agents table with interaction_type = 'config'
       let { data, error } = await supabase
@@ -24,7 +24,7 @@ export const useClient = (clientId: string, options = {}) => {
 
       // If no results from direct ID, try client_id field
       if (!data && !error) {
-        console.log(`No client found with ID: ${clientId}, trying client_id field`);
+        console.log(`[useClient] No client found with ID: ${clientId}, trying client_id field`);
         const { data: altData, error: altError } = await supabase
           .from('ai_agents')
           .select('*')
@@ -37,16 +37,16 @@ export const useClient = (clientId: string, options = {}) => {
       }
 
       if (error) {
-        console.error('Error fetching client:', error);
+        console.error('[useClient] Error fetching client:', error);
         throw error;
       }
 
       if (!data) {
-        console.log(`No client found with ID or client_id: ${clientId}`);
+        console.log(`[useClient] No client found with ID or client_id: ${clientId}`);
         return null;
       }
 
-      console.log('Raw client data from ai_agents:', data);
+      console.log('[useClient] Raw client data from ai_agents:', data);
 
       // Ensure widget_settings is an object, not a string
       const widgetSettings = safeParseSettings(data.settings);
@@ -75,10 +75,10 @@ export const useClient = (clientId: string, options = {}) => {
         is_error: data.is_error || false
       };
 
-      console.log('Client data mapped successfully:', client);
+      console.log('[useClient] Client data mapped successfully:', client);
       return client;
     } catch (error) {
-      console.error('Error in fetchClient:', error);
+      console.error('[useClient] Error in fetchClient:', error);
       throw error;
     }
   };
