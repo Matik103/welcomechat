@@ -7,7 +7,6 @@ import { DashboardHeader } from "@/components/client-dashboard/DashboardHeader";
 import { DashboardLoading } from "@/components/client-dashboard/DashboardLoading";
 import { DashboardContent } from "@/components/client-dashboard/DashboardContent";
 import { QueryItem } from "@/types/client-dashboard";
-import { ClientLayout } from "@/components/layout/ClientLayout";
 
 export interface ClientDashboardProps {
   clientId?: string;
@@ -37,7 +36,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
       setFirstLoadComplete(true);
-    }, 1000); // Short timeout to prevent loading screen from getting stuck
+    }, 1000);
     
     return () => clearTimeout(timeout);
   }, [firstLoadComplete]);
@@ -63,18 +62,6 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     agentName
   } = useClientDashboard(effectiveClientId || '', user?.user_metadata?.agent_name || 'AI Assistant');
 
-  // Debug logs to help troubleshoot loading issue
-  useEffect(() => {
-    console.log("Dashboard loading state:", { 
-      isLoading, 
-      loadTimeout, 
-      firstLoadComplete,
-      user: !!user,
-      clientId: effectiveClientId,
-      stats: !!stats
-    });
-  }, [isLoading, loadTimeout, firstLoadComplete, user, effectiveClientId, stats]);
-
   // Only show loading state if we're actually loading and the page is visible
   const shouldShowLoading = useMemo(() => 
     isLoading && !loadTimeout && isPageVisible && !firstLoadComplete,
@@ -82,6 +69,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   );
 
   // Convert stats to the expected format for the InteractionStats component
+  // Making sure we have both snake_case and camelCase versions to satisfy the type
   const formattedStats = useMemo(() => stats ? {
     // Snake case versions
     total_interactions: stats.total_interactions,
@@ -123,31 +111,29 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     setTimeout(() => setIsRefreshing(false), 1000);
   }, []);
 
-  // Render content within ClientLayout to ensure header is displayed
+  // Very minimal loading state - only show if we don't have a user yet
+  if (shouldShowLoading) {
+    return <DashboardLoading />;
+  }
+
   return (
-    <ClientLayout>
-      {shouldShowLoading ? (
-        <DashboardLoading />
-      ) : (
-        <div className="bg-[#F8F9FA] min-h-screen">
-          <div className="max-w-6xl mx-auto px-4 md:px-6 pt-8 pb-6 space-y-8">
-            {/* Refresh button */}
-            <DashboardHeader 
-              isRefreshing={isRefreshing} 
-              onRefresh={handleRefresh} 
-            />
-            
-            {/* Dashboard content */}
-            <DashboardContent 
-              stats={formattedStats}
-              recentInteractions={recentInteractions}
-              queries={queries}
-              isLoading={isLoading}
-            />
-          </div>
-        </div>
-      )}
-    </ClientLayout>
+    <div className="bg-[#F8F9FA] min-h-screen">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
+        {/* Refresh button */}
+        <DashboardHeader 
+          isRefreshing={isRefreshing} 
+          onRefresh={handleRefresh} 
+        />
+        
+        {/* Dashboard content */}
+        <DashboardContent 
+          stats={formattedStats}
+          recentInteractions={recentInteractions}
+          queries={queries}
+          isLoading={shouldShowLoading}
+        />
+      </div>
+    </div>
   );
 };
 

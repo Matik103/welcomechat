@@ -7,7 +7,7 @@ import ResourceSettings from "@/pages/client/ResourceSettings";
 import Settings from "@/pages/client/Settings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
 
-export const ClientRoutes = () => {
+export default function ClientRoutes() {
   return (
     <Routes>
       <Route path="dashboard" element={<Dashboard />} />
@@ -19,4 +19,4 @@ export const ClientRoutes = () => {
       <Route path="*" element={<Navigate to="/client/dashboard" replace />} />
     </Routes>
   );
-};
+}
