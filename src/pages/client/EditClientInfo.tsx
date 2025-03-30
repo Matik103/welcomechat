@@ -48,7 +48,7 @@ export default function EditClientInfo() {
     if (clientId && client) {
       const logActivity = async () => {
         try {
-          await logClientActivity(ActivityType.CLIENT_VIEWED, 'Client viewed their profile settings');
+          await logClientActivity(ActivityType.CLIENT_UPDATED, 'Client viewed their profile settings');
         } catch (error) {
           console.error("Error logging client activity:", error);
         }
@@ -147,7 +147,7 @@ export default function EditClientInfo() {
                     client={client} 
                     isLoading={isLoadingClient} 
                     isClientView={true}
-                    logClientActivity={() => handleLogClientActivity(ActivityType.CLIENT_VIEWED, 'Client viewed their details')}
+                    logClientActivity={() => handleLogClientActivity(ActivityType.CLIENT_UPDATED, 'Client viewed their details')}
                   />
                 </div>
               </div>
