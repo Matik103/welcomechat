@@ -1,4 +1,3 @@
-
 /**
  * Types for document processing functionality
  */
@@ -14,7 +13,7 @@ export interface DocumentProcessingStatus {
 
 export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
 
-export type DocumentType = 'document' | 'google_drive' | 'pdf' | 'docx' | 'text' | 'html' | 'other' | 'url' | 'web_page';
+export type DocumentType = 'document' | 'google_drive' | 'pdf' | 'docx' | 'text' | 'html' | 'other';
 
 export interface DocumentLink {
   id: number;
