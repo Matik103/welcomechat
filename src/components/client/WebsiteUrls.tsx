@@ -8,7 +8,7 @@ import WebsiteUrlsLoading from './website-urls/WebsiteUrlsLoading';
 import WebsiteUrlsListEmpty from './website-urls/WebsiteUrlsListEmpty';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useWebsiteUrls } from '@/hooks/website-urls';
+import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutation';
 
 interface WebsiteUrlsProps {
