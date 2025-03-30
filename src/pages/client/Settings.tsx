@@ -37,7 +37,7 @@ export default function ClientSettings() {
   return (
     <ClientLayout>
       <div className="container mx-auto py-8">
-        <h1 className="text-3xl font-bold mb-6">Settings</h1>
+        <h1 className="text-3xl font-bold mb-6">Account Settings</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Profile Settings Card */}
@@ -48,7 +48,7 @@ export default function ClientSettings() {
                 Profile Settings
               </CardTitle>
               <CardDescription>
-                Update your information and resources
+                Update your company information and AI assistant details
               </CardDescription>
             </CardHeader>
             <CardContent>
