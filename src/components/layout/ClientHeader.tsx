@@ -62,6 +62,9 @@ export const ClientHeader = () => {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
+                  <Link to="/client/profile">Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link to="/client/widget-settings">Widget Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -76,4 +79,3 @@ export const ClientHeader = () => {
     </header>
   );
 };
-

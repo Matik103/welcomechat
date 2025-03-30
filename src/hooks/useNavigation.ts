@@ -37,6 +37,10 @@ export const useNavigation = () => {
     navigate('/client/account-settings');
   }, [navigate]);
   
+  const goToClientProfile = useCallback(() => {
+    navigate('/client/profile');
+  }, [navigate]);
+  
   const goToClientDashboard = useCallback(() => {
     navigate('/client/dashboard');
   }, [navigate]);
@@ -65,6 +69,7 @@ export const useNavigation = () => {
     goToClientWidgetSettings,
     goToClientResourceSettings,
     goToClientAccountSettings,
+    goToClientProfile,
     goToClientDashboard,
     goToAdminDashboard,
     goToSettings,
