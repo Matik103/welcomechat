@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { WebsiteUrlFormData } from '@/types/website-url';
 import { WebsiteUrlsList } from './website-urls/WebsiteUrlsList';
 import WebsiteUrlsLoading from './website-urls/WebsiteUrlsLoading';
@@ -21,18 +21,31 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
   logClientActivity
 }) => {
   const { user } = useAuth();
-  const { websiteUrls, isLoading: isLoadingUrls, refetchWebsiteUrls } = useWebsiteUrls(clientId);
+  const { 
+    websiteUrls, 
+    isLoading: isLoadingUrls, 
+    refetchWebsiteUrls,
+    error: urlsError
+  } = useWebsiteUrls(clientId);
+  
   const { 
     addWebsiteUrlMutation, 
     deleteWebsiteUrlMutation 
   } = useWebsiteUrlsMutation(clientId);
   
   // Debug user metadata
-  React.useEffect(() => {
+  useEffect(() => {
     console.log("WebsiteUrls Component - User metadata:", user?.user_metadata);
     console.log("WebsiteUrls Component - Client ID:", clientId);
     console.log("WebsiteUrls Component - URLs:", websiteUrls);
-  }, [user, websiteUrls, clientId]);
+    
+    if (urlsError) {
+      console.error("Error loading website URLs:", urlsError);
+    }
+    
+    // Initial fetch
+    refetchWebsiteUrls();
+  }, [user, clientId, urlsError, refetchWebsiteUrls]);
 
   const handleDelete = async (urlId: number) => {
     if (confirm('Are you sure you want to delete this URL?')) {
@@ -82,22 +95,24 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
     }
   };
 
+  if (isLoadingUrls) {
+    return <WebsiteUrlsLoading />;
+  }
+
+  if (!websiteUrls || websiteUrls.length === 0) {
+    return <WebsiteUrlsListEmpty />;
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h3 className="font-medium mb-2">Website URLs</h3>
-        {isLoadingUrls ? (
-          <WebsiteUrlsLoading />
-        ) : websiteUrls.length === 0 ? (
-          <WebsiteUrlsListEmpty />
-        ) : (
-          <WebsiteUrlsList 
-            urls={websiteUrls} 
-            onDelete={handleDelete} 
-            isDeleting={deleteWebsiteUrlMutation.isPending}
-            deletingId={deleteWebsiteUrlMutation.variables}
-          />
-        )}
+        <WebsiteUrlsList 
+          urls={websiteUrls} 
+          onDelete={handleDelete} 
+          isDeleting={deleteWebsiteUrlMutation.isPending}
+          deletingId={deleteWebsiteUrlMutation.variables}
+        />
       </div>
     </div>
   );

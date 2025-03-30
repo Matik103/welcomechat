@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
 import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -19,6 +19,11 @@ export const ClientResourceSections = ({
   logClientActivity
 }: ClientResourceSectionsProps) => {
   const { uploadDocument, isUploading } = useDocumentUpload(clientId);
+
+  // Debug client ID to make sure it's being passed correctly
+  useEffect(() => {
+    console.log("ClientResourceSections rendered with clientId:", clientId);
+  }, [clientId]);
 
   const handleUploadDocument = async (file: File) => {
     try {

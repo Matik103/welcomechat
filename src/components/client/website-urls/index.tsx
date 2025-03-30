@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import WebsiteUrlsLoading from './WebsiteUrlsLoading';
 import WebsiteUrlsListEmpty from './WebsiteUrlsListEmpty';
 import { WebsiteUrlsTable } from './WebsiteUrlsTable';
@@ -13,6 +13,8 @@ export interface WebsiteUrlsProps {
 }
 
 export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: WebsiteUrlsProps) {
+  const [initializing, setInitializing] = useState(true);
+  
   const { 
     websiteUrls, 
     isLoading, 
@@ -25,12 +27,24 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
   } = useWebsiteUrlsMutation(clientId);
 
   useEffect(() => {
+    // Debug info
+    console.log("WebsiteUrls index component rendered with clientId:", clientId);
+    console.log("Website URLs:", websiteUrls);
+    
     // Initial fetch
     refetchWebsiteUrls();
-  }, [refetchWebsiteUrls, clientId]);
+    
+    // Set initializing to false after a short delay
+    const timer = setTimeout(() => {
+      setInitializing(false);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [refetchWebsiteUrls, clientId, websiteUrls]);
 
   const handleDelete = async (websiteUrlId: number) => {
     try {
+      console.log("Deleting website URL with ID:", websiteUrlId);
       await deleteWebsiteUrl(websiteUrlId);
       
       // Log client activity
@@ -50,7 +64,7 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
     }
   };
 
-  if (isLoading) {
+  if (initializing || isLoading) {
     return <WebsiteUrlsLoading />;
   }
 

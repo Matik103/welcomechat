@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DocumentLinkForm } from '@/components/client/drive-links/DocumentLinkForm';
 import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
@@ -18,15 +18,33 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
   onResourceChange,
   logClientActivity
 }) => {
+  const [initializing, setInitializing] = useState(true);
+  
   const {
     documentLinks,
     isLoading,
     error,
-    isValidating,
     addDocumentLink: addDocumentLinkMutation,
     deleteDocumentLink: deleteDocumentLinkMutation,
     refetch
   } = useDocumentLinks(clientId);
+
+  useEffect(() => {
+    // Debug info
+    console.log("DocumentResourcesSection rendered with clientId:", clientId);
+    console.log("Document links:", documentLinks);
+    
+    if (error) {
+      console.error("Error loading document links:", error);
+    }
+    
+    // Simulate initialization complete
+    const timer = setTimeout(() => {
+      setInitializing(false);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [clientId, documentLinks, error]);
 
   const handleAddDocumentLink = async (data: DocumentLinkFormData) => {
     try {
@@ -36,6 +54,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
         document_type: (data.document_type || 'document') as DocumentType
       };
       
+      console.log("Adding document link:", completeData, "for client:", clientId);
       await addDocumentLinkMutation.mutateAsync(completeData);
       
       // Log the activity
@@ -54,7 +73,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       return Promise.resolve();
     } catch (error) {
       console.error('Error adding document link:', error);
-      toast.error('Failed to add document link');
+      toast.error(`Failed to add document link: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return Promise.reject(error);
     }
   };
@@ -79,7 +98,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       return Promise.resolve();
     } catch (error) {
       console.error('Error deleting document link:', error);
-      toast.error('Failed to delete document link');
+      toast.error(`Failed to delete document link: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return Promise.reject(error);
     }
   };
@@ -99,13 +118,15 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
           agentName="AI Assistant"
         />
         
-        <DocumentLinksList
-          links={documentLinks}
-          isLoading={isLoading}
-          onDelete={handleDeleteDocumentLink}
-          isDeleting={deleteDocumentLinkMutation.isPending}
-          deletingId={deleteDocumentLinkMutation.variables}
-        />
+        {!initializing && (
+          <DocumentLinksList
+            links={documentLinks}
+            isLoading={isLoading}
+            onDelete={handleDeleteDocumentLink}
+            isDeleting={deleteDocumentLinkMutation.isPending}
+            deletingId={deleteDocumentLinkMutation.variables}
+          />
+        )}
       </CardContent>
     </Card>
   );

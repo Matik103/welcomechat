@@ -1,102 +1,84 @@
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { WebsiteUrlForm } from "../website-urls/WebsiteUrlForm";
-import { WebsiteUrls } from "../website-urls";
-import { useWebsiteUrlsMutation } from "@/hooks/website-urls/useWebsiteUrlsMutation";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { WebsiteUrlForm } from '@/components/client/website-urls/WebsiteUrlForm';
+import { WebsiteUrlFormData } from '@/types/website-url';
+import { toast } from 'sonner';
+import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutation';
+import { WebsiteUrls } from '@/components/client/website-urls'; 
 
 interface WebsiteResourcesSectionProps {
   clientId: string;
-  logClientActivity: () => Promise<void>;
   onResourceChange?: () => void;
+  logClientActivity: () => Promise<void>;
 }
 
-export function WebsiteResourcesSection({ 
-  clientId, 
-  logClientActivity,
-  onResourceChange
-}: WebsiteResourcesSectionProps) {
-  const [isAddingUrl, setIsAddingUrl] = useState(false);
-  const { user } = useAuth();
-  const { 
-    addWebsiteUrl, 
-    addWebsiteUrlMutation, 
-  } = useWebsiteUrlsMutation(clientId);
+export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = ({
+  clientId,
+  onResourceChange,
+  logClientActivity
+}) => {
+  const [initializing, setInitializing] = useState(true);
+  const { addWebsiteUrl, addWebsiteUrlMutation } = useWebsiteUrlsMutation(clientId);
 
-  const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
-    setIsAddingUrl(true);
+  useEffect(() => {
+    // Debug info
+    console.log("WebsiteResourcesSection rendered with clientId:", clientId);
+    
+    // Simulate initialization complete
+    const timer = setTimeout(() => {
+      setInitializing(false);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [clientId]);
+
+  const handleAddUrl = async (data: WebsiteUrlFormData) => {
     try {
-      console.log("Adding URL with client ID:", clientId);
-      console.log("URL data:", data);
+      console.log("Adding website URL:", data, "for client:", clientId);
+      await addWebsiteUrl({ ...data, client_id: clientId });
       
-      if (!clientId) {
-        toast.error("Client ID is missing. Please reload the page or contact support.");
-        return;
-      }
-      
-      await addWebsiteUrl({
-        client_id: clientId,
-        url: data.url,
-        refresh_rate: data.refresh_rate,
-        status: 'pending'
-      });
-      
-      // Log activity
+      // Log client activity
       await logClientActivity();
       
-      // Notify parent component if needed
+      // Notify parent component about the change if callback provided
       if (onResourceChange) {
         onResourceChange();
       }
       
       toast.success("Website URL added successfully");
+      return Promise.resolve();
     } catch (error) {
       console.error("Error adding website URL:", error);
-      if (error instanceof Error) {
-        toast.error(`Error adding website URL: ${error.message}`);
-      } else {
-        toast.error("An unknown error occurred while adding the website URL");
-      }
-    } finally {
-      setIsAddingUrl(false);
+      toast.error(`Failed to add website URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return Promise.reject(error);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Website URLs</CardTitle>
-          <CardDescription>
-            Add website URLs that your AI assistant can learn from
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <WebsiteUrlForm 
-            onAdd={handleAddUrl} 
-            isAdding={isAddingUrl || addWebsiteUrlMutation.isPending}
-            clientId={clientId}
-          />
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Existing Website URLs</CardTitle>
-          <CardDescription>
-            Manage the websites your AI assistant uses as knowledge sources
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <Card>
+      <CardHeader>
+        <CardTitle>Website URLs</CardTitle>
+        <CardDescription>
+          Add URLs that contain information your AI assistant should learn
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <WebsiteUrlForm 
+          onSubmit={handleAddUrl}
+          isSubmitting={addWebsiteUrlMutation.isPending}
+        />
+        
+        {!initializing && clientId && (
           <WebsiteUrls 
-            clientId={clientId}
+            clientId={clientId} 
             onResourceChange={onResourceChange}
             logClientActivity={logClientActivity}
           />
-        </CardContent>
-      </Card>
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
-}
+};
+
+export default WebsiteResourcesSection;
