@@ -11,6 +11,7 @@ import WidgetSettings from "@/pages/WidgetSettings";
 import NotFound from "@/pages/NotFound";
 import { Toaster } from "sonner";
 import { LoadingFallback } from "./LoadingFallback";
+import { ClientLayout } from "@/components/layout/ClientLayout";
 
 export const ClientRoutes = () => {
   return (
