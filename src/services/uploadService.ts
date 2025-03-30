@@ -73,3 +73,71 @@ export const uploadLogo = async (
     throw error;
   }
 };
+
+/**
+ * Handles logo upload from an input element change event
+ * @param event The change event from the file input element
+ * @param clientId The client ID to associate with the logo
+ * @returns Object containing the URL and storage path of the uploaded logo, or null if upload failed
+ */
+export const handleLogoUpload = async (
+  event: React.ChangeEvent<HTMLInputElement>,
+  clientId: string
+): Promise<{ url: string; path: string } | null> => {
+  const file = event.target.files?.[0];
+  if (!file) {
+    console.log('No file selected for upload');
+    return null;
+  }
+  
+  try {
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Logo file must be less than 5MB');
+      return null;
+    }
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please select a valid image file (JPG, PNG, GIF, SVG, WebP)');
+      return null;
+    }
+    
+    // Upload the logo
+    const result = await uploadLogo(file, clientId);
+    toast.success('Logo uploaded successfully');
+    return result;
+  } catch (error) {
+    console.error('Error in handleLogoUpload:', error);
+    // Error is already handled and displayed in uploadLogo function
+    return null;
+  }
+};
+
+// Initialize the bot-logos bucket
+export const initializeBotLogosBucket = async (): Promise<boolean> => {
+  try {
+    if (!isAdminClientConfigured()) {
+      console.error('Cannot initialize bucket: Supabase admin client not configured');
+      return false;
+    }
+
+    // Create the bucket if it doesn't exist
+    const { error } = await supabaseAdmin.storage.createBucket('bot-logos', {
+      public: true,
+      fileSizeLimit: 10485760, // 10MB
+    });
+
+    if (error && !error.message.includes('already exists')) {
+      console.error('Error creating bot-logos bucket:', error);
+      return false;
+    }
+
+    console.log('bot-logos bucket initialized successfully');
+    return true;
+  } catch (error) {
+    console.error('Error initializing bot-logos bucket:', error);
+    return false;
+  }
+};
