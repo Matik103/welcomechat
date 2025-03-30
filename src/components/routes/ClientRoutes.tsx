@@ -1,39 +1,72 @@
 
-import { Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import { ClientHeader } from "@/components/layout/ClientHeader";
-import ClientDashboard from "@/pages/client/Dashboard";
-import ClientSettings from "@/pages/client/Settings";
-import AccountSettings from "@/pages/client/AccountSettings";
-import ResourceSettings from "@/pages/client/ResourceSettings";
-import EditClientInfo from "@/pages/client/EditClientInfo";
-import EditProfilePage from "@/pages/client/EditProfilePage";
-import WidgetSettings from "@/pages/WidgetSettings";
-import NotFound from "@/pages/NotFound";
-import { Toaster } from "sonner";
-import { LoadingFallback } from "./LoadingFallback";
+import { lazy, Suspense } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import LoadingFallback from './LoadingFallback';
+import ProtectedRoute from '../ProtectedRoute';
+import ClientRoute from '../auth/ClientRoute';
 
-export const ClientRoutes = () => {
+// Lazy-loaded client pages
+const ClientDashboard = lazy(() => import('@/pages/client/Dashboard'));
+const ClientWidgetSettings = lazy(() => import('@/pages/client/WidgetSettings'));
+const ClientAccountSettings = lazy(() => import('@/pages/client/AccountSettings'));
+const ClientResourceSettings = lazy(() => import('@/pages/client/EditClientInfo'));
+const ClientAuth = lazy(() => import('@/pages/client/Auth'));
+
+export default function ClientRoutes() {
   return (
-    <div className="min-h-screen bg-background">
-      <ClientHeader />
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
-          <Route path="/client/dashboard" element={<ClientDashboard />} />
-          <Route path="/client/settings" element={<ClientSettings />} />
-          <Route path="/client/account-settings" element={<AccountSettings />} />
-          <Route path="/client/resource-settings" element={<ResourceSettings />} />
-          <Route path="/client/edit-info" element={<EditClientInfo />} />
-          <Route path="/client/edit-profile" element={<EditProfilePage />} />
-          <Route path="/client/widget-settings" element={<WidgetSettings />} />
-          <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
-          <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
-          <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
-      <Toaster />
-    </div>
+    <Routes>
+      <Route 
+        path="auth" 
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <ClientAuth />
+          </Suspense>
+        } 
+      />
+      
+      <Route
+        path="dashboard"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <ClientRoute>
+              <ClientDashboard />
+            </ClientRoute>
+          </Suspense>
+        }
+      />
+      
+      <Route
+        path="widget-settings"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <ClientRoute>
+              <ClientWidgetSettings />
+            </ClientRoute>
+          </Suspense>
+        }
+      />
+      
+      <Route
+        path="resource-settings"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <ClientRoute>
+              <ClientResourceSettings />
+            </ClientRoute>
+          </Suspense>
+        }
+      />
+      
+      <Route
+        path="account-settings"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <ClientRoute>
+              <ClientAccountSettings />
+            </ClientRoute>
+          </Suspense>
+        }
+      />
+    </Routes>
   );
-};
+}
