@@ -1,3 +1,4 @@
+
 # Knowledge Base Setup
 
 This repository contains the necessary components for setting up a knowledge base system that integrates with LlamaParse for document processing and Firecrawl for web scraping.

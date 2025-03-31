@@ -1,3 +1,4 @@
+
 -- Create website_urls table
 CREATE TABLE IF NOT EXISTS website_urls (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -81,4 +82,4 @@ CREATE POLICY "Service role can update URLs"
     ON website_urls
     FOR UPDATE
     USING (auth.role() = 'service_role')
-    WITH CHECK (auth.role() = 'service_role'); 
+    WITH CHECK (auth.role() = 'service_role');

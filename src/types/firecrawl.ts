@@ -1,3 +1,4 @@
+
 export interface FirecrawlConfig {
   apiKey: string;
   baseUrl?: string;
@@ -28,4 +29,4 @@ export interface FirecrawlResponse {
     metadata?: Record<string, any>;
     options?: FirecrawlRequest;
   };
-} 
+}

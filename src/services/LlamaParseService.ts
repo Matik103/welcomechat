@@ -1,3 +1,4 @@
+
 import { LlamaParseConfig, LlamaParseRequest, LlamaParseResponse } from '@/types/llamaparse';
 import fetch from 'node-fetch';
 
@@ -133,4 +134,4 @@ export class LlamaParseService {
       throw error;
     }
   }
-} 
+}

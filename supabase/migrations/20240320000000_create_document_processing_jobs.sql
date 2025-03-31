@@ -1,3 +1,4 @@
+
 -- Create document_processing_jobs table
 CREATE TABLE IF NOT EXISTS document_processing_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,4 +85,4 @@ CREATE POLICY "Service role can update jobs"
     ON document_processing_jobs
     FOR UPDATE
     USING (auth.role() = 'service_role')
-    WITH CHECK (auth.role() = 'service_role'); 
+    WITH CHECK (auth.role() = 'service_role');
