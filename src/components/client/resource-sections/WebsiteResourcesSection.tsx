@@ -36,7 +36,15 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
   const handleAddUrl = async (data: WebsiteUrlFormData) => {
     try {
       console.log("Adding website URL:", data, "for client:", clientId);
-      await addWebsiteUrl({ ...data, client_id: clientId });
+      
+      if (!clientId) {
+        throw new Error("Client ID is required");
+      }
+      
+      await addWebsiteUrl({ 
+        ...data, 
+        client_id: clientId 
+      });
       
       // Log client activity
       await logClientActivity();
@@ -67,6 +75,7 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
         <WebsiteUrlForm 
           onSubmit={handleAddUrl}
           isSubmitting={addWebsiteUrlMutation.isPending}
+          clientId={clientId}
         />
         
         {!initializing && clientId && (

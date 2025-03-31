@@ -27,12 +27,14 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
   } = useWebsiteUrlsMutation(clientId);
 
   useEffect(() => {
-    // Debug info
+    // Debug info for troubleshooting
     console.log("WebsiteUrls index component rendered with clientId:", clientId);
-    console.log("Website URLs:", websiteUrls);
+    console.log("Website URLs from fetch hook:", websiteUrls);
     
     // Initial fetch
-    refetchWebsiteUrls();
+    if (clientId) {
+      refetchWebsiteUrls();
+    }
     
     // Set initializing to false after a short delay
     const timer = setTimeout(() => {
@@ -40,7 +42,7 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [refetchWebsiteUrls, clientId, websiteUrls]);
+  }, [clientId, refetchWebsiteUrls]);
 
   const handleDelete = async (websiteUrlId: number) => {
     try {

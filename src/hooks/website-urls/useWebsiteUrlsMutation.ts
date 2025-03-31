@@ -1,9 +1,9 @@
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabaseAdmin } from "@/integrations/supabase/client-admin";
+import { supabase } from "@/integrations/supabase/client";
 import { WebsiteUrl, WebsiteUrlFormData } from "@/types/website-url";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 
 export function useWebsiteUrlsMutation(clientId: string | undefined) {
   const queryClient = useQueryClient();
@@ -31,11 +31,30 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
           
       if (clientError) {
         console.error("Error finding client:", clientError);
-        throw new Error(`Could not find client record: ${clientError.message}`);
-      }
-      
-      if (!clientRecord) {
-        throw new Error(`Client record not found for ID: ${effectiveClientId}`);
+        console.log("Attempting to use the provided clientId directly");
+        
+        // Insert the website URL with the provided client ID as fallback
+        const { data, error } = await supabase
+          .from("website_urls")
+          .insert({
+            client_id: effectiveClientId,
+            url: input.url,
+            refresh_rate: input.refresh_rate || 30,
+            status: 'pending'
+          })
+          .select()
+          .single();
+            
+        if (error) {
+          console.error("Error inserting website URL:", error);
+          throw error;
+        }
+        
+        if (!data) {
+          throw new Error("Failed to create website URL - no data returned");
+        }
+        
+        return data as WebsiteUrl;
       }
       
       console.log("Found client record:", clientRecord);
@@ -47,7 +66,7 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
           client_id: clientRecord.id,
           url: input.url,
           refresh_rate: input.refresh_rate || 30,
-          status: input.status || 'pending'
+          status: 'pending'
         })
         .select()
         .single();

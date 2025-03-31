@@ -2,66 +2,85 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { WebsiteUrl } from "@/types/website-url";
-import { useState, useCallback } from "react";
 
 export function useWebsiteUrlsFetch(clientId: string | undefined) {
-  const [error, setError] = useState<Error | null>(null);
-
-  // Create a memoized refetch function
-  const fetchWebsiteUrls = useCallback(async () => {
+  const fetchWebsiteUrls = async (): Promise<WebsiteUrl[]> => {
     if (!clientId) {
       console.warn("No client ID provided to useWebsiteUrlsFetch");
       return [];
     }
-    
-    try {
-      console.log("Fetching website URLs for client:", clientId);
-      const { data, error } = await supabase
-        .from("website_urls")
-        .select("*")
-        .eq("client_id", clientId);
-        
-      if (error) {
-        console.error("Error fetching website URLs:", error);
-        setError(error);
-        throw error;
-      }
-      
-      console.log("Retrieved website URLs:", data);
-      return data as WebsiteUrl[];
-    } catch (error) {
-      console.error("Error in websiteUrlsFetch:", error);
-      setError(error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
-  }, [clientId]);
 
-  // Fetch website URLs for a client
-  const {
-    data: websiteUrls,
-    isLoading,
-    isError,
-    refetch
-  } = useQuery({
+    console.log("Fetching website URLs for client:", clientId);
+
+    // First try to find direct matches
+    const { data: directMatches, error: directError } = await supabase
+      .from("website_urls")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+
+    if (directError) {
+      console.error("Error fetching website URLs directly:", directError);
+      throw directError;
+    }
+
+    console.log("Direct URL matches:", directMatches);
+
+    // If we found direct matches, return those
+    if (directMatches && directMatches.length > 0) {
+      return directMatches as WebsiteUrl[];
+    }
+
+    // If no direct matches, try to find the client in ai_agents
+    console.log("No direct matches, looking up client in ai_agents");
+    const { data: clientData, error: clientError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("interaction_type", "config")
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .single();
+
+    if (clientError) {
+      console.error("Error finding client:", clientError);
+      // If we can't find the client, just return an empty array
+      return [];
+    }
+
+    if (!clientData) {
+      console.log("No client data found");
+      return [];
+    }
+
+    console.log("Found client:", clientData);
+
+    // Now look for website URLs using the client's ID
+    const { data: urlsByClientId, error: urlsError } = await supabase
+      .from("website_urls")
+      .select("*")
+      .eq("client_id", clientData.id)
+      .order("created_at", { ascending: false });
+
+    if (urlsError) {
+      console.error("Error fetching website URLs by client ID:", urlsError);
+      throw urlsError;
+    }
+
+    console.log("URLs found by client ID:", urlsByClientId);
+
+    return (urlsByClientId || []) as WebsiteUrl[];
+  };
+
+  const query = useQuery({
     queryKey: ["websiteUrls", clientId],
     queryFn: fetchWebsiteUrls,
-    enabled: !!clientId,
-    staleTime: 1000 * 60, // 1 minute
+    enabled: !!clientId
   });
 
-  const refetchWebsiteUrls = useCallback(async () => {
-    if (clientId) {
-      console.log("Manually refetching website URLs for client:", clientId);
-      return refetch();
-    }
-    return null;
-  }, [clientId, refetch]);
-
   return {
-    websiteUrls: websiteUrls || [],
-    isLoading,
-    isError,
-    error,
-    refetchWebsiteUrls
+    websiteUrls: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetchWebsiteUrls: query.refetch,
   };
 }

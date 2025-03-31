@@ -31,6 +31,8 @@ export function WebsiteUrlForm({ onAdd, onSubmit, isAdding = false, isSubmitting
         return;
       }
       
+      console.log("Submitting website URL:", data);
+      
       // Prevent default navigation
       await submitFunction(data);
       form.reset();
