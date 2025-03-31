@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useCallback } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -27,68 +28,69 @@ export function EditClientInfo() {
   const [checkingClient, setCheckingClient] = useState<boolean>(false);
   const [clientExists, setClientExists] = useState<boolean | null>(null);
   
-  // First check if the client exists in the database
-  useEffect(() => {
-    const checkClientExists = async () => {
-      if (!id) return;
-      
-      setCheckingClient(true);
-      try {
-        // First check in ai_agents table
-        const { data: aiAgentData, error: aiAgentError, count: aiAgentCount } = await supabase
-          .from('ai_agents')
-          .select('id', { count: 'exact' })
-          .eq('client_id', id)
-          .eq('interaction_type', 'config')
-          .limit(1);
-          
-        if (aiAgentCount && aiAgentCount > 0) {
-          console.log(`Found client in ai_agents table with client_id: ${id}`);
-          setClientExists(true);
-          setCheckingClient(false);
-          return;
-        }
-        
-        // Also check by direct id match in ai_agents
-        const { data: directAgentData, error: directAgentError, count: directAgentCount } = await supabase
-          .from('ai_agents')
-          .select('id', { count: 'exact' })
-          .eq('id', id)
-          .eq('interaction_type', 'config')
-          .limit(1);
-          
-        if (directAgentCount && directAgentCount > 0) {
-          console.log(`Found client in ai_agents table with direct id: ${id}`);
-          setClientExists(true);
-          setCheckingClient(false);
-          return;
-        }
-        
-        // Fallback to clients table
-        const { data, error, count } = await supabase
-          .from('clients')
-          .select('id', { count: 'exact' })
-          .eq('id', id)
-          .limit(1);
-          
-        if (error) throw error;
-        
-        setClientExists(count ? count > 0 : false);
-        
-        if (!count || count === 0) {
-          toast.error(`Client with ID ${id} does not exist in the database`);
-          console.error(`Client with ID ${id} not found in database`);
-        }
-      } catch (err) {
-        console.error("Error checking if client exists:", err);
-        setClientExists(false);
-      } finally {
-        setCheckingClient(false);
-      }
-    };
+  // Check if client exists - with memoization to prevent unnecessary re-renders
+  const checkClientExists = useCallback(async () => {
+    if (!id) return;
     
-    checkClientExists();
+    setCheckingClient(true);
+    try {
+      // First check in ai_agents table by client_id
+      const { data: aiAgentData, error: aiAgentError, count: aiAgentCount } = await supabase
+        .from('ai_agents')
+        .select('id', { count: 'exact' })
+        .eq('client_id', id)
+        .eq('interaction_type', 'config')
+        .limit(1);
+        
+      if (aiAgentCount && aiAgentCount > 0) {
+        console.log(`Found client in ai_agents table with client_id: ${id}`);
+        setClientExists(true);
+        setCheckingClient(false);
+        return;
+      }
+      
+      // Also check by direct id match in ai_agents
+      const { data: directAgentData, error: directAgentError, count: directAgentCount } = await supabase
+        .from('ai_agents')
+        .select('id', { count: 'exact' })
+        .eq('id', id)
+        .eq('interaction_type', 'config')
+        .limit(1);
+        
+      if (directAgentCount && directAgentCount > 0) {
+        console.log(`Found client in ai_agents table with direct id: ${id}`);
+        setClientExists(true);
+        setCheckingClient(false);
+        return;
+      }
+      
+      // Fallback to clients table
+      const { data, error, count } = await supabase
+        .from('clients')
+        .select('id', { count: 'exact' })
+        .eq('id', id)
+        .limit(1);
+        
+      if (error) throw error;
+      
+      setClientExists(count ? count > 0 : false);
+      
+      if (!count || count === 0) {
+        toast.error(`Client with ID ${id} does not exist in the database`);
+        console.error(`Client with ID ${id} not found in database`);
+      }
+    } catch (err) {
+      console.error("Error checking if client exists:", err);
+      setClientExists(false);
+    } finally {
+      setCheckingClient(false);
+    }
   }, [id]);
+
+  // Run the client existence check once on component mount
+  useEffect(() => {
+    checkClientExists();
+  }, [checkClientExists]);
   
   const { 
     client, 
@@ -102,11 +104,12 @@ export function EditClientInfo() {
   useEffect(() => {
     if (error) {
       console.error("Error loading client data:", error);
-      toast.error(`Error loading client: ${error instanceof Error ? error.message : String(error)}`);
+      // Don't show toast on each error to prevent spam
     }
   }, [error]);
 
-  const handleSubmit = async (data: ClientFormData) => {
+  // Memoize submit handler to prevent unnecessary re-renders
+  const handleSubmit = useCallback(async (data: ClientFormData) => {
     try {
       if (!client) {
         toast.error("Client information not available");
@@ -138,22 +141,24 @@ export function EditClientInfo() {
       await clientMutation.mutateAsync(mutationData);
       
       toast.success("Client information updated successfully");
-      refetchClient();
+      // Don't immediately refetch to avoid race conditions
+      setTimeout(() => refetchClient(), 500);
     } catch (error) {
       console.error("Error updating client:", error);
       toast.error(`Failed to update client: ${error instanceof Error ? error.message : String(error)}`);
     }
-  };
+  }, [client, clientId, clientMutation, refetchClient]);
 
-  const handleNavigateBack = () => {
+  const handleNavigateBack = useCallback(() => {
     navigation.goBack();
-  };
+  }, [navigation]);
 
-  const handleRetryServiceKey = () => {
+  const handleRetryServiceKey = useCallback(() => {
     setServiceKeyError(!isAdminClientConfigured());
-  };
+  }, []);
 
-  const logClientActivity = async () => {
+  // Memoize logClientActivity to prevent unnecessary re-renders
+  const logClientActivity = useCallback(async () => {
     try {
       console.log("Logging client activity for client:", client?.id || clientId);
       return Promise.resolve();
@@ -161,7 +166,7 @@ export function EditClientInfo() {
       console.error("Error logging client activity:", error);
       return Promise.reject(error);
     }
-  };
+  }, [client?.id, clientId]);
 
   if (serviceKeyError) {
     return (

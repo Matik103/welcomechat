@@ -15,10 +15,10 @@ interface UseClientOptions {
 export const useClient = (id: string, options?: UseClientOptions) => {
   const defaultOptions = {
     enabled: !!id,
-    staleTime: 60000,
-    cacheTime: 120000,
+    staleTime: 300000, // Increase stale time to 5 minutes to reduce unnecessary refetches
+    cacheTime: 600000, // Increase cache time to 10 minutes
     retry: 2,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false, // Prevent automatic refetches when window regains focus
   };
 
   const queryOptions = { ...defaultOptions, ...options };
@@ -76,6 +76,46 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         return clientFromAgent;
       }
 
+      // Try to get the agent config by ID match directly
+      const { data: agentByDirectId, error: agentByDirectIdError } = await supabase
+        .from('ai_agents')
+        .select('*')
+        .eq('id', id)  
+        .eq('interaction_type', 'config')
+        .maybeSingle();
+        
+      if (agentByDirectId && !agentByDirectIdError) {
+        console.log("Found client data in ai_agents table by direct ID match:", agentByDirectId);
+        
+        // Extract widget settings from the agent config
+        const widgetSettings = extractWidgetSettings(agentByDirectId);
+
+        // Create a properly typed client object from the agent config
+        const clientFromAgent: Client = {
+          id: id,
+          client_id: agentByDirectId.client_id || id,
+          client_name: agentByDirectId.client_name || '',
+          email: agentByDirectId.email || '',
+          company: agentByDirectId.company || '',
+          description: agentByDirectId.description || '',
+          status: agentByDirectId.status || 'active',
+          created_at: agentByDirectId.created_at || new Date().toISOString(),
+          updated_at: agentByDirectId.updated_at || new Date().toISOString(),
+          deleted_at: agentByDirectId.deleted_at || null,
+          deletion_scheduled_at: agentByDirectId.deletion_scheduled_at || null,
+          last_active: agentByDirectId.last_active || null,
+          logo_url: agentByDirectId.logo_url || '',
+          logo_storage_path: agentByDirectId.logo_storage_path || '',
+          agent_name: agentByDirectId.name || '',
+          agent_description: agentByDirectId.agent_description || '',
+          widget_settings: widgetSettings,
+          is_error: false,
+          name: agentByDirectId.name || '',
+        };
+
+        return clientFromAgent;
+      }
+
       // As a fallback, try to get the client data from clients table
       console.log("No record found in ai_agents table, falling back to clients table");
       const { data: clientData, error } = await supabase
@@ -96,18 +136,6 @@ export const useClient = (id: string, options?: UseClientOptions) => {
 
       console.log("Client data found in clients table:", clientData);
 
-      // Try to get the agent config data again based on ID
-      const { data: secondaryAgentConfig, error: secondaryAgentError } = await supabase
-        .from('ai_agents')
-        .select('*')
-        .eq('id', id)  // Try matching by id field directly
-        .eq('interaction_type', 'config')
-        .maybeSingle();
-        
-      if (secondaryAgentConfig && !secondaryAgentError) {
-        console.log("Found agent config by direct ID match:", secondaryAgentConfig);
-      }
-
       // Type assertion to help TypeScript - cast to any since we know the DB may return fields
       // that aren't explicitly in the clients table schema type
       const clientDataAny = clientData as any;
@@ -126,19 +154,17 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         deleted_at: clientDataAny.deleted_at || null,
         deletion_scheduled_at: clientDataAny.deletion_scheduled_at || null,
         last_active: clientDataAny.last_active || null,
-        logo_url: secondaryAgentConfig?.logo_url || clientDataAny.logo_url || '',
-        logo_storage_path: secondaryAgentConfig?.logo_storage_path || clientDataAny.logo_storage_path || '',
-        agent_name: secondaryAgentConfig?.name || clientDataAny.agent_name || clientDataAny.client_name || '',
-        agent_description: secondaryAgentConfig?.agent_description || '',
+        logo_url: clientDataAny.logo_url || '',
+        logo_storage_path: clientDataAny.logo_storage_path || '',
+        agent_name: clientDataAny.agent_name || clientDataAny.client_name || '',
+        agent_description: clientDataAny.agent_description || '',
         widget_settings: {},
         is_error: clientDataAny.is_error || false,
-        name: secondaryAgentConfig?.name || clientDataAny.agent_name || clientDataAny.client_name || '',
+        name: clientDataAny.agent_name || clientDataAny.client_name || '',
       };
 
       // Extract widget settings
-      const widgetSettings = extractWidgetSettings(
-        secondaryAgentConfig || clientDataAny
-      );
+      const widgetSettings = extractWidgetSettings(clientDataAny);
 
       return {
         ...mergedClient,

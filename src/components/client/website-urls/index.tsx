@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import WebsiteUrlsLoading from './WebsiteUrlsLoading';
 import WebsiteUrlsListEmpty from './WebsiteUrlsListEmpty';
 import { WebsiteUrlsTable } from './WebsiteUrlsTable';
@@ -12,8 +12,14 @@ export interface WebsiteUrlsProps {
   logClientActivity?: () => Promise<void>;
 }
 
-export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: WebsiteUrlsProps) {
+// Use memo to prevent unnecessary re-renders
+export const WebsiteUrls = memo(function WebsiteUrls({ 
+  clientId, 
+  onResourceChange, 
+  logClientActivity 
+}: WebsiteUrlsProps) {
   const [initializing, setInitializing] = useState(true);
+  const [refetchCounter, setRefetchCounter] = useState(0);
   
   const { 
     websiteUrls, 
@@ -26,12 +32,8 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
     deleteWebsiteUrlMutation 
   } = useWebsiteUrlsMutation(clientId);
 
+  // Only fetch data when clientId changes or refetchCounter changes
   useEffect(() => {
-    // Debug info for troubleshooting
-    console.log("WebsiteUrls index component rendered with clientId:", clientId);
-    console.log("Website URLs from fetch hook:", websiteUrls);
-    
-    // Initial fetch
     if (clientId) {
       refetchWebsiteUrls();
     }
@@ -42,9 +44,10 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [clientId, refetchWebsiteUrls]);
+  }, [clientId, refetchWebsiteUrls, refetchCounter]);
 
-  const handleDelete = async (websiteUrlId: number) => {
+  // Memoize the delete handler to prevent unnecessary re-renders
+  const handleDelete = useCallback(async (websiteUrlId: number) => {
     try {
       console.log("Deleting website URL with ID:", websiteUrlId);
       await deleteWebsiteUrl(websiteUrlId);
@@ -54,8 +57,8 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
         await logClientActivity();
       }
       
-      // Trigger refetch after delete
-      refetchWebsiteUrls();
+      // Use counter to trigger refetch
+      setRefetchCounter(prev => prev + 1);
       
       // Notify parent component if needed
       if (onResourceChange) {
@@ -64,7 +67,7 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
     } catch (error) {
       console.error("Error deleting website URL:", error);
     }
-  };
+  }, [deleteWebsiteUrl, logClientActivity, onResourceChange]);
 
   if (initializing || isLoading) {
     return <WebsiteUrlsLoading />;
@@ -81,4 +84,4 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
       isDeleting={deleteWebsiteUrlMutation.isPending}
     />
   );
-}
+});
