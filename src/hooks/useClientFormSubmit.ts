@@ -43,7 +43,7 @@ export function useClientFormSubmit(onSuccess: () => void) {
       
       // Insert into supabase handled by ClientCreationForm component
 
-      // Set up OpenAI assistant
+      // Set up OpenAI assistant - ensure OpenAI connection is established
       try {
         await setupOpenAIAssistant(
           clientId,
