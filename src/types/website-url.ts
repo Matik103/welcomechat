@@ -6,11 +6,7 @@ export const websiteUrlSchema = z.object({
   url: z.string().url("Please enter a valid URL"),
   refresh_rate: z.number().min(1, "Refresh rate is required").max(365, "Refresh rate cannot exceed 365 days"),
   client_id: z.string().optional(),
-  id: z.number().optional(),
-  status: z.enum(['pending', 'processing', 'completed', 'failed']).optional(),
-  created_at: z.string().optional(),
-  scrapable: z.boolean().optional(),
-  is_sitemap: z.boolean().optional()
+  metadata: z.record(z.any()).optional()
 });
 
 // Extract type from schema
@@ -37,9 +33,19 @@ export interface WebsiteUrl {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   created_at: string;
   last_crawled?: string | null;
+  updated_at?: string;
+  error?: string | null;
+  metadata?: Record<string, any>;
   scrapable?: boolean;
   is_sitemap?: boolean;
   scrapability?: 'high' | 'medium' | 'low' | 'unknown';
-  updated_at?: string;
-  error?: string;
+}
+
+export interface WebsiteUrlsListProps {
+  urls: WebsiteUrl[];
+  onDelete: (id: number) => Promise<void>;
+  isDeleting?: boolean;
+  deletingId?: number | null;
+  onProcess?: (website: WebsiteUrl) => Promise<void>;
+  isProcessing?: boolean;
 }

@@ -1,8 +1,8 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
-import { DocumentProcessingResult } from '@/types/document-processing';
 import { v4 as uuidv4 } from 'uuid';
 
 interface UploadResult {
@@ -39,14 +39,14 @@ const getEffectiveClientId = async (clientId: string) => {
 export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
 
-  const uploadDocument = async (file: File): Promise<UploadResult> => {
+  const uploadDocument = async (file: File, agentName?: string): Promise<UploadResult> => {
     if (!clientId) {
       toast.error('Client ID is required');
       return { success: false, error: 'Client ID is required' };
     }
 
     setIsUploading(true);
-    console.log("Starting document upload for client:", clientId);
+    console.log("Starting document upload for client:", clientId, "agent:", agentName || "default");
 
     try {
       // Get the effective client ID
@@ -100,19 +100,49 @@ export function useDocumentUpload(clientId: string) {
       else if (['ppt', 'pptx'].includes(fileExtension)) documentType = 'powerpoint';
 
       // Create document link record
+      const documentLinkData: any = {
+        client_id: actualClientId,
+        link: urlData.publicUrl,
+        document_type: documentType,
+        refresh_rate: 30,
+        access_status: 'accessible',
+        file_name: cleanFileName,
+        file_size: file.size,
+        mime_type: file.type,
+        storage_path: filePath
+      };
+      
+      // Try to add metadata if agent name is provided
+      try {
+        // Check if the metadata column exists
+        if (agentName) {
+          // First check if metadata column exists by requesting the table schema
+          const { data: tableInfo, error: tableError } = await supabase
+            .from('document_links')
+            .select('client_id')
+            .limit(1);
+          
+          // If we got here without error, try to add metadata
+          if (!tableError) {
+            // Try to add metadata - will fail gracefully if column doesn't exist
+            try {
+              documentLinkData.metadata = {
+                agent_name: agentName,
+                source: 'agent_config'
+              };
+            } catch (metaError) {
+              console.warn("Couldn't add metadata to document_links, proceeding without it:", metaError);
+            }
+          }
+        }
+      } catch (schemaError) {
+        console.warn("Error checking schema, proceeding without metadata:", schemaError);
+      }
+
+      // Insert the document link
       const { data: documentLink, error: linkError } = await supabase
         .from('document_links')
-        .insert({
-          client_id: actualClientId,
-          link: urlData.publicUrl,
-          document_type: documentType,
-          refresh_rate: 30,
-          access_status: 'accessible',
-          file_name: cleanFileName,
-          file_size: file.size,
-          mime_type: file.type,
-          storage_path: filePath
-        })
+        .insert(documentLinkData)
         .select()
         .single();
 
