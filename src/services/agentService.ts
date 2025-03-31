@@ -11,6 +11,8 @@ export interface Agent {
   last_active: string;
   total_interactions: number;
   average_response_time: number;
+  logo_url?: string;
+  logo_storage_path?: string;
 }
 
 /**
@@ -28,7 +30,9 @@ export const getAllAgents = async (): Promise<Agent[]> => {
         agent_description,
         status,
         last_active,
-        response_time_ms
+        response_time_ms,
+        logo_url,
+        logo_storage_path
       `)
       .eq('interaction_type', 'config')
       .eq('status', 'active')  // Only get active agents
@@ -91,7 +95,9 @@ export const getAgentById = async (agentId: string): Promise<Agent | null> => {
         agent_description,
         status,
         last_active,
-        response_time_ms
+        response_time_ms,
+        logo_url,
+        logo_storage_path
       `)
       .eq('id', agentId)
       .eq('interaction_type', 'config')
