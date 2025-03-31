@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDriveLinks } from '@/hooks/useDriveLinks';
 import { createClientActivity } from '@/services/clientActivityService';
 import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface GoogleDriveTabProps {
   clientId: string;
@@ -17,6 +18,7 @@ interface GoogleDriveTabProps {
 
 export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTabProps) {
   const [url, setUrl] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const { 
     documentLinks, 
     addDocumentLink, 
@@ -33,8 +35,10 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     if (!validateDriveUrl(url)) {
+      setError('Please enter a valid Google Drive, Docs, Sheets, or Slides URL');
       toast.error('Please enter a valid Google Drive, Docs, Sheets, or Slides URL');
       return;
     }
@@ -66,6 +70,7 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
       
       toast.success('Google Drive link added successfully');
       setUrl('');
+      setError(null);
       
       // Refresh the list of drive links
       if (refetch) {
@@ -75,7 +80,9 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
       onSuccess();
     } catch (error) {
       console.error('Error adding Google Drive link:', error);
-      toast.error(`Failed to add Google Drive link: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to add Google Drive link: ${errorMessage}`);
+      toast.error(`Failed to add Google Drive link: ${errorMessage}`);
     }
   };
 
@@ -125,6 +132,13 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
             Enter the URL of a Google Drive folder, Google Doc, Google Sheet, or Google Slide.
           </p>
         </div>
+        
+        {error && (
+          <Alert variant="destructive" className="mt-2">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         
         <Button 
           type="submit" 
