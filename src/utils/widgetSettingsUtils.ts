@@ -1,59 +1,172 @@
 
+import { JsonObject, toJson } from "@/types/supabase-extensions";
+import { WidgetSettings, defaultSettings } from "@/types/widget-settings";
+import { execSql } from "@/utils/rpcUtils";
+
 /**
- * Extract widget settings from various possible sources
- * @param data The data object that may contain widget settings
- * @returns The extracted widget settings as an object
+ * Extracts and normalizes widget settings from client data
  */
-export const extractWidgetSettings = (data: any): Record<string, any> => {
-  // Handle possible locations for widget settings
-  if (!data) return {};
-  
-  // First try if settings is a property
-  if (data.settings) {
-    // Could be an object or a JSON string
-    if (typeof data.settings === 'object' && !Array.isArray(data.settings)) {
-      return data.settings;
+export const extractWidgetSettings = (clientData: any): WidgetSettings => {
+  // Start with default settings
+  let settings = { ...defaultSettings };
+
+  if (!clientData) {
+    return settings;
+  }
+
+  try {
+    // Extract settings from widget_settings property if it exists
+    if (clientData.widget_settings && typeof clientData.widget_settings === 'object') {
+      settings = {
+        ...settings,
+        ...clientData.widget_settings
+      };
     }
     
-    if (typeof data.settings === 'string') {
-      try {
-        const parsed = JSON.parse(data.settings);
-        if (typeof parsed === 'object' && !Array.isArray(parsed)) {
-          return parsed;
-        }
-      } catch (error) {
-        console.error('Error parsing settings JSON:', error);
-      }
+    // If there's a settings property and it's an object (from ai_agents table)
+    if (clientData.settings && typeof clientData.settings === 'object') {
+      settings = {
+        ...settings,
+        ...clientData.settings
+      };
     }
+
+    // Ensure agent name is set
+    if (clientData.agent_name && !settings.agent_name) {
+      settings.agent_name = clientData.agent_name;
+    } else if (clientData.name && !settings.agent_name) {
+      settings.agent_name = clientData.name;
+    }
+
+    // Ensure agent description is set
+    if (clientData.agent_description && !settings.agent_description) {
+      settings.agent_description = clientData.agent_description;
+    }
+
+    // Ensure logo URL is set
+    if (clientData.logo_url && !settings.logo_url) {
+      settings.logo_url = clientData.logo_url;
+    }
+
+    // Ensure logo storage path is set
+    if (clientData.logo_storage_path && !settings.logo_storage_path) {
+      settings.logo_storage_path = clientData.logo_storage_path;
+    }
+
+    return settings;
+  } catch (error) {
+    console.error("Error extracting widget settings:", error);
+    return defaultSettings;
   }
-  
-  // Next try widget_settings
-  if (data.widget_settings) {
-    if (typeof data.widget_settings === 'object' && !Array.isArray(data.widget_settings)) {
-      return data.widget_settings;
+};
+
+/**
+ * Normalizes widget settings to ensure all required properties are present
+ */
+export const normalizeWidgetSettings = (settings: Partial<WidgetSettings>): WidgetSettings => {
+  return {
+    ...defaultSettings,
+    ...settings
+  };
+};
+
+/**
+ * Retrieves widget settings for a client from the database
+ */
+export const getWidgetSettings = async (clientId: string): Promise<WidgetSettings> => {
+  try {
+    // Query settings from ai_agents table
+    const agentQuery = `
+      SELECT settings, name, logo_url, logo_storage_path, agent_description
+      FROM ai_agents
+      WHERE client_id = $1 AND interaction_type = 'config'
+      LIMIT 1
+    `;
+    
+    const agentResult = await execSql(agentQuery, [clientId]);
+    
+    if (agentResult && Array.isArray(agentResult) && agentResult.length > 0) {
+      return extractWidgetSettings(agentResult[0]);
     }
     
-    if (typeof data.widget_settings === 'string') {
-      try {
-        const parsed = JSON.parse(data.widget_settings);
-        if (typeof parsed === 'object' && !Array.isArray(parsed)) {
-          return parsed;
-        }
-      } catch (error) {
-        console.error('Error parsing widget_settings JSON:', error);
-      }
-    }
+    return defaultSettings;
+  } catch (error) {
+    console.error("Error in getWidgetSettings:", error);
+    return defaultSettings;
   }
-  
-  // Directly use the data object properties to construct widget settings
-  const constructedSettings: Record<string, any> = {};
-  
-  // Copy relevant properties if they exist
-  if (data.agent_name || data.name) constructedSettings.agent_name = data.agent_name || data.name;
-  if (data.agent_description) constructedSettings.agent_description = data.agent_description;
-  if (data.logo_url) constructedSettings.logo_url = data.logo_url;
-  if (data.logo_storage_path) constructedSettings.logo_storage_path = data.logo_storage_path;
-  
-  // Return the settings we were able to extract
-  return constructedSettings;
+};
+
+/**
+ * Updates widget settings for a client in the database
+ */
+export const updateWidgetSettings = async (clientId: string, settings: WidgetSettings): Promise<boolean> => {
+  try {
+    // First check if a record exists
+    const checkQuery = `
+      SELECT id FROM ai_agents
+      WHERE client_id = $1 AND interaction_type = 'config'
+      LIMIT 1
+    `;
+    
+    const existingRecord = await execSql(checkQuery, [clientId]);
+    
+    if (existingRecord && Array.isArray(existingRecord) && existingRecord.length > 0) {
+      // Update existing record
+      const updateQuery = `
+        UPDATE ai_agents
+        SET 
+          settings = $1,
+          name = $2,
+          agent_description = $3,
+          logo_url = $4,
+          logo_storage_path = $5
+        WHERE client_id = $6 AND interaction_type = 'config'
+      `;
+      
+      await execSql(updateQuery, [
+        JSON.stringify(settings),
+        settings.agent_name,
+        settings.agent_description,
+        settings.logo_url,
+        settings.logo_storage_path,
+        clientId
+      ]);
+    } else {
+      // Insert new record
+      const insertQuery = `
+        INSERT INTO ai_agents (
+          client_id,
+          name,
+          agent_description,
+          logo_url,
+          logo_storage_path,
+          settings,
+          interaction_type
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, 'config'
+        )
+      `;
+      
+      await execSql(insertQuery, [
+        clientId,
+        settings.agent_name,
+        settings.agent_description,
+        settings.logo_url,
+        settings.logo_storage_path,
+        JSON.stringify(settings)
+      ]);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error in updateWidgetSettings:", error);
+    return false;
+  }
+};
+
+/**
+ * Converts widget settings to a JSON object for database storage
+ */
+export const widgetSettingsToJson = (settings: Partial<WidgetSettings>): JsonObject => {
+  return settings as JsonObject;
 };

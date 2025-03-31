@@ -4,7 +4,7 @@ import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsConta
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettingsService";
 import { handleLogoUpload } from "@/services/uploadService";
 import { defaultSettings } from "@/types/widget-settings";
@@ -17,7 +17,6 @@ export default function WidgetSettings() {
   const { user } = useAuth();
   const clientId = user?.user_metadata?.client_id;
   const navigation = useNavigation();
-  const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const { logClientActivity } = useClientActivity(clientId);
   const widgetSettingsHook = useWidgetSettings(clientId || "");
@@ -49,12 +48,6 @@ export default function WidgetSettings() {
     },
     onSuccess: () => {
       refetch();
-      // Also invalidate client queries to ensure bidirectional sync
-      if (clientId) {
-        queryClient.invalidateQueries({ queryKey: ['client', clientId] });
-        // Also invalidate the clients list to reflect changes
-        queryClient.invalidateQueries({ queryKey: ['clients'] });
-      }
       toast.success("Your AI assistant settings have been updated");
     },
     onError: (error) => {
@@ -86,13 +79,7 @@ export default function WidgetSettings() {
             agent_name: settings?.agent_name,
             logo_url: result.url
           });
-          
-        // Refetch widget settings
         refetch();
-        // Also invalidate client queries
-        queryClient.invalidateQueries({ queryKey: ['client', clientId] });
-        // Also invalidate the clients list
-        queryClient.invalidateQueries({ queryKey: ['clients'] });
       }
     } catch (error) {
       console.error("Error uploading logo:", error);

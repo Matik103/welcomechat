@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -12,7 +11,6 @@ import ErrorDisplay from '@/components/ErrorDisplay';
 import { useClientActivity } from '@/hooks/useClientActivity';
 import { useNavigation } from '@/hooks/useNavigation';
 import { supabase } from '@/integrations/supabase/client';
-import { ClientMutationData } from '@/hooks/useClientMutation';
 
 export default function ClientProfile() {
   const { user } = useAuth();
@@ -116,8 +114,7 @@ export default function ClientProfile() {
       
       console.log("Submitting update for client:", clientId);
       
-      // Create mutation data that matches the ClientMutationData type
-      const mutationData: ClientMutationData = {
+      await clientMutation.mutateAsync({
         client_id: clientId,
         client_name: data.client_name,
         email: data.email,
@@ -125,9 +122,7 @@ export default function ClientProfile() {
         agent_description: data.agent_description,
         logo_url: data.logo_url,
         logo_storage_path: data.logo_storage_path
-      };
-      
-      await clientMutation.mutateAsync(mutationData);
+      });
       
       toast.success("Your information has been updated successfully");
       await logActivityWrapper();

@@ -1,49 +1,58 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { Client } from '@/types/client';
 import { updateClient } from '@/services/clientService';
+import { ClientFormData } from '@/types/client-form';
 
-// Define a type that includes only the properties we need for mutation
-export type ClientMutationData = {
+interface MutationParams extends ClientFormData {
   client_id: string;
-  client_name: string;
-  email: string;
-  agent_name: string;
-  agent_description?: string;
-  logo_url?: string;
-  logo_storage_path?: string;
-};
+}
 
 export const useClientMutation = () => {
   const queryClient = useQueryClient();
 
-  const mutation = useMutation({
-    mutationFn: async (client: ClientMutationData) => {
+  return useMutation({
+    mutationFn: async (params: MutationParams) => {
       try {
-        console.log('Updating client with data:', client);
+        console.log('Updating client with params:', params);
         
-        // Use the updateClient service function that prioritizes ai_agents table
-        return await updateClient(client.client_id, client);
+        if (!params.client_id) {
+          console.error('No client_id provided to mutation');
+          throw new Error('Client ID is required to update client');
+        }
+        
+        // Prepare the update data
+        const updateData = {
+          client_name: params.client_name,
+          email: params.email,
+          agent_name: params.agent_name,
+          agent_description: params.agent_description,
+          logo_url: params.logo_url,
+          logo_storage_path: params.logo_storage_path
+        };
+  
+        // Update the client in the database using the ID
+        const updated = await updateClient(params.client_id, updateData);
+        return updated;
       } catch (error) {
-        console.error('Error updating client:', error);
-        throw error;
+        console.error('Error in updateClient mutation:', error);
+        throw error; // Re-throw for the UI to handle
       }
     },
-    onSuccess: (_, variables) => {
-      // Invalidate cached client data
+    onSuccess: (data, variables) => {
+      // Invalidate queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ['client', variables.client_id] });
-      // Also invalidate widget settings to ensure bidirectional sync
-      queryClient.invalidateQueries({ queryKey: ['widget-settings', variables.client_id] });
-      toast.success('Client information updated successfully');
+      toast.success('Client updated successfully');
     },
     onError: (error) => {
-      console.error('Mutation error:', error);
-      toast.error(`Error updating client: ${error instanceof Error ? error.message : String(error)}`);
-      return Promise.reject(error);
+      console.error('Client update failed:', error);
+      // Provide more user-friendly error message
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'object' && error !== null && 'message' in error 
+          ? String((error as { message: unknown }).message) 
+          : 'Failed to update client';
+      toast.error(errorMessage);
     }
   });
-
-  return mutation;
 };

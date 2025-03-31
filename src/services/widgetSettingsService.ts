@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { WidgetSettings } from "@/types/widget-settings";
 
@@ -21,25 +20,6 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
     if (error) throw error;
     
     if (!data) {
-      // If no ai_agents config exists, try to get the client info from clients table
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('client_name, agent_name, widget_settings')
-        .eq('id', clientId)
-        .maybeSingle();
-        
-      if (clientError) throw clientError;
-      
-      if (clientData) {
-        // Use data from clients table
-        const widgetSettings = clientData.widget_settings || {};
-        return {
-          ...defaultSettings,
-          agent_name: clientData.agent_name || clientData.client_name || defaultSettings.agent_name,
-          ...(typeof widgetSettings === 'object' ? widgetSettings : {})
-        };
-      }
-      
       return { ...defaultSettings };
     }
     
@@ -140,40 +120,6 @@ export async function updateWidgetSettings(
         });
         
       if (error) throw error;
-    }
-    
-    // Check if client exists in clients table
-    const { data: existingClient, error: clientCheckError } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('id', clientId)
-      .maybeSingle();
-      
-    if (clientCheckError) {
-      console.error('Error checking for existing client:', clientCheckError);
-    }
-    
-    if (existingClient) {
-      // Also update the clients table to ensure bidirectional sync
-      const { error: clientUpdateError } = await supabase
-        .from('clients')
-        .update({
-          agent_name: agent_name,
-          widget_settings: {
-            ...otherSettings,
-            logo_url: logo_url,
-            logo_storage_path: logo_storage_path
-          }
-        })
-        .eq('id', clientId);
-        
-      if (clientUpdateError) {
-        console.error('Warning: Unable to sync with clients table:', clientUpdateError);
-        // Continue anyway, since the primary storage is now ai_agents
-      }
-    } else {
-      console.log('Client not found in clients table, skipping clients table update');
-      // Don't try to create a new client record - we should only be updating existing clients
     }
   } catch (error) {
     console.error('Error updating widget settings:', error);

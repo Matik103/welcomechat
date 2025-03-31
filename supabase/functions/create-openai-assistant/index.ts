@@ -48,25 +48,9 @@ serve(async (req) => {
         }
       );
     }
-    
-    // Log request data for debugging
-    console.log("Request data received:", {
-      client_id,
-      agent_name,
-      has_description: !!agent_description,
-      has_client_name: !!client_name
-    });
-    
-    // Log intent
-    console.log(`Creating/updating OpenAI assistant for client ${client_id} with name "${agent_name}"`);
 
-    try {
-      // Check if this client already has an assistant in the database
-      // This would be implemented in a real system to avoid duplicate assistants
-      console.log("Supabase client initialized successfully");
-    } catch (error) {
-      console.error("Error querying for existing assistant:", error);
-    }
+    // Check if this client already has an assistant
+    // To do this in a real implementation, you might query your database first
 
     // Call OpenAI API to create assistant
     const response = await fetch("https://api.openai.com/v1/assistants", {

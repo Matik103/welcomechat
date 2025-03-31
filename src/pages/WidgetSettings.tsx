@@ -5,7 +5,7 @@ import { useParams } from "react-router-dom";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettingsService";
 import { handleLogoUpload } from "@/services/uploadService";
 import { defaultSettings } from "@/types/widget-settings";
@@ -22,13 +22,12 @@ export default function WidgetSettings() {
   const { user, userRole } = useAuth();
   const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
-  const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const { logClientActivity } = useClientActivity(clientId);
   const widgetSettingsHook = useWidgetSettings(clientId || "");
   
   // Get client data to sync agent name
-  const { client, isLoadingClient, refetchClient } = useClientData(clientId);
+  const { client, isLoadingClient } = useClientData(clientId);
 
   // Fetch widget settings
   const { data: settings, isLoading, refetch } = useQuery({
@@ -39,23 +38,12 @@ export default function WidgetSettings() {
 
   // Sync agent name from client data when settings load
   useEffect(() => {
-    if (!isLoadingClient && client && settings) {
-      // If client data has different values than widget settings, update widget settings
-      const needsUpdate = 
-        (client.agent_name && client.agent_name !== settings.agent_name) ||
-        (client.logo_url && client.logo_url !== settings.logo_url);
-        
-      if (needsUpdate) {
-        console.log("Syncing widget settings with client data:", { 
-          clientName: client.agent_name, 
-          settingsName: settings.agent_name 
-        });
-        
+    if (!isLoadingClient && client && settings && !settings.agent_name) {
+      // If we have client data and settings don't have agent_name, sync it
+      if (client.agent_name) {
         updateSettingsMutation.mutate({
           ...settings,
-          agent_name: client.agent_name || settings.agent_name,
-          logo_url: client.logo_url || settings.logo_url,
-          logo_storage_path: client.logo_storage_path || settings.logo_storage_path
+          agent_name: client.agent_name
         });
       }
     }
@@ -81,16 +69,7 @@ export default function WidgetSettings() {
       }
     },
     onSuccess: () => {
-      // Refetch widget settings after update
       refetch();
-      
-      // Also invalidate client queries to ensure bidirectional sync
-      if (clientId) {
-        queryClient.invalidateQueries({ queryKey: ['client', clientId] });
-        // Also invalidate the clients list to reflect changes
-        queryClient.invalidateQueries({ queryKey: ['clients'] });
-      }
-      
       if (isAdmin) {
         toast.success("Widget settings updated successfully");
       } else {
@@ -127,13 +106,7 @@ export default function WidgetSettings() {
             agent_name: settings?.agent_name,
             logo_url: result.url
           });
-          
-        // Refetch both widget settings and client data
         refetch();
-        refetchClient();
-        
-        // Also invalidate the clients list to reflect changes
-        queryClient.invalidateQueries({ queryKey: ['clients'] });
       }
     } catch (error) {
       console.error("Error uploading logo:", error);

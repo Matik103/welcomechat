@@ -2,177 +2,127 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
-import { extractWidgetSettings } from '@/utils/widgetSettingsUtils';
+import { safeParseSettings } from '@/utils/clientSettingsUtils';
 
-interface UseClientOptions {
-  enabled?: boolean;
-  staleTime?: number;
-  cacheTime?: number;
-  retry?: number | boolean;
-  refetchOnWindowFocus?: boolean;
-}
+export const useClient = (clientId: string, options = {}) => {
+  const fetchClient = async (): Promise<Client | null> => {
+    if (!clientId) {
+      console.log("No clientId provided to useClient");
+      return null;
+    }
 
-export const useClient = (id: string, options?: UseClientOptions) => {
-  const defaultOptions = {
-    enabled: !!id,
-    staleTime: 300000, // Increase stale time to 5 minutes to reduce unnecessary refetches
-    cacheTime: 600000, // Increase cache time to 10 minutes
-    retry: 2,
-    refetchOnWindowFocus: false, // Prevent automatic refetches when window regains focus
+    try {
+      console.log(`Attempting to fetch client with ID: ${clientId}`);
+      
+      // First try to find any matching record in ai_agents
+      const { data: anyMatch, error: matchError } = await supabase
+        .from('ai_agents')
+        .select('*')
+        .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+        
+      if (matchError) {
+        console.error('Error in initial client lookup:', matchError);
+      } else {
+        console.log('Initial client lookup result:', anyMatch);
+      }
+
+      // If we found a record but it doesn't have interaction_type = 'config',
+      // let's update it
+      if (anyMatch && anyMatch.interaction_type !== 'config') {
+        console.log('Found client record but needs interaction_type update');
+        
+        // Create a config record if it doesn't exist
+        const { data: configRecord, error: configError } = await supabase
+          .from('ai_agents')
+          .insert([{
+            client_id: anyMatch.id,
+            interaction_type: 'config',
+            name: anyMatch.name || 'AI Assistant',
+            client_name: anyMatch.client_name || '',
+            email: anyMatch.email || '',
+            agent_description: anyMatch.agent_description || '',
+            settings: anyMatch.settings || {},
+            status: anyMatch.status || 'active'
+          }])
+          .select()
+          .single();
+          
+        if (configError) {
+          console.error('Error creating config record:', configError);
+        } else {
+          console.log('Created new config record:', configRecord);
+          return mapToClient(configRecord);
+        }
+      }
+
+      // Try to get the client with interaction_type = 'config'
+      // Changed from single() to limit(1).maybeSingle() to handle multiple records
+      const { data: configData, error: configError } = await supabase
+        .from('ai_agents')
+        .select('*')
+        .eq('interaction_type', 'config')
+        .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+        
+      if (configError) {
+        console.error('Error fetching config client:', configError);
+        throw configError;
+      }
+
+      if (!configData) {
+        console.log('No config record found, using any matching record');
+        return anyMatch ? mapToClient(anyMatch) : null;
+      }
+
+      return mapToClient(configData);
+    } catch (error) {
+      console.error('Error in fetchClient:', error);
+      throw error;
+    }
   };
 
-  const queryOptions = { ...defaultOptions, ...options };
+  // Helper function to map database record to Client type
+  const mapToClient = (data: any): Client => {
+    const widgetSettings = safeParseSettings(data.settings);
+    
+    return {
+      id: data.id,
+      client_id: data.client_id || data.id,
+      client_name: data.client_name || '',
+      email: data.email || '',
+      status: data.status as 'active' | 'inactive' | 'deleted' || 'active',
+      created_at: data.created_at || '',
+      updated_at: data.updated_at || '',
+      agent_name: data.name || '',
+      agent_description: data.agent_description || '',
+      logo_url: data.logo_url || '',
+      widget_settings: widgetSettings,
+      user_id: '',
+      company: data.company || '',
+      description: data.description || '',
+      logo_storage_path: data.logo_storage_path || '',
+      deletion_scheduled_at: data.deletion_scheduled_at || null,
+      deleted_at: data.deleted_at || null,
+      last_active: data.last_active || null,
+      name: data.name || '',
+      is_error: data.is_error || false
+    };
+  };
 
-  const {
-    data: client,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ['client', id],
-    queryFn: async () => {
-      if (!id) throw new Error('Client ID is required');
-      
-      console.log(`Fetching client with ID: ${id}`);
-
-      // FIRST APPROACH: Get client directly from ai_agents where interaction_type = 'config'
-      // Try with client_id field first
-      const { data: agentConfig, error: agentConfigError } = await supabase
-        .from('ai_agents')
-        .select('*')
-        .eq('client_id', id)
-        .eq('interaction_type', 'config')
-        .maybeSingle();
-
-      if (agentConfig && !agentConfigError) {
-        console.log("Found client data in ai_agents table by client_id:", agentConfig);
-        
-        // Extract widget settings from the agent config
-        const widgetSettings = extractWidgetSettings(agentConfig);
-
-        // Create a properly typed client object from the agent config
-        const clientFromAgent: Client = {
-          id: id,
-          client_id: id,
-          client_name: agentConfig.client_name || '',
-          email: agentConfig.email || '',
-          company: agentConfig.company || '',
-          description: agentConfig.description || '',
-          status: agentConfig.status || 'active',
-          created_at: agentConfig.created_at || new Date().toISOString(),
-          updated_at: agentConfig.updated_at || new Date().toISOString(),
-          deleted_at: agentConfig.deleted_at || null,
-          deletion_scheduled_at: agentConfig.deletion_scheduled_at || null,
-          last_active: agentConfig.last_active || null,
-          logo_url: agentConfig.logo_url || '',
-          logo_storage_path: agentConfig.logo_storage_path || '',
-          agent_name: agentConfig.name || '',
-          agent_description: agentConfig.agent_description || '',
-          widget_settings: widgetSettings,
-          is_error: false,
-          name: agentConfig.name || '',
-        };
-
-        return clientFromAgent;
-      }
-
-      // SECOND APPROACH: Try to get the agent config by direct ID match
-      const { data: agentByDirectId, error: agentByDirectIdError } = await supabase
-        .from('ai_agents')
-        .select('*')
-        .eq('id', id)  
-        .eq('interaction_type', 'config')
-        .maybeSingle();
-        
-      if (agentByDirectId && !agentByDirectIdError) {
-        console.log("Found client data in ai_agents table by direct ID match:", agentByDirectId);
-        
-        // Extract widget settings from the agent config
-        const widgetSettings = extractWidgetSettings(agentByDirectId);
-
-        // Create a properly typed client object from the agent config
-        const clientFromAgent: Client = {
-          id: id,
-          client_id: agentByDirectId.client_id || id,
-          client_name: agentByDirectId.client_name || '',
-          email: agentByDirectId.email || '',
-          company: agentByDirectId.company || '',
-          description: agentByDirectId.description || '',
-          status: agentByDirectId.status || 'active',
-          created_at: agentByDirectId.created_at || new Date().toISOString(),
-          updated_at: agentByDirectId.updated_at || new Date().toISOString(),
-          deleted_at: agentByDirectId.deleted_at || null,
-          deletion_scheduled_at: agentByDirectId.deletion_scheduled_at || null,
-          last_active: agentByDirectId.last_active || null,
-          logo_url: agentByDirectId.logo_url || '',
-          logo_storage_path: agentByDirectId.logo_storage_path || '',
-          agent_name: agentByDirectId.name || '',
-          agent_description: agentByDirectId.agent_description || '',
-          widget_settings: widgetSettings,
-          is_error: false,
-          name: agentByDirectId.name || '',
-        };
-
-        return clientFromAgent;
-      }
-
-      // FALLBACK APPROACH: Only try clients table as a last resort
-      console.log("No record found in ai_agents table, falling back to clients table");
-      const { data: clientData, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching client data:", error);
-        throw error;
-      }
-      
-      if (!clientData) {
-        console.error(`Client not found with ID: ${id}`);
-        throw new Error(`Client not found with ID: ${id}`);
-      }
-
-      console.log("Client data found in clients table:", clientData);
-
-      // Type assertion to help TypeScript - cast to any since we know the DB may return fields
-      // that aren't explicitly in the clients table schema type
-      const clientDataAny = clientData as any;
-
-      // Create a properly typed client object with optional fallbacks
-      const mergedClient: Client = {
-        id: clientDataAny.id,
-        client_id: clientDataAny.id,
-        client_name: clientDataAny.client_name || '',
-        email: clientDataAny.email || '',
-        company: clientDataAny.company || '', 
-        description: clientDataAny.description || '',
-        status: clientDataAny.status || 'active',
-        created_at: clientDataAny.created_at || new Date().toISOString(),
-        updated_at: clientDataAny.updated_at || new Date().toISOString(),
-        deleted_at: clientDataAny.deleted_at || null,
-        deletion_scheduled_at: clientDataAny.deletion_scheduled_at || null,
-        last_active: clientDataAny.last_active || null,
-        logo_url: clientDataAny.logo_url || '',
-        logo_storage_path: clientDataAny.logo_storage_path || '',
-        agent_name: clientDataAny.agent_name || clientDataAny.client_name || '',
-        agent_description: clientDataAny.agent_description || '',
-        widget_settings: {},
-        is_error: clientDataAny.is_error || false,
-        name: clientDataAny.agent_name || clientDataAny.client_name || '',
-      };
-
-      // Extract widget settings
-      const widgetSettings = extractWidgetSettings(clientDataAny);
-
-      return {
-        ...mergedClient,
-        widget_settings: widgetSettings
-      };
-    },
-    ...queryOptions,
+  const result = useQuery({
+    queryKey: ['client', clientId],
+    queryFn: fetchClient,
+    enabled: Boolean(clientId),
+    ...options,
   });
-
-  return { client, isLoading, error, refetch };
+  
+  return {
+    ...result,
+    client: result.data
+  };
 };
