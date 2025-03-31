@@ -26,7 +26,8 @@ export const createOpenAIAssistant = async (
         client_id: clientId,
         agent_name: sanitizedAgentName,
         agent_description: sanitizedAgentDescription,
-        client_name: sanitizedClientName
+        client_name: sanitizedClientName,
+        thread_capacity: 5 // Configure to remember conversation context
       },
     });
     
