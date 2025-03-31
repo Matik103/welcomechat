@@ -36,7 +36,7 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
         return {
           ...defaultSettings,
           agent_name: clientData.agent_name || clientData.client_name || defaultSettings.agent_name,
-          ...widgetSettings
+          ...(typeof widgetSettings === 'object' ? widgetSettings : {})
         };
       }
       
