@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,10 +39,14 @@ export function AddClientForm() {
   const onSubmit = async (values: ClientFormValues) => {
     setIsSubmitting(true);
     try {
-      // Direct database insert only - no OpenAI assistant creation or activity logging
+      // Generate a client ID - this is crucial for the fix
+      const clientId = crypto.randomUUID();
+      
+      // Insert with explicitly set client_id field
       const { data, error } = await supabaseAdmin
         .from("ai_agents")
         .insert({
+          client_id: clientId, // Explicitly set the client_id
           client_name: values.clientName,
           email: values.email,
           name: values.chatbotName,
@@ -68,6 +71,7 @@ export function AddClientForm() {
 
       // Console log only - no database activity logging or OpenAI assistant creation
       console.log(`Client created: ${values.clientName}`, {
+        clientId: clientId, // Log the generated client ID
         clientName: values.clientName,
         agentName: values.chatbotName,
       });

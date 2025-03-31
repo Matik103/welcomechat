@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,8 +49,9 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
     try {
       setIsSubmitting(true);
       
-      // Generate a client ID (would normally come from the backend)
+      // Generate a client ID - explicitly create a UUID for client_id
       const tempClientId = crypto.randomUUID();
+      console.log("Generated client ID:", tempClientId);
       
       // Generate a temporary password
       const tempPassword = generateTempPassword();

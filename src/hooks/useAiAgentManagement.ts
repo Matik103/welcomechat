@@ -45,7 +45,7 @@ export const useAiAgentManagement = () => {
           agent_description: agentDescription || "",
           logo_url: logoUrl || "",
           logo_storage_path: logoStoragePath || "",
-          client_name: clientName || existingAgent.client_name || ""
+          client_name: clientName || ""
         };
 
         // Update the existing agent
@@ -81,7 +81,7 @@ export const useAiAgentManagement = () => {
       }
 
       // If agent doesn't exist, create new one
-      console.log("No AI agent found, creating new one");
+      console.log("No AI agent found, creating new one with client_id:", clientId);
       
       // Create a settings object with all the values
       const settings = {
@@ -96,7 +96,7 @@ export const useAiAgentManagement = () => {
       const { data: newAgent, error: createError } = await supabase
         .from("ai_agents")
         .insert({
-          client_id: clientId,
+          client_id: clientId, // Ensure client_id is explicitly set
           name: agentName,
           agent_description: agentDescription || "",
           logo_url: logoUrl || "",

@@ -51,8 +51,9 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
     try {
       setIsSubmitting(true);
       
-      // Generate a client ID (would normally come from the backend)
+      // Generate a client ID - this is crucial for the fix and always explicitly create it
       const tempClientId = crypto.randomUUID();
+      console.log("Generated client ID:", tempClientId);
       
       // Generate a temporary password
       const tempPassword = generateTempPassword();
@@ -82,6 +83,7 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
           'client_created',
           `New client ${data.client_name} created with agent ${data.agent_name || "AI Assistant"}`,
           {
+            client_id: tempClientId, // Include the client_id in metadata
             email: data.email,
             agent_name: data.agent_name || "AI Assistant",
             agent_description: data.agent_description,

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,9 +50,12 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
     setError(null);
     
     try {
+      // Generate a UUID for client_id
+      const clientId = crypto.randomUUID();
       const tempPassword = generateTempPassword();
       
       const insertData = {
+        client_id: clientId, // Explicitly set client_id
         client_name: values.clientName,
         email: values.email,
         name: values.agentName || "AI Assistant",
