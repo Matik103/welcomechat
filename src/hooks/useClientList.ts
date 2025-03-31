@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,24 +47,17 @@ export const useClientList = () => {
         throw agentConfigsError;
       }
       
-      // Track seen client_ids to prevent duplicates
-      const seenClientIds = new Set<string>();
+      // Keep track of unique client_ids and their most recent records
+      const clientMap = new Map<string, Client>();
       
-      // Convert ai_agents to Client type
-      const formattedClients: Client[] = [];
-      
-      // Process agent configs first
+      // Process agent configs
       agentConfigs.forEach(agent => {
-        if (!agent.client_id || seenClientIds.has(agent.client_id)) {
-          return; // Skip if no client_id or if we've already processed this client
-        }
-        
-        seenClientIds.add(agent.client_id);
+        if (!agent.client_id) return;
         
         // Use the safeParseSettings utility to ensure widget_settings is always an object
         const parsedSettings = safeParseSettings(agent.settings);
         
-        formattedClients.push({
+        const clientRecord: Client = {
           id: agent.client_id,
           client_id: agent.client_id,
           client_name: agent.client_name || '',
@@ -86,17 +78,23 @@ export const useClientList = () => {
           last_active: agent.last_active || null,
           name: agent.name || '',
           is_error: agent.is_error || false
-        });
+        };
+        
+        // If we already have this client, only replace if this one is newer
+        const existingClient = clientMap.get(agent.client_id);
+        if (!existingClient || new Date(agent.updated_at) > new Date(existingClient.updated_at)) {
+          clientMap.set(agent.client_id, clientRecord);
+        }
       });
       
-      // Filter out clients with "Deletion Scheduled" status or those that have deletion_scheduled_at set
-      const filteredClients = formattedClients.filter(client => 
+      // Convert map to array and filter out deleted/scheduled for deletion clients
+      const formattedClients = Array.from(clientMap.values()).filter(client => 
         client.status !== 'scheduled_deletion' && 
         !client.deletion_scheduled_at
       );
       
-      console.log(`Fetched ${filteredClients.length} clients successfully`);
-      setClients(filteredClients);
+      console.log(`Fetched ${formattedClients.length} unique clients successfully`);
+      setClients(formattedClients);
       initialLoadDone.current = true;
     } catch (error) {
       console.error('Error fetching clients:', error);
