@@ -106,13 +106,18 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   };
 
   const simulateResponse = (userQuery: string) => {
-    // Add user message immediately
-    setMessages(prev => [...prev, { text: userQuery, isUser: true }]);
-    
+    // Simulate response for preview purposes
     setTimeout(() => {
-      let responseText = "I'm your AI assistant. This is a preview of how the widget will look on your website.";
+      let responseText = "";
       
-      if (agentContent && agentContent.length > 0) {
+      // Personalized responses for common questions
+      if (userQuery.toLowerCase().includes("how are you")) {
+        responseText = `I'm doing great today! Thank you for asking. How about yourself?`;
+      } 
+      else if (userQuery.toLowerCase().includes("your name") || userQuery.toLowerCase().match(/who (are|is) you/)) {
+        responseText = `My name is ${settings.agent_name || "AI Assistant"}! How can I help you today?`;
+      }
+      else if (agentContent && agentContent.length > 0) {
         if (userQuery.toLowerCase().includes("what") && 
             (userQuery.toLowerCase().includes("know") || 
              userQuery.toLowerCase().includes("about") ||
@@ -141,6 +146,9 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           
           responseText = `Based on the available information, I can tell you that ${relevantContent.substring(0, 150)}...`;
         }
+      } else {
+        // Default response if nothing else matches
+        responseText = `Thanks for your message! I'm ${settings.agent_name || "your AI assistant"} and I'm here to help with any questions related to ${settings.agent_name || "our services"}. How can I assist you today?`;
       }
       
       // Add AI response
