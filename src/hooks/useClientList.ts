@@ -31,6 +31,8 @@ export const useClientList = () => {
     
     try {
       console.log('Fetching clients data...');
+      
+      // First get all ai_agents with interaction_type=config (primary source)
       let query = supabase
         .from('ai_agents')
         .select('*')
@@ -40,20 +42,32 @@ export const useClientList = () => {
         query = query.or(`client_name.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
       }
       
-      const { data, error } = await query;
+      const { data: agentConfigs, error: agentConfigsError } = await query;
       
-      if (error) {
-        throw error;
+      if (agentConfigsError) {
+        throw agentConfigsError;
       }
       
-      // Convert to Client type
-      const formattedClients: Client[] = data.map(agent => {
+      // Track seen client_ids to prevent duplicates
+      const seenClientIds = new Set<string>();
+      
+      // Convert ai_agents to Client type
+      const formattedClients: Client[] = [];
+      
+      // Process agent configs first
+      agentConfigs.forEach(agent => {
+        if (!agent.client_id || seenClientIds.has(agent.client_id)) {
+          return; // Skip if no client_id or if we've already processed this client
+        }
+        
+        seenClientIds.add(agent.client_id);
+        
         // Use the safeParseSettings utility to ensure widget_settings is always an object
         const parsedSettings = safeParseSettings(agent.settings);
         
-        return {
-          id: agent.id,
-          client_id: agent.client_id || '',
+        formattedClients.push({
+          id: agent.client_id,
+          client_id: agent.client_id,
           client_name: agent.client_name || '',
           email: agent.email || '',
           status: agent.status as 'active' | 'inactive' | 'deleted' || 'active',
@@ -72,7 +86,7 @@ export const useClientList = () => {
           last_active: agent.last_active || null,
           name: agent.name || '',
           is_error: agent.is_error || false
-        };
+        });
       });
       
       // Filter out clients with "Deletion Scheduled" status or those that have deletion_scheduled_at set

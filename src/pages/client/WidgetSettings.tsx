@@ -52,6 +52,8 @@ export default function WidgetSettings() {
       // Also invalidate client queries to ensure bidirectional sync
       if (clientId) {
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+        // Also invalidate the clients list to reflect changes
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
       }
       toast.success("Your AI assistant settings have been updated");
     },
@@ -89,6 +91,8 @@ export default function WidgetSettings() {
         refetch();
         // Also invalidate client queries
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+        // Also invalidate the clients list
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
       }
     } catch (error) {
       console.error("Error uploading logo:", error);

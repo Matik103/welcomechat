@@ -142,22 +142,38 @@ export async function updateWidgetSettings(
       if (error) throw error;
     }
     
-    // Also update the clients table to ensure bidirectional sync
-    const { error: clientUpdateError } = await supabase
+    // Check if client exists in clients table
+    const { data: existingClient, error: clientCheckError } = await supabase
       .from('clients')
-      .update({
-        agent_name: agent_name,
-        widget_settings: {
-          ...otherSettings,
-          logo_url: logo_url,
-          logo_storage_path: logo_storage_path
-        }
-      })
-      .eq('id', clientId);
+      .select('id')
+      .eq('id', clientId)
+      .maybeSingle();
       
-    if (clientUpdateError) {
-      console.error('Warning: Unable to sync with clients table:', clientUpdateError);
-      // Continue anyway, since the primary storage is now ai_agents
+    if (clientCheckError) {
+      console.error('Error checking for existing client:', clientCheckError);
+    }
+    
+    if (existingClient) {
+      // Also update the clients table to ensure bidirectional sync
+      const { error: clientUpdateError } = await supabase
+        .from('clients')
+        .update({
+          agent_name: agent_name,
+          widget_settings: {
+            ...otherSettings,
+            logo_url: logo_url,
+            logo_storage_path: logo_storage_path
+          }
+        })
+        .eq('id', clientId);
+        
+      if (clientUpdateError) {
+        console.error('Warning: Unable to sync with clients table:', clientUpdateError);
+        // Continue anyway, since the primary storage is now ai_agents
+      }
+    } else {
+      console.log('Client not found in clients table, skipping clients table update');
+      // Don't try to create a new client record - we should only be updating existing clients
     }
   } catch (error) {
     console.error('Error updating widget settings:', error);

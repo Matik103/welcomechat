@@ -81,10 +81,14 @@ export default function WidgetSettings() {
       }
     },
     onSuccess: () => {
+      // Refetch widget settings after update
       refetch();
+      
       // Also invalidate client queries to ensure bidirectional sync
       if (clientId) {
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+        // Also invalidate the clients list to reflect changes
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
       }
       
       if (isAdmin) {
@@ -127,6 +131,9 @@ export default function WidgetSettings() {
         // Refetch both widget settings and client data
         refetch();
         refetchClient();
+        
+        // Also invalidate the clients list to reflect changes
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
       }
     } catch (error) {
       console.error("Error uploading logo:", error);
