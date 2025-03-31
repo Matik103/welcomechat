@@ -139,14 +139,20 @@ export function useAdminDashboardData() {
       
       // Get clients with their last_active status
       const { data: clientsData, error: clientsError } = await supabase
-        .from('clients')
-        .select('id, last_active, status, deleted_at')
+        .from('ai_agents')  // Changed from 'clients' to 'ai_agents' to match the actual table structure
+        .select('id, client_id, last_active, status, deleted_at')
+        .eq('interaction_type', 'config')  // Only get config records which represent clients
         .eq('status', 'active')
         .is('deleted_at', null);
       
       if (clientsError) throw clientsError;
       
-      const totalClients = clientsData.length;
+      // Use a Set to count unique client_ids
+      const uniqueClientIds = new Set();
+      clientsData.forEach(client => {
+        if (client.client_id) uniqueClientIds.add(client.client_id);
+      });
+      const totalClients = uniqueClientIds.size;
       
       // Count clients active in the last 24 hours
       const activeClients = clientsData.filter(client => 
