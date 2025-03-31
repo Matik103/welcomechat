@@ -56,7 +56,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         // Continue anyway, this is non-blocking
       }
 
-      // Merge the data from both sources with defaults for required properties
+      // Use type assertion to help TypeScript understand clientData structure
+      // Create a properly typed client object with optional fallbacks
       const mergedClient: Client = {
         id: clientData.id,
         client_id: clientData.id,
