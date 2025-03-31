@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDriveLinks } from '@/hooks/useDriveLinks';
 import { createClientActivity } from '@/services/clientActivityService';
+import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
 
 interface GoogleDriveTabProps {
   clientId: string;
@@ -16,7 +17,14 @@ interface GoogleDriveTabProps {
 
 export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTabProps) {
   const [url, setUrl] = useState('');
-  const { documentLinks, addDocumentLink, isAddingLink } = useDriveLinks(clientId);
+  const { 
+    documentLinks, 
+    addDocumentLink, 
+    isAddingLink, 
+    deleteDocumentLink,
+    isDeletingLink,
+    refetch 
+  } = useDriveLinks(clientId);
 
   const validateDriveUrl = (url: string) => {
     const googleDriveRegex = /https:\/\/(drive|docs|sheets|slides)\.google\.com\/.+/;
@@ -58,10 +66,46 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
       
       toast.success('Google Drive link added successfully');
       setUrl('');
+      
+      // Refresh the list of drive links
+      if (refetch) {
+        await refetch();
+      }
+      
       onSuccess();
     } catch (error) {
       console.error('Error adding Google Drive link:', error);
       toast.error(`Failed to add Google Drive link: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Helper function to log client activity for deletions
+  const handleDeleteLink = async (linkId: number) => {
+    try {
+      await deleteDocumentLink(linkId);
+      
+      // Log the activity
+      await createClientActivity(
+        clientId,
+        agentName,
+        'url_removed',
+        `Google Drive link removed for agent ${agentName}`,
+        {
+          agent_name: agentName,
+          type: 'google_drive'
+        }
+      );
+      
+      // Refresh the list
+      if (refetch) {
+        await refetch();
+      }
+      
+      onSuccess();
+      toast.success('Google Drive link removed successfully');
+    } catch (error) {
+      console.error('Error removing Google Drive link:', error);
+      toast.error(`Failed to remove Google Drive link: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -96,6 +140,18 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
           )}
         </Button>
       </form>
+      
+      {documentLinks && documentLinks.length > 0 && (
+        <div className="mt-4">
+          <h3 className="text-sm font-medium mb-2">Added Google Drive Links</h3>
+          <DocumentLinksList
+            links={documentLinks}
+            isLoading={false}
+            onDelete={handleDeleteLink}
+            isDeleting={isDeletingLink}
+          />
+        </div>
+      )}
       
       <div className="text-sm text-muted-foreground">
         <p>Supported Google links:</p>

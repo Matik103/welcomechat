@@ -1,11 +1,11 @@
 
 import { useState } from 'react';
-import { Label } from '@/components/ui/label';
+import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Upload } from 'lucide-react';
-import { toast } from 'sonner';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
-import { Card, CardContent } from '@/components/ui/card';
+import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
 
 interface DocumentsTabProps {
@@ -15,47 +15,57 @@ interface DocumentsTabProps {
 }
 
 export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabProps) {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<FileList | null>(null);
   const { uploadDocument, isUploading } = useDocumentUpload(clientId);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
+    if (e.target.files && e.target.files.length > 0) {
+      setFiles(e.target.files);
     }
   };
 
-  const handleUpload = async () => {
-    if (!file) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!files || files.length === 0) {
       toast.error('Please select a file to upload');
       return;
     }
 
     try {
-      // Pass the agent name to associate the document with this specific agent
-      await uploadDocument(file, agentName);
-      
-      // Log activity
-      await createClientActivity(
-        clientId,
-        agentName,
-        'document_added',
-        `Document "${file.name}" uploaded for agent ${agentName}`,
-        {
-          document_name: file.name,
-          document_size: file.size,
-          document_type: file.type,
+      // Upload each selected file
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Add metadata to identify which agent this document belongs to
+        await uploadDocument(file, {
           agent_name: agentName,
           source: 'agent_config'
-        }
-      );
+        });
+        
+        // Log the upload activity
+        await createClientActivity(
+          clientId,
+          agentName,
+          'document_uploaded',
+          `Document uploaded for agent ${agentName}: ${file.name}`,
+          {
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type,
+            agent_name: agentName
+          }
+        );
+      }
       
-      toast.success('Document uploaded successfully');
-      setFile(null);
+      toast.success(`${files.length > 1 ? 'Documents' : 'Document'} uploaded successfully`);
+      setFiles(null);
       
       // Reset the file input
       const fileInput = document.getElementById('document-upload') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
+      if (fileInput) {
+        fileInput.value = '';
+      }
       
       onSuccess();
     } catch (error) {
@@ -66,60 +76,60 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="document-upload">Upload Document</Label>
-              <div className="grid w-full max-w-sm items-center gap-1.5">
-                <input
-                  id="document-upload"
-                  type="file"
-                  accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx"
-                  className="hidden"
-                  onChange={handleFileChange}
-                  disabled={isUploading}
-                />
-                <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-md p-6 cursor-pointer bg-muted/50" onClick={() => document.getElementById('document-upload')?.click()}>
-                  <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-                  <p className="text-sm font-medium">Click to upload or drag and drop</p>
-                  <p className="text-xs text-muted-foreground">PDF, Word, Excel, PowerPoint or Text files</p>
-                </div>
-              </div>
-              
-              {file && (
-                <div className="mt-2 text-sm">
-                  <p>Selected file: <span className="font-medium">{file.name}</span></p>
-                </div>
-              )}
+      <Card className="p-6 border-dashed">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="document-upload">Upload Documents</Label>
+            <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center hover:border-gray-400 transition-colors">
+              <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+              <p className="text-sm text-gray-600 mb-2">
+                Drag and drop your files here, or click to select files
+              </p>
+              <input
+                id="document-upload"
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx,.txt,.md,.csv,.xlsx,.xls,.ppt,.pptx"
+                multiple
+                onChange={handleFileChange}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('document-upload')?.click()}
+              >
+                Select Files
+              </Button>
+              <p className="text-xs text-gray-500 mt-2">
+                Supported formats: PDF, Word, TXT, Markdown, CSV, Excel, PowerPoint
+              </p>
             </div>
-
-            <Button 
-              onClick={handleUpload} 
-              disabled={!file || isUploading}
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                'Upload Document'
-              )}
-            </Button>
+            {files && files.length > 0 && (
+              <div className="mt-2">
+                <p className="text-sm font-medium">Selected files:</p>
+                <ul className="text-xs text-gray-600 list-disc pl-5 mt-1">
+                  {Array.from(files).map((file, index) => (
+                    <li key={index}>{file.name} ({(file.size / 1024).toFixed(2)} KB)</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-        </CardContent>
+          
+          <Button
+            type="submit"
+            disabled={isUploading || !files || files.length === 0}
+            className="w-full"
+          >
+            {isUploading ? 'Uploading...' : 'Upload Documents'}
+          </Button>
+        </form>
       </Card>
       
       <div className="text-sm text-muted-foreground">
-        <p>Supported formats:</p>
-        <ul className="list-disc pl-5 mt-2">
-          <li>PDF documents (.pdf)</li>
-          <li>Microsoft Word documents (.doc, .docx)</li>
-          <li>Text files (.txt)</li>
-          <li>Microsoft PowerPoint (.ppt, .pptx)</li>
-          <li>Microsoft Excel (.xls, .xlsx)</li>
-        </ul>
+        <p>Uploaded documents will be processed and made available to your AI agent.</p>
+        <p className="mt-2">The agent will use the information in these documents to provide more accurate and context-aware responses.</p>
       </div>
     </div>
   );

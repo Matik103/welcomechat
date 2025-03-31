@@ -43,7 +43,6 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
       const websiteUrlData: WebsiteUrlFormData = {
         url: url,
         refresh_rate: refreshRate,
-        // Add agent-specific metadata
         client_id: clientId,
         metadata: {
           agent_name: agentName,
@@ -81,7 +80,7 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
       await createClientActivity(
         clientId,
         agentName,
-        'url_removed', // Changed from 'url_deleted' to a valid ActivityTypeString
+        'url_removed',
         `Website URL deleted for agent ${agentName}`,
         { agent_name: agentName }
       );
