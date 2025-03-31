@@ -9,6 +9,7 @@ export interface DocumentLinkFormData {
   link: string;
   document_type: DocumentType;
   refresh_rate?: number;
+  metadata?: Record<string, any>;
 }
 
 export function useDriveLinks(clientId: string) {
@@ -73,16 +74,24 @@ export function useDriveLinks(clientId: string) {
           throw new Error(`Cannot access this document. ${accessResult.error || 'Please check the URL and permissions.'}`);
         }
         
+        // Prepare the document link data
+        const documentLinkData: any = {
+          client_id: clientId,
+          link: data.link,
+          document_type: data.document_type,
+          refresh_rate: data.refresh_rate || 7,
+          access_status: 'pending'
+        };
+        
+        // Add metadata if provided (for agent-specific information)
+        if (data.metadata) {
+          documentLinkData.metadata = data.metadata;
+        }
+        
         // If accessible, add the document link
         const { data: newLink, error } = await supabase
           .from('document_links')
-          .insert({
-            client_id: clientId,
-            link: data.link,
-            document_type: data.document_type,
-            refresh_rate: data.refresh_rate || 7,
-            access_status: 'pending'
-          })
+          .insert(documentLinkData)
           .select()
           .single();
         

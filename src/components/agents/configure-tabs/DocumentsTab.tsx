@@ -32,7 +32,8 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
     }
 
     try {
-      await uploadDocument(file);
+      // Pass the agent name to associate the document with this specific agent
+      await uploadDocument(file, agentName);
       
       // Log activity
       await createClientActivity(
@@ -44,7 +45,8 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
           document_name: file.name,
           document_size: file.size,
           document_type: file.type,
-          agent_name: agentName
+          agent_name: agentName,
+          source: 'agent_config'
         }
       );
       

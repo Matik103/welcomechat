@@ -16,7 +16,7 @@ interface GoogleDriveTabProps {
 
 export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTabProps) {
   const [url, setUrl] = useState('');
-  const { addDocumentLink, isAddingLink } = useDriveLinks(clientId);
+  const { documentLinks, addDocumentLink, isAddingLink } = useDriveLinks(clientId);
 
   const validateDriveUrl = (url: string) => {
     const googleDriveRegex = /https:\/\/(drive|docs|sheets|slides)\.google\.com\/.+/;
@@ -35,7 +35,12 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
       await addDocumentLink({
         link: url,
         refresh_rate: 24, // Default refresh rate in hours
-        document_type: 'google_drive'
+        document_type: 'google_drive',
+        // Add agent-specific metadata
+        metadata: {
+          agent_name: agentName, 
+          source: 'agent_config'
+        }
       });
       
       // Log activity

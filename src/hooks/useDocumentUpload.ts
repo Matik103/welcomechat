@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -39,14 +40,14 @@ const getEffectiveClientId = async (clientId: string) => {
 export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
 
-  const uploadDocument = async (file: File): Promise<UploadResult> => {
+  const uploadDocument = async (file: File, agentName?: string): Promise<UploadResult> => {
     if (!clientId) {
       toast.error('Client ID is required');
       return { success: false, error: 'Client ID is required' };
     }
 
     setIsUploading(true);
-    console.log("Starting document upload for client:", clientId);
+    console.log("Starting document upload for client:", clientId, "agent:", agentName || "default");
 
     try {
       // Get the effective client ID
@@ -99,20 +100,30 @@ export function useDocumentUpload(clientId: string) {
       else if (['xls', 'xlsx'].includes(fileExtension)) documentType = 'excel';
       else if (['ppt', 'pptx'].includes(fileExtension)) documentType = 'powerpoint';
 
-      // Create document link record
+      // Create document link record with agent-specific metadata if provided
+      const documentLinkData: any = {
+        client_id: actualClientId,
+        link: urlData.publicUrl,
+        document_type: documentType,
+        refresh_rate: 30,
+        access_status: 'accessible',
+        file_name: cleanFileName,
+        file_size: file.size,
+        mime_type: file.type,
+        storage_path: filePath
+      };
+      
+      // Add agent-specific metadata if an agent name was provided
+      if (agentName) {
+        documentLinkData.metadata = {
+          agent_name: agentName,
+          source: 'agent_config'
+        };
+      }
+
       const { data: documentLink, error: linkError } = await supabase
         .from('document_links')
-        .insert({
-          client_id: actualClientId,
-          link: urlData.publicUrl,
-          document_type: documentType,
-          refresh_rate: 30,
-          access_status: 'accessible',
-          file_name: cleanFileName,
-          file_size: file.size,
-          mime_type: file.type,
-          storage_path: filePath
-        })
+        .insert(documentLinkData)
         .select()
         .single();
 
