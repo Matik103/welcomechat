@@ -6,7 +6,7 @@ import ClientSettings from "@/pages/client/Settings";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import ClientProfile from "@/pages/client/Profile";
-import WidgetSettings from "@/pages/WidgetSettings";
+import WidgetSettings from "@/pages/client/WidgetSettings"; // Changed import path
 import NotFound from "@/pages/NotFound";
 import { Toaster } from "sonner";
 import { LoadingFallback } from "./LoadingFallback";
