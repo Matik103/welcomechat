@@ -34,7 +34,7 @@ export const useClientMutation = () => {
     onSuccess: (_, variables) => {
       // Invalidate cached client data
       queryClient.invalidateQueries({ queryKey: ['client', variables.client_id] });
-      // Also invalidate widget settings
+      // Also invalidate widget settings to ensure bidirectional sync
       queryClient.invalidateQueries({ queryKey: ['widget-settings', variables.client_id] });
       toast.success('Client information updated successfully');
     },
