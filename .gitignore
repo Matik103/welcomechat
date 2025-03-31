@@ -11,19 +11,26 @@ node_modules/
 
 # Testing
 coverage/
+test.pdf
+test.txt
+create-test-pdf.js
+test-llamaparse.ts
 
-# Production
-build/
+# Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
 dist/
+build/
+.next/
 out/
 
 # Misc
 .DS_Store
 *.pem
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 # Debug
 npm-debug.log*
@@ -65,3 +72,6 @@ Thumbs.db
 
 # Docker
 Docker.dmg
+
+# Supabase
+.supabase/

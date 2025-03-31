@@ -1,7 +1,8 @@
-
 /**
  * Types for the LlamaParse document processing service
  */
+
+import FormData from 'form-data';
 
 export interface LlamaParseResult {
   content: string;
@@ -23,16 +24,15 @@ export interface LlamaParseMetadata {
 }
 
 export interface LlamaParseRequest {
-  file: File;
+  file: FormData;
   metadata?: Record<string, any>;
 }
 
 export interface LlamaParseResponse {
-  status: 'success' | 'failed' | 'processing';
+  status: 'success' | 'error';
   content?: string;
-  documentId?: string;
-  error?: string;
   metadata?: Record<string, any>;
+  error?: string;
 }
 
 export interface LlamaParseConfig {
