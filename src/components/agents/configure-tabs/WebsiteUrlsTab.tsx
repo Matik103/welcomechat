@@ -9,7 +9,6 @@ import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutat
 import { WebsiteUrlFormData } from '@/types/website-url';
 import { WebsiteUrls } from '@/components/client/website-urls';
 import { createClientActivity } from '@/services/clientActivityService';
-import { ActivityType } from '@/types/activity';
 
 interface WebsiteUrlsTabProps {
   clientId: string;
@@ -43,11 +42,8 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
       const websiteUrlData: WebsiteUrlFormData = {
         url: url,
         refresh_rate: refreshRate,
+        // Add agent-specific metadata
         client_id: clientId,
-        metadata: {
-          agent_name: agentName,
-          source: 'agent_config'
-        }
       };
       
       await addWebsiteUrl(websiteUrlData);
@@ -75,18 +71,14 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
   };
 
   // Helper function to log client activity when deleting URLs
-  const logClientActivity = async (): Promise<void> => {
-    try {
-      await createClientActivity(
-        clientId,
-        agentName,
-        'url_removed',
-        `Website URL deleted for agent ${agentName}`,
-        { agent_name: agentName }
-      );
-    } catch (error) {
-      console.error('Error logging activity:', error);
-    }
+  const logClientActivity = async () => {
+    return createClientActivity(
+      clientId,
+      agentName,
+      'url_deleted',
+      `Website URL deleted for agent ${agentName}`,
+      { agent_name: agentName }
+    );
   };
 
   return (

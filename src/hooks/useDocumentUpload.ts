@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
+import { DocumentProcessingResult } from '@/types/document-processing';
 import { v4 as uuidv4 } from 'uuid';
 
 interface UploadResult {
@@ -99,7 +100,7 @@ export function useDocumentUpload(clientId: string) {
       else if (['xls', 'xlsx'].includes(fileExtension)) documentType = 'excel';
       else if (['ppt', 'pptx'].includes(fileExtension)) documentType = 'powerpoint';
 
-      // Create document link record
+      // Create document link record with agent-specific metadata if provided
       const documentLinkData: any = {
         client_id: actualClientId,
         link: urlData.publicUrl,
@@ -112,34 +113,14 @@ export function useDocumentUpload(clientId: string) {
         storage_path: filePath
       };
       
-      // Try to add metadata if agent name is provided
-      try {
-        // Check if the metadata column exists
-        if (agentName) {
-          // First check if metadata column exists by requesting the table schema
-          const { data: tableInfo, error: tableError } = await supabase
-            .from('document_links')
-            .select('client_id')
-            .limit(1);
-          
-          // If we got here without error, try to add metadata
-          if (!tableError) {
-            // Try to add metadata - will fail gracefully if column doesn't exist
-            try {
-              documentLinkData.metadata = {
-                agent_name: agentName,
-                source: 'agent_config'
-              };
-            } catch (metaError) {
-              console.warn("Couldn't add metadata to document_links, proceeding without it:", metaError);
-            }
-          }
-        }
-      } catch (schemaError) {
-        console.warn("Error checking schema, proceeding without metadata:", schemaError);
+      // Add agent-specific metadata if an agent name was provided
+      if (agentName) {
+        documentLinkData.metadata = {
+          agent_name: agentName,
+          source: 'agent_config'
+        };
       }
 
-      // Insert the document link
       const { data: documentLink, error: linkError } = await supabase
         .from('document_links')
         .insert(documentLinkData)

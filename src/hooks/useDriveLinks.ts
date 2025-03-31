@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { DocumentLink, DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
 
@@ -44,50 +44,37 @@ export function useDriveLinks(clientId: string) {
       // Check drive access first
       setIsCheckingAccess(true);
       try {
-        // Get the Supabase URL from the environment or client
-        const supabaseApiUrl = SUPABASE_URL;
+        // Use the Edge Function to check drive access
+        // Since we can't directly access the protected properties, get the URL from the environment
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
         
         // Function to make a safe API call to the edge function
         const checkDriveAccess = async (url: string) => {
-          try {
-            // Use Supabase Functions API directly
-            const { data: funcData, error: funcError } = await supabase.functions.invoke('check-drive-access', {
-              body: { url }
-            });
-            
-            if (funcError) {
-              console.error("Error calling Supabase function:", funcError);
-              throw new Error(`Failed to check drive access: ${funcError.message}`);
-            }
-            
-            return funcData;
-          } catch (err) {
-            console.error("Error in checkDriveAccess:", err);
-            // Fallback - assume URL is valid but we couldn't check it
-            return { 
-              isAccessible: true,
-              accessLevel: 'unknown',
-              fileType: 'unknown'
-            };
+          const response = await fetch(`${supabaseUrl}/functions/v1/check-drive-access`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // Add your Supabase anon key here if needed for the function
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+            },
+            body: JSON.stringify({ url })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to check drive access: ${response.statusText}`);
           }
+          
+          return await response.json();
         };
         
-        // Try to validate the drive link, but don't block if validation fails
-        let accessResult;
-        try {
-          accessResult = await checkDriveAccess(data.link);
-          setAccessStatus(accessResult);
-        } catch (error) {
-          console.warn("Drive access check failed, proceeding anyway:", error);
-          // Set a default accessResult if the check fails
-          accessResult = { 
-            isAccessible: true, 
-            accessLevel: 'unknown',
-            fileType: 'unknown'
-          };
+        const accessResult = await checkDriveAccess(data.link);
+        setAccessStatus(accessResult);
+        
+        if (!accessResult.isAccessible) {
+          throw new Error(`Cannot access this document. ${accessResult.error || 'Please check the URL and permissions.'}`);
         }
         
-        // Prepare the document link data - without metadata field if not supported
+        // Prepare the document link data
         const documentLinkData: any = {
           client_id: clientId,
           link: data.link,
@@ -96,24 +83,12 @@ export function useDriveLinks(clientId: string) {
           access_status: 'pending'
         };
         
-        // Check if the table supports the metadata column
-        try {
-          // First check if metadata column exists by requesting the table schema
-          const { data: tableInfo, error: tableError } = await supabase
-            .from('document_links')
-            .select('client_id')
-            .limit(1);
-          
-          // If we got here without error and metadata is provided, try to add it
-          if (!tableError && data.metadata) {
-            documentLinkData.metadata = data.metadata;
-          }
-        } catch (err) {
-          console.warn("Couldn't verify metadata column, proceeding without it:", err);
-          // Proceed without metadata
+        // Add metadata if provided (for agent-specific information)
+        if (data.metadata) {
+          documentLinkData.metadata = data.metadata;
         }
         
-        // Add the document link
+        // If accessible, add the document link
         const { data: newLink, error } = await supabase
           .from('document_links')
           .insert(documentLinkData)
