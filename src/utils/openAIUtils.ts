@@ -26,8 +26,7 @@ export const createOpenAIAssistant = async (
         client_id: clientId,
         agent_name: sanitizedAgentName,
         agent_description: sanitizedAgentDescription,
-        client_name: sanitizedClientName,
-        thread_capacity: 5
+        client_name: sanitizedClientName
       },
     });
     

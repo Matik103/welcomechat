@@ -36,7 +36,7 @@ serve(async (req) => {
 
   try {
     // Parse request body
-    const { client_id, agent_name, agent_description, client_name, thread_capacity = 5 } = await req.json();
+    const { client_id, agent_name, agent_description, client_name } = await req.json();
 
     // Validate required fields
     if (!client_id || !agent_name) {
@@ -69,7 +69,6 @@ serve(async (req) => {
           client_name: client_name || "",
           created_at: new Date().toISOString(),
         },
-        thread_capacity: thread_capacity, // Set conversation memory layers
       }),
     });
 
