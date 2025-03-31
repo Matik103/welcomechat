@@ -56,7 +56,7 @@ export default function WidgetSettings() {
   });
 
   const handleNavigateBack = () => {
-    navigation.goTo("/client/dashboard");
+    navigation.goToClientDashboard();
   };
 
   const handleLogoUploadChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
