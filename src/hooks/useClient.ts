@@ -36,109 +36,138 @@ export const useClient = (id: string, options?: UseClientOptions) => {
 
       console.log('Fetching client with ID:', id);
 
-      // First try to get the client data from ai_agents table with interaction_type='config'
-      const { data: agentConfig, error: agentError } = await supabase
+      // Get the client data from ai_agents table using client_id
+      const { data: agentData, error: agentError } = await supabase
         .from('ai_agents')
         .select('*')
         .eq('client_id', id)
         .eq('interaction_type', 'config')
         .maybeSingle();
 
-      // If found in ai_agents, use that as primary source
-      if (agentConfig && !agentError) {
-        console.log('Found client in ai_agents table:', agentConfig);
+      if (agentError) {
+        console.error('Error fetching from ai_agents by client_id:', agentError);
         
-        // Now get additional fields from ai_agents table for the same client
-        const { data: clientData, error: clientError } = await supabase
+        // Try fetching by direct id match as fallback
+        const { data: directAgentData, error: directError } = await supabase
           .from('ai_agents')
           .select('*')
-          .eq('client_id', id)
+          .eq('id', id)
           .maybeSingle();
           
-        if (clientError) console.error('Error fetching client data:', clientError);
-
-        // Parse settings to ensure it's a proper object
-        const parsedSettings = safeParseSettings(agentConfig.settings);
-
-        // Merge the data with priority to ai_agents table data
-        const mergedClient: Client = {
+        if (directError || !directAgentData) {
+          throw new Error(`Client not found with ID: ${id}`);
+        }
+        
+        // Use direct ID match data
+        const parsedSettings = safeParseSettings(directAgentData.settings);
+        
+        // Merge in all the required Client fields
+        const client: Client = {
           id: id,
-          client_id: id,
-          client_name: agentConfig.client_name || clientData?.client_name || '',
-          email: agentConfig.email || clientData?.email || '',
-          status: clientData?.status || 'active',
-          created_at: agentConfig.created_at || clientData?.created_at || new Date().toISOString(),
-          updated_at: agentConfig.updated_at || clientData?.updated_at || new Date().toISOString(),
-          agent_name: agentConfig.name || clientData?.name || '',
-          agent_description: agentConfig.agent_description || '',
-          logo_url: agentConfig.logo_url || '',
-          logo_storage_path: agentConfig.logo_storage_path || '',
-          // Add missing required fields from Client type with fallbacks
-          company: parsedSettings.company || '',
-          description: parsedSettings.description || agentConfig.description || '',
-          deleted_at: parsedSettings.deleted_at || agentConfig.deleted_at || null,
-          deletion_scheduled_at: parsedSettings.deletion_scheduled_at || agentConfig.deletion_scheduled_at || null,
-          last_active: parsedSettings.last_active || agentConfig.last_active || null,
+          client_id: directAgentData.client_id || id,
+          client_name: directAgentData.client_name || '',
+          email: directAgentData.email || '',
+          status: directAgentData.status || 'active',
+          created_at: directAgentData.created_at || new Date().toISOString(),
+          updated_at: directAgentData.updated_at || new Date().toISOString(),
+          agent_name: directAgentData.name || '',
+          agent_description: directAgentData.agent_description || '',
+          logo_url: directAgentData.logo_url || '',
+          logo_storage_path: directAgentData.logo_storage_path || '',
+          // Add missing required fields with fallbacks
+          company: directAgentData.company || parsedSettings.company || '',
+          description: directAgentData.description || parsedSettings.description || '',
+          deleted_at: directAgentData.deleted_at || parsedSettings.deleted_at || null,
+          deletion_scheduled_at: directAgentData.deletion_scheduled_at || parsedSettings.deletion_scheduled_at || null,
+          last_active: directAgentData.last_active || parsedSettings.last_active || null,
           widget_settings: parsedSettings || {},
-          name: agentConfig.name || '',
+          name: directAgentData.name || '',
           is_error: false,
           user_id: parsedSettings.user_id || undefined
         };
-
-        // Extract widget settings
-        const widgetSettings = extractWidgetSettings(agentConfig);
-
-        return {
-          ...mergedClient,
-          widget_settings: widgetSettings
-        };
+        
+        return client;
       }
 
-      // Fallback to ai_agents table with a different query if not found with interaction_type='config'
-      console.log('Falling back to general ai_agents query');
-      const { data: clientData, error } = await supabase
-        .from('ai_agents')
-        .select('*')
-        .eq('client_id', id)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!clientData) throw new Error(`Client not found with ID: ${id}`);
-
-      // Parse widget_settings to ensure it's a proper object
-      const parsedWidgetSettings = safeParseSettings(clientData.settings);
-
-      // Simple client record without explicit agent details
-      const basicClient: Client = {
+      if (!agentData) {
+        // Try with a different query if not found
+        const { data: fallbackAgentData, error: fallbackError } = await supabase
+          .from('ai_agents')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+          
+        if (fallbackError || !fallbackAgentData) {
+          throw new Error(`Client not found with ID: ${id}`);
+        }
+        
+        // Use fallback data
+        const parsedSettings = safeParseSettings(fallbackAgentData.settings);
+        
+        const client: Client = {
+          id: id,
+          client_id: fallbackAgentData.client_id || id,
+          client_name: fallbackAgentData.client_name || '',
+          email: fallbackAgentData.email || '',
+          status: fallbackAgentData.status || 'active',
+          created_at: fallbackAgentData.created_at || new Date().toISOString(),
+          updated_at: fallbackAgentData.updated_at || new Date().toISOString(),
+          agent_name: fallbackAgentData.name || '',
+          agent_description: fallbackAgentData.agent_description || '',
+          logo_url: fallbackAgentData.logo_url || '',
+          logo_storage_path: fallbackAgentData.logo_storage_path || '',
+          // Add missing required fields with fallbacks
+          company: fallbackAgentData.company || parsedSettings.company || '',
+          description: fallbackAgentData.description || parsedSettings.description || '',
+          deleted_at: fallbackAgentData.deleted_at || parsedSettings.deleted_at || null,
+          deletion_scheduled_at: fallbackAgentData.deletion_scheduled_at || parsedSettings.deletion_scheduled_at || null,
+          last_active: fallbackAgentData.last_active || parsedSettings.last_active || null,
+          widget_settings: parsedSettings || {},
+          name: fallbackAgentData.name || '',
+          is_error: false,
+          user_id: parsedSettings.user_id || undefined
+        };
+        
+        return client;
+      }
+      
+      // Successfully found in ai_agents table
+      console.log('Found client in ai_agents table:', agentData);
+      
+      // Parse settings to ensure it's a proper object
+      const parsedSettings = safeParseSettings(agentData.settings);
+      
+      // Create the Client object with all required fields
+      const client: Client = {
         id: id,
-        client_id: id,
-        client_name: clientData.client_name || '',
-        email: clientData.email || '',
-        status: clientData.status || 'active',
-        created_at: clientData.created_at || new Date().toISOString(),
-        updated_at: clientData.updated_at || new Date().toISOString(),
-        agent_name: clientData.name || clientData.client_name || '',
-        agent_description: parsedWidgetSettings.agent_description || clientData.agent_description || '',
-        logo_url: parsedWidgetSettings.logo_url || clientData.logo_url || '',
-        logo_storage_path: parsedWidgetSettings.logo_storage_path || clientData.logo_storage_path || '',
-        // Add missing required fields from Client type with fallbacks
-        company: parsedWidgetSettings.company || clientData.company || '',
-        description: parsedWidgetSettings.description || clientData.description || '',
-        deleted_at: parsedWidgetSettings.deleted_at || clientData.deleted_at || null,
-        deletion_scheduled_at: parsedWidgetSettings.deletion_scheduled_at || clientData.deletion_scheduled_at || null,
-        last_active: parsedWidgetSettings.last_active || clientData.last_active || null,
-        widget_settings: parsedWidgetSettings,
-        name: clientData.name || clientData.client_name || '',
+        client_id: agentData.client_id || id,
+        client_name: agentData.client_name || '',
+        email: agentData.email || '',
+        status: agentData.status || 'active',
+        created_at: agentData.created_at || new Date().toISOString(),
+        updated_at: agentData.updated_at || new Date().toISOString(),
+        agent_name: agentData.name || '',
+        agent_description: agentData.agent_description || '',
+        logo_url: agentData.logo_url || '',
+        logo_storage_path: agentData.logo_storage_path || '',
+        // Add missing required fields with fallbacks
+        company: agentData.company || parsedSettings.company || '',
+        description: agentData.description || parsedSettings.description || '',
+        deleted_at: agentData.deleted_at || parsedSettings.deleted_at || null,
+        deletion_scheduled_at: agentData.deletion_scheduled_at || parsedSettings.deletion_scheduled_at || null,
+        last_active: agentData.last_active || parsedSettings.last_active || null,
+        widget_settings: parsedSettings || {},
+        name: agentData.name || '',
         is_error: false,
-        user_id: parsedWidgetSettings.user_id || undefined
+        user_id: parsedSettings.user_id || undefined
       };
-
+      
       // Extract widget settings
-      const extractedWidgetSettings = extractWidgetSettings(clientData);
-
+      const widgetSettings = extractWidgetSettings(agentData);
+      
       return {
-        ...basicClient,
-        widget_settings: extractedWidgetSettings
+        ...client,
+        widget_settings: widgetSettings
       };
     },
     ...queryOptions,
