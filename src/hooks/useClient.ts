@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
 import { extractWidgetSettings } from '@/utils/widgetSettingsUtils';
+import { safeParseSettings } from '@/utils/clientSettingsUtils';
 
 interface UseClientOptions {
   enabled?: boolean;
@@ -56,6 +57,11 @@ export const useClient = (id: string, options?: UseClientOptions) => {
           
         if (clientError) console.error('Error fetching client data:', clientError);
 
+        // Ensure settings is an object
+        const settings = typeof agentConfig.settings === 'object' 
+          ? agentConfig.settings 
+          : {};
+
         // Merge the data with priority to ai_agents table data
         const mergedClient: Client = {
           id: id,
@@ -70,17 +76,15 @@ export const useClient = (id: string, options?: UseClientOptions) => {
           logo_url: agentConfig.logo_url || '',
           logo_storage_path: agentConfig.logo_storage_path || '',
           // Add missing required fields from Client type with fallbacks
-          company: agentConfig.company || clientData?.company || '',
-          description: agentConfig.description || clientData?.description || '',
-          deleted_at: agentConfig.deleted_at || clientData?.deleted_at || null,
-          deletion_scheduled_at: agentConfig.deletion_scheduled_at || clientData?.deletion_scheduled_at || null,
-          last_active: agentConfig.last_active || clientData?.last_active || null,
-          widget_settings: typeof agentConfig.settings === 'object' 
-            ? agentConfig.settings 
-            : (clientData?.widget_settings || {}),
+          company: settings.company || clientData?.company || '',
+          description: settings.description || agentConfig.description || clientData?.description || '',
+          deleted_at: settings.deleted_at || agentConfig.deleted_at || clientData?.deleted_at || null,
+          deletion_scheduled_at: settings.deletion_scheduled_at || agentConfig.deletion_scheduled_at || clientData?.deletion_scheduled_at || null,
+          last_active: settings.last_active || agentConfig.last_active || clientData?.last_active || null,
+          widget_settings: settings || {},
           name: agentConfig.name || clientData?.agent_name || '',
           is_error: false,
-          user_id: agentConfig.user_id || clientData?.user_id || undefined
+          user_id: settings.user_id || agentConfig.user_id || clientData?.user_id || undefined
         };
 
         // Extract widget settings
@@ -103,6 +107,11 @@ export const useClient = (id: string, options?: UseClientOptions) => {
       if (error) throw error;
       if (!clientData) throw new Error(`Client not found with ID: ${id}`);
 
+      // Ensure widget_settings is an object
+      const widgetSettings = typeof clientData.widget_settings === 'object' 
+        ? clientData.widget_settings 
+        : {};
+
       // Simple client record without agent details
       const basicClient: Client = {
         id: clientData.id,
@@ -113,29 +122,27 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         created_at: clientData.created_at || new Date().toISOString(),
         updated_at: clientData.updated_at || new Date().toISOString(),
         agent_name: clientData.agent_name || clientData.client_name || '',
-        agent_description: '',
-        logo_url: '',
-        logo_storage_path: '',
+        agent_description: widgetSettings.agent_description || '',
+        logo_url: widgetSettings.logo_url || '',
+        logo_storage_path: widgetSettings.logo_storage_path || '',
         // Add missing required fields from Client type with fallbacks
-        company: clientData.company || '',
-        description: clientData.description || '',
-        deleted_at: clientData.deleted_at || null,
-        deletion_scheduled_at: clientData.deletion_scheduled_at || null,
-        last_active: clientData.last_active || null,
-        widget_settings: typeof clientData.widget_settings === 'object' 
-          ? clientData.widget_settings 
-          : {},
+        company: widgetSettings.company || '',
+        description: widgetSettings.description || '',
+        deleted_at: widgetSettings.deleted_at || null,
+        deletion_scheduled_at: widgetSettings.deletion_scheduled_at || null,
+        last_active: widgetSettings.last_active || null,
+        widget_settings: widgetSettings,
         name: clientData.agent_name || clientData.client_name || '',
         is_error: false,
-        user_id: clientData.user_id || undefined
+        user_id: widgetSettings.user_id || undefined
       };
 
       // Extract widget settings
-      const widgetSettings = extractWidgetSettings(clientData);
+      const extractedWidgetSettings = extractWidgetSettings(clientData);
 
       return {
         ...basicClient,
-        widget_settings: widgetSettings
+        widget_settings: extractedWidgetSettings
       };
     },
     ...queryOptions,
