@@ -87,7 +87,7 @@ export function useDriveLinks(clientId: string) {
           };
         }
         
-        // Prepare the document link data
+        // Prepare the document link data - without metadata field if not supported
         const documentLinkData: any = {
           client_id: clientId,
           link: data.link,
@@ -96,9 +96,21 @@ export function useDriveLinks(clientId: string) {
           access_status: 'pending'
         };
         
-        // Add metadata if provided (for agent-specific information)
-        if (data.metadata) {
-          documentLinkData.metadata = data.metadata;
+        // Check if the table supports the metadata column
+        try {
+          // First check if metadata column exists by requesting the table schema
+          const { data: tableInfo, error: tableError } = await supabase
+            .from('document_links')
+            .select('client_id')
+            .limit(1);
+          
+          // If we got here without error and metadata is provided, try to add it
+          if (!tableError && data.metadata) {
+            documentLinkData.metadata = data.metadata;
+          }
+        } catch (err) {
+          console.warn("Couldn't verify metadata column, proceeding without it:", err);
+          // Proceed without metadata
         }
         
         // Add the document link

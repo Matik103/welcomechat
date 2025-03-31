@@ -38,14 +38,14 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
-        // Add metadata to identify which agent this document belongs to
+        // Add metadata as a separate parameter - this allows the hook to handle the metadata field properly
         await uploadDocument(file, agentName);
         
         // Log the upload activity
         await createClientActivity(
           clientId,
           agentName,
-          ActivityType.DOCUMENT_ADDED, // Changed from DOCUMENT_UPLOADED to DOCUMENT_ADDED which exists in the enum
+          ActivityType.DOCUMENT_ADDED,
           `Document uploaded for agent ${agentName}: ${file.name}`,
           {
             file_name: file.name,
