@@ -32,7 +32,7 @@ export const createOpenAIAssistant = async (
     
     if (error) {
       console.error('OpenAI assistant creation error:', error);
-      toast.error('Failed to create OpenAI assistant');
+      toast.error('Failed to create OpenAI assistant: ' + error.message);
       throw new Error(error.message || 'Failed to create OpenAI assistant');
     }
     

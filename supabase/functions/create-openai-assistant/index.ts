@@ -49,16 +49,13 @@ serve(async (req) => {
       );
     }
 
-    // Check if this client already has an assistant
-    // To do this in a real implementation, you might query your database first
-
-    // Call OpenAI API to create assistant
+    // Call OpenAI API to create assistant with v2 header
     const response = await fetch("https://api.openai.com/v1/assistants", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "OpenAI-Beta": "assistants=v1",
+        "OpenAI-Beta": "assistants=v2", // Updated to v2
       },
       body: JSON.stringify({
         name: agent_name,
