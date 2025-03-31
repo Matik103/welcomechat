@@ -18,7 +18,6 @@ import { Trash } from 'lucide-react';
 import { AgentDetailsTab } from './configure-tabs/AgentDetailsTab';
 import { DocumentsTab } from './configure-tabs/DocumentsTab';
 import { GoogleDriveTab } from './configure-tabs/GoogleDriveTab';
-import { WebsiteUrlsTab } from './configure-tabs/WebsiteUrlsTab';
 import type { Agent } from '@/services/agentService';
 
 interface AgentConfigureDialogProps {
@@ -46,11 +45,10 @@ export function AgentConfigureDialog({
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-4">
-          <TabsList className="grid grid-cols-4 mb-6">
+          <TabsList className="grid grid-cols-3 mb-6">
             <TabsTrigger value="details">Agent Details</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="drive">Google Drive</TabsTrigger>
-            <TabsTrigger value="websites">Website URLs</TabsTrigger>
           </TabsList>
           
           <TabsContent value="details">
@@ -71,14 +69,6 @@ export function AgentConfigureDialog({
           
           <TabsContent value="drive">
             <GoogleDriveTab 
-              clientId={agent.client_id}
-              agentName={agent.name}
-              onSuccess={onAgentUpdated}
-            />
-          </TabsContent>
-          
-          <TabsContent value="websites">
-            <WebsiteUrlsTab 
               clientId={agent.client_id}
               agentName={agent.name}
               onSuccess={onAgentUpdated}
