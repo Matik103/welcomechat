@@ -162,7 +162,7 @@ export function EditClientInfo() {
         title="Client Not Found"
         message={`The client with ID ${id} does not exist in the database.`}
         details="This client may have been deleted or the ID is incorrect."
-        onRetry={() => navigation.navigate('/admin/clients')}
+        onRetry={() => navigation.goToClientList()}
       />
     );
   }
