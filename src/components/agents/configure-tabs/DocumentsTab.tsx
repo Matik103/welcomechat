@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
+import { ActivityType } from '@/types/activity';
 
 interface DocumentsTabProps {
   clientId: string;
@@ -38,16 +39,13 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
         const file = files[i];
         
         // Add metadata to identify which agent this document belongs to
-        await uploadDocument(file, {
-          agent_name: agentName,
-          source: 'agent_config'
-        });
+        await uploadDocument(file, agentName);
         
         // Log the upload activity
         await createClientActivity(
           clientId,
           agentName,
-          'document_uploaded',
+          ActivityType.DOCUMENT_UPLOADED, // Using enum value instead of string literal
           `Document uploaded for agent ${agentName}: ${file.name}`,
           {
             file_name: file.name,
