@@ -98,8 +98,8 @@ export function ClientCreationForm({ onSuccess }: ClientCreationFormProps) {
           );
         } catch (openAiError) {
           console.error("Error setting up OpenAI assistant:", openAiError);
-          // Continue despite OpenAI setup error, as the client was created successfully
-          toast.warning("Client created, but OpenAI assistant setup failed. You can retry setup later.");
+          toast.warning("Client created, but OpenAI assistant setup failed: " + 
+            (openAiError instanceof Error ? openAiError.message : "Unknown error"));
         }
         
         const emailResult = await sendWelcomeEmail(

@@ -49,13 +49,15 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Creating assistant for client ${client_id} with name "${agent_name}"`);
+
     // Call OpenAI API to create assistant with v2 header
     const response = await fetch("https://api.openai.com/v1/assistants", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "OpenAI-Beta": "assistants=v2", // Updated to v2
+        "OpenAI-Beta": "assistants=v2", // Using v2 of the API
       },
       body: JSON.stringify({
         name: agent_name,
@@ -83,6 +85,8 @@ serve(async (req) => {
         }
       );
     }
+
+    console.log("Successfully created OpenAI assistant:", responseData.id);
 
     // Return the successful response
     return new Response(

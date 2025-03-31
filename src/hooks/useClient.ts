@@ -18,7 +18,7 @@ export const useClient = (id: string, options?: UseClientOptions) => {
     enabled: !!id,
     staleTime: 60000,
     cacheTime: 120000,
-    retry: 2,
+    retry: 3,
     refetchOnWindowFocus: false,
   };
 
@@ -55,6 +55,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
           .maybeSingle();
           
         if (directError || !directAgentData) {
+          console.error('Error fetching by direct ID:', directError);
+          console.error('ID attempted:', id);
           throw new Error(`Client not found with ID: ${id}`);
         }
         
@@ -83,9 +85,11 @@ export const useClient = (id: string, options?: UseClientOptions) => {
           widget_settings: parsedSettings || {},
           name: directAgentData.name || '',
           is_error: false,
-          user_id: parsedSettings.user_id || undefined
+          user_id: parsedSettings.user_id || undefined,
+          openai_assistant_id: directAgentData.openai_assistant_id || undefined
         };
         
+        console.log('Found client by direct ID:', client);
         return client;
       }
 
@@ -98,6 +102,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
           .maybeSingle();
           
         if (fallbackError || !fallbackAgentData) {
+          console.error('Fallback query failed:', fallbackError);
+          console.error('ID attempted:', id);
           throw new Error(`Client not found with ID: ${id}`);
         }
         
@@ -125,9 +131,11 @@ export const useClient = (id: string, options?: UseClientOptions) => {
           widget_settings: parsedSettings || {},
           name: fallbackAgentData.name || '',
           is_error: false,
-          user_id: parsedSettings.user_id || undefined
+          user_id: parsedSettings.user_id || undefined,
+          openai_assistant_id: fallbackAgentData.openai_assistant_id || undefined
         };
         
+        console.log('Found client using fallback query:', client);
         return client;
       }
       
@@ -159,7 +167,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         widget_settings: parsedSettings || {},
         name: agentData.name || '',
         is_error: false,
-        user_id: parsedSettings.user_id || undefined
+        user_id: parsedSettings.user_id || undefined,
+        openai_assistant_id: agentData.openai_assistant_id || undefined
       };
       
       // Extract widget settings
