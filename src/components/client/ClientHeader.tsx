@@ -12,8 +12,8 @@ export const ClientHeader = () => {
         <ArrowLeft className="w-5 h-5" />
       </Link>
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Client Management</h1>
-        <p className="text-gray-500">View and manage your clients</p>
+        <h1 className="text-xl font-bold text-gray-900">Client Management</h1>
+        <p className="text-sm text-gray-500">View and manage your clients</p>
       </div>
     </div>
   );

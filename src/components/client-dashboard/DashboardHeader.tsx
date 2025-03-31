@@ -18,7 +18,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         variant="outline"
         size="sm"
         onClick={onRefresh}
-        className="flex items-center gap-1 text-gray-600"
+        className="flex items-center gap-1 text-sm text-gray-600"
         disabled={isRefreshing}
       >
         {isRefreshing ? (

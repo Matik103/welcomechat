@@ -46,29 +46,29 @@ export const ClientHeader = () => {
           <div className="flex items-center gap-4">
             <Link 
               to="/client/dashboard" 
-              className="text-xl font-semibold text-gray-900 hover:text-gray-700 transition-colors"
+              className="text-base font-semibold text-gray-900 hover:text-gray-700 transition-colors"
             >
               Dashboard
             </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="font-semibold">
+                <Button variant="ghost" className="text-base font-semibold">
                   {clientName}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
+                <DropdownMenuLabel className="text-base">
                   {clientName}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/client/profile">Profile</Link>
+                  <Link to="/client/profile" className="text-sm">Profile</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/client/widget-settings">Widget Settings</Link>
+                  <Link to="/client/widget-settings" className="text-sm">Widget Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                <DropdownMenuItem onClick={handleSignOut} className="text-sm text-red-600">
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>

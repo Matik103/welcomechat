@@ -592,6 +592,7 @@ export type Database = {
           activity_type: string
           client_id: string
           created_at: string | null
+          description: string | null
           id: string
           updated_at: string | null
         }
@@ -600,6 +601,7 @@ export type Database = {
           activity_type: string
           client_id: string
           created_at?: string | null
+          description?: string | null
           id?: string
           updated_at?: string | null
         }
@@ -608,6 +610,7 @@ export type Database = {
           activity_type?: string
           client_id?: string
           created_at?: string | null
+          description?: string | null
           id?: string
           updated_at?: string | null
         }

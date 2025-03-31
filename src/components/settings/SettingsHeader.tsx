@@ -12,8 +12,8 @@ export const SettingsHeader = () => {
         <ArrowLeft className="w-5 h-5" />
       </Link>
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-xl font-bold">Settings</h1>
+        <p className="text-sm text-muted-foreground">
           Manage your settings and preferences
         </p>
       </div>
