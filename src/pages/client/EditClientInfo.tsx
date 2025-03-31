@@ -15,6 +15,7 @@ import { ClientLayout } from '@/components/layout/ClientLayout';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
+import { ClientMutationData } from '@/hooks/useClientMutation';
 
 export default function EditClientInfo() {
   const { user } = useAuth();
@@ -54,7 +55,8 @@ export default function EditClientInfo() {
       
       console.log("Submitting update for client:", clientId);
       
-      await clientMutation.mutateAsync({
+      // Create mutation data that matches the ClientMutationData type
+      const mutationData: ClientMutationData = {
         client_id: clientId,
         client_name: data.client_name,
         email: data.email,
@@ -62,7 +64,9 @@ export default function EditClientInfo() {
         agent_description: data.agent_description,
         logo_url: data.logo_url,
         logo_storage_path: data.logo_storage_path
-      });
+      };
+      
+      await clientMutation.mutateAsync(mutationData);
       
       toast.success("Your information has been updated successfully");
       await logActivityWrapper();

@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { isAdminClientConfigured } from '@/integrations/supabase/client-admin';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
+import { ClientMutationData } from '@/hooks/useClientMutation';
 
 export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
@@ -58,7 +59,8 @@ export function EditClientInfo() {
       
       console.log("Submitting with client ID:", updateClientId);
       
-      await clientMutation.mutateAsync({
+      // Create mutation data that matches the ClientMutationData type
+      const mutationData: ClientMutationData = {
         client_id: updateClientId,
         client_name: data.client_name,
         email: data.email,
@@ -66,7 +68,9 @@ export function EditClientInfo() {
         agent_description: data.agent_description,
         logo_url: data.logo_url,
         logo_storage_path: data.logo_storage_path
-      });
+      };
+      
+      await clientMutation.mutateAsync(mutationData);
       
       toast.success("Client information updated successfully");
       refetchClient();

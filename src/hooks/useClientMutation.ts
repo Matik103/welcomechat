@@ -4,11 +4,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Client } from '@/types/client';
 
+// Define a type that includes only the properties we need for mutation
+export type ClientMutationData = {
+  client_id: string;
+  client_name: string;
+  email: string;
+  agent_name: string;
+  agent_description?: string;
+  logo_url?: string;
+  logo_storage_path?: string;
+};
+
 export const useClientMutation = () => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async (client: Omit<Client, 'id'>) => {
+    mutationFn: async (client: ClientMutationData) => {
       try {
         console.log('Updating client with data:', client);
         

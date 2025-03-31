@@ -56,19 +56,27 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         // Continue anyway, this is non-blocking
       }
 
-      // Merge the data from both sources
+      // Merge the data from both sources with defaults for required properties
       const mergedClient: Client = {
         id: clientData.id,
         client_id: clientData.id,
-        client_name: clientData.client_name,
-        email: clientData.email,
-        status: clientData.status,
-        created_at: clientData.created_at,
-        updated_at: clientData.updated_at,
-        agent_name: agentConfig?.name || clientData.agent_name || clientData.client_name,
+        client_name: clientData.client_name || '',
+        email: clientData.email || '',
+        company: clientData.company || '',
+        description: clientData.description || '',
+        status: clientData.status || 'active',
+        created_at: clientData.created_at || new Date().toISOString(),
+        updated_at: clientData.updated_at || new Date().toISOString(),
+        deleted_at: clientData.deleted_at,
+        deletion_scheduled_at: clientData.deletion_scheduled_at,
+        last_active: clientData.last_active,
+        logo_url: agentConfig?.logo_url || clientData.logo_url || '',
+        logo_storage_path: agentConfig?.logo_storage_path || clientData.logo_storage_path || '',
+        agent_name: agentConfig?.name || clientData.agent_name || clientData.client_name || '',
         agent_description: agentConfig?.agent_description || '',
-        logo_url: agentConfig?.logo_url || '',
-        logo_storage_path: agentConfig?.logo_storage_path || '',
+        widget_settings: {},
+        is_error: clientData.is_error || false,
+        name: agentConfig?.name || clientData.agent_name || clientData.client_name || '',
       };
 
       // Extract widget settings

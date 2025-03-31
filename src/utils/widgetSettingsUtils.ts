@@ -1,5 +1,5 @@
 
-import { JsonObject, toJson } from "@/types/supabase-extensions";
+import { JsonObject } from "@/types/supabase-extensions";
 import { WidgetSettings, defaultSettings } from "@/types/widget-settings";
 import { execSql } from "@/utils/rpcUtils";
 
@@ -8,7 +8,7 @@ import { execSql } from "@/utils/rpcUtils";
  */
 export const extractWidgetSettings = (clientData: any): WidgetSettings => {
   // Start with default settings
-  let settings = { ...defaultSettings };
+  let settings: WidgetSettings = { ...defaultSettings };
 
   if (!clientData) {
     return settings;
