@@ -63,7 +63,7 @@ serve(async (req) => {
         name: agent_name,
         instructions: agent_description,
         model: "gpt-4o", // Use the latest model for best results
-        tools: [{ type: "retrieval" }], // Enable retrieval for document knowledge
+        tools: [{ type: "file_search" }], // Enable file search (v2 replacement for retrieval)
         metadata: {
           client_id: client_id,
           client_name: client_name || "",
