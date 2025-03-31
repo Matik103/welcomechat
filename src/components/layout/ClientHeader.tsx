@@ -1,7 +1,6 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -49,6 +48,12 @@ export const ClientHeader = () => {
               className="text-base font-semibold text-gray-900 hover:text-gray-700 transition-colors"
             >
               Dashboard
+            </Link>
+            <Link 
+              to="/client/agents" 
+              className="text-base font-semibold text-gray-900 hover:text-gray-700 transition-colors"
+            >
+              Agents
             </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

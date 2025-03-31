@@ -7,6 +7,7 @@ import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import ClientProfile from "@/pages/client/Profile";
 import WidgetSettings from "@/pages/client/WidgetSettings";
+import ClientAgents from "@/pages/client/Agents";
 import NotFound from "@/pages/NotFound";
 import { Toaster } from "sonner";
 import { LoadingFallback } from "./LoadingFallback";
@@ -20,6 +21,7 @@ export const ClientRoutes = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
             <Route path="/client/dashboard" element={<ClientDashboard />} />
+            <Route path="/client/agents" element={<ClientAgents />} />
             <Route path="/client/settings" element={<ClientSettings />} />
             <Route path="/client/account-settings" element={<AccountSettings />} />
             <Route path="/client/resource-settings" element={<ResourceSettings />} />
