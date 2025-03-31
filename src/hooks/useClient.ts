@@ -56,33 +56,36 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         // Continue anyway, this is non-blocking
       }
 
-      // Use type assertion to help TypeScript understand clientData structure
+      // Type assertion to help TypeScript - cast to any since we know the DB may return fields
+      // that aren't explicitly in the clients table schema type
+      const clientDataAny = clientData as any;
+
       // Create a properly typed client object with optional fallbacks
       const mergedClient: Client = {
-        id: clientData.id,
-        client_id: clientData.id,
-        client_name: clientData.client_name || '',
-        email: clientData.email || '',
-        company: clientData.company || '', // Use optional chaining with fallback
-        description: clientData.description || '',
-        status: clientData.status || 'active',
-        created_at: clientData.created_at || new Date().toISOString(),
-        updated_at: clientData.updated_at || new Date().toISOString(),
-        deleted_at: clientData.deleted_at || null,
-        deletion_scheduled_at: clientData.deletion_scheduled_at || null,
-        last_active: clientData.last_active || null,
-        logo_url: agentConfig?.logo_url || (clientData as any).logo_url || '',
-        logo_storage_path: agentConfig?.logo_storage_path || (clientData as any).logo_storage_path || '',
-        agent_name: agentConfig?.name || clientData.agent_name || clientData.client_name || '',
+        id: clientDataAny.id,
+        client_id: clientDataAny.id,
+        client_name: clientDataAny.client_name || '',
+        email: clientDataAny.email || '',
+        company: clientDataAny.company || '', 
+        description: clientDataAny.description || '',
+        status: clientDataAny.status || 'active',
+        created_at: clientDataAny.created_at || new Date().toISOString(),
+        updated_at: clientDataAny.updated_at || new Date().toISOString(),
+        deleted_at: clientDataAny.deleted_at || null,
+        deletion_scheduled_at: clientDataAny.deletion_scheduled_at || null,
+        last_active: clientDataAny.last_active || null,
+        logo_url: agentConfig?.logo_url || clientDataAny.logo_url || '',
+        logo_storage_path: agentConfig?.logo_storage_path || clientDataAny.logo_storage_path || '',
+        agent_name: agentConfig?.name || clientDataAny.agent_name || clientDataAny.client_name || '',
         agent_description: agentConfig?.agent_description || '',
         widget_settings: {},
-        is_error: (clientData as any).is_error || false,
-        name: agentConfig?.name || clientData.agent_name || clientData.client_name || '',
+        is_error: clientDataAny.is_error || false,
+        name: agentConfig?.name || clientDataAny.agent_name || clientDataAny.client_name || '',
       };
 
       // Extract widget settings
       const widgetSettings = extractWidgetSettings(
-        agentConfig || clientData
+        agentConfig || clientDataAny
       );
 
       return {
