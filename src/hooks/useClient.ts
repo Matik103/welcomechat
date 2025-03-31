@@ -35,7 +35,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
       
       console.log(`Fetching client with ID: ${id}`);
 
-      // First check if the ID exists in the ai_agents table with interaction_type = 'config'
+      // FIRST APPROACH: Get client directly from ai_agents where interaction_type = 'config'
+      // Try with client_id field first
       const { data: agentConfig, error: agentConfigError } = await supabase
         .from('ai_agents')
         .select('*')
@@ -43,9 +44,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         .eq('interaction_type', 'config')
         .maybeSingle();
 
-      // If we found a record in ai_agents table, use that as primary source
       if (agentConfig && !agentConfigError) {
-        console.log("Found client data in ai_agents table:", agentConfig);
+        console.log("Found client data in ai_agents table by client_id:", agentConfig);
         
         // Extract widget settings from the agent config
         const widgetSettings = extractWidgetSettings(agentConfig);
@@ -76,7 +76,7 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         return clientFromAgent;
       }
 
-      // Try to get the agent config by ID match directly
+      // SECOND APPROACH: Try to get the agent config by direct ID match
       const { data: agentByDirectId, error: agentByDirectIdError } = await supabase
         .from('ai_agents')
         .select('*')
@@ -116,7 +116,7 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         return clientFromAgent;
       }
 
-      // As a fallback, try to get the client data from clients table
+      // FALLBACK APPROACH: Only try clients table as a last resort
       console.log("No record found in ai_agents table, falling back to clients table");
       const { data: clientData, error } = await supabase
         .from('clients')
