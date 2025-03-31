@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { supabaseAdmin } from "@/integrations/supabase/client-admin";
 import { generateTempPassword, saveClientTempPassword } from "@/utils/passwordUtils";
 import { sendWelcomeEmail } from "@/utils/email/welcomeEmail";
+import { setupOpenAIAssistant } from "@/utils/clientOpenAIUtils";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -88,6 +89,20 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
       
       if (agentId) {
         await saveClientTempPassword(agentId, values.email, tempPassword);
+        
+        // Set up OpenAI assistant
+        try {
+          await setupOpenAIAssistant(
+            clientId,
+            values.agentName || "AI Assistant",
+            values.agentDescription || "A helpful assistant for " + values.clientName,
+            values.clientName
+          );
+        } catch (openAiError) {
+          console.error("Error setting up OpenAI assistant:", openAiError);
+          // Continue despite OpenAI setup error, as the client was created successfully
+          toast.warning("Client created, but OpenAI assistant setup failed. You can retry setup later.");
+        }
         
         const emailResult = await sendWelcomeEmail(
           values.email,
@@ -179,15 +194,18 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
               name="agentDescription"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Chatbot Description</FormLabel>
+                  <FormLabel>Chatbot Description/System Prompt</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Describe what this chatbot does" 
+                      placeholder="Describe what this chatbot does and how it should behave" 
                       className="min-h-[100px]" 
                       {...field} 
                     />
                   </FormControl>
                   <FormMessage />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This description will be used as the system prompt for the OpenAI assistant.
+                  </p>
                 </FormItem>
               )}
             />

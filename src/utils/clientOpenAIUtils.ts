@@ -3,21 +3,60 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 /**
- * Completely disabled OpenAI assistant setup
- * Logs to console but doesn't actually create anything
+ * Sets up an OpenAI assistant for a client
  */
 export const setupOpenAIAssistant = async (clientId: string, agentName: string, agentDescription: string, clientName: string) => {
-  console.log('OpenAI assistant setup completely disabled');
-  console.log('Setup request ignored for:', { clientId, agentName, agentDescription, clientName });
-  return { 
-    success: true, 
-    message: 'OpenAI assistant setup completely disabled'
-  };
+  try {
+    console.log('Setting up OpenAI assistant for:', { clientId, agentName, agentDescription, clientName });
+    
+    // Create a more detailed system prompt based on the provided description
+    const systemPrompt = createSystemPrompt(agentDescription, clientName);
+    
+    // Call the create assistant function with the enhanced system prompt
+    const assistantId = await createOpenAIAssistant(clientId, agentName, systemPrompt, clientName);
+    
+    // Log the assistant creation
+    console.log(`OpenAI assistant created with ID: ${assistantId}`);
+    
+    return { 
+      success: true, 
+      message: 'OpenAI assistant setup successfully',
+      assistantId
+    };
+  } catch (error) {
+    console.error('Error setting up OpenAI assistant:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to set up OpenAI assistant'
+    };
+  }
 };
 
 /**
- * Completely disabled OpenAI assistant creation
- * Logs to console but doesn't actually create anything
+ * Creates an enhanced system prompt based on the provided description
+ */
+const createSystemPrompt = (agentDescription: string, clientName: string): string => {
+  // Base instructions that apply to all assistants
+  const baseInstructions = `
+You are a friendly, helpful assistant for ${clientName}. 
+
+Your primary goal is to provide excellent customer service and assist users with their questions and needs related to ${clientName}.
+
+Important behavioral guidelines:
+- Be friendly, conversational, and customer-centric
+- Always maintain a professional but warm tone
+- When users ask philosophical questions (like "what is life", "do you have consciousness") or personal questions (like "do you have a love life", "do you have a mom"), politely acknowledge their question but redirect the conversation back to how you can help them with ${clientName}-related topics. Use different phrasing each time to maintain a natural conversation flow.
+- Keep track of conversation context and reference previous messages when appropriate
+- Provide concise but thorough responses
+- Always prioritize being helpful about topics related to ${clientName}
+
+${agentDescription}`.trim();
+
+  return baseInstructions;
+};
+
+/**
+ * Creates an OpenAI assistant via the Supabase Edge Function
  */
 export const createOpenAIAssistant = async (
   clientId: string,
@@ -25,9 +64,58 @@ export const createOpenAIAssistant = async (
   agentDescription: string,
   clientName?: string
 ): Promise<string> => {
-  console.log('OpenAI assistant creation completely disabled');
-  console.log('Creation request ignored for:', { clientId, agentName, agentDescription, clientName });
-  
-  // Return a mock assistant ID
-  return `mock-assistant-id-${Date.now()}`;
+  try {
+    console.log(`Creating OpenAI assistant for client ${clientId}`);
+    
+    // Sanitize input values to prevent errors with quotes
+    const sanitizedAgentName = agentName.replace(/"/g, "'");
+    const sanitizedAgentDescription = agentDescription.replace(/"/g, "'");
+    const sanitizedClientName = clientName ? clientName.replace(/"/g, "'") : undefined;
+    
+    // Call the Supabase Edge Function to create the OpenAI assistant
+    const { data, error } = await supabase.functions.invoke('create-openai-assistant', {
+      body: {
+        client_id: clientId,
+        agent_name: sanitizedAgentName,
+        agent_description: sanitizedAgentDescription,
+        client_name: sanitizedClientName,
+        thread_capacity: 5 // Configure to remember at least 5 layers of conversation
+      },
+    });
+    
+    if (error) {
+      console.error('OpenAI assistant creation error:', error);
+      toast.error('Failed to create OpenAI assistant');
+      throw new Error(error.message || 'Failed to create OpenAI assistant');
+    }
+    
+    console.log('OpenAI assistant response:', data);
+    
+    if (!data || !data.assistant_id) {
+      const errorMsg = 'Invalid response from OpenAI assistant creation';
+      console.error(errorMsg, data);
+      toast.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+    
+    // Update the AI agent record with the OpenAI assistant ID
+    const { error: updateError } = await supabase
+      .from('ai_agents')
+      .update({ openai_assistant_id: data.assistant_id })
+      .eq('client_id', clientId)
+      .eq('interaction_type', 'config');
+      
+    if (updateError) {
+      console.error('Error updating AI agent with assistant ID:', updateError);
+      // Continue despite this error, as the assistant was created successfully
+    }
+    
+    // Success notification
+    toast.success('OpenAI assistant created successfully');
+    return data.assistant_id;
+  } catch (error) {
+    console.error('Error in createOpenAIAssistant:', error);
+    toast.error(`OpenAI assistant creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw error;
+  }
 };
