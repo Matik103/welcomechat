@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
@@ -36,7 +37,7 @@ export function DocumentLinks({ clientId }: DocumentLinksProps) {
     try {
       await addDocumentLink.mutateAsync({
         link: newLink,
-        document_type: 'url',
+        document_type: 'web_page', // Changed from 'url' to 'web_page' which is valid in DocumentType
         refresh_rate: 30
       });
       setNewLink('');

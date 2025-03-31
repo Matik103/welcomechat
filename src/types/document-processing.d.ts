@@ -1,5 +1,5 @@
 
-export type DocumentType = 'document' | 'google_drive' | 'google_sheet' | 'web_page' | 'pdf' | 'docx' | 'text' | 'html' | 'other';
+export type DocumentType = 'document' | 'google_drive' | 'google_sheet' | 'web_page' | 'pdf' | 'docx' | 'text' | 'html' | 'other' | 'url';
 export type AccessStatus = 'granted' | 'pending' | 'denied' | 'unknown' | 'accessible' | 'inaccessible';
 
 export interface DocumentLink {
