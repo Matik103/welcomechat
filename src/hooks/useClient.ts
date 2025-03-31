@@ -59,11 +59,14 @@ export const useClient = (clientId: string, options = {}) => {
       }
 
       // Try to get the client with interaction_type = 'config'
+      // Changed from single() to limit(1).maybeSingle() to handle multiple records
       const { data: configData, error: configError } = await supabase
         .from('ai_agents')
         .select('*')
         .eq('interaction_type', 'config')
         .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
         
       if (configError) {
