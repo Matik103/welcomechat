@@ -45,6 +45,10 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
         refresh_rate: refreshRate,
         // Add agent-specific metadata
         client_id: clientId,
+        metadata: {
+          agent_name: agentName,
+          source: 'agent_config'
+        }
       };
       
       await addWebsiteUrl(websiteUrlData);
