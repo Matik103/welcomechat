@@ -16,6 +16,7 @@ import { isAdminClientConfigured } from '@/integrations/supabase/client-admin';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { ClientMutationData } from '@/hooks/useClientMutation';
+import { supabase } from '@/integrations/supabase/client';
 
 export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +25,40 @@ export function EditClientInfo() {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('profile');
   const [serviceKeyError, setServiceKeyError] = useState<boolean>(!isAdminClientConfigured());
+  const [checkingClient, setCheckingClient] = useState<boolean>(false);
+  const [clientExists, setClientExists] = useState<boolean | null>(null);
+  
+  // First check if the client exists in the database
+  useEffect(() => {
+    const checkClientExists = async () => {
+      if (!id) return;
+      
+      setCheckingClient(true);
+      try {
+        const { data, error, count } = await supabase
+          .from('clients')
+          .select('id', { count: 'exact' })
+          .eq('id', id)
+          .limit(1);
+          
+        if (error) throw error;
+        
+        setClientExists(count ? count > 0 : false);
+        
+        if (!count || count === 0) {
+          toast.error(`Client with ID ${id} does not exist in the database`);
+          console.error(`Client with ID ${id} not found in database`);
+        }
+      } catch (err) {
+        console.error("Error checking if client exists:", err);
+        setClientExists(false);
+      } finally {
+        setCheckingClient(false);
+      }
+    };
+    
+    checkClientExists();
+  }, [id]);
   
   const { 
     client, 
@@ -105,6 +140,29 @@ export function EditClientInfo() {
         message="The Supabase service role key is missing or invalid. Logo upload functionality requires this key."
         details="To fix this issue, add your Supabase service role key to the .env file as VITE_SUPABASE_SERVICE_ROLE_KEY. This key is required for logo uploads and storage bucket management."
         onRetry={handleRetryServiceKey}
+      />
+    );
+  }
+
+  if (checkingClient) {
+    return (
+      <div className="container mx-auto py-8 text-center">
+        <PageHeading>Checking Client</PageHeading>
+        <div className="mt-6 flex flex-col items-center justify-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
+          <p className="mt-4">Verifying client exists...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (clientExists === false) {
+    return (
+      <ErrorDisplay 
+        title="Client Not Found"
+        message={`The client with ID ${id} does not exist in the database.`}
+        details="This client may have been deleted or the ID is incorrect."
+        onRetry={() => navigation.navigate('/admin/clients')}
       />
     );
   }

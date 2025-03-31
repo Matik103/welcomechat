@@ -32,6 +32,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
     queryKey: ['client', id],
     queryFn: async () => {
       if (!id) throw new Error('Client ID is required');
+      
+      console.log(`Fetching client with ID: ${id}`);
 
       // First get the client data
       const { data: clientData, error } = await supabase
@@ -40,8 +42,17 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         .eq('id', id)
         .maybeSingle();
 
-      if (error) throw error;
-      if (!clientData) throw new Error(`Client not found with ID: ${id}`);
+      if (error) {
+        console.error("Error fetching client data:", error);
+        throw error;
+      }
+      
+      if (!clientData) {
+        console.error(`Client not found with ID: ${id}`);
+        throw new Error(`Client not found with ID: ${id}`);
+      }
+
+      console.log("Client data found:", clientData);
 
       // Now get the agent config data
       const { data: agentConfig, error: agentError } = await supabase
@@ -55,6 +66,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         console.error('Error fetching agent config:', agentError);
         // Continue anyway, this is non-blocking
       }
+
+      console.log("Agent config data:", agentConfig);
 
       // Type assertion to help TypeScript - cast to any since we know the DB may return fields
       // that aren't explicitly in the clients table schema type
