@@ -7,6 +7,7 @@ interface AdminStatCardProps {
   title: string;
   value: number;
   active?: number;
+  activeLabel?: string;
   changePercentage?: number;
   bgColor: string;
   chartData: number[];
@@ -19,6 +20,7 @@ export function AdminStatCard({
   title,
   value,
   active,
+  activeLabel = "Active",
   changePercentage,
   bgColor,
   chartData,
@@ -38,7 +40,7 @@ export function AdminStatCard({
         </div>
         <div className="text-2xl font-bold mb-1">{value.toLocaleString()}</div>
         {active !== undefined && (
-          <div className="text-sm opacity-80 mb-1">{active} Active</div>
+          <div className="text-sm opacity-80 mb-1">{active} {activeLabel}</div>
         )}
         {changePercentage !== undefined && (
           <div className={`text-sm ${changePercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -25,6 +26,7 @@ interface DashboardData {
     total: number;
     changePercentage: number;
     chartData: number[];
+    recent: number;
   };
   trainings: {
     total: number;
@@ -35,6 +37,7 @@ interface DashboardData {
     total: number;
     changePercentage: number;
     chartData: number[];
+    recent: number;
   };
   activityCharts: {
     database: any;
@@ -62,7 +65,8 @@ export function useAdminDashboardData() {
     interactions: {
       total: 0,
       changePercentage: 0,
-      chartData: generateChartData()
+      chartData: generateChartData(),
+      recent: 0
     },
     trainings: {
       total: 0,
@@ -72,7 +76,8 @@ export function useAdminDashboardData() {
     administration: {
       total: 0,
       changePercentage: 0,
-      chartData: generateChartData()
+      chartData: generateChartData(),
+      recent: 0
     },
     activityCharts: {
       database: {
@@ -122,42 +127,37 @@ export function useAdminDashboardData() {
       const agents = await getAllAgents();
       const totalAgents = agents.length;
       
-      const timeAgo = new Date();
-      timeAgo.setHours(timeAgo.getHours() - 48);
+      // Get last 24 hours timestamp
+      const last24Hours = new Date();
+      last24Hours.setHours(last24Hours.getHours() - 24);
+      const last24HoursStr = last24Hours.toISOString();
       
+      // For agents active in the last 24 hours
       const activeAgents = agents.filter(agent => 
-        agent.last_active && new Date(agent.last_active) > timeAgo
+        agent.last_active && new Date(agent.last_active) > last24Hours
       ).length;
       
-      const { data: agentsData, error: agentsError } = await supabase
-        .from('ai_agents')
-        .select('client_id, last_active, status, deleted_at')
-        .eq('interaction_type', 'config')
+      // Get clients with their last_active status
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, last_active, status, deleted_at')
         .eq('status', 'active')
         .is('deleted_at', null);
       
-      if (agentsError) throw agentsError;
+      if (clientsError) throw clientsError;
       
-      const uniqueClientIds = new Set();
-      const activeClientIds = new Set();
+      const totalClients = clientsData.length;
       
-      for (const agent of agentsData) {
-        if (agent.client_id) {
-          uniqueClientIds.add(agent.client_id);
-          
-          if (agent.last_active && new Date(agent.last_active) > timeAgo) {
-            activeClientIds.add(agent.client_id);
-          }
-        }
-      }
+      // Count clients active in the last 24 hours
+      const activeClients = clientsData.filter(client => 
+        client.last_active && new Date(client.last_active) > last24Hours
+      ).length;
       
-      const totalClients = uniqueClientIds.size;
-      const activeClients = activeClientIds.size;
-      
+      // Calculate growth percentages
       const clientGrowthRate = totalClients > 0 ? Math.round((activeClients / totalClients) * 100) : 0;
-      
       const agentGrowthRate = totalAgents > 0 ? Math.round((activeAgents / totalAgents) * 100) : 0;
       
+      // Get total interactions count
       const { count: interactionsCount, error: interactionsError } = await supabase
         .from('ai_agents')
         .select('id', { count: 'exact', head: true })
@@ -165,6 +165,16 @@ export function useAdminDashboardData() {
       
       if (interactionsError) throw interactionsError;
       
+      // Get recent interactions (last 24 hours)
+      const { count: recentInteractionsCount, error: recentInteractionsError } = await supabase
+        .from('ai_agents')
+        .select('id', { count: 'exact', head: true })
+        .eq('interaction_type', 'chat_interaction')
+        .gt('created_at', last24HoursStr);
+      
+      if (recentInteractionsError) throw recentInteractionsError;
+      
+      // Count training resources
       const { count: websiteUrlsCount, error: websiteUrlsError } = await supabase
         .from('website_urls')
         .select('id', { count: 'exact', head: true });
@@ -185,6 +195,7 @@ export function useAdminDashboardData() {
       
       const trainingsTotal = (websiteUrlsCount || 0) + (documentLinksCount || 0) + (driveLinksCount || 0);
       
+      // Get administration activities
       const { count: adminActivitiesCount, error: adminActivitiesError } = await supabase
         .from('activities')
         .select('id', { count: 'exact', head: true })
@@ -192,11 +203,25 @@ export function useAdminDashboardData() {
       
       if (adminActivitiesError) throw adminActivitiesError;
       
+      // Get chart data from the function
       const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
       
       if (chartError) throw chartError;
       
       const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
+
+      // For administration card, count recent clients who logged in the last 24 hours
+      // This is similar to activeClients but we're tracking it separately for the administration card
+      const recentAdminLogins = activeClients;
+      
+      // Calculate growth metrics
+      const interactionsChangePercentage = 
+        recentInteractionsCount && interactionsCount ? 
+        Math.round((recentInteractionsCount / (interactionsCount - recentInteractionsCount)) * 100) : 0;
+      
+      const adminChangePercentage = 
+        recentAdminLogins && totalClients ? 
+        Math.round((recentAdminLogins / totalClients) * 100) : 0;
       
       setDashboardData({
         clients: {
@@ -213,8 +238,9 @@ export function useAdminDashboardData() {
         },
         interactions: {
           total: interactionsCount || 0,
-          changePercentage: 12,
-          chartData: generateChartData()
+          changePercentage: interactionsChangePercentage,
+          chartData: generateChartData(),
+          recent: recentInteractionsCount || 0
         },
         trainings: {
           total: trainingsTotal,
@@ -223,8 +249,9 @@ export function useAdminDashboardData() {
         },
         administration: {
           total: adminActivitiesCount || 0,
-          changePercentage: 3,
-          chartData: generateChartData()
+          changePercentage: adminChangePercentage,
+          chartData: generateChartData(),
+          recent: recentAdminLogins || 0
         },
         activityCharts: parsedChartData
       });

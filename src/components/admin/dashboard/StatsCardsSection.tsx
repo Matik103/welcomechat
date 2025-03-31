@@ -26,6 +26,7 @@ interface StatsCardsSectionProps {
     };
     interactions: {
       total: number;
+      recent: number;
       changePercentage: number;
       chartData: number[];
     };
@@ -36,6 +37,7 @@ interface StatsCardsSectionProps {
     };
     administration: {
       total: number;
+      recent: number;
       changePercentage: number;
       chartData: number[];
     };
@@ -51,6 +53,7 @@ export function StatsCardsSection({ dashboardData }: StatsCardsSectionProps) {
         title="CLIENTS"
         value={dashboardData.clients.total}
         active={dashboardData.clients.active}
+        activeLabel="Active in 24h"
         changePercentage={dashboardData.clients.changePercentage}
         bgColor="bg-[#ECFDF5]"
         chartData={dashboardData.clients.chartData}
@@ -63,6 +66,7 @@ export function StatsCardsSection({ dashboardData }: StatsCardsSectionProps) {
         title="AGENTS"
         value={dashboardData.agents.total}
         active={dashboardData.agents.active}
+        activeLabel="Active in 24h"
         changePercentage={dashboardData.agents.changePercentage}
         bgColor="bg-gray-100"
         chartData={dashboardData.agents.chartData}
@@ -74,6 +78,8 @@ export function StatsCardsSection({ dashboardData }: StatsCardsSectionProps) {
       <AdminStatCard
         title="INTERACTIONS"
         value={dashboardData.interactions.total}
+        active={dashboardData.interactions.recent}
+        activeLabel="Recent in 24h"
         changePercentage={dashboardData.interactions.changePercentage}
         bgColor="bg-[#FEF9C3]"
         chartData={dashboardData.interactions.chartData}
@@ -96,6 +102,8 @@ export function StatsCardsSection({ dashboardData }: StatsCardsSectionProps) {
       <AdminStatCard
         title="ADMINISTRATION"
         value={dashboardData.administration.total}
+        active={dashboardData.administration.recent}
+        activeLabel="Logins in 24h"
         changePercentage={dashboardData.administration.changePercentage}
         bgColor="bg-[#FEE2E2]"
         chartData={dashboardData.administration.chartData}
