@@ -48,11 +48,11 @@ export const useClient = (id: string, options?: UseClientOptions) => {
       if (agentConfig && !agentError) {
         console.log('Found client in ai_agents table:', agentConfig);
         
-        // Now get the client data for any additional fields
+        // Now get additional fields from ai_agents table for the same client
         const { data: clientData, error: clientError } = await supabase
-          .from('clients')
+          .from('ai_agents')
           .select('*')
-          .eq('id', id)
+          .eq('client_id', id)
           .maybeSingle();
           
         if (clientError) console.error('Error fetching client data:', clientError);
@@ -69,18 +69,18 @@ export const useClient = (id: string, options?: UseClientOptions) => {
           status: clientData?.status || 'active',
           created_at: agentConfig.created_at || clientData?.created_at || new Date().toISOString(),
           updated_at: agentConfig.updated_at || clientData?.updated_at || new Date().toISOString(),
-          agent_name: agentConfig.name || clientData?.agent_name || '',
+          agent_name: agentConfig.name || clientData?.name || '',
           agent_description: agentConfig.agent_description || '',
           logo_url: agentConfig.logo_url || '',
           logo_storage_path: agentConfig.logo_storage_path || '',
           // Add missing required fields from Client type with fallbacks
-          company: parsedSettings.company || clientData?.company || '',
-          description: parsedSettings.description || agentConfig.description || clientData?.description || '',
-          deleted_at: parsedSettings.deleted_at || agentConfig.deleted_at || clientData?.deleted_at || null,
-          deletion_scheduled_at: parsedSettings.deletion_scheduled_at || agentConfig.deletion_scheduled_at || clientData?.deletion_scheduled_at || null,
-          last_active: parsedSettings.last_active || agentConfig.last_active || clientData?.last_active || null,
+          company: parsedSettings.company || '',
+          description: parsedSettings.description || agentConfig.description || '',
+          deleted_at: parsedSettings.deleted_at || agentConfig.deleted_at || null,
+          deletion_scheduled_at: parsedSettings.deletion_scheduled_at || agentConfig.deletion_scheduled_at || null,
+          last_active: parsedSettings.last_active || agentConfig.last_active || null,
           widget_settings: parsedSettings || {},
-          name: agentConfig.name || clientData?.agent_name || '',
+          name: agentConfig.name || '',
           is_error: false,
           user_id: parsedSettings.user_id || undefined
         };
@@ -94,41 +94,41 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         };
       }
 
-      // Fallback to clients table if not found in ai_agents
-      console.log('Falling back to clients table');
+      // Fallback to ai_agents table with a different query if not found with interaction_type='config'
+      console.log('Falling back to general ai_agents query');
       const { data: clientData, error } = await supabase
-        .from('clients')
+        .from('ai_agents')
         .select('*')
-        .eq('id', id)
+        .eq('client_id', id)
         .maybeSingle();
 
       if (error) throw error;
       if (!clientData) throw new Error(`Client not found with ID: ${id}`);
 
       // Parse widget_settings to ensure it's a proper object
-      const parsedWidgetSettings = safeParseSettings(clientData.widget_settings);
+      const parsedWidgetSettings = safeParseSettings(clientData.settings);
 
-      // Simple client record without agent details
+      // Simple client record without explicit agent details
       const basicClient: Client = {
-        id: clientData.id,
-        client_id: clientData.id,
+        id: id,
+        client_id: id,
         client_name: clientData.client_name || '',
         email: clientData.email || '',
         status: clientData.status || 'active',
         created_at: clientData.created_at || new Date().toISOString(),
         updated_at: clientData.updated_at || new Date().toISOString(),
-        agent_name: clientData.agent_name || clientData.client_name || '',
-        agent_description: parsedWidgetSettings.agent_description || '',
-        logo_url: parsedWidgetSettings.logo_url || '',
-        logo_storage_path: parsedWidgetSettings.logo_storage_path || '',
+        agent_name: clientData.name || clientData.client_name || '',
+        agent_description: parsedWidgetSettings.agent_description || clientData.agent_description || '',
+        logo_url: parsedWidgetSettings.logo_url || clientData.logo_url || '',
+        logo_storage_path: parsedWidgetSettings.logo_storage_path || clientData.logo_storage_path || '',
         // Add missing required fields from Client type with fallbacks
-        company: parsedWidgetSettings.company || '',
-        description: parsedWidgetSettings.description || '',
-        deleted_at: parsedWidgetSettings.deleted_at || null,
-        deletion_scheduled_at: parsedWidgetSettings.deletion_scheduled_at || null,
-        last_active: parsedWidgetSettings.last_active || null,
+        company: parsedWidgetSettings.company || clientData.company || '',
+        description: parsedWidgetSettings.description || clientData.description || '',
+        deleted_at: parsedWidgetSettings.deleted_at || clientData.deleted_at || null,
+        deletion_scheduled_at: parsedWidgetSettings.deletion_scheduled_at || clientData.deletion_scheduled_at || null,
+        last_active: parsedWidgetSettings.last_active || clientData.last_active || null,
         widget_settings: parsedWidgetSettings,
-        name: clientData.agent_name || clientData.client_name || '',
+        name: clientData.name || clientData.client_name || '',
         is_error: false,
         user_id: parsedWidgetSettings.user_id || undefined
       };
