@@ -45,7 +45,7 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
         await createClientActivity(
           clientId,
           agentName,
-          ActivityType.DOCUMENT_UPLOADED, // Using enum value instead of string literal
+          ActivityType.DOCUMENT_ADDED, // Changed from DOCUMENT_UPLOADED to DOCUMENT_ADDED which exists in the enum
           `Document uploaded for agent ${agentName}: ${file.name}`,
           {
             file_name: file.name,
