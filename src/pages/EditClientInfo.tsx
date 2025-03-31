@@ -65,7 +65,18 @@ export function EditClientInfo() {
         agent_name: data.agent_name,
         agent_description: data.agent_description,
         logo_url: data.logo_url,
-        logo_storage_path: data.logo_storage_path
+        logo_storage_path: data.logo_storage_path,
+        // Add required fields from Client type
+        company: client.company || '',
+        description: client.description || '',
+        status: client.status || 'active',
+        widget_settings: client.widget_settings || {},
+        created_at: client.created_at,
+        updated_at: new Date().toISOString(),
+        deleted_at: client.deleted_at,
+        deletion_scheduled_at: client.deletion_scheduled_at,
+        last_active: client.last_active,
+        is_error: false
       });
       
       toast.success("Client information updated successfully");

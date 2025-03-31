@@ -76,11 +76,13 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
     if (clientData) {
       // Use data from clients table
       const widgetSettings = clientData.widget_settings || {};
-      return {
+      // Fixed to make sure we spread an object type
+      const mergedSettings = {
         ...defaultSettings,
         agent_name: clientData.agent_name || clientData.client_name || defaultSettings.agent_name,
-        ...widgetSettings
+        ...(typeof widgetSettings === 'object' ? widgetSettings : {})
       };
+      return mergedSettings;
     }
     
     console.log('No client or agent found, returning default settings');

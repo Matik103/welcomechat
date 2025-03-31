@@ -69,6 +69,16 @@ export const useClient = (id: string, options?: UseClientOptions) => {
           agent_description: agentConfig.agent_description || '',
           logo_url: agentConfig.logo_url || '',
           logo_storage_path: agentConfig.logo_storage_path || '',
+          // Add missing required fields from Client type
+          company: clientData?.company || '',
+          description: clientData?.description || '',
+          deleted_at: clientData?.deleted_at || null,
+          deletion_scheduled_at: clientData?.deletion_scheduled_at || null,
+          last_active: clientData?.last_active || null,
+          widget_settings: clientData?.widget_settings || {},
+          name: agentConfig.name || clientData?.agent_name || '',
+          is_error: false,
+          user_id: clientData?.user_id
         };
 
         // Extract widget settings
@@ -104,6 +114,16 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         agent_description: '',
         logo_url: '',
         logo_storage_path: '',
+        // Add missing required fields from Client type
+        company: clientData.company || '',
+        description: clientData.description || '',
+        deleted_at: clientData.deleted_at || null,
+        deletion_scheduled_at: clientData.deletion_scheduled_at || null,
+        last_active: clientData.last_active || null,
+        widget_settings: clientData.widget_settings || {},
+        name: clientData.agent_name || clientData.client_name,
+        is_error: false,
+        user_id: clientData.user_id
       };
 
       // Extract widget settings
