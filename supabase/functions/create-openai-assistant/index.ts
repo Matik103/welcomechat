@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
@@ -62,8 +61,8 @@ serve(async (req) => {
       body: JSON.stringify({
         name: agent_name,
         instructions: agent_description,
-        model: "gpt-4o", // Use the latest model for best results
-        tools: [{ type: "file_search" }], // Enable file search (v2 replacement for retrieval)
+        model: "gpt-4-turbo-preview",
+        tools: [{ type: "code_interpreter" }],
         metadata: {
           client_id: client_id,
           client_name: client_name || "",
