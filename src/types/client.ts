@@ -1,3 +1,4 @@
+
 import { Json } from '@/integrations/supabase/types';
 import { ActivityType } from './client-form';
 import { AccessStatus } from './document-processing';
@@ -24,6 +25,7 @@ export interface Client {
   name?: string;
   is_error?: boolean;
   user_id?: string; // Added for compatibility
+  openai_assistant_id?: string; // Added for OpenAI integration
 }
 
 // Export these types from client-dashboard.ts to avoid circular dependencies
