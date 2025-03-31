@@ -63,7 +63,7 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         client_id: clientData.id,
         client_name: clientData.client_name || '',
         email: clientData.email || '',
-        company: clientData.company || '',
+        company: clientData.company || '', // Use optional chaining with fallback
         description: clientData.description || '',
         status: clientData.status || 'active',
         created_at: clientData.created_at || new Date().toISOString(),
@@ -71,12 +71,12 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         deleted_at: clientData.deleted_at || null,
         deletion_scheduled_at: clientData.deletion_scheduled_at || null,
         last_active: clientData.last_active || null,
-        logo_url: agentConfig?.logo_url || clientData.logo_url || '',
-        logo_storage_path: agentConfig?.logo_storage_path || clientData.logo_storage_path || '',
+        logo_url: agentConfig?.logo_url || (clientData as any).logo_url || '',
+        logo_storage_path: agentConfig?.logo_storage_path || (clientData as any).logo_storage_path || '',
         agent_name: agentConfig?.name || clientData.agent_name || clientData.client_name || '',
         agent_description: agentConfig?.agent_description || '',
         widget_settings: {},
-        is_error: clientData.is_error || false,
+        is_error: (clientData as any).is_error || false,
         name: agentConfig?.name || clientData.agent_name || clientData.client_name || '',
       };
 
