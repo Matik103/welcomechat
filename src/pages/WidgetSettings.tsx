@@ -39,12 +39,23 @@ export default function WidgetSettings() {
 
   // Sync agent name from client data when settings load
   useEffect(() => {
-    if (!isLoadingClient && client && settings && !settings.agent_name) {
-      // If we have client data and settings don't have agent_name, sync it
-      if (client.agent_name) {
+    if (!isLoadingClient && client && settings) {
+      // If client data has different values than widget settings, update widget settings
+      const needsUpdate = 
+        (client.agent_name && client.agent_name !== settings.agent_name) ||
+        (client.logo_url && client.logo_url !== settings.logo_url);
+        
+      if (needsUpdate) {
+        console.log("Syncing widget settings with client data:", { 
+          clientName: client.agent_name, 
+          settingsName: settings.agent_name 
+        });
+        
         updateSettingsMutation.mutate({
           ...settings,
-          agent_name: client.agent_name
+          agent_name: client.agent_name || settings.agent_name,
+          logo_url: client.logo_url || settings.logo_url,
+          logo_storage_path: client.logo_storage_path || settings.logo_storage_path
         });
       }
     }

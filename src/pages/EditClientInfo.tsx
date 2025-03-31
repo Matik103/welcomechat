@@ -17,12 +17,14 @@ import ErrorDisplay from '@/components/ErrorDisplay';
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { ClientMutationData } from '@/hooks/useClientMutation';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
   const { userRole } = useAuth();
   const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('profile');
   const [serviceKeyError, setServiceKeyError] = useState<boolean>(!isAdminClientConfigured());
   const [checkingClient, setCheckingClient] = useState<boolean>(false);
@@ -108,6 +110,13 @@ export function EditClientInfo() {
     }
   }, [error]);
 
+  // If client data changes, also invalidate widget settings
+  useEffect(() => {
+    if (client && client.id) {
+      queryClient.invalidateQueries({ queryKey: ['widget-settings', client.id] });
+    }
+  }, [client, queryClient]);
+
   // Memoize submit handler to prevent unnecessary re-renders
   const handleSubmit = useCallback(async (data: ClientFormData) => {
     try {
@@ -140,6 +149,9 @@ export function EditClientInfo() {
       
       await clientMutation.mutateAsync(mutationData);
       
+      // Also invalidate widget settings to ensure bidirectional sync
+      queryClient.invalidateQueries({ queryKey: ['widget-settings', updateClientId] });
+      
       toast.success("Client information updated successfully");
       // Don't immediately refetch to avoid race conditions
       setTimeout(() => refetchClient(), 500);
@@ -147,7 +159,7 @@ export function EditClientInfo() {
       console.error("Error updating client:", error);
       toast.error(`Failed to update client: ${error instanceof Error ? error.message : String(error)}`);
     }
-  }, [client, clientId, clientMutation, refetchClient]);
+  }, [client, clientId, clientMutation, refetchClient, queryClient]);
 
   const handleNavigateBack = useCallback(() => {
     navigation.goBack();
