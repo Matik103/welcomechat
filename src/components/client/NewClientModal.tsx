@@ -50,8 +50,16 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
     setError(null);
     
     try {
-      // Generate a UUID for client_id
-      const clientId = crypto.randomUUID();
+      // Generate a UUID using Supabase's database function
+      const { data: uuidData, error: uuidError } = await supabaseAdmin.rpc(
+        'uuid_generate_v4'
+      );
+      
+      if (uuidError) {
+        throw new Error(`Failed to generate UUID: ${uuidError.message}`);
+      }
+      
+      const clientId = uuidData;
       const tempPassword = generateTempPassword();
       
       const insertData = {
