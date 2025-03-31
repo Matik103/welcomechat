@@ -5,7 +5,7 @@ import { useParams } from "react-router-dom";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettingsService";
 import { handleLogoUpload } from "@/services/uploadService";
 import { defaultSettings } from "@/types/widget-settings";
@@ -22,12 +22,13 @@ export default function WidgetSettings() {
   const { user, userRole } = useAuth();
   const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const { logClientActivity } = useClientActivity(clientId);
   const widgetSettingsHook = useWidgetSettings(clientId || "");
   
   // Get client data to sync agent name
-  const { client, isLoadingClient } = useClientData(clientId);
+  const { client, isLoadingClient, refetchClient } = useClientData(clientId);
 
   // Fetch widget settings
   const { data: settings, isLoading, refetch } = useQuery({
@@ -70,6 +71,11 @@ export default function WidgetSettings() {
     },
     onSuccess: () => {
       refetch();
+      // Also invalidate client queries to ensure bidirectional sync
+      if (clientId) {
+        queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      }
+      
       if (isAdmin) {
         toast.success("Widget settings updated successfully");
       } else {
@@ -106,7 +112,10 @@ export default function WidgetSettings() {
             agent_name: settings?.agent_name,
             logo_url: result.url
           });
+          
+        // Refetch both widget settings and client data
         refetch();
+        refetchClient();
       }
     } catch (error) {
       console.error("Error uploading logo:", error);
