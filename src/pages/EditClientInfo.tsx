@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
@@ -35,6 +34,37 @@ export function EditClientInfo() {
       
       setCheckingClient(true);
       try {
+        // First check in ai_agents table
+        const { data: aiAgentData, error: aiAgentError, count: aiAgentCount } = await supabase
+          .from('ai_agents')
+          .select('id', { count: 'exact' })
+          .eq('client_id', id)
+          .eq('interaction_type', 'config')
+          .limit(1);
+          
+        if (aiAgentCount && aiAgentCount > 0) {
+          console.log(`Found client in ai_agents table with client_id: ${id}`);
+          setClientExists(true);
+          setCheckingClient(false);
+          return;
+        }
+        
+        // Also check by direct id match in ai_agents
+        const { data: directAgentData, error: directAgentError, count: directAgentCount } = await supabase
+          .from('ai_agents')
+          .select('id', { count: 'exact' })
+          .eq('id', id)
+          .eq('interaction_type', 'config')
+          .limit(1);
+          
+        if (directAgentCount && directAgentCount > 0) {
+          console.log(`Found client in ai_agents table with direct id: ${id}`);
+          setClientExists(true);
+          setCheckingClient(false);
+          return;
+        }
+        
+        // Fallback to clients table
         const { data, error, count } = await supabase
           .from('clients')
           .select('id', { count: 'exact' })

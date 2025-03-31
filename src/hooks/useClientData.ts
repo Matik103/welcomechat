@@ -69,7 +69,7 @@ export const useClientData = (id: string | undefined) => {
     return Promise.resolve();
   }, [clientId, refetch]);
 
-  // Get the effective client ID (either client.id or client.client_id)
+  // Get the effective client ID from different possible sources
   const effectiveClientId = client?.id || client?.client_id || clientId;
 
   return {

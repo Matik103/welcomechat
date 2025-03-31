@@ -35,7 +35,49 @@ export const useClient = (id: string, options?: UseClientOptions) => {
       
       console.log(`Fetching client with ID: ${id}`);
 
-      // First get the client data
+      // First check if the ID exists in the ai_agents table with interaction_type = 'config'
+      const { data: agentConfig, error: agentConfigError } = await supabase
+        .from('ai_agents')
+        .select('*')
+        .eq('client_id', id)
+        .eq('interaction_type', 'config')
+        .maybeSingle();
+
+      // If we found a record in ai_agents table, use that as primary source
+      if (agentConfig && !agentConfigError) {
+        console.log("Found client data in ai_agents table:", agentConfig);
+        
+        // Extract widget settings from the agent config
+        const widgetSettings = extractWidgetSettings(agentConfig);
+
+        // Create a properly typed client object from the agent config
+        const clientFromAgent: Client = {
+          id: id,
+          client_id: id,
+          client_name: agentConfig.client_name || '',
+          email: agentConfig.email || '',
+          company: agentConfig.company || '',
+          description: agentConfig.description || '',
+          status: agentConfig.status || 'active',
+          created_at: agentConfig.created_at || new Date().toISOString(),
+          updated_at: agentConfig.updated_at || new Date().toISOString(),
+          deleted_at: agentConfig.deleted_at || null,
+          deletion_scheduled_at: agentConfig.deletion_scheduled_at || null,
+          last_active: agentConfig.last_active || null,
+          logo_url: agentConfig.logo_url || '',
+          logo_storage_path: agentConfig.logo_storage_path || '',
+          agent_name: agentConfig.name || '',
+          agent_description: agentConfig.agent_description || '',
+          widget_settings: widgetSettings,
+          is_error: false,
+          name: agentConfig.name || '',
+        };
+
+        return clientFromAgent;
+      }
+
+      // As a fallback, try to get the client data from clients table
+      console.log("No record found in ai_agents table, falling back to clients table");
       const { data: clientData, error } = await supabase
         .from('clients')
         .select('*')
@@ -52,22 +94,19 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         throw new Error(`Client not found with ID: ${id}`);
       }
 
-      console.log("Client data found:", clientData);
+      console.log("Client data found in clients table:", clientData);
 
-      // Now get the agent config data
-      const { data: agentConfig, error: agentError } = await supabase
+      // Try to get the agent config data again based on ID
+      const { data: secondaryAgentConfig, error: secondaryAgentError } = await supabase
         .from('ai_agents')
         .select('*')
-        .eq('client_id', id)
+        .eq('id', id)  // Try matching by id field directly
         .eq('interaction_type', 'config')
         .maybeSingle();
-
-      if (agentError) {
-        console.error('Error fetching agent config:', agentError);
-        // Continue anyway, this is non-blocking
+        
+      if (secondaryAgentConfig && !secondaryAgentError) {
+        console.log("Found agent config by direct ID match:", secondaryAgentConfig);
       }
-
-      console.log("Agent config data:", agentConfig);
 
       // Type assertion to help TypeScript - cast to any since we know the DB may return fields
       // that aren't explicitly in the clients table schema type
@@ -87,18 +126,18 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         deleted_at: clientDataAny.deleted_at || null,
         deletion_scheduled_at: clientDataAny.deletion_scheduled_at || null,
         last_active: clientDataAny.last_active || null,
-        logo_url: agentConfig?.logo_url || clientDataAny.logo_url || '',
-        logo_storage_path: agentConfig?.logo_storage_path || clientDataAny.logo_storage_path || '',
-        agent_name: agentConfig?.name || clientDataAny.agent_name || clientDataAny.client_name || '',
-        agent_description: agentConfig?.agent_description || '',
+        logo_url: secondaryAgentConfig?.logo_url || clientDataAny.logo_url || '',
+        logo_storage_path: secondaryAgentConfig?.logo_storage_path || clientDataAny.logo_storage_path || '',
+        agent_name: secondaryAgentConfig?.name || clientDataAny.agent_name || clientDataAny.client_name || '',
+        agent_description: secondaryAgentConfig?.agent_description || '',
         widget_settings: {},
         is_error: clientDataAny.is_error || false,
-        name: agentConfig?.name || clientDataAny.agent_name || clientDataAny.client_name || '',
+        name: secondaryAgentConfig?.name || clientDataAny.agent_name || clientDataAny.client_name || '',
       };
 
       // Extract widget settings
       const widgetSettings = extractWidgetSettings(
-        agentConfig || clientDataAny
+        secondaryAgentConfig || clientDataAny
       );
 
       return {
