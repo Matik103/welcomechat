@@ -2,18 +2,13 @@
 import { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bot, Edit, MoreVertical, Settings, Trash } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { EditAgentDialog } from './EditAgentDialog';
 import { DeleteAgentDialog } from './DeleteAgentDialog';
+import { AgentConfigureDialog } from './AgentConfigureDialog';
 import type { Agent } from '@/services/agentService';
 
 interface AgentCardProps {
@@ -22,7 +17,7 @@ interface AgentCardProps {
 }
 
 export function AgentCard({ agent, onRefresh }: AgentCardProps) {
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isConfigureDialogOpen, setIsConfigureDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Format the last active date
@@ -58,23 +53,6 @@ export function AgentCard({ agent, onRefresh }: AgentCardProps) {
             </Badge>
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>
-              <Trash className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </CardHeader>
       <CardContent className="py-4">
         <p className="text-muted-foreground text-sm line-clamp-3">
@@ -96,18 +74,26 @@ export function AgentCard({ agent, onRefresh }: AgentCardProps) {
         </div>
       </CardContent>
       <CardFooter className="pt-2 flex justify-between">
-        <Button variant="outline" size="sm" className="w-full">
-          <Settings className="mr-2 h-4 w-4" />
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="w-full"
+          onClick={() => setIsConfigureDialogOpen(true)}
+        >
           Configure
         </Button>
       </CardFooter>
 
-      {/* Edit Agent Dialog */}
-      <EditAgentDialog
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
+      {/* Configure Agent Dialog */}
+      <AgentConfigureDialog
+        open={isConfigureDialogOpen}
+        onOpenChange={setIsConfigureDialogOpen}
         agent={agent}
         onAgentUpdated={onRefresh}
+        onDelete={() => {
+          setIsConfigureDialogOpen(false);
+          setIsDeleteDialogOpen(true);
+        }}
       />
 
       {/* Delete Agent Dialog */}
