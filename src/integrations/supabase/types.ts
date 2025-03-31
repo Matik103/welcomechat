@@ -5928,6 +5928,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      uuid_generate_v4: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       vector_avg: {
         Args: {
           "": number[]

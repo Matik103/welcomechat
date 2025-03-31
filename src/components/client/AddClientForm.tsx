@@ -40,17 +40,8 @@ export function AddClientForm() {
   const onSubmit = async (values: ClientFormValues) => {
     setIsSubmitting(true);
     try {
-      // Generate a client ID using supabase UUID generation
-      // This creates a stable UUID using Supabase's database function
-      const { data: uuidData, error: uuidError } = await supabaseAdmin.rpc(
-        'uuid_generate_v4'
-      );
-      
-      if (uuidError) {
-        throw new Error(`Failed to generate UUID: ${uuidError.message}`);
-      }
-      
-      const clientId = uuidData;
+      // Generate a client ID using crypto.randomUUID
+      const clientId = crypto.randomUUID();
       
       // Insert with explicitly set client_id field
       const { data, error } = await supabaseAdmin

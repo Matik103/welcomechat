@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { supabaseAdmin } from "@/integrations/supabase/admin";
+import { supabaseAdmin } from "@/integrations/supabase/client-admin";
 import { generateTempPassword, saveClientTempPassword } from "@/utils/passwordUtils";
 import { sendWelcomeEmail } from "@/utils/email/welcomeEmail";
 
@@ -50,16 +50,8 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
     setError(null);
     
     try {
-      // Generate a UUID using Supabase's database function
-      const { data: uuidData, error: uuidError } = await supabaseAdmin.rpc(
-        'uuid_generate_v4'
-      );
-      
-      if (uuidError) {
-        throw new Error(`Failed to generate UUID: ${uuidError.message}`);
-      }
-      
-      const clientId = uuidData;
+      // Generate a client ID using crypto.randomUUID
+      const clientId = crypto.randomUUID();
       const tempPassword = generateTempPassword();
       
       const insertData = {

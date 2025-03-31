@@ -15,7 +15,6 @@ import { generateTempPassword } from '@/utils/passwordUtils';
 import { sendWelcomeEmail } from '@/utils/email/welcomeEmail';
 import { saveClientTempPassword } from '@/utils/passwordUtils';
 import { createClientActivity } from '@/services/clientActivityService';
-import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 
 // Schema with optional chatbot fields
 const createClientSchema = z.object({
@@ -52,16 +51,8 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
     try {
       setIsSubmitting(true);
       
-      // Generate a client ID using Supabase's database function
-      const { data: uuidData, error: uuidError } = await supabaseAdmin.rpc(
-        'uuid_generate_v4'
-      );
-      
-      if (uuidError) {
-        throw new Error(`Failed to generate UUID: ${uuidError.message}`);
-      }
-      
-      const tempClientId = uuidData;
+      // Generate a client ID using crypto.randomUUID
+      const tempClientId = crypto.randomUUID();
       console.log("Generated client ID:", tempClientId);
       
       // Generate a temporary password
