@@ -10,70 +10,81 @@ import { defaultSettings } from "@/types/widget-settings";
  */
 export async function getWidgetSettings(clientId: string): Promise<WidgetSettings> {
   try {
-    // Get the client record first
-    const { data, error } = await supabase
+    console.log(`Getting widget settings for client: ${clientId}`);
+    
+    // First try to get settings from ai_agents table (primary source)
+    const { data: agentData, error: agentError } = await supabase
       .from('ai_agents')
       .select('settings, name, agent_description, logo_url, logo_storage_path')
       .eq('client_id', clientId)
       .eq('interaction_type', 'config')
-      .maybeSingle(); // Changed from single() to maybeSingle()
+      .maybeSingle();
     
-    if (error) throw error;
-    
-    if (!data) {
-      // If no ai_agents config exists, try to get the client info from clients table
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('client_name, agent_name, widget_settings')
-        .eq('id', clientId)
-        .maybeSingle();
-        
-      if (clientError) throw clientError;
-      
-      if (clientData) {
-        // Use data from clients table
-        const widgetSettings = clientData.widget_settings || {};
-        return {
-          ...defaultSettings,
-          agent_name: clientData.agent_name || clientData.client_name || defaultSettings.agent_name,
-          ...widgetSettings
-        };
-      }
-      
-      return { ...defaultSettings };
+    if (agentError) {
+      console.error('Error fetching from ai_agents:', agentError);
     }
     
-    // Convert to regular object if it's not already
-    let settingsObj: Partial<WidgetSettings> = {};
-    
-    if (data.settings) {
-      if (typeof data.settings === 'object') {
-        settingsObj = data.settings as Partial<WidgetSettings>;
-      } else if (typeof data.settings === 'string') {
-        try {
-          settingsObj = JSON.parse(data.settings) as Partial<WidgetSettings>;
-        } catch (e) {
-          settingsObj = {};
+    if (agentData) {
+      console.log('Found settings in ai_agents table:', agentData);
+      
+      // Convert to regular object if it's not already
+      let settingsObj: Partial<WidgetSettings> = {};
+      
+      if (agentData.settings) {
+        if (typeof agentData.settings === 'object') {
+          settingsObj = agentData.settings as Partial<WidgetSettings>;
+        } else if (typeof agentData.settings === 'string') {
+          try {
+            settingsObj = JSON.parse(agentData.settings) as Partial<WidgetSettings>;
+          } catch (e) {
+            settingsObj = {};
+          }
         }
       }
+      
+      // Merge settings with other fields from the record
+      const recordSettings = {
+        agent_name: agentData.name || settingsObj.agent_name,
+        agent_description: agentData.agent_description || settingsObj.agent_description,
+        logo_url: agentData.logo_url || settingsObj.logo_url,
+        logo_storage_path: agentData.logo_storage_path || settingsObj.logo_storage_path,
+        ...settingsObj
+      };
+      
+      // Ensure we have a complete settings object by merging with defaults
+      const mergedSettings = {
+        ...defaultSettings,
+        ...recordSettings
+      };
+      
+      return mergedSettings as WidgetSettings;
     }
     
-    // Merge settings with other fields from the record
-    const recordSettings = {
-      agent_name: data.name || settingsObj.agent_name,
-      agent_description: data.agent_description || settingsObj.agent_description,
-      logo_url: data.logo_url || settingsObj.logo_url,
-      logo_storage_path: data.logo_storage_path || settingsObj.logo_storage_path,
-      ...settingsObj
-    };
+    // Fallback to clients table if not found in ai_agents
+    console.log('Falling back to clients table for widget settings');
+    const { data: clientData, error: clientError } = await supabase
+      .from('clients')
+      .select('client_name, agent_name, widget_settings')
+      .eq('id', clientId)
+      .maybeSingle();
+      
+    if (clientError) {
+      console.error('Error fetching from clients:', clientError);
+      throw clientError;
+    }
     
-    // Ensure we have a complete settings object by merging with defaults
-    const mergedSettings = {
-      ...defaultSettings,
-      ...recordSettings
-    };
+    if (clientData) {
+      // Use data from clients table
+      const widgetSettings = clientData.widget_settings || {};
+      return {
+        ...defaultSettings,
+        agent_name: clientData.agent_name || clientData.client_name || defaultSettings.agent_name,
+        ...widgetSettings
+      };
+    }
     
-    return mergedSettings as WidgetSettings;
+    console.log('No client or agent found, returning default settings');
+    return { ...defaultSettings };
   } catch (error) {
     console.error('Error getting widget settings:', error);
     return { ...defaultSettings };
@@ -88,7 +99,9 @@ export async function updateWidgetSettings(
   settings: Partial<WidgetSettings>
 ): Promise<void> {
   try {
-    // First get the current settings
+    console.log(`Updating widget settings for client: ${clientId}`, settings);
+    
+    // First get the current settings to merge with
     const currentSettings = await getWidgetSettings(clientId);
     
     // Merge with the new settings
@@ -97,7 +110,10 @@ export async function updateWidgetSettings(
       ...settings
     };
     
-    // Check if an agent config record exists
+    // Extract fields that should be stored in separate columns
+    const { agent_name, agent_description, logo_url, logo_storage_path, ...otherSettings } = updatedSettings;
+    
+    // Check if an agent config record exists in ai_agents
     const { data, error: checkError } = await supabase
       .from('ai_agents')
       .select('id')
@@ -105,13 +121,14 @@ export async function updateWidgetSettings(
       .eq('interaction_type', 'config')
       .maybeSingle();
       
-    if (checkError) throw checkError;
-    
-    // Extract fields that should be stored in separate columns
-    const { agent_name, agent_description, logo_url, logo_storage_path, ...otherSettings } = updatedSettings;
+    if (checkError) {
+      console.error('Error checking for existing ai_agent:', checkError);
+      throw checkError;
+    }
     
     if (data) {
-      // Update existing record
+      // Update existing record in ai_agents
+      console.log('Updating existing ai_agents record:', data.id);
       const { error } = await supabase
         .from('ai_agents')
         .update({
@@ -119,14 +136,18 @@ export async function updateWidgetSettings(
           name: agent_name,
           agent_description: agent_description,
           logo_url: logo_url,
-          logo_storage_path: logo_storage_path
+          logo_storage_path: logo_storage_path,
+          updated_at: new Date().toISOString()
         })
-        .eq('client_id', clientId)
-        .eq('interaction_type', 'config');
+        .eq('id', data.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating ai_agents:', error);
+        throw error;
+      }
     } else {
       // Create new record if none exists
+      console.log('Creating new ai_agents record for client:', clientId);
       const { error } = await supabase
         .from('ai_agents')
         .insert({
@@ -136,19 +157,26 @@ export async function updateWidgetSettings(
           logo_url: logo_url,
           logo_storage_path: logo_storage_path,
           settings: otherSettings,
-          interaction_type: 'config'
+          interaction_type: 'config',
+          status: 'active'
         });
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating ai_agents record:', error);
+        throw error;
+      }
     }
     
-    // Also update the clients table to ensure bidirectional sync
+    // Also update the clients table to ensure backward compatibility
+    console.log('Updating clients table for backward compatibility');
     const { error: clientUpdateError } = await supabase
       .from('clients')
       .update({
         agent_name: agent_name,
         widget_settings: {
           ...otherSettings,
+          agent_name: agent_name,
+          agent_description: agent_description,
           logo_url: logo_url,
           logo_storage_path: logo_storage_path
         }

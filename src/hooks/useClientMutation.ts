@@ -12,21 +12,7 @@ export const useClientMutation = () => {
       try {
         console.log('Updating client with data:', client);
         
-        // Update the client data
-        const { error: clientError } = await supabase
-          .from('clients')
-          .update({
-            client_name: client.client_name,
-            email: client.email,
-            agent_name: client.agent_name,
-            updated_at: new Date().toISOString(),
-            // We don't update widget_settings here to avoid overwriting existing settings
-          })
-          .eq('id', client.client_id);
-        
-        if (clientError) throw clientError;
-
-        // Synchronize with ai_agents for widget settings
+        // First check if the AI agent config record exists
         const { data: agentConfig, error: checkError } = await supabase
           .from('ai_agents')
           .select('id')
@@ -34,10 +20,13 @@ export const useClientMutation = () => {
           .eq('interaction_type', 'config')
           .maybeSingle();
           
-        if (checkError) throw checkError;
+        if (checkError) {
+          console.error('Error checking if ai_agent exists:', checkError);
+        }
         
         if (agentConfig) {
           // Update existing agent config
+          console.log('Updating existing ai_agent config record');
           const { error: agentError } = await supabase
             .from('ai_agents')
             .update({
@@ -45,14 +34,19 @@ export const useClientMutation = () => {
               agent_description: client.agent_description,
               logo_url: client.logo_url,
               logo_storage_path: client.logo_storage_path,
+              client_name: client.client_name,
+              email: client.email,
               updated_at: new Date().toISOString()
             })
-            .eq('client_id', client.client_id)
-            .eq('interaction_type', 'config');
+            .eq('id', agentConfig.id);
             
-          if (agentError) throw agentError;
+          if (agentError) {
+            console.error('Error updating ai_agent:', agentError);
+            throw agentError;
+          }
         } else {
           // Create new agent config if it doesn't exist
+          console.log('Creating new ai_agent config record');
           const { error: createError } = await supabase
             .from('ai_agents')
             .insert({
@@ -61,11 +55,39 @@ export const useClientMutation = () => {
               agent_description: client.agent_description,
               logo_url: client.logo_url,
               logo_storage_path: client.logo_storage_path,
+              client_name: client.client_name,
+              email: client.email,
               interaction_type: 'config',
               status: 'active'
             });
             
-          if (createError) throw createError;
+          if (createError) {
+            console.error('Error creating ai_agent:', createError);
+            throw createError;
+          }
+        }
+        
+        // Now update the client record for backward compatibility
+        const { error: clientError } = await supabase
+          .from('clients')
+          .update({
+            client_name: client.client_name,
+            email: client.email,
+            agent_name: client.agent_name,
+            updated_at: new Date().toISOString(),
+            widget_settings: {
+              ...(client.widget_settings || {}),
+              agent_name: client.agent_name,
+              agent_description: client.agent_description,
+              logo_url: client.logo_url,
+              logo_storage_path: client.logo_storage_path
+            }
+          })
+          .eq('id', client.client_id);
+        
+        if (clientError) {
+          console.error('Error updating client:', clientError);
+          // Don't throw here, just log since the primary data is in ai_agents
         }
         
         return client.client_id;

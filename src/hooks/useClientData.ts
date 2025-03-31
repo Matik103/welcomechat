@@ -1,7 +1,6 @@
 
 import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
-import { ClientFormData } from "@/types/client-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
@@ -24,7 +23,7 @@ export const useClientData = (id: string | undefined) => {
     console.log("Using clientId:", clientId);
   }, [id, user, userRole, clientId]);
   
-  // Get client data with staleTime to prevent excessive refetching
+  // Get client data with no staleTime to ensure fresh data every time
   const { 
     client, 
     isLoading, 
