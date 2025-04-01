@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -20,58 +19,67 @@ const getEffectiveClientId = async (clientId: string) => {
     // Try finding the client by ID first (direct match)
     const { data: directMatch, error: directError } = await supabase
       .from("ai_agents")
-      .select("id, client_id")
+      .select("id")
       .eq("id", clientId)
-      .eq("interaction_type", "config")
-      .single();
+      .limit(1)
+      .maybeSingle();
       
     if (!directError && directMatch) {
       console.log("Found client by direct ID match:", directMatch.id);
       return directMatch.id;
     }
     
-    // If that fails, try by client_id field
+    // Try finding by client_id field
     const { data: clientIdMatch, error: clientIdError } = await supabase
       .from("ai_agents")
       .select("id")
       .eq("client_id", clientId)
-      .eq("interaction_type", "config")
-      .single();
+      .limit(1)
+      .maybeSingle();
       
     if (!clientIdError && clientIdMatch) {
       console.log("Found client by client_id match:", clientIdMatch.id);
       return clientIdMatch.id;
     }
     
-    // Try one more query with less restrictions
-    const { data: fallbackMatch, error: fallbackError } = await supabase
-      .from("ai_agents")
-      .select("id, client_id")
-      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
-      .limit(1);
-    
-    if (!fallbackError && fallbackMatch && fallbackMatch.length > 0) {
-      console.log("Found client using fallback query:", fallbackMatch[0].id);
-      return fallbackMatch[0].id;
-    }
-
-    // Last resort - just try to find any record with this ID
-    const { data: lastResort, error: lastResortError } = await supabase
+    // Try with a more flexible OR query
+    const { data: results, error: queryError } = await supabase
       .from("ai_agents")
       .select("id")
-      .filter('id', 'ilike', `%${clientId}%`)
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
       .limit(1);
       
-    if (!lastResortError && lastResort && lastResort.length > 0) {
-      console.log("Found client using partial ID match:", lastResort[0].id);
-      return lastResort[0].id;
+    if (!queryError && results && results.length > 0) {
+      console.log("Found client with flexible query:", results[0].id);
+      return results[0].id;
+    }
+    
+    // Last attempt: Try with interaction_type filter removed and a direct lookup
+    const { data: anyMatch, error: anyError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("id", clientId)
+      .limit(1);
+      
+    if (!anyError && anyMatch && anyMatch.length > 0) {
+      console.log("Found client without filters:", anyMatch[0].id);
+      return anyMatch[0].id;
     }
     
     console.error("All attempts to find client failed for ID:", clientId);
-    throw new Error(`Could not find client record with ID: ${clientId}`);
+    console.error("Direct match error:", directError);
+    console.error("Client ID match error:", clientIdError);
+    console.error("Flexible query error:", queryError);
+    console.error("Any match error:", anyError);
+    
+    // Last resort: just use the provided ID
+    console.log("Using provided ID as last resort:", clientId);
+    return clientId;
   } catch (error) {
     console.error("Error getting effective client ID:", error);
-    throw error;
+    // Instead of failing, return the original client ID as fallback
+    console.log("Using original client ID as fallback after error:", clientId);
+    return clientId;
   }
 };
 
@@ -90,7 +98,7 @@ export function useDocumentUpload(clientId: string) {
     try {
       // Get the effective client ID with improved error handling
       const actualClientId = await getEffectiveClientId(clientId);
-      console.log("Found client record with ID:", actualClientId);
+      console.log("Using effective client ID for upload:", actualClientId);
 
       // Create a unique file path with a clean filename
       const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';

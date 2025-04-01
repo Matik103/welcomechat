@@ -13,47 +13,41 @@ DROP POLICY IF EXISTS "delete_document_links" ON document_links;
 DROP POLICY IF EXISTS "insert_document_links" ON document_links;
 DROP POLICY IF EXISTS "select_document_links" ON document_links;
 DROP POLICY IF EXISTS "update_document_links" ON document_links;
+DROP POLICY IF EXISTS "service_role_full_access" ON document_links;
+DROP POLICY IF EXISTS "authenticated_select_all" ON document_links;
+DROP POLICY IF EXISTS "authenticated_insert" ON document_links;
+DROP POLICY IF EXISTS "authenticated_update" ON document_links;
+DROP POLICY IF EXISTS "authenticated_delete" ON document_links;
+DROP POLICY IF EXISTS "anon_view_only" ON document_links;
+DROP POLICY IF EXISTS "service_role_all_access" ON document_links;
+DROP POLICY IF EXISTS "authenticated_users_access" ON document_links;
+DROP POLICY IF EXISTS "authenticated_all_access" ON document_links;
+DROP POLICY IF EXISTS "anon_read_only" ON document_links;
 
--- Create policies with EXPLICIT full permissions for service role
-CREATE POLICY "service_role_full_access"
+-- Create a simple policy for service role with full access
+CREATE POLICY "service_role_all_access"
     ON document_links
     FOR ALL
     TO service_role
     USING (true)
     WITH CHECK (true);
 
--- Create a policy for authenticated users to view any document links
-CREATE POLICY "authenticated_select_all"
+-- Create a simple policy for authenticated users with full access during development
+CREATE POLICY "authenticated_users_access"
     ON document_links
-    FOR SELECT
-    TO authenticated
-    USING (true);
-
--- Create a policy for authenticated users to insert document links
-CREATE POLICY "authenticated_insert"
-    ON document_links
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (true);
-
--- Create a policy for authenticated users to update document links
-CREATE POLICY "authenticated_update"
-    ON document_links
-    FOR UPDATE
+    FOR ALL
     TO authenticated
     USING (true)
     WITH CHECK (true);
 
--- Create a policy for authenticated users to delete document links
-CREATE POLICY "authenticated_delete"
-    ON document_links
-    FOR DELETE
-    TO authenticated
-    USING (true);
-
--- Anon users can only view
-CREATE POLICY "anon_view_only"
+-- Create a policy for anon users to view only
+CREATE POLICY "anon_read_only"
     ON document_links
     FOR SELECT
     TO anon
     USING (true);
+
+-- Grant necessary permissions to the document_links table
+GRANT ALL ON document_links TO authenticated;
+GRANT SELECT ON document_links TO anon;
+GRANT ALL ON document_links TO service_role;

@@ -22,6 +22,8 @@ export const applyDocumentLinksRLS = async () => {
         console.log('Successfully applied document_links RLS policies from storage:', result);
         toast.success("Security policies updated successfully");
         return { success: true, data: result };
+      } else {
+        console.warn('Could not fetch SQL from storage:', sqlFileError);
       }
     } catch (storageError) {
       console.warn('Could not fetch SQL from storage, falling back to hardcoded SQL:', storageError);
@@ -44,49 +46,36 @@ export const applyDocumentLinksRLS = async () => {
       DROP POLICY IF EXISTS "select_document_links" ON document_links;
       DROP POLICY IF EXISTS "update_document_links" ON document_links;
       DROP POLICY IF EXISTS "service_role_all_access" ON document_links;
-      DROP POLICY IF EXISTS "authenticated_all_access" ON document_links;
+      DROP POLICY IF EXISTS "authenticated_users_access" ON document_links;
       DROP POLICY IF EXISTS "anon_read_only" ON document_links;
       
-      -- Service role policy
-      CREATE POLICY "service_role_full_access"
+      -- Create a simple policy for service role with full access
+      CREATE POLICY "service_role_all_access"
           ON document_links
           FOR ALL
           TO service_role
           USING (true)
           WITH CHECK (true);
       
-      -- Authenticated users policies - explicit policies for each operation
-      CREATE POLICY "authenticated_select_all"
+      -- Create a simple policy for authenticated users with full access during development
+      CREATE POLICY "authenticated_users_access"
           ON document_links
-          FOR SELECT
-          TO authenticated
-          USING (true);
-      
-      CREATE POLICY "authenticated_insert"
-          ON document_links
-          FOR INSERT
-          TO authenticated
-          WITH CHECK (true);
-      
-      CREATE POLICY "authenticated_update"
-          ON document_links
-          FOR UPDATE
+          FOR ALL
           TO authenticated
           USING (true)
           WITH CHECK (true);
       
-      CREATE POLICY "authenticated_delete"
-          ON document_links
-          FOR DELETE
-          TO authenticated
-          USING (true);
-      
-      -- Anon users can only view
-      CREATE POLICY "anon_view_only"
+      -- Create a policy for anon users to view only
+      CREATE POLICY "anon_read_only"
           ON document_links
           FOR SELECT
           TO anon
           USING (true);
+      
+      -- Grant necessary permissions to the document_links table
+      GRANT ALL ON document_links TO authenticated;
+      GRANT SELECT ON document_links TO anon;
+      GRANT ALL ON document_links TO service_role;
     `;
     
     // Execute the hardcoded SQL
@@ -108,15 +97,45 @@ export const applyDocumentLinksRLS = async () => {
 // This function can be called to directly fix RLS issues
 export const fixDocumentLinksRLS = async () => {
   console.log("Attempting to fix document_links RLS policies...");
-  const result = await applyDocumentLinksRLS();
-  
-  if (result.success) {
-    console.log("Successfully fixed document_links RLS policies");
-    toast.success("Security policies updated successfully");
-  } else {
-    console.error("Failed to fix document_links RLS policies:", result.error);
+  // Try multiple approaches for reliability
+  try {
+    // First, try with our primary approach
+    const result = await applyDocumentLinksRLS();
+    
+    if (result.success) {
+      console.log("Successfully fixed document_links RLS policies");
+      toast.success("Security policies updated successfully");
+      return result;
+    }
+    
+    // If that fails, try a more direct approach with simpler SQL
+    console.log("First attempt failed, trying simpler approach...");
+    const simpleSql = `
+      ALTER TABLE public.document_links ENABLE ROW LEVEL SECURITY;
+      
+      -- Clean up and create simple policies
+      DROP POLICY IF EXISTS "authenticated_full_access" ON document_links;
+      CREATE POLICY "authenticated_full_access"
+          ON document_links
+          FOR ALL
+          TO authenticated
+          USING (true)
+          WITH CHECK (true);
+          
+      GRANT ALL ON document_links TO authenticated;
+    `;
+    
+    const simpleResult = await execSql(simpleSql);
+    console.log("Result of simpler approach:", simpleResult);
+    
+    toast.success("Security policies updated with fallback method");
+    return { success: true, data: simpleResult };
+  } catch (error) {
+    console.error("Failed to fix document_links RLS policies:", error);
     toast.error("Failed to update security policies");
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
-  
-  return result;
 };

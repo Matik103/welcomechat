@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,23 +12,65 @@ export interface DocumentLinkFormData {
 
 const getEffectiveClientId = async (clientId: string) => {
   try {
-    const { data: clientData, error: clientError } = await supabase
+    console.log("Looking up client in ai_agents table with ID:", clientId);
+    
+    // First attempt: Try to get the client by exact ID match
+    const { data: directMatch, error: directError } = await supabase
       .from("ai_agents")
       .select("id")
-      .eq("interaction_type", "config")
-      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
-      .single();
+      .eq("id", clientId)
+      .limit(1)
+      .maybeSingle();
       
-    if (clientError) {
-      console.error("Error finding client:", clientError);
-      throw new Error("Could not find client record");
+    if (!directError && directMatch) {
+      console.log("Found client by direct ID match:", directMatch.id);
+      return directMatch.id;
     }
     
-    if (!clientData) {
-      throw new Error("Client not found");
+    // Second attempt: Try by client_id field
+    const { data: clientIdMatch, error: clientIdError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("client_id", clientId)
+      .limit(1)
+      .maybeSingle();
+      
+    if (!clientIdError && clientIdMatch) {
+      console.log("Found client by client_id match:", clientIdMatch.id);
+      return clientIdMatch.id;
     }
     
-    return clientData.id;
+    // Third attempt: Try more flexible search
+    const { data: results, error: queryError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .limit(1);
+      
+    if (!queryError && results && results.length > 0) {
+      console.log("Found client with flexible query:", results[0].id);
+      return results[0].id;
+    }
+    
+    // Last attempt: Try with interaction_type filter removed
+    const { data: lastResults, error: lastError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .limit(1);
+      
+    if (!lastError && lastResults && lastResults.length > 0) {
+      console.log("Found client without interaction_type filter:", lastResults[0].id);
+      return lastResults[0].id;
+    }
+    
+    console.error("All attempts to find client failed for ID:", clientId);
+    console.error("Direct match error:", directError);
+    console.error("Client ID match error:", clientIdError);
+    console.error("Flexible query error:", queryError);
+    console.error("Last attempt error:", lastError);
+    
+    throw new Error(`Could not find client record for ID: ${clientId}`);
   } catch (error) {
     console.error("Error getting effective client ID:", error);
     throw error;
@@ -44,7 +87,35 @@ export function useDocumentLinks(clientId: string) {
     try {
       console.log("Fetching document links for client:", clientId);
       
-      const effectiveClientId = await getEffectiveClientId(clientId);
+      if (!clientId) {
+        throw new Error("Client ID is required");
+      }
+      
+      let effectiveClientId;
+      try {
+        effectiveClientId = await getEffectiveClientId(clientId);
+      } catch (clientError) {
+        console.error("Client lookup failed, trying fallback approach");
+        
+        // Direct query as fallback
+        const { data: directData } = await supabase
+          .from('document_links')
+          .select('client_id')
+          .eq('client_id', clientId)
+          .limit(1)
+          .maybeSingle();
+          
+        if (directData && directData.client_id) {
+          effectiveClientId = directData.client_id;
+          console.log("Using client ID from existing document links:", effectiveClientId);
+        } else {
+          // Just use the provided ID as last resort
+          console.log("Using provided client ID as fallback:", clientId);
+          effectiveClientId = clientId;
+        }
+      }
+      
+      console.log("Using effective client ID for fetching document links:", effectiveClientId);
       
       const { data, error } = await supabase
         .from('document_links')
