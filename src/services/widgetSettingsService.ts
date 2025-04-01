@@ -76,6 +76,7 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
     if (clientData) {
       // Use data from clients table
       const widgetSettings = clientData.widget_settings || {};
+      
       // Fixed to make sure we spread an object type
       const mergedSettings = {
         ...defaultSettings,
@@ -84,6 +85,7 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
         logo_storage_path: clientData.logo_storage_path || '',
         ...(typeof widgetSettings === 'object' ? widgetSettings : {})
       };
+      
       return mergedSettings;
     }
     

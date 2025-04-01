@@ -64,11 +64,12 @@ export default function WidgetSettings() {
       if (clientId) {
         await updateWidgetSettings(clientId, newSettings);
         
-        const clientName = settings?.agent_name || "Unknown";
+        const clientName = client?.client_name || settings?.agent_name || "Unknown";
         
         await logClientActivity("widget_settings_updated", 
           `Widget settings updated for "${clientName}"`, 
           {
+            client_name: clientName,
             agent_name: settings?.agent_name,
             settings_changed: true
           });
@@ -102,11 +103,12 @@ export default function WidgetSettings() {
       if (result) {
         await widgetSettingsHook.updateLogo(result.url, result.path);
         
-        const clientName = settings?.agent_name || "Unknown";
+        const clientName = client?.client_name || settings?.agent_name || "Unknown";
         
         await logClientActivity("logo_uploaded", 
           `Logo updated for "${clientName}"`, 
           {
+            client_name: clientName,
             agent_name: settings?.agent_name,
             logo_url: result.url
           });
@@ -133,11 +135,12 @@ export default function WidgetSettings() {
   };
 
   const logActivityWrapper = async (): Promise<void> => {
-    const clientName = settings?.agent_name || "Unknown";
+    const clientName = client?.client_name || settings?.agent_name || "Unknown";
     
     await logClientActivity("widget_previewed", 
       `Widget previewed for "${clientName}"`, 
       {
+        client_name: clientName,
         agent_name: settings?.agent_name
       });
   };

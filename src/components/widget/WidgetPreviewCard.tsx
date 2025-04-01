@@ -33,7 +33,7 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
       url.searchParams.append('agentName', settings.agent_name || '');
       
       // Add additional settings as needed
-      if (settings.primary_color) url.searchParams.append('primaryColor', settings.primary_color);
+      if (settings.chat_color) url.searchParams.append('primaryColor', settings.chat_color);
       if (settings.chat_color) url.searchParams.append('chatColor', settings.chat_color);
       if (settings.background_color) url.searchParams.append('backgroundColor', settings.background_color);
       if (settings.text_color) url.searchParams.append('textColor', settings.text_color);

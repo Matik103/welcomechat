@@ -22,6 +22,18 @@ export const useClientMutation = () => {
       const logoUrl = client.logo_url || '';
       const logoStoragePath = client.logo_storage_path || '';
       
+      // Check if ai_agent record exists
+      const { data: existingAgent, error: checkAgentError } = await supabase
+        .from('ai_agents')
+        .select('id')
+        .eq('client_id', client.client_id)
+        .eq('interaction_type', 'config')
+        .maybeSingle();
+        
+      if (checkAgentError) {
+        console.error('Error checking for AI agent:', checkAgentError);
+      }
+      
       // Update clients table
       const { error: clientError } = await supabase
         .from('clients')
@@ -45,18 +57,6 @@ export const useClientMutation = () => {
       if (clientError) {
         console.error('Error updating client:', clientError);
         throw clientError;
-      }
-      
-      // Check if the corresponding AI agent record exists before updating/creating
-      const { data: existingAgent, error: checkError } = await supabase
-        .from('ai_agents')
-        .select('id, settings')
-        .eq('client_id', client.client_id)
-        .eq('interaction_type', 'config')
-        .maybeSingle();
-        
-      if (checkError) {
-        console.error('Error checking for AI agent:', checkError);
       }
       
       // Get the current widget settings
