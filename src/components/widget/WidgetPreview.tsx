@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
@@ -7,6 +6,7 @@ import { ChatInput } from "./ChatInput";
 import { MessageCircle, Loader2, Bot, User } from "lucide-react";
 import { useAgentContent } from "@/hooks/useAgentContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Spinner } from "@/components/ui/spinner";
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -20,6 +20,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Use the agent name from settings
@@ -43,10 +44,16 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         clientId, 
         agentName: settings.agent_name,
         contentLength: agentContent?.length || 0,
-        sourcesCount: sources?.length || 0 
+        sourcesCount: sources?.length || 0,
+        isAgentLoading 
       });
     }
-  }, [clientId, settings.agent_name, agentContent, sources]);
+    
+    // Set initialized after initial loading
+    if (!isAgentLoading) {
+      setIsInitialized(true);
+    }
+  }, [clientId, settings.agent_name, agentContent, sources, isAgentLoading]);
 
   const handleToggleExpand = () => {
     setExpanded(!expanded);
@@ -103,7 +110,9 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           : "";
         
         // Combine context header with content
-        const fullContext = contextHeader + agentContent.substring(0, 3000);
+        const fullContext = contextHeader + (agentContent || "").substring(0, 3000);
+        
+        console.log("Sending chat request with context length:", fullContext.length);
         
         const response = await fetch('https://mgjodiqecnnltsgorife.supabase.co/functions/v1/chat', {
           method: 'POST',
@@ -587,5 +596,15 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     );
   };
 
-  return renderWidgetPreview();
+  // Determine if we should show loading state
+  const showLoading = isAgentLoading && !isInitialized;
+
+  return showLoading ? (
+    <div className="h-full w-full flex items-center justify-center bg-gray-50">
+      <div className="flex flex-col items-center gap-3">
+        <Spinner size="lg" />
+        <p className="text-sm text-gray-500">Loading assistant content...</p>
+      </div>
+    </div>
+  ) : renderWidgetPreview();
 }
