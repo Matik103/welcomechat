@@ -35,21 +35,14 @@ export const applyDocumentLinksRLS = async () => {
       ALTER TABLE public.document_links ENABLE ROW LEVEL SECURITY;
       
       -- Drop all existing policies for a clean slate
-      DROP POLICY IF EXISTS "Service role has full access to document links" ON document_links;
-      DROP POLICY IF EXISTS "Authenticated users can manage document links" ON document_links;
-      DROP POLICY IF EXISTS "Users can view their own document links" ON document_links;
-      DROP POLICY IF EXISTS "Users can insert their own document links" ON document_links;
-      DROP POLICY IF EXISTS "Users can update their own document links" ON document_links;
-      DROP POLICY IF EXISTS "Users can delete their own document links" ON document_links;
-      DROP POLICY IF EXISTS "delete_document_links" ON document_links;
-      DROP POLICY IF EXISTS "insert_document_links" ON document_links;
-      DROP POLICY IF EXISTS "select_document_links" ON document_links;
-      DROP POLICY IF EXISTS "update_document_links" ON document_links;
-      DROP POLICY IF EXISTS "service_role_all_access" ON document_links;
-      DROP POLICY IF EXISTS "authenticated_users_access" ON document_links;
-      DROP POLICY IF EXISTS "anon_read_only" ON document_links;
-      DROP POLICY IF EXISTS "authenticated_can_do_anything" ON document_links;
-      DROP POLICY IF EXISTS "authenticated_full_access" ON document_links;
+      DO $$
+      DECLARE
+        policy_name text;
+      BEGIN
+        FOR policy_name IN SELECT policyname FROM pg_policies WHERE tablename = 'document_links' LOOP
+          EXECUTE format('DROP POLICY IF EXISTS %I ON document_links', policy_name);
+        END LOOP;
+      END $$;
       
       -- Create a fully permissive policy for all authenticated users
       CREATE POLICY "authenticated_full_access" 

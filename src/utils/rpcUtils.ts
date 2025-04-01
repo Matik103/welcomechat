@@ -39,7 +39,7 @@ export const execSql = async <T>(
   try {
     console.log("Executing SQL:", query.substring(0, 100) + "...");
     
-    // Use the correct parameter names as defined in the RPC function type
+    // Use the correct parameter names as defined in the RPC function
     const { data, error } = await supabase.rpc('exec_sql', { 
       sql_query: query,
       query_params: params 
