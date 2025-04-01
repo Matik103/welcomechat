@@ -1,184 +1,227 @@
 
-import { useMutation } from '@tanstack/react-query';
-import { WebsiteUrl } from '@/types/website-url';
+import { useState } from 'react';
 import { FirecrawlService } from '@/services/FirecrawlService';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { WebsiteUrlFormData } from '@/types/website-url';
 
-// Helper function to safely get environment variables
-const getEnvVariable = (key: string, defaultValue: string = ''): string => {
-  // For Vite, we can access import.meta.env if it exists
-  if (typeof window !== 'undefined' && 
-      // @ts-ignore - This is a runtime check
-      window.ENV && 
-      // @ts-ignore
-      window.ENV[key]) {
-    // @ts-ignore
-    return window.ENV[key];
-  }
-  
-  // For Node.js environments
-  if (typeof process !== 'undefined' && 
-      process.env && 
-      process.env[key]) {
-    return process.env[key];
-  }
-  
-  return defaultValue;
-};
+export function useStoreWebsiteContent(clientId: string | undefined) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [crawlStatus, setCrawlStatus] = useState<string | null>(null);
+  const { toast } = useToast();
 
-export const useStoreWebsiteContent = (clientId: string) => {
-  const firecrawlService = new FirecrawlService({
-    apiKey: getEnvVariable('VITE_FIRECRAWL_API_KEY', ''),
-    baseUrl: getEnvVariable('VITE_FIRECRAWL_API_URL', 'https://api.firecrawl.dev/v1')
-  });
+  // Validate URL before processing
+  const validateUrl = (url: string): boolean => {
+    try {
+      new URL(url);
+      return true;
+    } catch (error) {
+      toast({
+        title: 'Invalid URL',
+        description: 'Please enter a valid URL',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
 
-  return useMutation({
-    mutationFn: async (website: WebsiteUrl) => {
-      if (!website.url || !website.id) {
-        throw new Error('Website URL and ID are required');
-      }
-
-      if (!clientId) {
-        throw new Error('Client ID is required');
-      }
-
-      console.log(`Processing website URL: ${website.url} (ID: ${website.id})`);
-
-      // Update status to processing
-      await supabase
-        .from('website_urls')
-        .update({ status: 'processing', last_processed: new Date().toISOString() })
-        .eq('id', website.id);
-
-      // Check if URL is scrapable
-      const scrapabilityResult = await firecrawlService.checkScrapability(website.url);
+  // Check if the URL is allowed to be scraped
+  const checkUrlAccessibility = async (url: string) => {
+    try {
+      setIsLoading(true);
       
-      if (!scrapabilityResult.success || !scrapabilityResult.data) {
-        console.error('Scrapability check failed:', scrapabilityResult.error);
-        
-        await supabase
-          .from('website_urls')
-          .update({ 
-            status: 'failed', 
-            scrapable: false, 
-            error_message: scrapabilityResult.error || 'Scrapability check failed'
-          })
-          .eq('id', website.id);
-        
-        throw new Error(`URL is not scrapable: ${scrapabilityResult.error || 'Unknown error'}`);
+      // Use the static method
+      const result = await FirecrawlService.checkScrapability(url);
+      
+      if (!result.isAccessible) {
+        toast({
+          title: 'URL is not accessible',
+          description: result.error || 'The URL cannot be accessed. Please check if it is public and correctly formatted.',
+          variant: 'destructive',
+        });
+        return false;
       }
 
-      const { scrapability } = scrapabilityResult.data;
-      
-      // Update scrapability info
-      await supabase
-        .from('website_urls')
-        .update({ 
-          scrapable: true, 
-          scrapability: scrapability || 'unknown'
-        })
-        .eq('id', website.id);
+      if (!result.canScrape) {
+        toast({
+          title: 'URL cannot be scraped',
+          description: result.error || 'The website has restrictions preventing scraping.',
+          variant: 'destructive',
+        });
+        return false;
+      }
 
-      // Start crawling the website
-      const crawlOptions = {
-        url: website.url,
-        maxDepth: 2,
-        limit: 20,
+      return true;
+    } catch (error) {
+      toast({
+        title: 'Error checking URL',
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Process the website using Firecrawl
+  const processWebsite = async (formData: WebsiteUrlFormData) => {
+    if (!clientId) {
+      toast({
+        title: 'Client not found',
+        description: 'Client ID is required to process the website',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (!validateUrl(formData.url)) {
+      return false;
+    }
+
+    const urlAccessible = await checkUrlAccessibility(formData.url);
+    if (!urlAccessible) {
+      return false;
+    }
+
+    try {
+      setIsLoading(true);
+      setCrawlStatus('starting');
+      setProgress(0);
+
+      // Start the crawl process
+      const response = await FirecrawlService.processWebsite({
+        url: formData.url,
+        maxDepth: formData.maxDepth || 2,
+        limit: formData.limit || 100,
         scrapeOptions: {
-          formats: ['markdown'],
           onlyMainContent: true,
-          blockAds: true
         }
-      };
+      });
 
-      const crawlResult = await firecrawlService.crawlWebsite(crawlOptions);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to start website processing');
+      }
+
+      const jobId = response.id;
+      if (!jobId) {
+        throw new Error('No job ID returned from crawl service');
+      }
+
+      // Add entry to website_urls table
+      const { error: insertError } = await supabase
+        .from('website_urls')
+        .insert({
+          client_id: clientId,
+          url: formData.url,
+          status: 'processing',
+          processing_job_id: jobId,
+          limit: formData.limit || 100,
+          max_depth: formData.maxDepth || 2,
+          is_sitemap: formData.isSitemap || false
+        });
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      // Poll for status until complete
+      await pollCrawlStatus(jobId);
+
+      // Get and store results
+      const resultsResponse = await FirecrawlService.getCrawlResults(jobId);
       
-      if (!crawlResult.success || !crawlResult.id) {
-        console.error('Failed to start crawl:', crawlResult.error);
-        
-        await supabase
-          .from('website_urls')
-          .update({ 
-            status: 'failed', 
-            error_message: crawlResult.error || 'Failed to start crawl'
-          })
-          .eq('id', website.id);
-        
-        throw new Error(`Failed to start website crawl: ${crawlResult.error || 'Unknown error'}`);
+      if (!resultsResponse.success) {
+        throw new Error(resultsResponse.error || 'Failed to retrieve results');
       }
-
-      const crawlId = crawlResult.id;
-      console.log(`Crawl started with ID: ${crawlId}`);
-
-      // Poll for completion
-      let status;
-      let attempts = 0;
-      const maxAttempts = 15; // Increased from 10 for larger sites
-      const pollingInterval = 3000; // 3 seconds
-
-      do {
-        await new Promise(resolve => setTimeout(resolve, pollingInterval));
-        status = await firecrawlService.getCrawlStatus(crawlId);
-        console.log(`Crawl status (attempt ${attempts + 1}/${maxAttempts}):`, status);
-        attempts++;
-      } while (status.status === 'scraping' && attempts < maxAttempts);
-
-      if (status.status !== 'completed') {
-        // Update with partial completion or failure
-        const statusToStore = status.status === 'scraping' ? 'partial' : 'failed';
-        
-        await supabase
-          .from('website_urls')
-          .update({ 
-            status: statusToStore, 
-            error_message: status.status === 'scraping' 
-              ? 'Crawl still in progress, check back later' 
-              : (status.error || 'Crawl failed')
-          })
-          .eq('id', website.id);
-        
-        if (status.status === 'scraping') {
-          toast.warning('Crawl is taking longer than expected. It will continue in the background.');
-          return { status: 'partial', message: 'Crawl is still in progress' };
-        }
-        
-        throw new Error(`Crawl did not complete: ${status.status}`);
-      }
-
-      // Get the results
-      const results = await firecrawlService.getCrawlResults(crawlId);
-      console.log('Crawl results:', results);
-
-      // Store the results in the database
-      const { error } = await supabase
+      
+      const results = resultsResponse.data;
+      
+      // Update website_urls with results
+      await supabase
         .from('website_urls')
         .update({
           status: 'completed',
-          last_crawled: new Date().toISOString(),
-          total_pages: results.total,
-          completed_pages: results.completed,
-          credits_used: results.creditsUsed,
-          crawl_id: crawlId,
-          error_message: null
+          pages_crawled: results.total || 0,
+          pages_stored: results.completed || 0,
+          credits_used: results.creditsUsed || 0,
+          last_crawled: new Date().toISOString()
         })
-        .eq('id', website.id);
+        .eq('processing_job_id', jobId);
 
-      if (error) {
-        console.error('Failed to update database with crawl results:', error);
-        throw new Error(`Failed to update database: ${error.message}`);
+      toast({
+        title: 'Website Processing Complete',
+        description: `Successfully processed ${results.completed} pages from ${formData.url}`,
+      });
+      
+      return true;
+    } catch (error) {
+      // Update status to failed if there was an error
+      if (clientId) {
+        await supabase
+          .from('website_urls')
+          .update({
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'Unknown error during processing'
+          })
+          .eq('client_id', clientId)
+          .eq('url', formData.url);
       }
-
-      console.log(`Successfully processed website URL: ${website.url}`);
-      return { status: 'completed', results };
-    },
-    onError: (error) => {
-      console.error('Error in useStoreWebsiteContent:', error);
-      toast.error(`Failed to process website: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    },
-    onSuccess: (data) => {
-      console.log('Successfully processed website:', data);
-      toast.success('Website successfully processed!');
+      
+      toast({
+        title: 'Website Processing Failed',
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        variant: 'destructive',
+      });
+      
+      return false;
+    } finally {
+      setIsLoading(false);
+      setCrawlStatus(null);
+      setProgress(0);
     }
-  });
-};
+  };
+
+  // Poll the crawl status until complete
+  const pollCrawlStatus = async (jobId: string) => {
+    return new Promise<void>((resolve, reject) => {
+      const checkStatus = async () => {
+        try {
+          const response = await FirecrawlService.checkCrawlStatus(jobId);
+          
+          if (!response.success) {
+            reject(new Error(response.error || 'Failed to check crawl status'));
+            return;
+          }
+          
+          const status = response.status || 'processing';
+          setCrawlStatus(status);
+          
+          if (response.data && response.data.progress) {
+            const { discovered, crawled } = response.data.progress;
+            const progressValue = discovered > 0 ? Math.round((crawled / discovered) * 100) : 0;
+            setProgress(progressValue);
+          }
+          
+          if (status === 'completed' || status === 'failed') {
+            resolve();
+          } else {
+            setTimeout(checkStatus, 2000);
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      checkStatus();
+    });
+  };
+
+  return {
+    processWebsite,
+    isLoading,
+    progress,
+    crawlStatus
+  };
+}

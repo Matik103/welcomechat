@@ -54,9 +54,10 @@ export interface FirecrawlResponse {
   data?: any;
   error?: string;
   id?: string;
+  status?: string;
 }
 
-// Define necessary types for URL checking
+// For URL checking responses
 export interface UrlCheckResult {
   isAccessible: boolean;
   canScrape: boolean;
@@ -68,3 +69,22 @@ export interface UrlCheckResult {
   content?: string;
   error?: string;
 }
+
+export type CrawlResultsResponse = {
+  id?: string;
+  url?: string;
+  total: number;
+  completed: number;
+  pages: any[];
+  creditsUsed: number;
+};
+
+export type CrawlStatusResponse = {
+  success: boolean;
+  status: string;
+  progress?: {
+    discovered: number;
+    crawled: number;
+  };
+  error?: string;
+};

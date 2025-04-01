@@ -1,7 +1,14 @@
 
 /// <reference types="vite/client" />
 
-// Global environment variables that will be injected at runtime
-interface Window {
-  ENV?: Record<string, string>;
+interface ImportMetaEnv {
+  readonly VITE_SUPABASE_URL: string
+  readonly VITE_SUPABASE_ANON_KEY: string
+  readonly VITE_FIRECRAWL_API_KEY?: string
+  readonly VITE_FIRECRAWL_API_URL?: string
+  // add more env variables here
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
 }
