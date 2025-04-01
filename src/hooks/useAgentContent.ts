@@ -32,7 +32,7 @@ export function useAgentContent(clientId: string | undefined, agentName: string 
         // First, get content from document_processing_jobs table
         const { data: docData, error: docError } = await supabase
           .from("document_processing_jobs")
-          .select("content, url, title, document_type, created_at")
+          .select("content, document_url, document_type, created_at, metadata")
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(10);
@@ -69,8 +69,8 @@ export function useAgentContent(clientId: string | undefined, agentName: string 
         if (docData && docData.length > 0) {
           const docSources = docData.map(doc => ({
             content: doc.content || "",
-            url: doc.url,
-            title: doc.title,
+            url: doc.document_url,  // Changed from url to document_url
+            title: doc.metadata?.title || doc.document_url?.split('/').pop() || "Document", // Get title from metadata or filename
             documentType: doc.document_type,
             createdAt: doc.created_at,
             source: "document_processing_jobs"
@@ -83,7 +83,7 @@ export function useAgentContent(clientId: string | undefined, agentName: string 
           const agentSources = agentData.map(doc => ({
             content: doc.content || "",
             url: doc.url,
-            title: doc.settings?.title,
+            title: typeof doc.settings === 'object' && doc.settings ? doc.settings.title : undefined,
             documentType: doc.type,
             createdAt: doc.created_at,
             source: "ai_agents",
