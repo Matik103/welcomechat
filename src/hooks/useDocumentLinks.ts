@@ -1,156 +1,186 @@
-
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentLink, DocumentType } from '@/types/document-processing';
-import { toast } from 'sonner';
-import { LlamaCloudService } from '@/services/LlamaCloudService';
 
 export interface DocumentLinkFormData {
   link: string;
-  document_type?: DocumentType;
-  refresh_rate?: number;
-  metadata?: Record<string, any>;
+  refresh_rate: number;
+  document_type: DocumentType;
 }
+
+const getEffectiveClientId = async (clientId: string) => {
+  try {
+    const { data: clientData, error: clientError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("interaction_type", "config")
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .single();
+      
+    if (clientError) {
+      console.error("Error finding client:", clientError);
+      throw new Error("Could not find client record");
+    }
+    
+    if (!clientData) {
+      throw new Error("Client not found");
+    }
+    
+    return clientData.id;
+  } catch (error) {
+    console.error("Error getting effective client ID:", error);
+    throw error;
+  }
+};
 
 export function useDocumentLinks(clientId: string) {
   const queryClient = useQueryClient();
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-
-  // Get document links
-  const { 
-    data: documentLinks = [], 
-    isLoading, 
-    error, 
-    refetch 
-  } = useQuery({
-    queryKey: ['documentLinks', clientId],
-    queryFn: async () => {
+  const [isValidating, setIsValidating] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  
+  // Fetch document links
+  const fetchDocumentLinks = useCallback(async () => {
+    try {
+      console.log("Fetching document links for client:", clientId);
+      
+      const effectiveClientId = await getEffectiveClientId(clientId);
+      
       const { data, error } = await supabase
         .from('document_links')
         .select('*')
-        .eq('client_id', clientId)
+        .eq('client_id', effectiveClientId)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching document links:", error);
+        setError(error);
+        throw error;
+      }
+      
+      console.log("Retrieved document links:", data);
       return data as DocumentLink[];
-    },
+    } catch (error) {
+      console.error("Error in document links fetch:", error);
+      setError(error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+  }, [clientId]);
+  
+  const { 
+    data: documentLinks = [], 
+    isLoading,
+    refetch 
+  } = useQuery({
+    queryKey: ['documentLinks', clientId],
+    queryFn: fetchDocumentLinks,
+    enabled: !!clientId,
     staleTime: 1000 * 60, // 1 minute
+    retry: 2,
+    retryDelay: 1000
   });
-
-  // Add a document link
+  
+  // Add document link
   const addDocumentLink = useMutation({
     mutationFn: async (data: DocumentLinkFormData) => {
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
+      
+      setIsValidating(true);
+      
       try {
-        console.log("Adding document link:", data);
+        console.log("Adding document link with data:", data, "for client:", clientId);
         
-        // Set defaults
-        const documentType = data.document_type || 'document';
-        const refreshRate = data.refresh_rate || 30;
+        // Basic validation - check if it's a valid URL
+        try {
+          new URL(data.link);
+        } catch (error) {
+          throw new Error('Please enter a valid URL');
+        }
         
-        // Insert the document link
-        const { data: documentLink, error } = await supabase
+        const effectiveClientId = await getEffectiveClientId(clientId);
+        
+        // Check if the link already exists for this client
+        const { data: existingLink } = await supabase
+          .from('document_links')
+          .select('id')
+          .eq('client_id', effectiveClientId)
+          .eq('link', data.link)
+          .single();
+          
+        if (existingLink) {
+          throw new Error('This document link already exists');
+        }
+        
+        // Add the document link with the correct client ID
+        const { data: newLink, error } = await supabase
           .from('document_links')
           .insert({
-            client_id: clientId,
+            client_id: effectiveClientId,
             link: data.link,
-            document_type: documentType,
-            refresh_rate: refreshRate,
-            metadata: data.metadata || null
+            document_type: data.document_type,
+            refresh_rate: data.refresh_rate,
+            access_status: 'accessible'
           })
           .select()
           .single();
         
         if (error) throw error;
         
-        if (!documentLink) {
-          throw new Error('Failed to create document link');
-        }
-        
-        console.log("Document link created:", documentLink);
-        
-        // Determine if this is a Google Drive link
-        const isGoogleDriveLink = data.link.includes('drive.google.com') || 
-                                data.link.includes('docs.google.com') ||
-                                data.link.includes('sheets.google.com') ||
-                                data.link.includes('slides.google.com');
-        
-        // Get agent name from metadata or use default
-        const agentName = data.metadata?.agent_name || "AI Assistant";
-        
-        // Always process with LlamaParse
-        let documentTypeForProcessing = documentType;
-        
-        // Use 'google_drive' type if it's a Google Drive link
-        if (isGoogleDriveLink) {
-          documentTypeForProcessing = 'google_drive';
-          console.log("Detected Google Drive link, using google_drive document type");
-        }
-        
-        // Process with LlamaParse
-        try {
-          console.log(`Sending ${documentTypeForProcessing} link to LlamaParse:`, data.link);
-          
-          const parseResult = await LlamaCloudService.parseDocument(
-            data.link,
-            documentTypeForProcessing,
-            clientId,
-            agentName
-          );
-          
-          if (parseResult.success) {
-            console.log(`${documentTypeForProcessing} link sent to LlamaParse for processing:`, parseResult.jobId);
-          } else {
-            console.warn(`${documentTypeForProcessing} link added but LlamaParse processing failed:`, parseResult.error);
-            // We show a warning but don't fail the operation
-            toast.warning("Link added, but content extraction might take some time.");
-          }
-        } catch (parseError) {
-          console.error(`Error sending ${documentTypeForProcessing} link to LlamaParse:`, parseError);
-          // Link was still added, so we show a warning but don't fail
-          toast.warning("Link added, but content extraction encountered an issue.");
-        }
-        
-        return documentLink;
+        return newLink.id;
       } catch (error) {
         console.error('Error adding document link:', error);
         throw error;
+      } finally {
+        setIsValidating(false);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
-      toast.success('Document link added successfully');
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to add document link: ${error.message}`);
     }
   });
-
-  // Delete a document link
+  
+  // Delete document link
   const deleteDocumentLink = useMutation({
     mutationFn: async (linkId: number) => {
-      setDeletingId(linkId);
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
+      
       try {
+        console.log("Deleting document link with ID:", linkId);
+        
+        const effectiveClientId = await getEffectiveClientId(clientId);
+        
+        // Verify the link belongs to this client before deleting
+        const { data: existingLink } = await supabase
+          .from('document_links')
+          .select('id')
+          .eq('id', linkId)
+          .eq('client_id', effectiveClientId)
+          .single();
+          
+        if (!existingLink) {
+          throw new Error('Document link not found or access denied');
+        }
+        
         const { error } = await supabase
           .from('document_links')
           .delete()
-          .eq('id', linkId);
+          .eq('id', linkId)
+          .eq('client_id', effectiveClientId);
         
         if (error) throw error;
+        
         return linkId;
       } catch (error) {
         console.error('Error deleting document link:', error);
         throw error;
-      } finally {
-        setDeletingId(null);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
-      toast.success('Document link deleted successfully');
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to delete document link: ${error.message}`);
     }
   });
 
@@ -158,9 +188,9 @@ export function useDocumentLinks(clientId: string) {
     documentLinks,
     isLoading,
     error,
+    isValidating,
     addDocumentLink,
     deleteDocumentLink,
-    deletingId,
     refetch
   };
 }

@@ -1,12 +1,8 @@
 
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
 
-// Load environment variables
-dotenv.config();
-
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://mgjodiqecnnltsgorife.supabase.co";
-const SUPABASE_SERVICE_KEY = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://mgjodiqecnnltsgorife.supabase.co";
+const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_SERVICE_KEY) {
   console.error("VITE_SUPABASE_SERVICE_ROLE_KEY is not configured");

@@ -1,4 +1,3 @@
-
 import { supabase } from "./src/integrations/supabase/client";
 import { supabaseAdmin } from "./src/integrations/supabase/client-admin";
 import { updateClient } from "./src/services/clientService";
@@ -6,12 +5,6 @@ import fs from 'fs';
 
 async function testClientUpdate() {
   try {
-    // Check if supabaseAdmin is configured
-    if (!supabaseAdmin) {
-      console.error('Supabase admin client is not configured');
-      return;
-    }
-
     // Read and execute the SQL script
     const sqlScript = fs.readFileSync('create_test_client.sql', 'utf8');
     const { error: sqlError } = await supabaseAdmin.rpc('exec_sql', {

@@ -2,7 +2,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { safeDate, safeNumber } from "@/utils/typeUtils";
 
 export function useInteractionStats(clientId: string | undefined) {
   const fetchInteractionStats = async () => {
@@ -38,9 +37,9 @@ export function useInteractionStats(clientId: string | undefined) {
         throw datesError;
       }
 
-      // Get unique days - use safeDate helper to handle null values
+      // Get unique days
       const uniqueDays = new Set(
-        interactionDates.map((item) => safeDate(item.created_at).toDateString())
+        interactionDates.map((item) => new Date(item.created_at).toDateString())
       );
       const activeDays = uniqueDays.size;
 
@@ -56,9 +55,8 @@ export function useInteractionStats(clientId: string | undefined) {
         throw timeError;
       }
 
-      // Use safeNumber to handle nulls
       const totalTimes = responseTimeData.reduce(
-        (acc, item) => acc + safeNumber(item.response_time_ms),
+        (acc, item) => acc + (item.response_time_ms || 0),
         0
       );
       const averageResponseTime =

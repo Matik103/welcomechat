@@ -1,271 +1,208 @@
-import { supabaseAdmin, isAdminClientConfigured } from '@/integrations/supabase/client-admin';
-import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { supabaseAdmin } from '@/integrations/supabase/client-admin';
+import { v4 as uuidv4 } from 'uuid';
+import { sendDeletionEmail } from '@/utils/email/deletionEmail';
 
 /**
- * Deletes a client and all associated data
+ * Generates a recovery token for a client scheduled for deletion
+ * @param clientId The ID of the client
+ * @returns The generated token
  */
-export const deleteClientAndRelatedData = async (clientId: string): Promise<boolean> => {
-  if (!supabaseAdmin) {
-    console.error('Supabase admin client is not configured');
-    return false;
-  }
-
+export const generateRecoveryToken = async (clientId: string): Promise<string> => {
   try {
-    console.log(`Attempting to delete client and related data for client ID: ${clientId}`);
-
-    // 1. Delete website URLs
-    console.log('Deleting website URLs...');
-    const { error: websiteError } = await supabaseAdmin
-      .from('website_urls')
-      .delete()
-      .eq('client_id', clientId);
-
-    if (websiteError) {
-      console.error('Error deleting website URLs:', websiteError);
-      toast.error(`Error deleting website URLs: ${websiteError.message}`);
-      return false;
-    }
-
-    // 2. Delete documents
-    console.log('Deleting documents...');
-    const { error: documentsError } = await supabaseAdmin
-      .from('documents')
-      .delete()
-      .eq('client_id', clientId);
-
-    if (documentsError) {
-      console.error('Error deleting documents:', documentsError);
-      toast.error(`Error deleting documents: ${documentsError.message}`);
-      return false;
-    }
-
-    // 3. Delete common queries
-    console.log('Deleting common queries...');
-    const { error: queriesError } = await supabaseAdmin
-      .from('common_queries')
-      .delete()
-      .eq('client_id', clientId);
-
-    if (queriesError) {
-      console.error('Error deleting common queries:', queriesError);
-      toast.error(`Error deleting common queries: ${queriesError.message}`);
-      return false;
-    }
-
-    // 4. Delete client activities
-    console.log('Deleting client activities...');
-    const { error: activitiesError } = await supabaseAdmin
-      .from('client_activities')
-      .delete()
-      .eq('client_id', clientId);
-
-    if (activitiesError) {
-      console.error('Error deleting client activities:', activitiesError);
-      toast.error(`Error deleting client activities: ${activitiesError.message}`);
-      return false;
-    }
-
-    // 5. Delete the AI agent (client)
-    console.log('Deleting AI agent...');
-    const { error: agentError } = await supabaseAdmin
-      .from('ai_agents')
-      .delete()
-      .eq('client_id', clientId)
-      .eq('interaction_type', 'config');
-
-    if (agentError) {
-      console.error('Error deleting AI agent:', agentError);
-      toast.error(`Error deleting AI agent: ${agentError.message}`);
-      return false;
-    }
-
-    console.log('Client and related data deleted successfully');
-    toast.success('Client and related data deleted successfully');
-    return true;
-  } catch (error) {
-    console.error('Error in deleteClientAndRelatedData:', error);
-    toast.error(`Error deleting client: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return false;
-  }
-};
-
-/**
- * Schedules a client for deletion by setting the deletion_scheduled_at timestamp
- */
-export const scheduleClientDeletion = async (clientId: string): Promise<boolean> => {
-  if (!supabaseAdmin) {
-    console.error('Supabase admin client is not configured');
-    return false;
-  }
-
-  try {
-    console.log(`Scheduling client ${clientId} for deletion...`);
-    const deletionTime = new Date();
-    deletionTime.setDate(deletionTime.getDate() + 7); // Schedule for 7 days from now
-
+    // Generate a unique token
+    const token = uuidv4();
+    
+    // Set expiration to 30 days from now
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+    
+    // Store the token in the client_recovery_tokens table
     const { error } = await supabaseAdmin
-      .from('ai_agents')
-      .update({ deletion_scheduled_at: deletionTime.toISOString() })
-      .eq('id', clientId)
-      .eq('interaction_type', 'config');
-
+      .from('client_recovery_tokens')
+      .insert({
+        client_id: clientId,
+        token: token,
+        expires_at: expiresAt.toISOString()
+      });
+      
     if (error) {
-      console.error('Error scheduling client deletion:', error);
-      toast.error(`Error scheduling client deletion: ${error.message}`);
-      return false;
+      console.error("Error creating recovery token:", error);
+      throw error;
     }
-
-    console.log(`Client ${clientId} scheduled for deletion on ${deletionTime.toISOString()}`);
-    toast.success(`Client scheduled for deletion on ${deletionTime.toLocaleDateString()}`);
-    return true;
+    
+    return token;
   } catch (error) {
-    console.error('Error in scheduleClientDeletion:', error);
-    toast.error(`Error scheduling client deletion: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return false;
+    console.error("Error in generateRecoveryToken:", error);
+    throw error;
   }
 };
 
 /**
- * Cancels a scheduled client deletion by clearing the deletion_scheduled_at timestamp
+ * Schedule a client for deletion and send notification email
+ * @param clientId The ID of the client to delete
+ * @param clientEmail The client's email address
+ * @param clientName The client's name
+ * @returns Object indicating success status and details
  */
-export const cancelScheduledClientDeletion = async (clientId: string): Promise<boolean> => {
-  if (!supabaseAdmin) {
-    console.error('Supabase admin client is not configured');
-    return false;
-  }
-
+export const scheduleClientDeletion = async (
+  clientId: string,
+  clientEmail: string,
+  clientName: string
+): Promise<{ success: boolean; error?: any; token?: string }> => {
   try {
-    console.log(`Cancelling scheduled deletion for client ${clientId}...`);
-
-    const { error } = await supabaseAdmin
+    console.log(`Scheduling deletion for client ${clientId} (${clientName})`);
+    
+    // Calculate deletion date (30 days from now)
+    const deletionDate = new Date();
+    deletionDate.setDate(deletionDate.getDate() + 30);
+    
+    // Generate a recovery token
+    const recoveryToken = await generateRecoveryToken(clientId);
+    
+    // Update client status to scheduled for deletion
+    const { error: updateError } = await supabaseAdmin
       .from('ai_agents')
-      .update({ deletion_scheduled_at: null })
-      .eq('id', clientId)
-      .eq('interaction_type', 'config');
-
-    if (error) {
-      console.error('Error cancelling scheduled deletion:', error);
-      toast.error(`Error cancelling scheduled deletion: ${error.message}`);
-      return false;
+      .update({
+        status: 'deleted',
+        deletion_scheduled_at: deletionDate.toISOString()
+      })
+      .eq('id', clientId);
+      
+    if (updateError) {
+      console.error("Error scheduling client deletion:", updateError);
+      return { success: false, error: updateError };
     }
 
-    console.log(`Scheduled deletion cancelled for client ${clientId}`);
-    toast.success('Scheduled deletion cancelled');
-    return true;
+    // Send deletion notification email with recovery token
+    if (clientEmail) {
+      const emailResult = await sendDeletionEmail(
+        clientEmail,
+        clientName,
+        recoveryToken,
+        deletionDate.toISOString()
+      );
+      
+      if (!emailResult.emailSent) {
+        console.warn("Warning: Failed to send deletion notification email:", emailResult.emailError);
+      }
+    }
+    
+    // Record the deletion activity using ai_agents table for logging
+    const { error: activityError } = await supabaseAdmin
+      .from('ai_agents')
+      .insert({
+        client_id: clientId,
+        interaction_type: 'activity_log',
+        name: 'Activity Logger',
+        type: 'client_deleted',
+        content: 'Client account scheduled for deletion',
+        metadata: {
+          client_name: clientName,
+          activity_subtype: 'deletion_scheduled',
+          scheduled_deletion_date: deletionDate.toISOString(),
+          recovery_token: recoveryToken,
+          email_notification_sent: clientEmail ? true : false
+        },
+        created_at: new Date().toISOString()
+      });
+      
+    if (activityError) {
+      console.warn("Warning: Failed to record deletion activity:", activityError);
+    }
+    
+    return { 
+      success: true,
+      token: recoveryToken
+    };
+    
   } catch (error) {
-    console.error('Error in cancelScheduledClientDeletion:', error);
-    toast.error(`Error cancelling client deletion: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return false;
+    console.error("Error in scheduleClientDeletion:", error);
+    return { success: false, error };
   }
 };
 
 /**
- * Permanently deletes a client from the database, including all associated data.
- * This function is intended to be run by a background job after the deletion_scheduled_at time has passed.
+ * Recovers a client account using a recovery token
+ * @param token The recovery token
+ * @returns Success status and client ID if successful
  */
-export const performPermanentClientDeletion = async (clientId: string): Promise<boolean> => {
-  if (!supabaseAdmin) {
-    console.error('Supabase admin client is not configured');
-    return false;
-  }
-
+export const recoverClientAccount = async (token: string): Promise<{ success: boolean; clientId?: string }> => {
   try {
-    console.log(`Performing permanent deletion for client ${clientId}...`);
-
-    // 1. Delete website URLs
-    const { error: websiteError } = await supabaseAdmin
-      .from('website_urls')
-      .delete()
-      .eq('client_id', clientId);
-
-    if (websiteError) {
-      console.error('Error deleting website URLs:', websiteError);
-      return false;
+    // Find the token in the database
+    const { data: tokenData, error: tokenError } = await supabaseAdmin
+      .from('client_recovery_tokens')
+      .select('*')
+      .eq('token', token)
+      .is('used_at', null)
+      .single();
+      
+    if (tokenError || !tokenData) {
+      console.error("Invalid or expired recovery token:", tokenError);
+      return { success: false };
     }
-
-    // 2. Delete documents
-    const { error: documentsError } = await supabaseAdmin
-      .from('documents')
-      .delete()
-      .eq('client_id', clientId);
-
-    if (documentsError) {
-      console.error('Error deleting documents:', documentsError);
-      return false;
+    
+    // Check if token is expired
+    const expiresAt = new Date(tokenData.expires_at);
+    if (expiresAt < new Date()) {
+      console.error("Recovery token has expired");
+      return { success: false };
     }
-
-    // 3. Delete common queries
-    const { error: queriesError } = await supabaseAdmin
-      .from('common_queries')
-      .delete()
-      .eq('client_id', clientId);
-
-    if (queriesError) {
-      console.error('Error deleting common queries:', queriesError);
-      return false;
-    }
-
-    // 4. Delete client activities
-    const { error: activitiesError } = await supabaseAdmin
-      .from('client_activities')
-      .delete()
-      .eq('client_id', clientId);
-
-    if (activitiesError) {
-      console.error('Error deleting client activities:', activitiesError);
-      return false;
-    }
-
-    // 5. Delete the AI agent (client)
-    const { error: agentError } = await supabaseAdmin
+    
+    // Update the client's status back to active
+    const { error: updateError } = await supabaseAdmin
       .from('ai_agents')
-      .delete()
-      .eq('client_id', clientId)
-      .eq('interaction_type', 'config');
-
-    if (agentError) {
-      console.error('Error deleting AI agent:', agentError);
-      return false;
+      .update({ 
+        deletion_scheduled_at: null,
+        status: 'active'
+      })
+      .eq('id', tokenData.client_id);
+      
+    if (updateError) {
+      console.error("Error recovering client account:", updateError);
+      return { success: false };
     }
-
-    console.log(`Client ${clientId} permanently deleted`);
-    return true;
-  } catch (error) {
-    console.error('Error in performPermanentClientDeletion:', error);
-    return false;
-  }
-};
-
-/**
- * Updates the status of a client
- */
-export const updateClientStatus = async (clientId: string, status: string): Promise<boolean> => {
-  if (!supabaseAdmin) {
-    console.error('Supabase admin client is not configured');
-    return false;
-  }
-
-  try {
-    console.log(`Updating status of client ${clientId} to ${status}...`);
-
-    const { error } = await supabaseAdmin
+    
+    // Mark token as used
+    const { error: tokenUpdateError } = await supabaseAdmin
+      .from('client_recovery_tokens')
+      .update({ 
+        used_at: new Date().toISOString() 
+      })
+      .eq('id', tokenData.id);
+      
+    if (tokenUpdateError) {
+      console.warn("Warning: Failed to mark recovery token as used:", tokenUpdateError);
+    }
+    
+    // Record recovery activity using the ai_agents table as an activity log
+    const { error: activityError } = await supabaseAdmin
       .from('ai_agents')
-      .update({ status })
-      .eq('id', clientId)
-      .eq('interaction_type', 'config');
-
-    if (error) {
-      console.error('Error updating client status:', error);
-      toast.error(`Error updating client status: ${error.message}`);
-      return false;
+      .insert({
+        client_id: tokenData.client_id,
+        interaction_type: 'activity_log',
+        name: 'Activity Logger',
+        type: 'client_recovered',
+        content: 'Client account recovered using recovery token',
+        metadata: {
+          recovered_at: new Date().toISOString(),
+          recovery_method: 'token',
+          activity_subtype: 'account_recovered'
+        },
+        created_at: new Date().toISOString()
+      });
+      
+    if (activityError) {
+      console.warn("Warning: Failed to record recovery activity:", activityError);
     }
-
-    console.log(`Client ${clientId} status updated to ${status}`);
-    toast.success('Client status updated successfully');
-    return true;
+    
+    return { 
+      success: true, 
+      clientId: tokenData.client_id 
+    };
+    
   } catch (error) {
-    console.error('Error in updateClientStatus:', error);
-    toast.error(`Error updating client status: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return false;
+    console.error("Error in recoverClientAccount:", error);
+    return { success: false };
   }
 };

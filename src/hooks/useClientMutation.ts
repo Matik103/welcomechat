@@ -42,12 +42,12 @@ export const useClientMutation = () => {
           const { error: agentError } = await supabase
             .from('ai_agents')
             .update({
-              name: clientData.agent_name || '',
-              agent_description: clientData.agent_description || '',
-              logo_url: clientData.logo_url || '',
-              logo_storage_path: clientData.logo_storage_path || '',
-              client_name: clientData.client_name || '',
-              email: clientData.email || '',
+              name: clientData.agent_name,
+              agent_description: clientData.agent_description,
+              logo_url: clientData.logo_url,
+              logo_storage_path: clientData.logo_storage_path,
+              client_name: clientData.client_name,
+              email: clientData.email,
               updated_at: new Date().toISOString()
             })
             .eq('id', agentConfig.id);
@@ -63,12 +63,12 @@ export const useClientMutation = () => {
             .from('ai_agents')
             .insert({
               client_id: clientData.client_id,
-              name: clientData.agent_name || '',
-              agent_description: clientData.agent_description || '',
-              logo_url: clientData.logo_url || '',
-              logo_storage_path: clientData.logo_storage_path || '',
-              client_name: clientData.client_name || '',
-              email: clientData.email || '',
+              name: clientData.agent_name,
+              agent_description: clientData.agent_description,
+              logo_url: clientData.logo_url,
+              logo_storage_path: clientData.logo_storage_path,
+              client_name: clientData.client_name,
+              email: clientData.email,
               interaction_type: 'config',
               status: 'active'
             });
@@ -83,19 +83,19 @@ export const useClientMutation = () => {
         const { error: clientError } = await supabase
           .from('clients')
           .update({
-            client_name: clientData.client_name || '',
-            email: clientData.email || '',
-            agent_name: clientData.agent_name || '',
+            client_name: clientData.client_name,
+            email: clientData.email,
+            agent_name: clientData.agent_name,
             company: clientFields.company,
             description: clientFields.description,
             status: clientFields.status,
             updated_at: new Date().toISOString(),
             widget_settings: {
               ...(clientData.widget_settings || {}),
-              agent_name: clientData.agent_name || '',
-              agent_description: clientData.agent_description || '',
-              logo_url: clientData.logo_url || '',
-              logo_storage_path: clientData.logo_storage_path || ''
+              agent_name: clientData.agent_name,
+              agent_description: clientData.agent_description,
+              logo_url: clientData.logo_url,
+              logo_storage_path: clientData.logo_storage_path
             }
           })
           .eq('id', clientData.client_id);

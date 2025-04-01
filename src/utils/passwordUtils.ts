@@ -1,179 +1,170 @@
 
-import { supabaseAdmin, isAdminClientConfigured } from '@/integrations/supabase/client-admin';
-import { generateRandomPassword } from './stringUtils';
+import { supabase } from '@/integrations/supabase/client';
+import { supabaseAdmin } from '@/integrations/supabase/client-admin';
+import { User } from '@supabase/supabase-js';
 
 /**
- * Generates a random password and updates the user's password in Supabase
- * @param userId The ID of the user to update
- * @returns The new password
- */
-export const generateAndUpdatePassword = async (userId: string): Promise<string | null> => {
-  try {
-    // Generate a random password
-    const newPassword = generateRandomPassword();
-    
-    // Check if admin client is configured
-    if (!isAdminClientConfigured() || !supabaseAdmin) {
-      console.error('Admin client not configured - cannot update password');
-      return null;
-    }
-    
-    // Hash the new password
-    const response = await supabaseAdmin?.auth.admin.updateUserById(
-      userId,
-      { password: newPassword }
-    );
-    
-    if (response?.error) {
-      console.error("Error updating password:", response.error);
-      return null;
-    }
-    
-    console.log("Password updated successfully for user:", userId);
-    return newPassword;
-  } catch (error) {
-    console.error("Error in generateAndUpdatePassword:", error);
-    return null;
-  }
-};
-
-/**
- * Generates a temporary password for a new user
- * @returns A temporary password
+ * Generates a secure temporary password for new clients
+ * @returns A secure password string
  */
 export const generateTempPassword = (): string => {
-  return generateRandomPassword(16);
+  // Generate a strong password with at least 8 characters, including uppercase, lowercase, numbers, and symbols
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const specialChars = '!@#$%^&*()_+';
+  let password = '';
+  
+  // Generate random base password (8-12 characters)
+  const length = Math.floor(Math.random() * 4) + 8; // Length between 8-12
+  
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  
+  // Add at least one uppercase, lowercase, number, and special character
+  password += chars.charAt(Math.floor(Math.random() * 26)); // Uppercase
+  password += chars.charAt(Math.floor(Math.random() * 26) + 26); // Lowercase
+  password += chars.charAt(Math.floor(Math.random() * 10) + 52); // Number
+  password += specialChars.charAt(Math.floor(Math.random() * specialChars.length)); // Special
+  
+  // Shuffle the password
+  password = password.split('').sort(() => 0.5 - Math.random()).join('');
+  
+  return password;
 };
 
 /**
- * Saves a temporary password for a client user
- * @param agentId The agent ID (which is also the client ID)
- * @param email The client's email address
- * @param tempPassword The temporary password to set
- * @returns Object containing the result and password
+ * Saves client temporary password to the database
+ * @param agentId The agent ID
+ * @param email The client email
+ * @param tempPassword The temporary password to save
+ * @returns Object containing result status and password
  */
 export const saveClientTempPassword = async (
   agentId: string,
   email: string,
   tempPassword: string
-): Promise<{ success: boolean; password: string | null; error?: string }> => {
+): Promise<{ success: boolean; error?: string; password?: string }> => {
   try {
-    // Check if admin client is configured
-    if (!isAdminClientConfigured() || !supabaseAdmin) {
-      console.error('Admin client not configured - cannot save temp password');
-      return { success: false, password: null, error: 'Admin client not configured' };
+    console.log("Saving temporary password for client with agent ID:", agentId);
+    
+    if (!agentId || !email) {
+      return { 
+        success: false, 
+        error: "Missing required parameters (agentId or email)" 
+      };
     }
     
-    // Check if the user already exists
-    const response = await supabaseAdmin?.auth.admin.listUsers();
+    // Check if user already exists in Supabase Auth - using the correct API
+    const { data: userList, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     
-    if (response?.error) {
-      console.error("Error checking if user exists:", response.error);
-      return { success: false, password: null, error: response.error.message };
+    if (listError) {
+      console.error("Error fetching users from Supabase Auth:", listError);
+      return { 
+        success: false, 
+        error: `Error fetching users: ${listError.message}` 
+      };
     }
     
-    // Find user by email
-    const existingUser = response?.data?.users?.find(user => user.email === email);
+    // Find the user by email - explicitly typing the users array
+    const existingUser = userList.users.find((user: User) => user.email === email);
     
+    // If user exists, update their password
     if (existingUser) {
-      // Update existing user's password
-      const updateResponse = await supabaseAdmin?.auth.admin.updateUserById(
+      console.log("User exists, updating password");
+      
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
         existingUser.id,
         { password: tempPassword }
       );
       
-      if (updateResponse?.error) {
-        console.error("Error updating user password:", updateResponse.error);
-        return { success: false, password: null, error: updateResponse.error.message };
+      if (updateError) {
+        console.error("Error updating user password:", updateError);
+        return { 
+          success: false, 
+          error: `Error updating password: ${updateError.message}` 
+        };
       }
     } else {
-      // Create new user
-      const createUserResponse = await supabaseAdmin?.auth.admin.createUser({
+      // User doesn't exist, create them in Supabase Auth
+      console.log("User doesn't exist, creating new user");
+      
+      const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: tempPassword,
         email_confirm: true,
         user_metadata: {
-          client_id: agentId,
           role: 'client'
         }
       });
       
-      if (createUserResponse?.error) {
-        console.error("Error creating user:", createUserResponse.error);
-        return { success: false, password: null, error: createUserResponse.error.message };
+      if (createError) {
+        console.error("Error creating user:", createError);
+        return { 
+          success: false, 
+          error: `Error creating user: ${createError.message}` 
+        };
       }
+      
+      console.log("Created user successfully:", userData?.user?.id);
     }
     
-    console.log(`Temporary password set for ${email}`);
-    return { success: true, password: tempPassword };
+    // Store in client_temp_passwords table for future reference
+    const { error: insertError } = await supabaseAdmin
+      .from('client_temp_passwords')
+      .insert({
+        agent_id: agentId,
+        email: email,
+        temp_password: tempPassword,
+        created_at: new Date().toISOString()
+      });
+      
+    if (insertError) {
+      console.error("Error storing temporary password:", insertError);
+      // Continue anyway since the auth user is created/updated
+      console.log("Continuing despite error storing in client_temp_passwords");
+    }
+    
+    return {
+      success: true,
+      password: tempPassword
+    };
   } catch (error) {
-    console.error("Error in saveClientTempPassword:", error);
-    return { 
-      success: false, 
-      password: null, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    console.error("Exception in saveClientTempPassword:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 };
 
 /**
- * Sends a password reset email to the user
- * @param email The email address of the user to send the reset email to
- * @returns True if the email was sent successfully, false otherwise
+ * Gets a client's temporary password from the database
+ * @param agentId The agent ID
+ * @param email The client email
+ * @returns The temporary password if found
  */
-export const sendPasswordResetEmail = async (email: string): Promise<boolean> => {
+export const getClientTempPassword = async (
+  agentId: string,
+  email: string
+): Promise<string | null> => {
   try {
-    if (!isAdminClientConfigured() || !supabaseAdmin) {
-      console.error('Admin client not configured - cannot send password reset email');
-      return false;
+    const { data, error } = await supabase
+      .from('client_temp_passwords')
+      .select('temp_password')
+      .eq('agent_id', agentId)
+      .eq('email', email)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+      
+    if (error) {
+      console.error("Error retrieving temporary password:", error);
+      return null;
     }
     
-    // Send the password reset email
-    const response = await supabaseAdmin?.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`,
-    });
-    
-    if (response?.error) {
-      console.error("Error sending password reset email:", response.error);
-      return false;
-    }
-    
-    console.log("Password reset email sent successfully to:", email);
-    return true;
+    return data?.temp_password || null;
   } catch (error) {
-    console.error("Error in sendPasswordResetEmail:", error);
-    return false;
-  }
-};
-
-/**
- * Updates the user's password in Supabase
- * @param userId The ID of the user to update
- * @param newPassword The new password to set
- * @returns True if the password was updated successfully, false otherwise
- */
-export const updatePassword = async (userId: string, newPassword: string): Promise<boolean> => {
-  try {
-    if (!isAdminClientConfigured() || !supabaseAdmin) {
-      console.error('Admin client not configured - cannot update password');
-      return false;
-    }
-    
-    // Update the user's password
-    const response = await supabaseAdmin?.auth.admin.updateUserById(
-      userId,
-      { password: newPassword }
-    );
-    
-    if (response?.error) {
-      console.error("Error updating password:", response.error);
-      return false;
-    }
-    
-    console.log("Password updated successfully for user:", userId);
-    return true;
-  } catch (error) {
-    console.error("Error in updatePassword:", error);
-    return false;
+    console.error("Exception in getClientTempPassword:", error);
+    return null;
   }
 };

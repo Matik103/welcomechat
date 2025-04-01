@@ -3,15 +3,14 @@ import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { WebsiteUrl } from '@/types/website-url';
 import { toast } from 'sonner';
-import { getEnvVariable } from '@/utils/envUtils';
 
 export const useStoreWebsiteContent = (clientId: string) => {
   return useMutation({
     mutationFn: async (website: WebsiteUrl) => {
       try {
         // Get the Supabase URL from environment variables or use a fallback
-        const supabaseUrl = getEnvVariable('VITE_SUPABASE_URL') || 'http://localhost:54321';
-        const supabaseKey = getEnvVariable('VITE_SUPABASE_ANON_KEY') || '';
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
         
         // Make a fetch call to the Supabase function
         const response = await fetch(`${supabaseUrl}/functions/v1/crawl-website`, {

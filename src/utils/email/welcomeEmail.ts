@@ -26,14 +26,6 @@ export const sendWelcomeEmail = async (
     };
   }
   
-  if (!supabaseAdmin) {
-    console.error('Supabase admin client is not configured');
-    return {
-      emailSent: false,
-      emailError: "Supabase admin client is not configured"
-    };
-  }
-  
   try {
     // Verify the client exists in Supabase Auth - using the correct API
     const { data: userList, error: listError } = await supabaseAdmin.auth.admin.listUsers();

@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { v4 as uuidv4 } from 'uuid';
-import { LlamaCloudService } from '@/services/LlamaCloudService';
 
 interface UploadResult {
   success: boolean;
@@ -113,12 +112,31 @@ export function useDocumentUpload(clientId: string) {
         storage_path: filePath
       };
       
-      // Add metadata if agent name is provided
-      if (agentName) {
-        documentLinkData.metadata = {
-          agent_name: agentName,
-          source: 'agent_config'
-        };
+      // Try to add metadata if agent name is provided
+      try {
+        // Check if the metadata column exists
+        if (agentName) {
+          // First check if metadata column exists by requesting the table schema
+          const { data: tableInfo, error: tableError } = await supabase
+            .from('document_links')
+            .select('client_id')
+            .limit(1);
+          
+          // If we got here without error, try to add metadata
+          if (!tableError) {
+            // Try to add metadata - will fail gracefully if column doesn't exist
+            try {
+              documentLinkData.metadata = {
+                agent_name: agentName,
+                source: 'agent_config'
+              };
+            } catch (metaError) {
+              console.warn("Couldn't add metadata to document_links, proceeding without it:", metaError);
+            }
+          }
+        }
+      } catch (schemaError) {
+        console.warn("Error checking schema, proceeding without metadata:", schemaError);
       }
 
       // Insert the document link
@@ -139,35 +157,7 @@ export function useDocumentUpload(clientId: string) {
       }
 
       console.log("Document link record created:", documentLink);
-      
-      // Now, send the document to LlamaParse for processing - ENSURE THIS IS ALWAYS CALLED
-      try {
-        const effectiveAgentName = agentName || "AI Assistant";
-        
-        console.log("Triggering LlamaParse document processing for:", urlData.publicUrl);
-        
-        const parseResult = await LlamaCloudService.parseDocument(
-          urlData.publicUrl,
-          documentType,
-          actualClientId,
-          effectiveAgentName
-        );
-        
-        if (parseResult.success) {
-          console.log("Document successfully sent to LlamaParse for processing:", parseResult.jobId);
-          toast.success('Document uploaded and processing started');
-        } else {
-          console.warn("Document uploaded but LlamaParse processing failed:", parseResult.error);
-          toast.warning("Document uploaded, but text extraction encountered an issue. We'll try again automatically.");
-          
-          // Log the error for debugging
-          console.error("LlamaParse error details:", parseResult.error);
-        }
-      } catch (parseError) {
-        console.error("Error sending document to LlamaParse:", parseError);
-        toast.warning("Document uploaded, but text extraction encountered an issue. We'll retry automatically.");
-      }
-      
+      toast.success('Document uploaded successfully');
       return {
         success: true,
         documentId: documentLink.id

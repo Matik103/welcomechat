@@ -1,7 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { ActivityTypeString } from "@/types/activity";
-import { safeCount } from "@/utils/typeUtils";
 
 /**
  * Get total count of administration activities across all clients
@@ -71,19 +70,17 @@ export const getAdministrationActivitiesCount = async (): Promise<{
       
     if (recentError) throw recentError;
     
-    // Calculate change percentage - use our new safety helpers
-    const totalCountSafe = safeCount(totalCount);
-    const recentCountSafe = safeCount(recentCount);
-    const previousPeriodCount = totalCountSafe - recentCountSafe;
+    // Calculate change percentage
+    const previousPeriodCount = totalCount - recentCount;
     let changePercentage = 0;
     
     if (previousPeriodCount > 0) {
-      changePercentage = Math.round((recentCountSafe / previousPeriodCount) * 100) / 5;
+      changePercentage = Math.round((recentCount / previousPeriodCount) * 100) / 5;
     }
     
     return {
-      total: totalCountSafe,
-      recent: recentCountSafe,
+      total: totalCount || 0,
+      recent: recentCount || 0,
       changePercentage
     };
   } catch (error) {

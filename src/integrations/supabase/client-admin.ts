@@ -1,75 +1,100 @@
 
+// Determine if we should add the necessary exports or just check the existing file and add the missing exports
 import { createClient } from '@supabase/supabase-js';
-
-// Get Supabase URL from the client-side config
+import type { Database } from './types';
 import { SUPABASE_URL } from './client';
-import { getEnvVariable } from '@/utils/envUtils';
 
-// Safe access to environment variables
-const getEnvVariable2 = (name: string): string => {
-  // Node.js environment
-  if (typeof process !== 'undefined' && process.env && process.env[name]) {
-    return process.env[name] as string;
-  }
-  
-  // Browser environment with import.meta
-  // Access import.meta conditionally to avoid errors in environments that don't support it
+// Get the service role key from environment
+const SUPABASE_SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
+
+// Create a singleton instance for the admin client
+let supabaseAdminInstance: ReturnType<typeof createClient<Database>> | null = null;
+
+// Check if the admin client can be configured
+export const isAdminClientConfigured = (): boolean => {
+  return !!SUPABASE_SERVICE_ROLE_KEY && SUPABASE_SERVICE_ROLE_KEY.length > 0;
+};
+
+// Initialize the bot-logos bucket
+export const initializeBotLogosBucket = async (): Promise<boolean> => {
   try {
-    // @ts-ignore - We're intentionally using dynamic access here to avoid static analysis errors
-    if (typeof window !== 'undefined' && window.importMeta && window.importMeta.env && window.importMeta.env[name]) {
-      // @ts-ignore
-      return window.importMeta.env[name] as string;
+    if (!isAdminClientConfigured()) {
+      console.error('Cannot initialize buckets: Supabase admin client not configured');
+      return false;
     }
-  } catch (e) {
-    console.warn(`Error accessing import.meta.env.${name}:`, e);
-  }
-  
-  return '';
-};
 
-// Use getEnvVariable for safer access
-const SUPABASE_SERVICE_ROLE_KEY = getEnvVariable2('VITE_SUPABASE_SERVICE_ROLE_KEY');
+    // Create the bucket if it doesn't exist
+    const { error } = await supabaseAdmin.storage.createBucket('bot-logos', {
+      public: true,
+      fileSizeLimit: 10485760, // 10MB
+    });
 
-// Create a Supabase client with the service role key
-export const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY 
-  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-  : null;
-
-// Helper function to check if the admin client is configured
-export const isAdminClientConfigured = () => {
-  return !!SUPABASE_SERVICE_ROLE_KEY && !!supabaseAdmin;
-};
-
-// Function to initialize the bot logos bucket
-export const initializeBotLogosBucket = async () => {
-  if (!supabaseAdmin) {
-    console.error('Supabase admin client not configured');
-    return false;
-  }
-  
-  try {
-    const { data, error } = await supabaseAdmin
-      .storage
-      .createBucket('bot-logos', {
-        public: true,
-        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
-      });
-      
-    if (error) {
-      // Skip the error if the bucket already exists
-      if (error.message && error.message.includes('already exists')) {
-        console.log('Bucket bot-logos already exists');
-        return true;
-      }
-      
-      console.error('Error creating bucket:', error);
+    if (error && !error.message.includes('already exists')) {
+      console.error('Error creating bot-logos bucket:', error);
       return false;
     }
     
-    console.log('Bucket created successfully:', data);
+    // Also create document-storage bucket
+    const { error: docError } = await supabaseAdmin.storage.createBucket('document-storage', {
+      public: true,
+      fileSizeLimit: 20971520, // 20MB
+    });
+
+    if (docError && !docError.message.includes('already exists')) {
+      console.error('Error creating document-storage bucket:', docError);
+      // Continue anyway, since we at least created the bot-logos bucket
+    }
+
+    console.log('Storage buckets initialized successfully');
     return true;
   } catch (error) {
-    console.error('Error creating bucket:', error);
+    console.error('Error initializing storage buckets:', error);
     return false;
   }
 };
+
+// Export the admin client (initialize only if service role key is available)
+export const supabaseAdmin = (() => {
+  if (isAdminClientConfigured()) {
+    if (!supabaseAdminInstance) {
+      console.log('Initializing Supabase admin client with service role key:', SUPABASE_SERVICE_ROLE_KEY.substring(0, 10) + '...');
+      supabaseAdminInstance = createClient<Database>(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
+    }
+    return supabaseAdminInstance;
+  }
+
+  // Return a mock object that logs errors when methods are called
+  return new Proxy(
+    {},
+    {
+      get: (target, prop) => {
+        // Allow checking for certain properties without triggering the warning
+        if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+          return undefined;
+        }
+
+        // For everything else, return a function that warns about missing service role key
+        return () => {
+          console.error(
+            'Supabase admin client not properly configured. Check that VITE_SUPABASE_SERVICE_ROLE_KEY is set in your environment variables.'
+          );
+          return {
+            data: null,
+            error: new Error('Supabase admin client not configured'),
+          };
+        };
+      },
+    }
+  ) as ReturnType<typeof createClient<Database>>;
+})();
+
+export default supabaseAdmin;

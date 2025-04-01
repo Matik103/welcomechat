@@ -1,10 +1,8 @@
-
 import { config } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import type { Database } from '@/integrations/supabase/types';
 import { fileURLToPath } from 'url';
-import path from 'path';
 
 // Load environment variables from .env file
 config();
@@ -26,7 +24,6 @@ export enum ActivityType {
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const resendApiKey = process.env.RESEND_API_KEY || '';
-const apiUrl = process.env.VITE_API_URL || 'http://localhost:3000';
 
 if (!supabaseUrl || !supabaseServiceKey || !resendApiKey) {
   throw new Error('Missing required environment variables');
@@ -37,7 +34,7 @@ const resend = new Resend(resendApiKey);
 
 async function sendWelcomeEmail(email: string, clientName: string) {
   try {
-    const response = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: 'Welcome <welcome@welcome.com>',
       to: email,
       subject: 'Welcome to Welcome!',
@@ -48,12 +45,12 @@ async function sendWelcomeEmail(email: string, clientName: string) {
       `
     });
 
-    if (response.error) {
-      console.error('Error sending welcome email:', response.error);
+    if (error) {
+      console.error('Error sending welcome email:', error);
       return false;
     }
 
-    console.log('Welcome email sent successfully:', response);
+    console.log('Welcome email sent successfully:', data);
     return true;
   } catch (error) {
     console.error('Error sending welcome email:', error);
@@ -184,21 +181,7 @@ export async function setupTestClient() {
   return result;
 }
 
-// Check if this file is being executed directly
-const isMainModule = () => {
-  try {
-    // Get the path to the current file
-    const currentFilePath = process.argv[1];
-    const currentFileName = path.basename(currentFilePath);
-    
-    // Check if the filename matches
-    return currentFileName === 'testClient.ts' || currentFileName === 'testClient.js';
-  } catch (error) {
-    return false;
-  }
-};
-
 // Run setup if this file is executed directly
-if (isMainModule()) {
+if (import.meta.url === fileURLToPath(process.argv[1])) {
   setupTestClient();
 }

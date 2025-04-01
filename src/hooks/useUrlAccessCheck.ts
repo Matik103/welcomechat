@@ -1,67 +1,67 @@
 
-import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
+// Interface for URL access check result
 export interface UrlCheckResult {
-  canScrape: boolean;
   isAccessible: boolean;
-  hasScrapingRestrictions?: boolean;
+  hasScrapingRestrictions: boolean;
   statusCode?: number;
   contentType?: string;
   robotsRestrictions?: string[];
   metaRestrictions?: string[];
+  canScrape: boolean; // Made required (not optional)
   content?: string;
   error?: string;
 }
 
-export function useUrlAccessCheck() {
+// Alias for backward compatibility
+export type UrlAccessResult = UrlCheckResult;
+
+export const useUrlAccessCheck = () => {
   const [isChecking, setIsChecking] = useState(false);
-  const [result, setResult] = useState<UrlCheckResult | null>(null);
+  const [lastResult, setLastResult] = useState<UrlCheckResult | null>(null);
 
-  const checkUrl = async (url: string): Promise<UrlCheckResult> => {
+  const checkUrlAccess = async (url: string): Promise<UrlCheckResult> => {
     setIsChecking(true);
-    setResult(null);
-
+    
     try {
-      // Call the check-url Edge Function
-      const { data, error } = await supabase.functions.invoke('check-url', {
-        body: { url }
-      });
-
+      const { data, error } = await supabase.functions.invoke<UrlCheckResult>(
+        'check-url-access',
+        {
+          body: { url }
+        }
+      );
+      
       if (error) {
-        console.error('Error checking URL access:', error);
+        console.error("Error checking URL access:", error);
         const errorResult: UrlCheckResult = {
-          canScrape: false,
           isAccessible: false,
-          error: error.message || 'Failed to check URL accessibility'
+          hasScrapingRestrictions: true,
+          canScrape: false, // Always include this property
+          error: error.message
         };
-        setResult(errorResult);
+        setLastResult(errorResult);
         return errorResult;
       }
-
-      // Process the response
-      const urlResult: UrlCheckResult = {
-        canScrape: data.canScrape || false,
-        isAccessible: data.isAccessible || false,
-        hasScrapingRestrictions: data.hasScrapingRestrictions,
-        statusCode: data.statusCode,
-        contentType: data.contentType,
-        robotsRestrictions: data.robotsRestrictions,
-        metaRestrictions: data.metaRestrictions,
-        content: data.content,
-        error: data.error
+      
+      // Ensure canScrape is always defined if missing from response
+      const result: UrlCheckResult = {
+        ...data,
+        canScrape: data?.canScrape ?? !data?.hasScrapingRestrictions
       };
-
-      setResult(urlResult);
-      return urlResult;
-    } catch (error) {
-      console.error('Error in useUrlAccessCheck:', error);
+      
+      setLastResult(result);
+      return result;
+    } catch (err) {
+      console.error("Exception checking URL access:", err);
       const errorResult: UrlCheckResult = {
-        canScrape: false,
         isAccessible: false,
-        error: error instanceof Error ? error.message : 'Unknown error checking URL'
+        hasScrapingRestrictions: true,
+        canScrape: false, // Always include this property
+        error: err instanceof Error ? err.message : 'Unknown error checking URL'
       };
-      setResult(errorResult);
+      setLastResult(errorResult);
       return errorResult;
     } finally {
       setIsChecking(false);
@@ -69,8 +69,8 @@ export function useUrlAccessCheck() {
   };
 
   return {
-    checkUrl,
+    checkUrlAccess,
     isChecking,
-    result
+    lastResult
   };
-}
+};

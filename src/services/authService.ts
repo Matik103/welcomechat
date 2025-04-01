@@ -62,7 +62,7 @@ export const getUserRole = async (): Promise<UserRole> => {
       const { data: clientData, error: clientError } = await supabase
         .from('ai_agents')
         .select('id')
-        .eq('email', user.email || '')
+        .eq('email', user.email)
         .eq('interaction_type', 'config')
         .maybeSingle();
       
