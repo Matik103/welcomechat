@@ -1,247 +1,106 @@
 
-import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { createClientActivity } from '@/services/clientActivityService';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { WidgetSettings, defaultSettings } from '@/types/widget-settings';
+import { getWidgetSettings, updateWidgetSettings } from '@/services/widgetSettingsService';
+import { supabase } from '@/integrations/supabase/client';
 
-export const useWidgetSettings = (clientId: string) => {
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+export function useWidgetSettings(clientId: string | undefined) {
+  const [isUploading, setIsUploading] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Update agent name
-  const updateAgentName = useCallback(async (agentName: string) => {
-    if (!clientId) {
-      console.error('Client ID is required');
-      return false;
+  // Fetch widget settings
+  const { data: settings, isLoading, error, refetch } = useQuery({
+    queryKey: ['widget-settings', clientId],
+    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
+    enabled: !!clientId
+  });
+
+  // Update widget settings
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (newSettings: Partial<WidgetSettings>): Promise<void> => {
+      if (!clientId) throw new Error('Client ID is required');
+      
+      console.log('Updating widget settings:', newSettings);
+      
+      // Merge with existing settings to ensure we have a complete object
+      const updatedSettings = {
+        ...(settings || defaultSettings),
+        ...newSettings
+      };
+      
+      await updateWidgetSettings(clientId, updatedSettings);
+    },
+    onSuccess: () => {
+      refetch();
+      
+      // Also invalidate client query to ensure bidirectional sync
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      
+      toast.success('Widget settings updated successfully');
+    },
+    onError: (error) => {
+      console.error('Error updating widget settings:', error);
+      toast.error(`Failed to update settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    setIsUpdating(true);
-    setError(null);
-
-    try {
-      // Update the agent_name in the ai_agents table
-      const { error: agentUpdateError } = await supabase
-        .from('ai_agents')
-        .update({ name: agentName })
-        .eq('client_id', clientId)
-        .eq('interaction_type', 'config');
-
-      if (agentUpdateError) {
-        throw new Error(`Failed to update agent name: ${agentUpdateError.message}`);
-      }
-
-      // Get the settings to update them
-      const { data: agentData, error: getError } = await supabase
-        .from('ai_agents')
-        .select('settings')
-        .eq('client_id', clientId)
-        .eq('interaction_type', 'config')
-        .maybeSingle(); // Changed from single() to maybeSingle() to handle no results
-
-      if (getError) {
-        console.error('Error fetching agent settings:', getError);
-        throw new Error(`Failed to get agent data: ${getError.message}`);
-      }
-
-      if (agentData) {
-        // Update the settings with the new agent name
-        const settings = agentData?.settings as Record<string, any> || {};
-        settings.agent_name = agentName;
-
-        // Update the ai_agents table with the new settings
-        const { error: settingsError } = await supabase
-          .from('ai_agents')
-          .update({ settings })
-          .eq('client_id', clientId)
-          .eq('interaction_type', 'config');
-
-        if (settingsError) {
-          console.error('Error updating settings:', settingsError);
-          throw new Error(`Failed to update settings: ${settingsError.message}`);
-        }
-      } else {
-        // No existing agent config found, create one
-        const { error: createError } = await supabase
-          .from('ai_agents')
-          .insert({
-            client_id: clientId,
-            name: agentName,
-            interaction_type: 'config',
-            settings: { agent_name: agentName }
-          });
-
-        if (createError) {
-          console.error('Error creating agent config:', createError);
-          throw new Error(`Failed to create agent config: ${createError.message}`);
-        }
-      }
-
-      toast.success('Agent name updated successfully');
-      return true;
-    } catch (err) {
-      console.error('Error updating agent name:', err);
-      setError(err instanceof Error ? err : new Error(String(err)));
-      toast.error(`Failed to update agent name: ${err instanceof Error ? err.message : String(err)}`);
-      return false;
-    } finally {
-      setIsUpdating(false);
-    }
-  }, [clientId]);
-
-  // Update agent description
-  const updateAgentDescription = useCallback(async (description: string) => {
-    if (!clientId) {
-      console.error('Client ID is required');
-      return false;
-    }
-
-    setIsUpdating(true);
-    setError(null);
-
-    try {
-      // Get the current settings from the ai_agents table
-      const { data: agentData, error: getError } = await supabase
-        .from('ai_agents')
-        .select('settings')
-        .eq('client_id', clientId)
-        .eq('interaction_type', 'config')
-        .maybeSingle(); // Changed from single() to maybeSingle()
-
-      if (getError) {
-        throw new Error(`Failed to get agent data: ${getError.message}`);
-      }
-
-      // Update the settings with the new description
-      const settings = agentData?.settings as Record<string, any> || {};
-      settings.agent_description = description;
-
-      // If no existing record, create one
-      if (!agentData) {
-        const { error: createError } = await supabase
-          .from('ai_agents')
-          .insert({
-            client_id: clientId,
-            name: 'AI Assistant', // Default name
-            agent_description: description,
-            interaction_type: 'config',
-            settings: { agent_description: description }
-          });
-
-        if (createError) {
-          throw new Error(`Failed to create agent config: ${createError.message}`);
-        }
-      } else {
-        // Update the ai_agents table with the new settings
-        const { error: updateError } = await supabase
-          .from('ai_agents')
-          .update({ 
-            settings,
-            agent_description: description 
-          })
-          .eq('client_id', clientId)
-          .eq('interaction_type', 'config');
-
-        if (updateError) {
-          throw new Error(`Failed to update agent description: ${updateError.message}`);
-        }
-      }
-
-      toast.success('Agent description updated successfully');
-      return true;
-    } catch (err) {
-      console.error('Error updating agent description:', err);
-      setError(err instanceof Error ? err : new Error(String(err)));
-      toast.error(`Failed to update agent description: ${err instanceof Error ? err.message : String(err)}`);
-      return false;
-    } finally {
-      setIsUpdating(false);
-    }
-  }, [clientId]);
+  });
 
   // Update logo
-  const updateLogo = useCallback(async (logoUrl: string, storageFilePath?: string) => {
-    if (!clientId) {
-      console.error('Client ID is required');
-      return false;
-    }
-
-    setIsUpdating(true);
-    setError(null);
-
+  const updateLogo = async (url: string, path: string): Promise<void> => {
     try {
-      // Get current settings from ai_agents
-      const { data: agentData, error: getError } = await supabase
+      if (!clientId) throw new Error('Client ID is required');
+      
+      console.log('Updating logo:', { url, path });
+      
+      // Update in ai_agents table
+      const { error: agentError } = await supabase
         .from('ai_agents')
-        .select('settings')
+        .update({
+          logo_url: url,
+          logo_storage_path: path,
+          updated_at: new Date().toISOString(),
+          settings: {
+            ...(settings || defaultSettings),
+            logo_url: url,
+            logo_storage_path: path
+          }
+        })
         .eq('client_id', clientId)
-        .eq('interaction_type', 'config')
-        .maybeSingle(); // Changed from single() to maybeSingle()
-
-      if (getError) {
-        throw new Error(`Failed to get agent data: ${getError.message}`);
+        .eq('interaction_type', 'config');
+      
+      if (agentError) {
+        console.error('Error updating logo in ai_agents:', agentError);
+        throw agentError;
       }
-
-      // If no agent config exists, create one
-      if (!agentData) {
-        const { error: createError } = await supabase
-          .from('ai_agents')
-          .insert({
-            client_id: clientId,
-            name: 'AI Assistant', // Default name
-            logo_url: logoUrl,
-            logo_storage_path: storageFilePath,
-            interaction_type: 'config',
-            settings: { 
-              logo_url: logoUrl,
-              logo_storage_path: storageFilePath
-            }
-          });
-
-        if (createError) {
-          throw new Error(`Failed to create agent config: ${createError.message}`);
-        }
-      } else {
-        // Update settings with new logo info
-        const settings = agentData?.settings as Record<string, any> || {};
-        settings.logo_url = logoUrl;
-        
-        if (storageFilePath) {
-          settings.logo_storage_path = storageFilePath;
-        }
-
-        // Update ai_agents with new settings and logo info
-        const { error: updateError } = await supabase
-          .from('ai_agents')
-          .update({ 
-            settings,
-            logo_url: logoUrl,
-            logo_storage_path: storageFilePath
-          })
-          .eq('client_id', clientId)
-          .eq('interaction_type', 'config');
-
-        if (updateError) {
-          throw new Error(`Failed to update logo: ${updateError.message}`);
-        }
-      }
-
+      
+      // Update widget settings cache
+      queryClient.setQueryData(['widget-settings', clientId], {
+        ...(settings || defaultSettings),
+        logo_url: url,
+        logo_storage_path: path
+      });
+      
+      // Invalidate queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['widget-settings', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      
       toast.success('Logo updated successfully');
-      return true;
-    } catch (err) {
-      console.error('Error updating logo:', err);
-      setError(err instanceof Error ? err : new Error(String(err)));
-      toast.error(`Failed to update logo: ${err instanceof Error ? err.message : String(err)}`);
-      return false;
-    } finally {
-      setIsUpdating(false);
+    } catch (error) {
+      console.error('Error in updateLogo:', error);
+      toast.error(`Failed to update logo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
     }
-  }, [clientId]);
+  };
 
   return {
-    updateAgentName,
-    updateAgentDescription,
+    settings: settings || defaultSettings,
+    isLoading,
+    error,
+    refetch,
+    updateSettings: updateSettingsMutation.mutate,
+    isPending: updateSettingsMutation.isPending,
     updateLogo,
-    isUpdating,
-    error
+    isUploading
   };
-};
+}

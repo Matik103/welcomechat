@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
@@ -21,9 +22,10 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  // Use the agent name from settings
   const { agentContent, sources, isLoading: isAgentLoading } = useAgentContent(
     clientId, 
-    "" // Use empty string instead of "AI Assistant"
+    settings.agent_name || ""
   );
 
   const scrollToBottom = () => {
@@ -33,6 +35,18 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Log available data for debugging
+    if (clientId) {
+      console.log("WidgetPreview mounted with:", { 
+        clientId, 
+        agentName: settings.agent_name,
+        contentLength: agentContent?.length || 0,
+        sourcesCount: sources?.length || 0 
+      });
+    }
+  }, [clientId, settings.agent_name, agentContent, sources]);
 
   const handleToggleExpand = () => {
     setExpanded(!expanded);
@@ -77,6 +91,20 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       try {
         setIsTyping(true);
         
+        // Get document titles for better context
+        const documentTitles = sources
+          .filter(s => s.title)
+          .map(s => s.title)
+          .join(", ");
+        
+        // Create context header with document info
+        const contextHeader = sources.length > 0 
+          ? `The following information is from ${sources.length} documents including: ${documentTitles}.\n\n` 
+          : "";
+        
+        // Combine context header with content
+        const fullContext = contextHeader + agentContent.substring(0, 3000);
+        
         const response = await fetch('https://mgjodiqecnnltsgorife.supabase.co/functions/v1/chat', {
           method: 'POST',
           headers: {
@@ -84,9 +112,9 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           },
           body: JSON.stringify({
             prompt: userQuery,
-            agent_name: "",
+            agent_name: settings.agent_name || "",
             client_id: clientId,
-            context: agentContent.substring(0, 3000)
+            context: fullContext
           })
         });
         
@@ -94,6 +122,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           const data = await response.json();
           typeResponse(data.generatedText || "I couldn't generate a response. Please try again.");
         } else {
+          console.error("Error calling chat API:", await response.text());
           simulateResponse(userQuery);
         }
       } catch (error) {
@@ -118,19 +147,37 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         responseText = `My name is ${settings.agent_name || "AI Assistant"}! How can I help you today?`;
       }
       else if (agentContent && agentContent.length > 0) {
-        if (userQuery.toLowerCase().includes("what") && 
+        // Document-related queries
+        if (userQuery.toLowerCase().includes("document") || 
+            userQuery.toLowerCase().includes("content") || 
+            userQuery.toLowerCase().includes("information")) {
+          
+          // Show document sources information
+          const sourceInfo = sources && sources.length > 0 
+            ? `I have access to ${sources.length} documents${sources[0]?.title ? ` including "${sources[0]?.title}"` : ''}.` 
+            : "I have access to your organization's knowledge base.";
+          
+          responseText = `${sourceInfo} How can I help you today?`;
+        }
+        // Knowledge-related queries
+        else if (userQuery.toLowerCase().includes("what") && 
             (userQuery.toLowerCase().includes("know") || 
              userQuery.toLowerCase().includes("about") ||
              userQuery.toLowerCase().includes("learn"))) {
-          responseText = `Based on the content I have access to, I can help with information about: ${agentContent.substring(0, 150)}...`;
-        } else if (userQuery.toLowerCase().includes("help")) {
+          
+          const documentTypes = [...new Set(sources.filter(s => s.documentType).map(s => s.documentType))].join(", ");
+          const docsInfo = documentTypes 
+            ? `I can help with information from ${documentTypes} documents.` 
+            : `I can help with information from various documents.`;
+          
+          responseText = `${docsInfo} Based on the content I have access to, I can help with: ${agentContent.substring(0, 150)}...`;
+        }
+        // Help query
+        else if (userQuery.toLowerCase().includes("help")) {
           responseText = "I can help answer questions based on the documents and websites that have been shared with me. What would you like to know?";
-        } else if (userQuery.toLowerCase().includes("document") || userQuery.toLowerCase().includes("information")) {
-          const sourceInfo = sources && sources.length > 0 
-            ? `I have access to ${sources.length} documents including ${sources[0]?.url || 'various resources'}.` 
-            : "I have access to your organization's knowledge base.";
-          responseText = `${sourceInfo} How can I help you today?`;
-        } else {
+        } 
+        // Search for relevant content
+        else {
           const words = userQuery.toLowerCase().split(' ').filter(w => w.length > 3);
           let relevantContent = agentContent;
           
