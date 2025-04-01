@@ -8,6 +8,14 @@ declare module '*.tsx' {
   export default Component;
 }
 
+// Fix for JSX declarations without jsx flag
+declare namespace JSX {
+  interface Element {}
+  interface IntrinsicElements {
+    [elemName: string]: any;
+  }
+}
+
 // Fix for error handling
 interface Error {
   message: string;

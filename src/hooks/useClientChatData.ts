@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatInteraction } from "@/types/client-dashboard";
@@ -39,7 +40,7 @@ export const useClientChatData = (clientId: string) => {
           created_at: item.created_at || "",
           agent_name: item.name || "AI Assistant",
           client_id: clientId,
-          response_time_ms: item.response_time_ms || undefined
+          response_time_ms: item.response_time_ms || undefined // Convert null to undefined to match expected type
         }));
 
         return {
