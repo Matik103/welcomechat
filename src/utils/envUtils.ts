@@ -7,13 +7,13 @@ export function getEnvVariable(name: string): string | undefined {
   try {
     // For server-side usage (Node.js)
     if (typeof process !== 'undefined' && process.env) {
-      return process.env[name];
+      return process.env[name as keyof typeof process.env];
     }
     
     // For client-side usage - using window directly rather than import.meta
     if (typeof window !== 'undefined' && 
-        typeof window['ENV'] !== 'undefined') {
-      const env = window['ENV'] as Record<string, string>;
+        typeof (window as any)['ENV'] !== 'undefined') {
+      const env = (window as any)['ENV'] as Record<string, string>;
       return env[name];
     }
     

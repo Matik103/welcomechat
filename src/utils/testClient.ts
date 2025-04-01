@@ -1,8 +1,10 @@
+
 import { config } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import type { Database } from '@/integrations/supabase/types';
 import { fileURLToPath } from 'url';
+import path from 'path';
 
 // Load environment variables from .env file
 config();
@@ -35,7 +37,7 @@ const resend = new Resend(resendApiKey);
 
 async function sendWelcomeEmail(email: string, clientName: string) {
   try {
-    const { data, error } = await resend.emails.send({
+    const response = await resend.emails.send({
       from: 'Welcome <welcome@welcome.com>',
       to: email,
       subject: 'Welcome to Welcome!',
@@ -46,12 +48,12 @@ async function sendWelcomeEmail(email: string, clientName: string) {
       `
     });
 
-    if (error) {
-      console.error('Error sending welcome email:', error);
+    if (response.error) {
+      console.error('Error sending welcome email:', response.error);
       return false;
     }
 
-    console.log('Welcome email sent successfully:', data);
+    console.log('Welcome email sent successfully:', response);
     return true;
   } catch (error) {
     console.error('Error sending welcome email:', error);
@@ -182,7 +184,21 @@ export async function setupTestClient() {
   return result;
 }
 
+// Check if this file is being executed directly
+const isMainModule = () => {
+  try {
+    // Get the path to the current file
+    const currentFilePath = process.argv[1];
+    const currentFileName = path.basename(currentFilePath);
+    
+    // Check if the filename matches
+    return currentFileName === 'testClient.ts' || currentFileName === 'testClient.js';
+  } catch (error) {
+    return false;
+  }
+};
+
 // Run setup if this file is executed directly
-if (import.meta.url === fileURLToPath(process.argv[1])) {
+if (isMainModule()) {
   setupTestClient();
 }

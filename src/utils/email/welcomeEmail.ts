@@ -1,3 +1,4 @@
+
 import { sendEmail } from './emailSender';
 import { generateClientInvitationTemplate } from './emailTemplates';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
@@ -27,7 +28,10 @@ export const sendWelcomeEmail = async (
   
   if (!supabaseAdmin) {
     console.error('Supabase admin client is not configured');
-    return null; // or appropriate fallback value
+    return {
+      emailSent: false,
+      emailError: "Supabase admin client is not configured"
+    };
   }
   
   try {

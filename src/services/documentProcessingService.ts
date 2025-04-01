@@ -1,3 +1,4 @@
+
 import { supabaseAdmin } from "@/integrations/supabase/client-admin";
 import { safeString, safeNumber } from "@/utils/typeUtils";
 
@@ -23,6 +24,11 @@ export interface Document {
  */
 export const getDocuments = async (clientId: string): Promise<Document[]> => {
   try {
+    if (!supabaseAdmin) {
+      console.error('Supabase admin client not initialized');
+      return [];
+    }
+    
     const { data, error } = await supabaseAdmin
       .from('documents')
       .select('*')
@@ -57,10 +63,20 @@ export const getDocuments = async (clientId: string): Promise<Document[]> => {
 };
 
 /**
+ * Get all documents for a client (alias for getDocuments)
+ */
+export const getDocumentsForClient = getDocuments;
+
+/**
  * Get a single document by ID
  */
 export const getDocumentById = async (documentId: number): Promise<Document | null> => {
   try {
+    if (!supabaseAdmin) {
+      console.error('Supabase admin client not initialized');
+      return null;
+    }
+    
     const { data, error } = await supabaseAdmin
       .from('documents')
       .select('*')
@@ -86,7 +102,7 @@ export const getDocumentById = async (documentId: number): Promise<Document | nu
       last_processed_at: safeString(data.last_processed_at),
       refresh_rate: safeNumber(data.refresh_rate),
       document_type: safeString(data.document_type),
-      error: data.error,
+      error: data.error || undefined,
       token_count: safeNumber(data.token_count),
       metadata: data.metadata
     };
@@ -108,6 +124,11 @@ export const addDocument = async (
   documentType: string
 ): Promise<Document | null> => {
   try {
+    if (!supabaseAdmin) {
+      console.error('Supabase admin client not initialized');
+      return null;
+    }
+    
     const { data, error } = await supabaseAdmin
       .from('documents')
       .insert([
@@ -141,13 +162,97 @@ export const addDocument = async (
       last_processed_at: safeString(data.last_processed_at),
       refresh_rate: safeNumber(data.refresh_rate),
       document_type: safeString(data.document_type),
-      error: data.error,
+      error: data.error || undefined,
       token_count: safeNumber(data.token_count),
       metadata: data.metadata
     };
   } catch (error) {
     console.error('Error in addDocument:', error);
     return null;
+  }
+};
+
+/**
+ * Alias for addDocument to match expected function name
+ */
+export const uploadDocument = async (
+  clientId: string,
+  file: File,
+  agentName: string
+): Promise<Document | null> => {
+  // In a real implementation, this would upload the file to storage
+  // For now, we'll just create a document record
+  return addDocument(
+    clientId,
+    URL.createObjectURL(file), // Temporary URL
+    file.name,
+    `Uploaded document for ${agentName}`,
+    60, // Default refresh rate
+    'upload'
+  );
+};
+
+/**
+ * Process a document URL
+ */
+export const processDocumentUrl = async (
+  clientId: string,
+  documentUrl: string,
+  documentType: string,
+  agentName: string
+): Promise<Document | null> => {
+  return addDocument(
+    clientId,
+    documentUrl,
+    `Document from ${new URL(documentUrl).hostname}`,
+    `Processed document for ${agentName}`,
+    60, // Default refresh rate
+    documentType
+  );
+};
+
+/**
+ * Check document processing status
+ */
+export const checkDocumentProcessingStatus = async (
+  jobId: string
+): Promise<{success: boolean; processed?: number; error?: string}> => {
+  try {
+    if (!supabaseAdmin) {
+      console.error('Supabase admin client not initialized');
+      return { success: false, error: 'Supabase admin client not initialized' };
+    }
+    
+    const { data, error } = await supabaseAdmin
+      .from('document_processing_jobs')
+      .select('*')
+      .eq('job_id', jobId)
+      .single();
+    
+    if (error) {
+      console.error('Error checking document status:', error);
+      return { success: false, error: error.message };
+    }
+    
+    if (!data) {
+      return { success: false, error: 'Job not found' };
+    }
+    
+    if (data.status === 'completed') {
+      return { success: true, processed: 1 };
+    }
+    
+    if (data.status === 'failed') {
+      return { success: false, error: data.error || 'Unknown error' };
+    }
+    
+    return { success: false, error: 'Processing not complete' };
+  } catch (error) {
+    console.error('Error in checkDocumentProcessingStatus:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
 };
 
@@ -159,6 +264,11 @@ export const updateDocument = async (
   updates: Partial<Document>
 ): Promise<Document | null> => {
   try {
+    if (!supabaseAdmin) {
+      console.error('Supabase admin client not initialized');
+      return null;
+    }
+    
     const { data, error } = await supabaseAdmin
       .from('documents')
       .update(updates)
@@ -185,7 +295,7 @@ export const updateDocument = async (
       last_processed_at: safeString(data.last_processed_at),
       refresh_rate: safeNumber(data.refresh_rate),
       document_type: safeString(data.document_type),
-      error: data.error,
+      error: data.error || undefined,
       token_count: safeNumber(data.token_count),
       metadata: data.metadata
     };
@@ -200,6 +310,11 @@ export const updateDocument = async (
  */
 export const deleteDocument = async (documentId: number): Promise<boolean> => {
   try {
+    if (!supabaseAdmin) {
+      console.error('Supabase admin client not initialized');
+      return false;
+    }
+    
     const { error } = await supabaseAdmin
       .from('documents')
       .delete()
@@ -222,6 +337,11 @@ export const deleteDocument = async (documentId: number): Promise<boolean> => {
  */
 export const updateDocumentStatus = async (documentId: number, status: string): Promise<boolean> => {
   try {
+    if (!supabaseAdmin) {
+      console.error('Supabase admin client not initialized');
+      return false;
+    }
+    
     const { error } = await supabaseAdmin
       .from('documents')
       .update({ status })
@@ -248,6 +368,11 @@ export const logDocumentProcessingActivity = async (
   activityData: any
 ): Promise<boolean> => {
   try {
+    if (!supabaseAdmin) {
+      console.error('Supabase admin client not initialized');
+      return false;
+    }
+    
     const { error } = await supabaseAdmin
       .from('document_processing_activities')
       .insert([
@@ -279,6 +404,11 @@ export const createDocumentFromGoogleDriveFile = async (
   documentData: any
 ): Promise<Document | null> => {
   try {
+    if (!supabaseAdmin) {
+      console.error('Supabase admin client not initialized');
+      return null;
+    }
+    
     // Extract relevant information from documentData
     const url = `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
     
@@ -330,7 +460,7 @@ export const createDocumentFromGoogleDriveFile = async (
       last_processed_at: safeString(data.last_processed_at),
       refresh_rate: safeNumber(data.refresh_rate),
       document_type: safeString(data.document_type),
-      error: data.error,
+      error: data.error || undefined,
       token_count: safeNumber(data.token_count),
       metadata: data.metadata
     };
