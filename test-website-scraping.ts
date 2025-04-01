@@ -1,108 +1,155 @@
-
-import { FirecrawlService } from './src/services/FirecrawlService';
+import { FirecrawlService } from './src/services/FirecrawlService.js';
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 import fetch from 'node-fetch';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 // Add fetch to global scope for Node.js environment
 global.fetch = fetch as any;
 
 dotenv.config();
 
+// Validate required environment variables
+const requiredEnvVars = [
+  'VITE_SUPABASE_URL',
+  'VITE_SUPABASE_ANON_KEY',
+  'FIRECRAWL_API_KEY',
+  'FIRECRAWL_API_URL'
+];
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`Missing required environment variable: ${envVar}`);
+    process.exit(1);
+  }
+}
+
 // Initialize Supabase client
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || '',
-  process.env.VITE_SUPABASE_ANON_KEY || ''
+  process.env.VITE_SUPABASE_URL as string,
+  process.env.VITE_SUPABASE_ANON_KEY as string
 );
+
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function testWebsiteScraping() {
   try {
     // Initialize FirecrawlService
     const firecrawlService = new FirecrawlService({
-      apiKey: process.env.FIRECRAWL_API_KEY || '',
-      baseUrl: process.env.FIRECRAWL_API_URL || 'https://api.firecrawl.dev/v1'
+      apiKey: process.env.FIRECRAWL_API_KEY as string,
+      baseUrl: process.env.FIRECRAWL_API_URL as string
     });
 
-    // Test URL to scrape
-    const testUrl = 'https://example.com';
+    const url = 'https://autokey.ca/';
+    console.log(`Testing URL: ${url}`);
 
-    // First, check if the URL is scrapable
-    console.log('Checking if URL is scrapable...');
-    const scrapabilityCheck = await firecrawlService.checkScrapability(testUrl);
-    console.log('Scrapability check result:', scrapabilityCheck);
+    // Check if URL is scrapable
+    console.log('Checking URL scrapability...');
+    const scrapabilityResult = await firecrawlService.validateUrl(url);
+    console.log('Scrapability check result:', JSON.stringify(scrapabilityResult, null, 2));
 
-    if (!scrapabilityCheck.success || !scrapabilityCheck.data) {
-      console.log('URL is not scrapable:', scrapabilityCheck.error);
-      return;
+    if (!scrapabilityResult.scrapable) {
+      throw new Error(`URL is not scrapable: ${scrapabilityResult.error || 'Unknown error'}`);
     }
 
     // Start the crawl
-    console.log('Starting website crawl...');
+    console.log('Starting crawl...');
     const crawlResult = await firecrawlService.crawlWebsite({
-      url: testUrl,
-      maxDepth: 2,
-      limit: 10,
+      url,
       scrapeOptions: {
-        formats: ['markdown'],
-        onlyMainContent: true,
-        blockAds: true
+        maxDepth: 3,
+        maxPages: 50,
+        ignoreSitemap: false,
+        ignoreQueryParameters: true,
+        allowBackwardLinks: true,
+        allowExternalLinks: false,
+        excludeTags: ['nav', 'footer', 'script', 'style', 'iframe'],
+        removeBase64Images: true,
+        timeout: 30000 // 30 seconds timeout
       }
     });
 
-    if (!crawlResult.success || !crawlResult.id) {
-      console.error('Failed to start crawl:', crawlResult.error);
-      return;
-    }
+    console.log('Crawl started with ID:', crawlResult.id);
 
-    console.log('Crawl started successfully:', crawlResult);
-
-    // Wait for a bit to let the crawl progress
-    console.log('Waiting for crawl to complete...');
-    let status;
+    // Poll for completion with exponential backoff
+    const maxAttempts = 20; // Increased from 10 to 20
+    const initialPollInterval = 10000; // Start with 10 seconds
     let attempts = 0;
-    const maxAttempts = 10;
+    let crawlStatus;
+    let currentPollInterval = initialPollInterval;
 
-    do {
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between checks
-      console.log('Checking crawl status...');
-      status = await firecrawlService.getCrawlStatus(crawlResult.id);
-      console.log('Crawl status:', status);
+    while (attempts < maxAttempts) {
       attempts++;
-    } while (status.status === 'scraping' && attempts < maxAttempts);
+      console.log(`Checking crawl status (attempt ${attempts}/${maxAttempts})...`);
+      
+      try {
+        crawlStatus = await firecrawlService.getCrawlStatus(crawlResult.id);
+        console.log('Crawl status:', JSON.stringify(crawlStatus, null, 2));
 
-    if (status.status === 'completed') {
-      // Get crawl results
-      console.log('Getting crawl results...');
-      const results = await firecrawlService.getCrawlResults(crawlResult.id);
-      console.log('Crawl results:', results);
+        if (crawlStatus.status === 'completed') {
+          // Extract content from the status response
+          const content = crawlStatus.data?.map(page => page.markdown).join('\n\n');
+          
+          if (!content) {
+            throw new Error('No content found in crawl results');
+          }
 
-      // Store results in database
-      const { data, error } = await supabase
-        .from('website_urls')
-        .insert({
-          client_id: 'test-client-id', // Replace with actual client ID
-          url: testUrl,
-          status: 'completed',
-          last_crawled: new Date().toISOString(),
-          scrapable: true,
-          scrapability: 'high',
-          total_pages: results.total,
-          completed_pages: results.completed,
-          credits_used: results.creditsUsed,
-          expires_at: results.expiresAt
-        })
-        .select();
+          console.log('Storing results in database...');
+          // Store in Supabase
+          const { error } = await supabase
+            .from('website_urls')
+            .insert({
+              client_id: process.env.TEST_CLIENT_ID || 'default_client', // Use environment variable or fallback
+              url: url,
+              status: 'completed',
+              last_crawled: new Date().toISOString(),
+              scrapable: true,
+              scrapability: scrapabilityResult,
+              total_pages: crawlStatus.totalPages || 1,
+              completed_pages: crawlStatus.completedPages || 1,
+              credits_used: crawlStatus.creditsUsed || 1,
+              expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+              content: content,
+              metadata: crawlStatus.metadata || {}
+            });
 
-      if (error) {
-        console.error('Failed to store results:', error);
-      } else {
-        console.log('Results stored successfully:', data);
+          if (error) {
+            console.error('Database error:', error);
+            throw error;
+          }
+
+          console.log('Successfully stored crawl results in database');
+          break;
+        }
+
+        if (crawlStatus.status === 'failed') {
+          throw new Error(`Crawl failed: ${crawlStatus.error || 'Unknown error'}`);
+        }
+
+        // Exponential backoff for polling
+        console.log(`Waiting ${currentPollInterval/1000} seconds before next check...`);
+        await delay(currentPollInterval);
+        currentPollInterval = Math.min(currentPollInterval * 1.5, 60000); // Cap at 60 seconds
+      } catch (error) {
+        console.error(`Error checking crawl status (attempt ${attempts}):`, error instanceof Error ? error.message : error);
+        if (attempts === maxAttempts) {
+          throw error;
+        }
+        // Use exponential backoff for retries too
+        await delay(currentPollInterval);
+        currentPollInterval = Math.min(currentPollInterval * 1.5, 60000);
       }
-    } else {
-      console.log('Crawl did not complete in time or failed:', status.status);
     }
+
+    if (attempts >= maxAttempts) {
+      throw new Error('Crawl did not complete within the maximum number of attempts');
+    }
+
   } catch (error) {
-    console.error('Error during testing:', error);
+    console.error('Error during website scraping test:', error instanceof Error ? error.stack : error);
+    process.exit(1);
   }
 }
 
