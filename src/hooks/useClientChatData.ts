@@ -1,11 +1,15 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatInteraction } from "@/types/client-dashboard";
 
+interface ChatDataResponse {
+  chatInteractions: ChatInteraction[];
+  error: Error | null;
+}
+
 export const useClientChatData = (clientId: string) => {
   // Fetch client chat data
-  return useQuery({
+  return useQuery<ChatDataResponse>({
     queryKey: ["client-chat-data", clientId],
     queryFn: async () => {
       if (!clientId) {
@@ -28,14 +32,14 @@ export const useClientChatData = (clientId: string) => {
         }
 
         // Transform data to match ChatInteraction type
-        const chatInteractions: ChatInteraction[] = data.map((item) => ({
+        const chatInteractions: ChatInteraction[] = (data || []).map((item) => ({
           id: item.id,
           query_text: item.query_text || "",
           response_text: item.content || "", // Use content as response_text
           created_at: item.created_at || "",
           agent_name: item.name || "AI Assistant",
           client_id: clientId,
-          response_time_ms: item.response_time_ms
+          response_time_ms: item.response_time_ms || undefined
         }));
 
         return {
@@ -46,7 +50,7 @@ export const useClientChatData = (clientId: string) => {
         console.error("Error fetching client chat data:", error);
         return {
           chatInteractions: [],
-          error,
+          error: error instanceof Error ? error : new Error("Unknown error occurred"),
         };
       }
     },

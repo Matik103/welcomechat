@@ -1,6 +1,5 @@
-
 import { LlamaParseConfig, LlamaParseRequest, LlamaParseResponse } from '@/types/llamaparse';
-import fetch from 'node-fetch';
+import fetch, { RequestInit as NodeFetchRequestInit } from 'node-fetch';
 
 interface LlamaParseErrorResponse {
   message: string;
@@ -9,6 +8,8 @@ interface LlamaParseErrorResponse {
 interface LlamaParseSuccessResponse {
   content: string;
   metadata: Record<string, any>;
+  documentId?: string;
+  status?: 'success' | 'error' | 'processing';
 }
 
 interface ProcessDocumentParams {
@@ -32,18 +33,18 @@ export class LlamaParseService {
     this.baseUrl = config.baseUrl || 'https://api.llamacloud.ai/v1';
   }
 
-  private async makeRequest(endpoint: string, options: RequestInit = {}) {
+  private async makeRequest(endpoint: string, options: NodeFetchRequestInit = {}) {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(options.headers || {}),
       },
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json() as LlamaParseErrorResponse;
       throw new Error(error.message || 'LlamaParse API request failed');
     }
 
@@ -56,8 +57,7 @@ export class LlamaParseService {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
-        } as Record<string, string>,
-        // @ts-ignore - FormData is compatible with fetch body
+        },
         body: params.file,
       });
 
@@ -85,17 +85,16 @@ export class LlamaParseService {
 
   async getDocumentStatus(documentId: string): Promise<LlamaParseResponse> {
     try {
-      const data = await this.makeRequest(`/documents/${documentId}`);
+      const data = await this.makeRequest(`/documents/${documentId}`) as LlamaParseSuccessResponse;
       return {
-        status: data.status,
+        status: data.status === 'processing' ? 'success' : (data.status || 'success'),
         content: data.content,
-        documentId: data.documentId,
         metadata: data.metadata,
       };
     } catch (error) {
       console.error('Error getting document status:', error);
       return {
-        status: 'failed',
+        status: 'error',
         error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
@@ -122,11 +121,10 @@ export class LlamaParseService {
       if (options.limit) queryParams.append('limit', options.limit.toString());
       if (options.offset) queryParams.append('offset', options.offset.toString());
 
-      const data = await this.makeRequest(`/documents?${queryParams.toString()}`);
-      return data.documents.map((doc: any) => ({
-        status: doc.status,
+      const data = await this.makeRequest(`/documents?${queryParams.toString()}`) as { documents: LlamaParseSuccessResponse[] };
+      return data.documents.map((doc) => ({
+        status: doc.status === 'processing' ? 'success' : (doc.status || 'success'),
         content: doc.content,
-        documentId: doc.documentId,
         metadata: doc.metadata,
       }));
     } catch (error) {
