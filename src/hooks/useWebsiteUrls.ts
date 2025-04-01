@@ -10,14 +10,14 @@ export function useWebsiteUrls(clientId: string | undefined) {
     isLoading, 
     isError, 
     refetchWebsiteUrls 
-  } = useWebsiteUrlsFetch(clientId);
+  } = useWebsiteUrlsFetch(clientId || '');
   
   const { 
     addWebsiteUrlMutation, 
     deleteWebsiteUrlMutation, 
     addWebsiteUrl, 
     deleteWebsiteUrl 
-  } = useWebsiteUrlsMutation(clientId);
+  } = useWebsiteUrlsMutation(clientId || '');
 
   return {
     // Fetch related

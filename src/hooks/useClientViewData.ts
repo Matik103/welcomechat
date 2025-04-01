@@ -7,11 +7,27 @@ import { useClientChatHistory } from '@/hooks/useClientChatHistory';
 import { execSql } from '@/utils/rpcUtils';
 import { ChatInteraction } from '@/types/agent';
 
+type ErrorLog = {
+  id: string;
+  message?: string;
+  status?: string;
+  error_type?: string;
+  query_text?: string;
+  created_at?: string;
+};
+
+type QueryItem = {
+  query_text: string;
+  frequency: number;
+  id: string;
+  last_asked?: string;
+};
+
 export const useClientViewData = (clientId: string) => {
   const { client, isLoading: isLoadingClient, error: clientError } = useClient(clientId);
   const { chatHistory, isLoading: isLoadingChatHistory } = useClientChatHistory(clientId);
-  const [errorLogs, setErrorLogs] = useState([]);
-  const [commonQueries, setCommonQueries] = useState([]);
+  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
+  const [commonQueries, setCommonQueries] = useState<QueryItem[]>([]);
   const [isLoadingErrorLogs, setIsLoadingErrorLogs] = useState(true);
   const [isLoadingCommonQueries, setIsLoadingCommonQueries] = useState(true);
   const [agentStats, setAgentStats] = useState({
@@ -48,7 +64,7 @@ export const useClientViewData = (clientId: string) => {
         if (error) {
           console.error('Error fetching error logs:', error);
         } else if (data) {
-          setErrorLogs(data);
+          setErrorLogs(data as ErrorLog[]);
         }
       } catch (error) {
         console.error('Error fetching error logs:', error);
@@ -77,20 +93,22 @@ export const useClientViewData = (clientId: string) => {
           console.error('Error fetching common queries:', error);
         } else if (data) {
           // Process and count frequencies
-          const queryMap = new Map();
+          const queryMap = new Map<string, {frequency: number, id: string, last_asked: string}>();
           data.forEach(item => {
             if (item.query_text) {
               if (!queryMap.has(item.query_text)) {
                 queryMap.set(item.query_text, {
                   frequency: 1,
                   id: item.id,
-                  last_asked: item.created_at
+                  last_asked: item.created_at || ''
                 });
               } else {
                 const entry = queryMap.get(item.query_text);
-                entry.frequency += 1;
-                if (new Date(item.created_at) > new Date(entry.last_asked)) {
-                  entry.last_asked = item.created_at;
+                if (entry) {
+                  entry.frequency += 1;
+                  if (item.created_at && new Date(item.created_at) > new Date(entry.last_asked || '')) {
+                    entry.last_asked = item.created_at;
+                  }
                 }
               }
             }
@@ -158,7 +176,7 @@ export const useClientViewData = (clientId: string) => {
         }
         
         // Count unique days
-        const days = new Set();
+        const days = new Set<string>();
         uniqueDays?.forEach(item => {
           if (item.created_at) {
             const date = new Date(item.created_at).toDateString();
@@ -216,7 +234,7 @@ export const useClientViewData = (clientId: string) => {
               if (error) {
                 console.error('Error refetching error logs:', error);
               } else if (data) {
-                setErrorLogs(data);
+                setErrorLogs(data as ErrorLog[]);
               }
             } catch (error) {
               console.error('Error refetching error logs:', error);

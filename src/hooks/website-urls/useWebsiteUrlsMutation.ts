@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 interface AddWebsiteUrlParams {
   url: string;
   refresh_rate: number;
+  client_id?: string;
 }
 
 export function useWebsiteUrlsMutation(clientId: string) {
@@ -57,14 +58,16 @@ export function useWebsiteUrlsMutation(clientId: string) {
 
       console.log(`Adding website URL ${url} for client ${clientId}`);
 
+      const websiteUrlData = {
+        url,
+        refresh_rate,
+        client_id: clientId,
+        status: "pending" as const,
+      };
+
       const { data, error } = await supabase
         .from("website_urls")
-        .insert({
-          url,
-          refresh_rate,
-          client_id: clientId,
-          status: "pending",
-        })
+        .insert(websiteUrlData)
         .select()
         .single();
 
