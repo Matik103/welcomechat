@@ -24,7 +24,7 @@ export const useRecentActivities = () => {
       // Transform data if needed
       const formattedActivities = data?.map(activity => ({
         id: activity.id,
-        client_id: activity.ai_agent_id, // Map from ai_agent_id to client_id for compatibility
+        client_id: activity.ai_agent_id || activity.metadata?.client_id, // Get client_id from ai_agent_id field or metadata
         client_name: activity.metadata?.client_name,
         description: activity.description,
         created_at: activity.created_at,

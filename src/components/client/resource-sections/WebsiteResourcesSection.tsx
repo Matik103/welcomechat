@@ -12,7 +12,7 @@ import { ActivityType } from '@/types/activity';
 interface WebsiteResourcesSectionProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: () => Promise<void>; // No longer optional
+  logClientActivity: () => Promise<void>; // Required callback
 }
 
 export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = ({
@@ -48,26 +48,21 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
         client_id: clientId 
       });
       
-      // Log activity - now required
-      try {
-        await logClientActivity();
-        
-        // Also log specific URL activity
-        await createClientActivity(
-          clientId,
-          undefined,
-          ActivityType.URL_ADDED,
-          `Website URL added: ${data.url}`,
-          {
-            url: data.url,
-            refresh_rate: data.refresh_rate
-          }
-        );
-      } catch (activityError) {
-        console.error("Failed to log client activity:", activityError);
-        // Don't fail the operation but notify the user
-        toast.warning("Website URL added but activity logging failed");
-      }
+      // Log client activity
+      await logClientActivity();
+      
+      // Also log specific URL activity with client_id
+      await createClientActivity(
+        clientId,
+        undefined,
+        ActivityType.URL_ADDED,
+        `Website URL added: ${data.url}`,
+        {
+          url: data.url,
+          refresh_rate: data.refresh_rate,
+          client_id: clientId
+        }
+      );
       
       // Notify parent component about the change if callback provided
       if (onResourceChange) {

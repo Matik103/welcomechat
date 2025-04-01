@@ -126,52 +126,57 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
   };
 
   const formatActivityDescription = (activity: ClientActivity) => {
-    const { type, client_name, description } = activity;
+    const { type, description, metadata } = activity;
+    // Get client name from the metadata if available, fallback to metadata client_name, then to activity.client_name
+    const clientName = 
+      (metadata && metadata.client_name) || 
+      activity.client_name || 
+      'Unknown Client';
     
     if (description && description.length > 0) {
-      return description;
+      return `${clientName}: ${description}`;
     }
     
     const activityType = type || 'unknown';
     
     if (activityType.includes('client_created')) {
-      return `New client "${client_name || 'Unknown'}" was created`;
+      return `New client "${clientName}" was created`;
     }
     if (activityType.includes('client_updated')) {
-      return `Client "${client_name || 'Unknown'}" was updated`;
+      return `Client "${clientName}" was updated`;
     }
     if (activityType.includes('agent_created') || activityType.includes('ai_agent_created')) {
-      return `New AI agent was created for client "${client_name || 'Unknown'}"`;
+      return `New AI agent was created for client "${clientName}"`;
     }
     if (activityType.includes('agent_updated') || activityType.includes('ai_agent_updated')) {
-      return `AI agent was updated for client "${client_name || 'Unknown'}"`;
+      return `AI agent was updated for client "${clientName}"`;
     }
-    if (activityType.includes('website_url_added')) {
-      return `Website URL was added to client "${client_name || 'Unknown'}"`;
+    if (activityType.includes('website_url_added') || activityType.includes('url_added')) {
+      return `Website URL was added to client "${clientName}"`;
     }
     if (activityType.includes('document_added') || activityType.includes('document_uploaded')) {
-      return `Document was added to client "${client_name || 'Unknown'}"`;
+      return `Document was added to client "${clientName}"`;
     }
     if (activityType.includes('document_link_added')) {
-      return `Document link was added to client "${client_name || 'Unknown'}"`;
+      return `Document link was added to client "${clientName}"`;
     }
     if (activityType.includes('document_link_removed') || activityType.includes('document_link_deleted')) {
-      return `Document link was removed from client "${client_name || 'Unknown'}"`;
+      return `Document link was removed from client "${clientName}"`;
     }
     if (activityType.includes('chat_interaction')) {
-      return `Chat interaction with client "${client_name || 'Unknown'}"`;
+      return `Chat interaction with client "${clientName}"`;
     }
     if (activityType.includes('email_sent')) {
-      return `Email sent to client "${client_name || 'Unknown'}"`;
+      return `Email sent to client "${clientName}"`;
     }
     if (activityType.includes('error_logged')) {
-      return `Error logged for client "${client_name || 'Unknown'}"`;
+      return `Error logged for client "${clientName}"`;
     }
     if (activityType.includes('login_success')) {
-      return `Successful login for client "${client_name || 'Unknown'}"`;
+      return `Successful login for client "${clientName}"`;
     }
     
-    return `${activityType.replace(/_/g, ' ')} for ${client_name || 'Unknown'}`;
+    return `${activityType.replace(/_/g, ' ')} for ${clientName}`;
   };
 
   return (

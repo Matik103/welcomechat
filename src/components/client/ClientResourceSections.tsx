@@ -13,7 +13,7 @@ import { ActivityType } from '@/types/activity';
 interface ClientResourceSectionsProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: () => Promise<void>; // No longer optional
+  logClientActivity: () => Promise<void>; // Required callback
 }
 
 export const ClientResourceSections = ({
@@ -39,27 +39,22 @@ export const ClientResourceSections = ({
       await uploadDocument(file);
       toast.success('Document uploaded successfully');
       
-      // Log activity - now required
-      try {
-        await logClientActivity();
-        
-        // Also log specific document activity
-        await createClientActivity(
-          clientId,
-          undefined,
-          ActivityType.DOCUMENT_ADDED,
-          `Document uploaded: ${file.name}`,
-          {
-            file_name: file.name,
-            file_size: file.size,
-            file_type: file.type
-          }
-        );
-      } catch (activityError) {
-        console.error("Failed to log client activity:", activityError);
-        // Don't fail the whole operation, but notify the user
-        toast.error("Document uploaded but activity logging failed");
-      }
+      // Log client activity
+      await logClientActivity();
+      
+      // Also log specific document activity with client_id
+      await createClientActivity(
+        clientId,
+        undefined,
+        ActivityType.DOCUMENT_ADDED,
+        `Document uploaded: ${file.name}`,
+        {
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type,
+          client_id: clientId
+        }
+      );
       
       // Notify parent component about the change
       if (onResourceChange) {

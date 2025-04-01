@@ -20,9 +20,10 @@ export const createClientActivity = async (
     // Ensure we have a client name, even if it's a placeholder
     const safeClientName = clientName || "Unknown Client";
     
-    // Ensure client_name is always in metadata
+    // Ensure client_id and client_name are always in metadata
     const enhancedMetadata = {
       ...metadata,
+      client_id: clientId, // Always include client_id in metadata
       client_name: metadata.client_name || safeClientName
     };
     

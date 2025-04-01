@@ -45,6 +45,9 @@ export const createActivity = async (
       metadata.client_name = metadata.agent_name;
     }
     
+    // Always ensure client_id is in metadata
+    metadata.client_id = clientId;
+    
     // Convert the ActivityType enum to a string value acceptable by the database
     const safeActivityType = getSafeActivityType(typeof type === 'string' ? type : String(type));
     
