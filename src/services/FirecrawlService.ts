@@ -1,21 +1,92 @@
 
 import { CrawlOptions, FirecrawlConfig, ScrapabilityResponse, StartCrawlResponse, CrawlStatus, CrawlResults } from '@/types/firecrawl';
+import { getEffectiveApiKey, getBaseUrlFromEnv } from '@/utils/FirecrawlServiceUtils';
 
 export class FirecrawlService {
-  private apiKey: string;
-  private baseUrl: string;
+  private static apiKey: string;
+  private static baseUrl: string;
 
-  constructor(config: FirecrawlConfig) {
-    this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || 'https://api.firecrawl.dev/v1';
+  // Initialize the service with the current available API key
+  private static initialize() {
+    this.apiKey = getEffectiveApiKey() || '';
+    this.baseUrl = getBaseUrlFromEnv();
   }
 
-  private async makeRequest<T>(
+  // Validate URL format
+  static validateUrl(url: string): { isValid: boolean; error?: string } {
+    try {
+      const parsedUrl = new URL(url);
+      return { isValid: true };
+    } catch (error) {
+      return { isValid: false, error: 'Invalid URL format' };
+    }
+  }
+
+  // Verify Firecrawl configuration
+  static async verifyFirecrawlConfig(apiKeyOverride?: string): Promise<{ success: boolean; error?: string; data?: any }> {
+    try {
+      this.initialize();
+      
+      const effectiveApiKey = apiKeyOverride || this.apiKey;
+      
+      if (!effectiveApiKey) {
+        return { success: false, error: 'Firecrawl API key is not configured' };
+      }
+      
+      // Make a simple API call to verify the key
+      const endpoint = '/scrapability';
+      const url = `${this.baseUrl}${endpoint}`;
+      
+      const options: RequestInit = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${effectiveApiKey}`
+        },
+        body: JSON.stringify({ url: 'https://example.com' })
+      };
+      
+      const response = await fetch(url, options);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { 
+          success: false, 
+          error: errorData.error || `API returned ${response.status} status`
+        };
+      }
+      
+      // If we got here, the API key is valid
+      if (apiKeyOverride) {
+        // If we were testing a new key, store it now
+        localStorage.setItem('firecrawl_api_key', apiKeyOverride);
+        this.apiKey = apiKeyOverride;
+      }
+      
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to verify Firecrawl configuration' 
+      };
+    }
+  }
+
+  private static async makeRequest<T>(
     endpoint: string, 
     method: string = 'GET', 
     data?: any
   ): Promise<{ success: boolean; data?: T; error?: string; id?: string }> {
     try {
+      this.initialize();
+      
+      if (!this.apiKey) {
+        return { 
+          success: false, 
+          error: 'Firecrawl API key is not configured' 
+        };
+      }
+      
       const url = `${this.baseUrl}${endpoint}`;
       
       const headers: HeadersInit = {
@@ -54,7 +125,7 @@ export class FirecrawlService {
   /**
    * Check if a URL is scrapable
    */
-  async checkScrapability(url: string): Promise<{ 
+  static async checkScrapability(url: string): Promise<{ 
     success: boolean; 
     data?: ScrapabilityResponse; 
     error?: string 
@@ -65,7 +136,7 @@ export class FirecrawlService {
   /**
    * Start a website crawl
    */
-  async crawlWebsite(options: CrawlOptions): Promise<{ 
+  static async crawlWebsite(options: CrawlOptions): Promise<{ 
     success: boolean; 
     id?: string; 
     error?: string 
@@ -77,7 +148,7 @@ export class FirecrawlService {
   /**
    * Get the status of a crawl
    */
-  async getCrawlStatus(crawlId: string): Promise<CrawlStatus> {
+  static async getCrawlStatus(crawlId: string): Promise<CrawlStatus> {
     const result = await this.makeRequest<CrawlStatus>(`/crawl/${crawlId}/status`);
     return result.data || { 
       status: 'failed', 
@@ -88,7 +159,7 @@ export class FirecrawlService {
   /**
    * Get the results of a completed crawl
    */
-  async getCrawlResults(crawlId: string): Promise<CrawlResults> {
+  static async getCrawlResults(crawlId: string): Promise<CrawlResults> {
     const result = await this.makeRequest<CrawlResults>(`/crawl/${crawlId}/results`);
     return result.data || { 
       total: 0, 
