@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
@@ -22,6 +21,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [previewLoaded, setPreviewLoaded] = useState(false);
   const [conversationContext, setConversationContext] = useState<{
     userPreferences?: Record<string, string>;
     userName?: string;
@@ -30,7 +30,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Use the agent name from settings
   const { agentContent, sources, isLoading: isAgentLoading } = useAgentContent(
     clientId, 
     settings.agent_name || ""
@@ -45,22 +44,32 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   }, [messages]);
 
   useEffect(() => {
-    // Log available data for debugging
+    const timer = setTimeout(() => {
+      if (!previewLoaded) {
+        console.log("Forcing preview loaded state after timeout");
+        setPreviewLoaded(true);
+        setIsInitialized(true);
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [previewLoaded]);
+
+  useEffect(() => {
     if (clientId) {
-      console.log("WidgetPreview mounted with:", { 
-        clientId, 
-        agentName: settings.agent_name,
-        contentLength: agentContent?.length || 0,
-        sourcesCount: sources?.length || 0,
-        isAgentLoading 
-      });
+      console.log("WidgetPreview mounted with clientId:", clientId);
     }
     
-    // Set initialized after initial loading
-    if (!isAgentLoading) {
+    if (!isAgentLoading || previewLoaded) {
       setIsInitialized(true);
     }
-  }, [clientId, settings.agent_name, agentContent, sources, isAgentLoading]);
+    
+    const loadTimer = setTimeout(() => {
+      setPreviewLoaded(true);
+    }, 1500);
+    
+    return () => clearTimeout(loadTimer);
+  }, [clientId, isAgentLoading, previewLoaded]);
 
   const handleToggleExpand = () => {
     setExpanded(!expanded);
@@ -69,42 +78,24 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const typeResponse = (response: string) => {
     setIsTyping(true);
     
-    // Add empty AI message that will be filled character by character
-    const newMessageIndex = messages.length;
-    setMessages(prev => [...prev, { text: "", isUser: false }]);
+    setMessages(prev => [...prev, { text: response, isUser: false }]);
     
-    let i = 0;
-    const typingInterval = setInterval(() => {
-      if (i < response.length) {
-        setMessages(prev => {
-          const updated = [...prev];
-          updated[newMessageIndex] = { 
-            text: response.substring(0, i + 1), 
-            isUser: false 
-          };
-          return updated;
-        });
-        i++;
-      } else {
-        clearInterval(typingInterval);
-        setIsTyping(false);
-      }
-    }, 15);
+    const typingTime = Math.min(response.length * 10, 2000);
+    setTimeout(() => {
+      setIsTyping(false);
+    }, typingTime);
   };
 
   const updateConversationContext = (userQuery: string, response: string) => {
     const newContext = { ...conversationContext };
     
-    // Store the last question for context
     newContext.lastQuestion = userQuery;
     
-    // Add to previous topics
     if (!newContext.previousTopics) {
       newContext.previousTopics = [];
     }
     newContext.previousTopics.push(userQuery);
     
-    // Extract potential user name from greetings
     if (!newContext.userName && userQuery.toLowerCase().includes("my name is")) {
       const nameParts = userQuery.match(/my name is\s+([a-zA-Z]+)/i);
       if (nameParts && nameParts[1]) {
@@ -112,7 +103,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       }
     }
     
-    // Update user preferences based on likes/dislikes
     if (!newContext.userPreferences) {
       newContext.userPreferences = {};
     }
@@ -131,7 +121,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       }
     }
     
-    // Update the context
     setConversationContext(newContext);
     console.log("Updated conversation context:", newContext);
     
@@ -141,7 +130,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const personalizeResponse = (baseResponse: string, context: typeof conversationContext) => {
     let response = baseResponse;
     
-    // Add user name if we have it
     if (context.userName && !response.includes(context.userName)) {
       if (response.includes("?") || response.includes("!")) {
         response = response.replace(/([?.!])\s+/, `$1 ${context.userName}, `);
@@ -150,7 +138,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       }
     }
     
-    // Reference previous preferences if relevant
     if (context.userPreferences && Object.keys(context.userPreferences).length > 0) {
       for (const [pref, sentiment] of Object.entries(context.userPreferences)) {
         if (baseResponse.toLowerCase().includes(pref.toLowerCase())) {
@@ -164,9 +151,8 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       }
     }
     
-    // Reference previous conversation if helpful
     if (context.lastQuestion && context.lastQuestion !== context.previousTopics?.slice(-1)[0]) {
-      if (response.length < 100) { // Only for short responses
+      if (response.length < 100) {
         response += ` Going back to our earlier conversation about "${context.lastQuestion.substring(0, 30)}...", would you like to continue discussing that?`;
       }
     }
@@ -180,10 +166,8 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     const userQuery = inputValue;
     setInputValue("");
     
-    // Add user message immediately
     setMessages(prev => [...prev, { text: userQuery, isUser: true }]);
     
-    // Process conversational queries
     if (isConversationalQuery(userQuery)) {
       handleConversationalQuery(userQuery);
       return;
@@ -193,18 +177,15 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       try {
         setIsTyping(true);
         
-        // Get document titles for better context
         const documentTitles = sources
           .filter(s => s.title)
           .map(s => s.title)
           .join(", ");
         
-        // Create context header with document info
         const contextHeader = sources.length > 0 
           ? `The following information is from ${sources.length} documents including: ${documentTitles}.\n\n` 
           : "";
         
-        // Combine context header with content
         const fullContext = contextHeader + (agentContent || "").substring(0, 3000);
         
         console.log("Sending chat request with context length:", fullContext.length);
@@ -224,13 +205,10 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         
         if (response.ok) {
           const data = await response.json();
-          // Replace third-person references with first-person
           let generatedText = convertToFirstPerson(data.generatedText || "I couldn't generate a response. Please try again.");
           
-          // Update conversation context
           const context = updateConversationContext(userQuery, generatedText);
           
-          // Personalize response with context
           generatedText = personalizeResponse(generatedText, context);
           
           typeResponse(generatedText);
@@ -266,10 +244,10 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     let responseText = "";
     
     if (/how are you/i.test(query)) {
-      responseText = `I'm doing great today! Thank you for asking. As part of the ${settings.agent_name || "team"}, I'm here to help with any questions you have about our products and services. How can I assist you today?`;
+      responseText = `I'm doing great today! Thank you for asking. As part of the ${settings.agent_name || "team"}, I'm always ready to help. How about yourself?`;
     } 
     else if (/what('s| is) your name/i.test(query) || /who are you/i.test(query)) {
-      responseText = `I'm ${settings.agent_name || "your assistant"}! As a member of our team, I'm here to help you with any questions you have about our offerings. What can I help you with today?`;
+      responseText = `My name is ${settings.agent_name || "AI Assistant"}! I'm part of our team and I'm here to help you today. What can I assist you with today?`;
     }
     else if (/tell me about yourself/i.test(query)) {
       responseText = `I'm ${settings.agent_name || "your assistant"}, and I work with our team to provide support and information. I have access to our company information and can assist with any questions you might have about our products, services, or anything else you need. What would you like to know about what we offer?`;
@@ -278,17 +256,14 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       responseText = `Hello there! It's great to connect with you today. I'm ${settings.agent_name || "your assistant"} from the team. How can we help you today?`;
     }
     
-    // Update conversation context
     const context = updateConversationContext(query, responseText);
     
-    // Personalize the response
     responseText = personalizeResponse(responseText, context);
     
     typeResponse(responseText);
   };
 
   const convertToFirstPerson = (text: string): string => {
-    // Replace third-person references with first-person
     return text
       .replace(/the company('s)?/gi, 'our team$1')
       .replace(/they (are|have|will)/gi, 'we $1')
@@ -305,81 +280,24 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   };
 
   const simulateResponse = (userQuery: string) => {
-    // Simulate response for preview purposes
     setTimeout(() => {
       let responseText = "";
       
-      // Personalized responses for common questions
-      if (userQuery.toLowerCase().includes("how are you")) {
-        responseText = `I'm doing great today! Thank you for asking. As part of the ${settings.agent_name || "team"}, I'm always ready to help. How about yourself?`;
-      } 
-      else if (userQuery.toLowerCase().includes("your name") || userQuery.toLowerCase().match(/who (are|is) you/)) {
-        responseText = `My name is ${settings.agent_name || "AI Assistant"}! I'm part of our team and I'm here to help you today. What can I assist you with?`;
-      }
-      else if (agentContent && agentContent.length > 0) {
-        // Document-related queries
-        if (userQuery.toLowerCase().includes("document") || 
-            userQuery.toLowerCase().includes("content") || 
-            userQuery.toLowerCase().includes("information")) {
-          
-          // Show document sources information
-          const sourceInfo = sources && sources.length > 0 
-            ? `We have ${sources.length} documents${sources[0]?.title ? ` including "${sources[0]?.title}"` : ''} in our knowledge base.` 
-            : "We have comprehensive information in our knowledge base.";
-          
-          responseText = `${sourceInfo} How can I help you today?`;
-        }
-        // Knowledge-related queries
-        else if (userQuery.toLowerCase().includes("what") && 
-            (userQuery.toLowerCase().includes("know") || 
-             userQuery.toLowerCase().includes("about") ||
-             userQuery.toLowerCase().includes("learn"))) {
-          
-          const documentTypes = [...new Set(sources.filter(s => s.documentType).map(s => s.documentType))].join(", ");
-          const docsInfo = documentTypes 
-            ? `We can help with information from our ${documentTypes} documents.` 
-            : `We can help with information from our various resources.`;
-          
-          responseText = `${docsInfo} Based on what we have, I can assist with: ${agentContent.substring(0, 150)}...`;
-        }
-        // Help query
-        else if (userQuery.toLowerCase().includes("help")) {
-          responseText = "I can help answer questions based on the documents and websites that we've shared. What would you like to know about our offerings?";
-        } 
-        // Search for relevant content
-        else {
-          const words = userQuery.toLowerCase().split(' ').filter(w => w.length > 3);
-          let relevantContent = agentContent;
-          
-          for (const word of words) {
-            const index = agentContent.toLowerCase().indexOf(word);
-            if (index > -1) {
-              const start = Math.max(0, index - 100);
-              const end = Math.min(agentContent.length, index + 200);
-              relevantContent = agentContent.substring(start, end);
-              break;
-            }
-          }
-          
-          responseText = `Based on our information, I can tell you that ${relevantContent.substring(0, 150)}...`;
-        }
+      if (userQuery.toLowerCase().includes("help")) {
+        responseText = "I can help answer questions based on our information. What would you like to know?";
+      } else if (userQuery.toLowerCase().includes("how are you")) {
+        responseText = `I'm doing great! How can I help you today?`;
+      } else if (agentContent && agentContent.length > 0) {
+        responseText = `Based on our information, I'd be happy to help with your question about "${userQuery.substring(0, 30)}...". What specific details would you like to know?`;
       } else {
-        // Default response if nothing else matches
-        responseText = `Thanks for your message! I'm ${settings.agent_name || "your assistant"} from the team. I'm here to help with any questions related to our services. How can I assist you today?`;
+        responseText = `Thanks for your message! I'm ${settings.agent_name || "your assistant"} from the team. How can I help you today?`;
       }
       
-      // Update conversation context
       const context = updateConversationContext(userQuery, responseText);
-      
-      // Personalize the response with context
       responseText = personalizeResponse(responseText, context);
       
-      // Convert any remaining third-person references
-      responseText = convertToFirstPerson(responseText);
-      
-      // Add AI response
       typeResponse(responseText);
-    }, 1000);
+    }, 300);
   };
 
   const renderWidgetPreview = () => {
@@ -615,7 +533,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           `}
           style={{ backgroundColor: settings.background_color }}
         >
-          {/* Tab */}
           <div 
             className={`absolute top-1/2 transform -translate-y-1/2 ${
               settings.position === 'left' ? 'right-[-40px]' : 'left-[-40px]'
@@ -765,14 +682,13 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     );
   };
 
-  // Determine if we should show loading state
-  const showLoading = isAgentLoading && !isInitialized;
+  const showLoading = (isAgentLoading && !isInitialized && !previewLoaded);
 
   return showLoading ? (
     <div className="h-full w-full flex items-center justify-center bg-gray-50">
       <div className="flex flex-col items-center gap-3">
         <Spinner size="lg" />
-        <p className="text-sm text-gray-500">Loading assistant content...</p>
+        <p className="text-sm text-gray-500">Loading preview...</p>
       </div>
     </div>
   ) : renderWidgetPreview();

@@ -29,7 +29,7 @@ export const callRpcFunctionSafe = async <T>(
 export const callRpcFunction = callRpcFunctionSafe;
 
 /**
- * Execute a raw SQL query via RPC
+ * Execute a raw SQL query via RPC with performance optimizations
  * Uses the correct parameter names for the exec_sql function
  */
 export const execSql = async <T>(
@@ -37,20 +37,34 @@ export const execSql = async <T>(
   params: any[] = []
 ): Promise<T> => {
   try {
-    console.log("Executing SQL:", query.substring(0, 100) + "...");
+    // Only log first part of query to avoid console bloat
+    const previewLength = Math.min(query.length, 100);
+    console.log("Executing SQL:", query.substring(0, previewLength) + (query.length > previewLength ? "..." : ""));
     
-    // Use the correct parameter names as defined in the RPC function
-    const { data, error } = await supabase.rpc('exec_sql', { 
+    // Add a timeout to prevent long-running queries
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('SQL query execution timed out after 8 seconds'));
+      }, 8000);
+    });
+    
+    // Execute the query
+    const queryPromise = supabase.rpc('exec_sql', { 
       sql_query: query,
       query_params: params 
     });
+    
+    // Race between query and timeout
+    const { data, error } = await Promise.race([
+      queryPromise,
+      timeoutPromise.then(() => { throw new Error('Query timeout'); })
+    ]) as any;
     
     if (error) {
       console.error('Error executing SQL:', error);
       throw error;
     }
     
-    console.log("SQL execution successful");
     return data as T;
   } catch (error) {
     console.error('Failed to execute SQL:', error);
@@ -59,30 +73,42 @@ export const execSql = async <T>(
 };
 
 /**
- * Execute a SQL query for RLS policy updates
- * This is a specialized function that handles RLS policy updates with better error handling
+ * Execute a SQL query for RLS policy updates with better performance
  */
 export const executeRlsUpdate = async (sqlQuery: string): Promise<boolean> => {
   try {
+    // Use a simplified version of the query for better performance
+    const simplifiedQuery = sqlQuery
+      .replace(/--.*$/gm, '') // Remove comments
+      .replace(/\s+/g, ' ')   // Collapse whitespace
+      .trim();
+    
     console.log("Executing RLS policy update...");
     
-    // Using service_role key for this operation (through the RPC function)
-    const { data, error } = await supabase.rpc('exec_sql', { 
-      sql_query: sqlQuery
+    // Add a timeout to prevent long-running queries
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('RLS update timed out after 5 seconds'));
+      }, 5000);
     });
+    
+    // Execute the query
+    const queryPromise = supabase.rpc('exec_sql', { 
+      sql_query: simplifiedQuery
+    });
+    
+    // Race between query and timeout
+    const { data, error } = await Promise.race([
+      queryPromise,
+      timeoutPromise.then(() => { throw new Error('RLS update timeout'); })
+    ]) as any;
     
     if (error) {
       console.error('Error executing RLS update:', error);
-      // Try to provide more specific error information
-      if (error.message.includes('permission denied')) {
-        console.error('Permission denied - make sure the RPC function has appropriate privileges');
-      } else if (error.message.includes('syntax error')) {
-        console.error('SQL syntax error in the RLS policy');
-      }
       return false;
     }
     
-    console.log("RLS policy update successful:", data);
+    console.log("RLS policy update successful");
     return true;
   } catch (error) {
     console.error('Failed to execute RLS update:', error);

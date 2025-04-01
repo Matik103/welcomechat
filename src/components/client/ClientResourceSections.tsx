@@ -27,7 +27,7 @@ export const ClientResourceSections = ({
   const [isFixingRls, setIsFixingRls] = useState(false);
   const [hasRlsError, setHasRlsError] = useState(false);
 
-  // Debug client ID to make sure it's being passed correctly
+  // Debug client ID with less frequent logging
   useEffect(() => {
     console.log("ClientResourceSections rendered with clientId:", clientId);
   }, [clientId]);
@@ -35,7 +35,16 @@ export const ClientResourceSections = ({
   const handleFixPermissions = async () => {
     setIsFixingRls(true);
     try {
-      const result = await fixDocumentLinksRLS();
+      // Use a simplified RLS fix with timeout to prevent long operations
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("RLS fix timed out")), 5000)
+      );
+      
+      const rlsPromise = fixDocumentLinksRLS();
+      
+      // Race between timeout and actual operation
+      const result = await Promise.race([rlsPromise, timeoutPromise]) as { success: boolean };
+      
       if (result.success) {
         toast.success("Security policies updated successfully");
         setHasRlsError(false);
@@ -51,6 +60,12 @@ export const ClientResourceSections = ({
   };
 
   const handleUploadDocument = async (file: File) => {
+    // Add size check to prevent large file uploads that would slow down the system
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error('File size exceeds 10MB limit. Please upload a smaller file.');
+      return;
+    }
+    
     try {
       console.log("Uploading document for client:", clientId);
       await uploadDocument(file);
