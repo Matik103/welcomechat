@@ -107,10 +107,14 @@ export const fixDocumentLinksRLS = async () => {
       ALTER TABLE public.document_links ENABLE ROW LEVEL SECURITY;
       
       -- Drop all existing policies first
-      SELECT format('DROP POLICY IF EXISTS %I ON document_links', policyname)
-      FROM pg_policies 
-      WHERE tablename = 'document_links'
-      \gexec
+      DO $$
+      DECLARE
+        policy_name text;
+      BEGIN
+        FOR policy_name IN SELECT policyname FROM pg_policies WHERE tablename = 'document_links' LOOP
+          EXECUTE format('DROP POLICY IF EXISTS %I ON document_links', policy_name);
+        END LOOP;
+      END $$;
       
       -- Create one super simple policy
       CREATE POLICY "full_access_policy" 
