@@ -1,7 +1,7 @@
 {
   "name": "llamaparse-test",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Test script for LlamaParse PDF processing",
   "main": "test-llamaparse.ts",
