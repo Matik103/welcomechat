@@ -133,7 +133,8 @@ export const updateWidgetSettings = async (clientId: string, settings: WidgetSet
           name = $2,
           agent_description = $3,
           logo_url = $4,
-          logo_storage_path = $5
+          logo_storage_path = $5,
+          updated_at = NOW()
         WHERE client_id = $6 AND interaction_type = 'config'
       `;
       
@@ -151,12 +152,16 @@ export const updateWidgetSettings = async (clientId: string, settings: WidgetSet
         UPDATE clients
         SET
           agent_name = $1,
-          widget_settings = $2
-        WHERE id = $3
+          logo_url = $2,
+          logo_storage_path = $3,
+          widget_settings = $4
+        WHERE id = $5
       `;
       
       await execSql(updateClientQuery, [
         settings.agent_name,
+        settings.logo_url,
+        settings.logo_storage_path,
         JSON.stringify(settings),
         clientId
       ]);
@@ -170,9 +175,11 @@ export const updateWidgetSettings = async (clientId: string, settings: WidgetSet
           logo_url,
           logo_storage_path,
           settings,
-          interaction_type
+          interaction_type,
+          created_at,
+          updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, 'config'
+          $1, $2, $3, $4, $5, $6, 'config', NOW(), NOW()
         )
       `;
       
@@ -190,12 +197,16 @@ export const updateWidgetSettings = async (clientId: string, settings: WidgetSet
         UPDATE clients
         SET
           agent_name = $1,
-          widget_settings = $2
-        WHERE id = $3
+          logo_url = $2,
+          logo_storage_path = $3,
+          widget_settings = $4
+        WHERE id = $5
       `;
       
       await execSql(updateClientQuery, [
         settings.agent_name,
+        settings.logo_url,
+        settings.logo_storage_path,
         JSON.stringify(settings),
         clientId
       ]);

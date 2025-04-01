@@ -64,7 +64,7 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
     console.log('Falling back to clients table for widget settings');
     const { data: clientData, error: clientError } = await supabase
       .from('clients')
-      .select('client_name, agent_name, widget_settings')
+      .select('client_name, agent_name, widget_settings, logo_url, logo_storage_path')
       .eq('id', clientId)
       .maybeSingle();
       
@@ -80,6 +80,8 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
       const mergedSettings = {
         ...defaultSettings,
         agent_name: clientData.agent_name || clientData.client_name || defaultSettings.agent_name,
+        logo_url: clientData.logo_url || '',
+        logo_storage_path: clientData.logo_storage_path || '',
         ...(typeof widgetSettings === 'object' ? widgetSettings : {})
       };
       return mergedSettings;
@@ -113,7 +115,7 @@ export async function updateWidgetSettings(
     };
     
     // Extract fields that should be stored in separate columns
-    const { agent_name, agent_description, logo_url, logo_storage_path, ...otherSettings } = updatedSettings;
+    const { agent_name, agent_description, logo_url, logo_storage_path } = updatedSettings;
     
     // Check if an agent config record exists in ai_agents
     const { data, error: checkError } = await supabase
@@ -134,11 +136,11 @@ export async function updateWidgetSettings(
       const { error } = await supabase
         .from('ai_agents')
         .update({
-          settings: otherSettings,
           name: agent_name,
           agent_description: agent_description,
           logo_url: logo_url,
           logo_storage_path: logo_storage_path,
+          settings: updatedSettings,
           updated_at: new Date().toISOString()
         })
         .eq('id', data.id);
@@ -158,7 +160,7 @@ export async function updateWidgetSettings(
           agent_description: agent_description,
           logo_url: logo_url,
           logo_storage_path: logo_storage_path,
-          settings: otherSettings,
+          settings: updatedSettings,
           interaction_type: 'config',
           status: 'active'
         });
@@ -175,6 +177,8 @@ export async function updateWidgetSettings(
       .from('clients')
       .update({
         agent_name: agent_name,
+        logo_url: logo_url,
+        logo_storage_path: logo_storage_path,
         widget_settings: updatedSettings  // Send the complete settings object
       })
       .eq('id', clientId);

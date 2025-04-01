@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
@@ -23,8 +24,10 @@ export default function WidgetSettings() {
   const { logClientActivity } = useClientActivity(clientId);
   const widgetSettingsHook = useWidgetSettings(clientId || "");
 
+  // Use useClientData with proper client ID
   const { client, isLoadingClient, refetchClient } = useClientData(clientId);
 
+  // Fetch widget settings with proper client ID
   const { data: settings, isLoading, refetch } = useQuery({
     queryKey: ["widget-settings", clientId],
     queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
@@ -69,21 +72,12 @@ export default function WidgetSettings() {
             agent_name: settings?.agent_name,
             settings_changed: true
           });
-          
-        if (client) {
-          await clientMutation.mutateAsync({
-            client_id: clientId,
-            agent_name: newSettings.agent_name,
-            logo_url: newSettings.logo_url,
-            logo_storage_path: newSettings.logo_storage_path,
-            widget_settings: newSettings
-          });
-        }
       }
     },
     onSuccess: () => {
       refetch();
       if (clientId) {
+        // Invalidate client query to ensure we get fresh data
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
         refetchClient();
       }
@@ -92,18 +86,6 @@ export default function WidgetSettings() {
     onError: (error) => {
       toast.error(`Failed to update settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
-  });
-
-  const clientMutation = useMutation({
-    mutationFn: async (clientData: any): Promise<void> => {
-      await fetch(`/api/client/${clientId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(clientData)
-      });
-    }
   });
 
   const handleNavigateBack = () => {
@@ -131,6 +113,7 @@ export default function WidgetSettings() {
           
         refetch();
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+        refetchClient();
       }
     } catch (error) {
       console.error("Error uploading logo:", error);

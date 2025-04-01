@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { extractWidgetSettings, updateWidgetSettings } from '@/utils/widgetSettingsUtils';
 import { Client } from '@/types/client';
 
 export const useClientMutation = () => {
@@ -31,7 +30,9 @@ export const useClientMutation = () => {
           email: client.email,
           agent_name: agentName,
           updated_at: new Date().toISOString(),
-          // If widget_settings exists in the update, use it, otherwise create a minimal one with synced fields
+          logo_url: logoUrl,
+          logo_storage_path: logoStoragePath,
+          // Maintain widget_settings structure if it exists
           widget_settings: client.widget_settings || {
             agent_name: agentName,
             agent_description: agentDescription,
@@ -46,7 +47,7 @@ export const useClientMutation = () => {
         throw clientError;
       }
       
-      // Create or update the corresponding AI agent record
+      // Check if the corresponding AI agent record exists before updating/creating
       const { data: existingAgent, error: checkError } = await supabase
         .from('ai_agents')
         .select('id, settings')
@@ -74,7 +75,7 @@ export const useClientMutation = () => {
         // Update existing AI agent
         const { error: updateError } = await supabase
           .from('ai_agents')
-          .update({
+          .update({ 
             name: agentName,
             agent_description: agentDescription,
             logo_url: logoUrl,
