@@ -37,7 +37,7 @@ export interface ChatInteraction {
   response_text: string;
   created_at: string;
   agent_name?: string;
-  response_time_ms?: number;
+  response_time_ms?: number | null;
 }
 
 export interface ClientActivity {

@@ -1,4 +1,6 @@
 
-// Use string imports to avoid JSX parsing issues
-export { DocumentResourcesSection } from "./DocumentResourcesSection";
-export { WebsiteResourcesSection } from "./WebsiteResourcesSection";
+// Use proper import syntax for JSX components
+import { DocumentResourcesSection } from "./DocumentResourcesSection";
+import { WebsiteResourcesSection } from "./WebsiteResourcesSection";
+
+export { DocumentResourcesSection, WebsiteResourcesSection };

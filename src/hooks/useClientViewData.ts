@@ -1,256 +1,157 @@
-
-import { useState, useEffect } from 'react';
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from 'sonner';
-import { useClient } from '@/hooks/useClient';
-import { useClientChatHistory } from '@/hooks/useClientChatHistory';
-import { execSql } from '@/utils/rpcUtils';
+import { useEffect, useState } from 'react';
+import { useClientData } from './useClientData';
+import { supabase } from '@/integrations/supabase/client';
+import { fetchTopQueries } from '@/services/topQueriesService';
+import { fetchErrorLogs } from '@/services/errorLogService';
+import { ErrorLog, QueryItem } from '@/types/client-dashboard';
 import { ChatInteraction } from '@/types/agent';
-
-type ErrorLog = {
-  id: string;
-  message?: string;
-  status?: string;
-  error_type?: string;
-  query_text?: string;
-  created_at?: string;
-};
-
-type QueryItem = {
-  query_text: string;
-  frequency: number;
-  id: string;
-  last_asked?: string;
-};
+import { getInteractionStats } from '@/services/statsService';
 
 export const useClientViewData = (clientId: string) => {
-  const { client, isLoading: isLoadingClient, error: clientError } = useClient(clientId);
-  const { chatHistory, isLoading: isLoadingChatHistory } = useClientChatHistory(clientId);
-  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
-  const [commonQueries, setCommonQueries] = useState<QueryItem[]>([]);
-  const [isLoadingErrorLogs, setIsLoadingErrorLogs] = useState(true);
-  const [isLoadingCommonQueries, setIsLoadingCommonQueries] = useState(true);
+  const { client, isLoadingClient, error: clientError } = useClientData(clientId);
+  
+  // State for agent data
   const [agentStats, setAgentStats] = useState({
     total_interactions: 0,
     active_days: 0,
     average_response_time: 0,
     success_rate: 100
   });
-
-  // Show client error toast only once
+  
+  // State for error logs
+  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
+  const [isLoadingErrorLogs, setIsLoadingErrorLogs] = useState(true);
+  
+  // State for chat history
+  const [chatHistory, setChatHistory] = useState<ChatInteraction[]>([]);
+  const [isLoadingChatHistory, setIsLoadingChatHistory] = useState(true);
+  
+  // State for common queries
+  const [commonQueries, setCommonQueries] = useState<QueryItem[]>([]);
+  const [isLoadingCommonQueries, setIsLoadingCommonQueries] = useState(true);
+  
+  // Load error logs
   useEffect(() => {
-    if (clientError) {
-      toast.error("Failed to load client information");
-      console.error("Client error:", clientError);
-    }
-  }, [clientError]);
-
-  useEffect(() => {
-    const fetchErrorLogs = async () => {
+    const loadErrorLogs = async () => {
       if (!clientId) return;
       
       try {
         setIsLoadingErrorLogs(true);
+        const logs = await fetchErrorLogs(clientId);
         
-        // Get error logs directly from ai_agents table
-        const { data, error } = await supabase
-          .from('ai_agents')
-          .select('id, error_type, error_message as message, error_status as status, query_text, created_at')
-          .eq('client_id', clientId)
-          .eq('is_error', true)
-          .order('created_at', { ascending: false })
-          .limit(10);
+        // Ensure we have valid ErrorLog objects
+        const validLogs: ErrorLog[] = logs.filter(log => 
+          typeof log === 'object' && log !== null && 'id' in log
+        ) as ErrorLog[];
         
-        if (error) {
-          console.error('Error fetching error logs:', error);
-        } else if (data) {
-          setErrorLogs(data as ErrorLog[]);
-        }
+        setErrorLogs(validLogs);
       } catch (error) {
-        console.error('Error fetching error logs:', error);
+        console.error('Error loading error logs:', error);
+        setErrorLogs([]);
       } finally {
         setIsLoadingErrorLogs(false);
       }
     };
     
-    const fetchCommonQueries = async () => {
+    loadErrorLogs();
+  }, [clientId]);
+  
+  // Load chat history
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      if (!clientId) return;
+      
+      try {
+        setIsLoadingChatHistory(true);
+        
+        const { data, error } = await supabase
+          .from('ai_agents')
+          .select('id, query_text, content, created_at, name, response_time_ms')
+          .eq('client_id', clientId)
+          .eq('interaction_type', 'chat_interaction')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (error) throw error;
+        
+        const history: ChatInteraction[] = data.map(item => ({
+          id: item.id,
+          client_id: clientId,
+          query_text: item.query_text || '',
+          response: item.content || '',
+          created_at: item.created_at || new Date().toISOString(),
+          agent_name: item.name || 'AI Assistant',
+          response_time_ms: item.response_time_ms || 0
+        }));
+        
+        setChatHistory(history);
+      } catch (error) {
+        console.error('Error loading chat history:', error);
+        setChatHistory([]);
+      } finally {
+        setIsLoadingChatHistory(false);
+      }
+    };
+    
+    loadChatHistory();
+  }, [clientId]);
+  
+  // Load common queries
+  useEffect(() => {
+    const loadCommonQueries = async () => {
       if (!clientId) return;
       
       try {
         setIsLoadingCommonQueries(true);
+        const queries = await fetchTopQueries(clientId);
         
-        // Get common queries directly from ai_agents table
-        const { data, error } = await supabase
-          .from('ai_agents')
-          .select('query_text, id, created_at')
-          .eq('client_id', clientId)
-          .eq('interaction_type', 'chat_interaction')
-          .not('query_text', 'is', null)
-          .order('created_at', { ascending: false })
-          .limit(10);
+        // Map to QueryItem type with defaults for null values
+        const safeQueries: QueryItem[] = queries.map(q => ({
+          id: q.id,
+          query_text: q.query_text,
+          frequency: q.frequency || 0,
+          last_asked: q.last_asked || undefined,
+          created_at: q.created_at || undefined
+        }));
         
-        if (error) {
-          console.error('Error fetching common queries:', error);
-        } else if (data) {
-          // Process and count frequencies
-          const queryMap = new Map<string, {frequency: number, id: string, last_asked: string}>();
-          data.forEach(item => {
-            if (item.query_text) {
-              if (!queryMap.has(item.query_text)) {
-                queryMap.set(item.query_text, {
-                  frequency: 1,
-                  id: item.id,
-                  last_asked: item.created_at || ''
-                });
-              } else {
-                const entry = queryMap.get(item.query_text);
-                if (entry) {
-                  entry.frequency += 1;
-                  if (item.created_at && new Date(item.created_at) > new Date(entry.last_asked || '')) {
-                    entry.last_asked = item.created_at;
-                  }
-                }
-              }
-            }
-          });
-          
-          // Convert map to array
-          const result = Array.from(queryMap.entries()).map(([query_text, data]) => ({
-            query_text,
-            frequency: data.frequency,
-            id: data.id,
-            last_asked: data.last_asked
-          }));
-          
-          // Sort by frequency
-          result.sort((a, b) => b.frequency - a.frequency);
-          
-          setCommonQueries(result);
-        }
+        setCommonQueries(safeQueries);
       } catch (error) {
-        console.error('Error fetching common queries:', error);
+        console.error('Error loading common queries:', error);
+        setCommonQueries([]);
       } finally {
         setIsLoadingCommonQueries(false);
       }
     };
-
-    const fetchAgentStats = async () => {
-      if (!clientId || !client?.agent_name) return;
+    
+    loadCommonQueries();
+  }, [clientId]);
+  
+  // Load agent stats
+  useEffect(() => {
+    const loadAgentStats = async () => {
+      if (!clientId) return;
       
       try {
-        // Get basic stats directly
-        const { data: interactions, error: interactionsError } = await supabase
-          .from('ai_agents')
-          .select('response_time_ms')
-          .eq('client_id', clientId)
-          .eq('interaction_type', 'chat_interaction')
-          .not('response_time_ms', 'is', null);
+        const agentName = client?.agent_name || client?.name || 'AI Assistant';
+        const stats = await getInteractionStats(clientId, agentName);
         
-        if (interactionsError) {
-          console.error('Error fetching agent stats:', interactionsError);
-          return;
-        }
-        
-        // Calculate response time average
-        let totalResponseTime = 0;
-        interactions?.forEach(item => {
-          if (item.response_time_ms) {
-            totalResponseTime += item.response_time_ms;
-          }
-        });
-        
-        const avgResponseTime = interactions?.length 
-          ? Math.round(totalResponseTime / interactions.length) 
-          : 0;
-        
-        // Get unique days
-        const { data: uniqueDays, error: daysError } = await supabase
-          .from('ai_agents')
-          .select('created_at')
-          .eq('client_id', clientId)
-          .eq('interaction_type', 'chat_interaction');
-        
-        if (daysError) {
-          console.error('Error fetching agent days stats:', daysError);
-          return;
-        }
-        
-        // Count unique days
-        const days = new Set<string>();
-        uniqueDays?.forEach(item => {
-          if (item.created_at) {
-            const date = new Date(item.created_at).toDateString();
-            days.add(date);
-          }
-        });
-        
-        // Update stats
         setAgentStats({
-          total_interactions: interactions?.length || 0,
-          active_days: days.size,
-          average_response_time: avgResponseTime,
-          success_rate: 100
+          total_interactions: stats.total_interactions || 0,
+          active_days: stats.active_days || 0,
+          average_response_time: stats.average_response_time || 0,
+          success_rate: stats.success_rate || 100,
         });
       } catch (error) {
-        console.error('Error fetching agent stats:', error);
+        console.error('Error loading agent stats:', error);
+        // Keep default values
       }
     };
     
-    if (clientId) {
-      fetchErrorLogs();
-      fetchCommonQueries();
-    }
-
-    if (clientId && client) {
-      fetchAgentStats();
+    if (client) {
+      loadAgentStats();
     }
   }, [clientId, client]);
-
-  // Subscribe to updates
-  useEffect(() => {
-    if (!clientId) return;
-
-    const channel = supabase
-      .channel(`client-${clientId}-updates`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'ai_agents',
-          filter: `client_id=eq.${clientId}`
-        },
-        () => {
-          const fetchErrorLogs = async () => {
-            try {
-              const { data, error } = await supabase
-                .from('ai_agents')
-                .select('id, error_type, error_message as message, error_status as status, query_text, created_at')
-                .eq('client_id', clientId)
-                .eq('is_error', true)
-                .order('created_at', { ascending: false })
-                .limit(10);
-              
-              if (error) {
-                console.error('Error refetching error logs:', error);
-              } else if (data) {
-                setErrorLogs(data as ErrorLog[]);
-              }
-            } catch (error) {
-              console.error('Error refetching error logs:', error);
-            }
-          };
-          
-          fetchErrorLogs();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [clientId]);
-
+  
   return {
     client,
     isLoadingClient,

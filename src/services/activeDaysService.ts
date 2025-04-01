@@ -36,7 +36,12 @@ export const getActiveDays = async (
     
     // Convert timestamps to dates and count unique days
     const uniqueDays = new Set(
-      data?.map((row) => new Date(row.created_at).toDateString()) || []
+      data?.map((row) => {
+        // Handle null created_at safely
+        const created_at = row.created_at || '';
+        if (!created_at) return '';
+        return new Date(created_at).toDateString();
+      }).filter(date => date !== '') || []
     );
     
     return uniqueDays.size;

@@ -3,9 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 
 // Get Supabase URL from the client-side config
 import { SUPABASE_URL } from './client';
+import { getEnvVariable } from '@/utils/envUtils';
 
 // Safe access to environment variables
-const getEnvVariable = (name: string): string => {
+const getEnvVariable2 = (name: string): string => {
   // Node.js environment
   if (typeof process !== 'undefined' && process.env && process.env[name]) {
     return process.env[name] as string;
@@ -27,7 +28,7 @@ const getEnvVariable = (name: string): string => {
 };
 
 // Use getEnvVariable for safer access
-const SUPABASE_SERVICE_ROLE_KEY = getEnvVariable('VITE_SUPABASE_SERVICE_ROLE_KEY');
+const SUPABASE_SERVICE_ROLE_KEY = getEnvVariable2('VITE_SUPABASE_SERVICE_ROLE_KEY');
 
 // Create a Supabase client with the service role key
 export const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY 

@@ -4,20 +4,22 @@ import { useWebsiteUrlsMutation } from "./website-urls/useWebsiteUrlsMutation";
 import { WebsiteUrlFormData } from "@/types/website-url";
 
 export function useWebsiteUrls(clientId: string | undefined) {
-  // Use specialized hooks
+  // Use specialized hooks with safe client ID
+  const safeClientId = clientId || '';
+  
   const { 
     websiteUrls, 
     isLoading, 
     isError, 
     refetchWebsiteUrls 
-  } = useWebsiteUrlsFetch(clientId || '');
+  } = useWebsiteUrlsFetch(safeClientId);
   
   const { 
     addWebsiteUrlMutation, 
     deleteWebsiteUrlMutation, 
     addWebsiteUrl, 
     deleteWebsiteUrl 
-  } = useWebsiteUrlsMutation(clientId || '');
+  } = useWebsiteUrlsMutation(safeClientId);
 
   return {
     // Fetch related

@@ -10,9 +10,14 @@ export function getEnvVariable(name: string): string | undefined {
       return process.env[name];
     }
     
-    // For client-side usage
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      return import.meta.env[name] as string;
+    // For client-side usage with window.importMeta (safer approach)
+    if (typeof window !== 'undefined' && 
+        // @ts-ignore - Access window.importMeta safely
+        window.importMeta && 
+        // @ts-ignore
+        window.importMeta.env) {
+      // @ts-ignore
+      return window.importMeta.env[name] as string;
     }
     
     return undefined;
