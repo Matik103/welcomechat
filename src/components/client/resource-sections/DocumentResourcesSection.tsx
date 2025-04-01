@@ -7,11 +7,13 @@ import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { toast } from 'sonner';
 import { DocumentType } from '@/types/document-processing';
 import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
+import { createClientActivity } from '@/services/clientActivityService';
+import { ActivityType } from '@/types/activity';
 
 interface DocumentResourcesSectionProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity?: () => Promise<void>; // Made optional to prevent dependency issues
+  logClientActivity: () => Promise<void>; // No longer optional
 }
 
 export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> = ({
@@ -62,14 +64,25 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       console.log("Adding document link:", completeData, "for client:", clientId);
       await addDocumentLinkMutation.mutateAsync(completeData);
       
-      // Log the activity if the function is provided, but don't make it required
-      if (logClientActivity) {
-        try {
-          await logClientActivity();
-        } catch (activityError) {
-          // Just log the error but don't fail the operation if activity logging fails
-          console.error("Failed to log client activity:", activityError);
-        }
+      // Log activity - now required
+      try {
+        await logClientActivity();
+        
+        // Also log specific document activity
+        await createClientActivity(
+          clientId,
+          undefined,
+          ActivityType.URL_ADDED,
+          `Document link added: ${data.link}`,
+          {
+            url: data.link,
+            document_type: completeData.document_type
+          }
+        );
+      } catch (activityError) {
+        console.error("Failed to log client activity:", activityError);
+        // Don't fail the operation but notify the user
+        toast.warning("Document link added but activity logging failed");
       }
       
       toast.success('Document link added successfully');
@@ -106,14 +119,24 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
     try {
       await deleteDocumentLinkMutation.mutateAsync(linkId);
       
-      // Log the activity if the function is provided, but don't make it required
-      if (logClientActivity) {
-        try {
-          await logClientActivity();
-        } catch (activityError) {
-          // Just log the error but don't fail the operation if activity logging fails
-          console.error("Failed to log client activity:", activityError);
-        }
+      // Log activity - now required
+      try {
+        await logClientActivity();
+        
+        // Also log specific document activity
+        await createClientActivity(
+          clientId,
+          undefined,
+          ActivityType.DOCUMENT_REMOVED,
+          `Document link removed`,
+          {
+            document_link_id: linkId
+          }
+        );
+      } catch (activityError) {
+        console.error("Failed to log client activity:", activityError);
+        // Don't fail the operation but notify the user
+        toast.warning("Document link deleted but activity logging failed");
       }
       
       toast.success('Document link deleted successfully');

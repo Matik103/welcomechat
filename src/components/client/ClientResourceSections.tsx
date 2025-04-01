@@ -7,11 +7,13 @@ import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { toast } from 'sonner';
 import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
+import { createClientActivity } from '@/services/clientActivityService';
+import { ActivityType } from '@/types/activity';
 
 interface ClientResourceSectionsProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity?: () => Promise<void>; // Made optional to prevent dependency on activity
+  logClientActivity: () => Promise<void>; // No longer optional
 }
 
 export const ClientResourceSections = ({
@@ -37,14 +39,26 @@ export const ClientResourceSections = ({
       await uploadDocument(file);
       toast.success('Document uploaded successfully');
       
-      // Log activity if the function is provided, but don't make it required
-      if (logClientActivity) {
-        try {
-          await logClientActivity();
-        } catch (activityError) {
-          // Just log the error but don't fail the operation if activity logging fails
-          console.error("Failed to log client activity:", activityError);
-        }
+      // Log activity - now required
+      try {
+        await logClientActivity();
+        
+        // Also log specific document activity
+        await createClientActivity(
+          clientId,
+          undefined,
+          ActivityType.DOCUMENT_ADDED,
+          `Document uploaded: ${file.name}`,
+          {
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type
+          }
+        );
+      } catch (activityError) {
+        console.error("Failed to log client activity:", activityError);
+        // Don't fail the whole operation, but notify the user
+        toast.error("Document uploaded but activity logging failed");
       }
       
       // Notify parent component about the change

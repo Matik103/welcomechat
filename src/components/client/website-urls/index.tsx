@@ -5,11 +5,13 @@ import WebsiteUrlsListEmpty from './WebsiteUrlsListEmpty';
 import { WebsiteUrlsTable } from './WebsiteUrlsTable';
 import { useWebsiteUrlsFetch } from '@/hooks/website-urls/useWebsiteUrlsFetch';
 import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutation';
+import { createClientActivity } from '@/services/clientActivityService';
+import { ActivityType } from '@/types/activity';
 
 export interface WebsiteUrlsProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity?: () => Promise<void>;
+  logClientActivity: () => Promise<void>; // No longer optional
 }
 
 export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: WebsiteUrlsProps) {
@@ -49,9 +51,22 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
       console.log("Deleting website URL with ID:", websiteUrlId);
       await deleteWebsiteUrl(websiteUrlId);
       
-      // Log client activity
-      if (logClientActivity) {
+      // Log client activity - now required
+      try {
         await logClientActivity();
+        
+        // Also log specific URL removal activity
+        await createClientActivity(
+          clientId,
+          undefined,
+          ActivityType.URL_REMOVED,
+          `Website URL removed`,
+          {
+            website_url_id: websiteUrlId
+          }
+        );
+      } catch (activityError) {
+        console.error("Failed to log client activity:", activityError);
       }
       
       // Trigger refetch after delete
