@@ -42,7 +42,19 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
       const websiteUrlData: WebsiteUrlFormData = {
         url: url,
         refresh_rate: refreshRate,
-        client_id: clientId
+        client_id: clientId,
+        metadata: {
+          agent_name: agentName,
+          source: 'agent_config',
+          added_at: new Date().toISOString(),
+          last_interaction: null,
+          ai_notes: '',
+          tags: [],
+          status_history: [{
+            status: 'added',
+            timestamp: new Date().toISOString()
+          }]
+        }
       };
       
       await addWebsiteUrl(websiteUrlData);

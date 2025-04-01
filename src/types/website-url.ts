@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 // Define website URL schema for validation
@@ -24,6 +23,21 @@ export interface WebsiteUrlFormProps {
   webstoreHook?: any;
 }
 
+export interface WebsiteUrlMetadata {
+  agent_name?: string;
+  source?: string;
+  added_at?: string;
+  last_interaction?: string | null;
+  ai_notes?: string;
+  tags?: string[];
+  status_history?: Array<{
+    status: string;
+    timestamp: string;
+    note?: string;
+  }>;
+  [key: string]: any; // Allow for additional metadata fields
+}
+
 // Interface for a WebsiteUrl
 export interface WebsiteUrl {
   id: number;
@@ -35,7 +49,7 @@ export interface WebsiteUrl {
   last_crawled?: string | null;
   updated_at?: string;
   error?: string | null;
-  metadata?: Record<string, any>;
+  metadata?: WebsiteUrlMetadata;
   scrapable?: boolean;
   is_sitemap?: boolean;
   scrapability?: 'high' | 'medium' | 'low' | 'unknown';
