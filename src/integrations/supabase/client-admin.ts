@@ -12,8 +12,15 @@ const getEnvVariable = (name: string): string => {
   }
   
   // Browser environment with import.meta
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[name]) {
-    return import.meta.env[name] as string;
+  // Access import.meta conditionally to avoid errors in environments that don't support it
+  try {
+    // @ts-ignore - We're intentionally using dynamic access here to avoid static analysis errors
+    if (typeof window !== 'undefined' && window.importMeta && window.importMeta.env && window.importMeta.env[name]) {
+      // @ts-ignore
+      return window.importMeta.env[name] as string;
+    }
+  } catch (e) {
+    console.warn(`Error accessing import.meta.env.${name}:`, e);
   }
   
   return '';
@@ -48,6 +55,12 @@ export const initializeBotLogosBucket = async () => {
       });
       
     if (error) {
+      // Skip the error if the bucket already exists
+      if (error.message && error.message.includes('already exists')) {
+        console.log('Bucket bot-logos already exists');
+        return true;
+      }
+      
       console.error('Error creating bucket:', error);
       return false;
     }
