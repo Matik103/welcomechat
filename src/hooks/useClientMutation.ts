@@ -60,7 +60,22 @@ export const useClientMutation = () => {
       }
       
       // Get the current widget settings
-      const currentSettings = existingAgent?.settings || {};
+      const currentSettings = existingAgent ? 
+        // Need to fetch settings separately since we only selected 'id' initially
+        await (async () => {
+          const { data, error } = await supabase
+            .from('ai_agents')
+            .select('settings')
+            .eq('id', existingAgent.id)
+            .single();
+          
+          if (error) {
+            console.error('Error fetching agent settings:', error);
+            return {};
+          }
+          
+          return data?.settings || {};
+        })() : {};
       
       // Prepare the settings object with synced fields
       const updatedSettings = {
