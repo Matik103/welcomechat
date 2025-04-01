@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { FirecrawlService } from '@/services/FirecrawlService';
+import { getApiKeyFromStorage, getApiKeyFromEnv } from '@/utils/FirecrawlServiceUtils';
 
 export function FirecrawlConfigForm() {
   const [apiKey, setApiKey] = useState('');
@@ -15,14 +16,14 @@ export function FirecrawlConfigForm() {
   useEffect(() => {
     const checkConfig = async () => {
       // First check for environment variable
-      const envApiKey = window.ENV?.VITE_FIRECRAWL_API_KEY;
+      const envApiKey = getApiKeyFromEnv();
       if (envApiKey) {
         setIsConfigured(true);
         return;
       }
 
       // Then check for local storage
-      const storedApiKey = localStorage.getItem('firecrawl_api_key');
+      const storedApiKey = getApiKeyFromStorage();
       if (storedApiKey) {
         setApiKey(storedApiKey);
         setIsConfigured(true);
@@ -79,7 +80,7 @@ export function FirecrawlConfigForm() {
             <div className="p-3 bg-green-50 border border-green-200 rounded-md">
               <p className="text-green-700 font-medium">✓ Firecrawl API is configured</p>
               <p className="text-sm text-green-600 mt-1">
-                {window.ENV?.VITE_FIRECRAWL_API_KEY 
+                {getApiKeyFromEnv() 
                   ? 'Using API key from environment variables' 
                   : 'Using locally stored API key'}
               </p>

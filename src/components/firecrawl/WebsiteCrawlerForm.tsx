@@ -51,9 +51,9 @@ export function WebsiteCrawlerForm() {
       // Crawl the website
       const crawlOptions = {
         url,
-        maxDepth: 2,
-        limit: 20,
         scrapeOptions: {
+          maxDepth: 2,
+          maxPages: 20,
           formats: ['markdown'],
           onlyMainContent: true,
           blockAds: true
@@ -76,21 +76,22 @@ export function WebsiteCrawlerForm() {
 
       do {
         await new Promise(resolve => setTimeout(resolve, 3000));
-        status = await FirecrawlService.getCrawlStatus(crawlId!);
+        const statusResponse = await FirecrawlService.getCrawlStatus(crawlId);
+        status = statusResponse.status;
         setProgress(60 + Math.min((attempts / maxAttempts) * 30, 30));
         attempts++;
-      } while (status.status === 'scraping' && attempts < maxAttempts);
+      } while (status === 'scraping' && attempts < maxAttempts);
 
-      if (status.status !== 'completed') {
-        throw new Error(`Crawl did not complete in time: ${status.status}`);
+      if (status !== 'completed') {
+        throw new Error(`Crawl did not complete in time: ${status}`);
       }
 
       setProgress(90);
       toast.info('Getting crawl results...');
 
       // Get the results
-      const results = await FirecrawlService.getCrawlResults(crawlId!);
-      setResult(results);
+      const results = await FirecrawlService.getCrawlResults(crawlId);
+      setResult(results.data);
       setProgress(100);
       toast.success('Website crawl completed successfully!');
     } catch (error) {
@@ -156,7 +157,7 @@ export function WebsiteCrawlerForm() {
               <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>Total Pages:</div>
-                  <div className="font-medium">{result.total}</div>
+                  <div className="font-medium">{result.total || result.pages}</div>
                   
                   <div>Completed Pages:</div>
                   <div className="font-medium">{result.completed}</div>

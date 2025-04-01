@@ -1,4 +1,5 @@
-import { FirecrawlConfig, FirecrawlResponse } from '@/types/firecrawl.js';
+
+import { FirecrawlConfig, FirecrawlResponse } from '@/types/firecrawl';
 import { getEffectiveApiKey, getBaseUrlFromEnv } from '@/utils/FirecrawlServiceUtils';
 
 export interface ValidateUrlResponse {
@@ -101,14 +102,88 @@ export class FirecrawlService {
     this.apiKey = config.apiKey;
   }
 
+  // Static method to get a pre-configured instance
+  static getInstance(): FirecrawlService | null {
+    const apiKey = getEffectiveApiKey();
+    if (!apiKey) {
+      return null;
+    }
+
+    const baseUrl = getBaseUrlFromEnv();
+    return new FirecrawlService({ apiKey, baseUrl });
+  }
+
   // Validate URL format
-  static validateUrlFormat(url: string): { isValid: boolean; error?: string } {
+  static validateUrl(url: string): { isValid: boolean; error?: string } {
     try {
       const parsedUrl = new URL(url);
       return { isValid: true };
     } catch (error) {
       return { isValid: false, error: 'Invalid URL format' };
     }
+  }
+
+  // Verify Firecrawl configuration
+  static async verifyFirecrawlConfig(apiKey?: string): Promise<{ success: boolean; error?: string; data?: any }> {
+    try {
+      const effectiveApiKey = apiKey || getEffectiveApiKey();
+      
+      if (!effectiveApiKey) {
+        return { success: false, error: 'Firecrawl API key is not configured' };
+      }
+      
+      // For simple validation, we can just check if the API key exists
+      // In a real-world scenario, you might want to make a test API call
+      return { 
+        success: true, 
+        data: { message: 'Firecrawl API is configured properly' } 
+      };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to verify Firecrawl configuration' 
+      };
+    }
+  }
+
+  // Static method for checking scrapability (for use when you don't have an instance)
+  static async checkScrapability(url: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    const instance = FirecrawlService.getInstance();
+    if (!instance) {
+      return { success: false, error: 'API key not configured' };
+    }
+    
+    return instance.validateUrl(url);
+  }
+
+  // Static method for crawling websites (for use when you don't have an instance)
+  static async crawlWebsite(params: CrawlWebsiteParams): Promise<{ success: boolean; data?: any; error?: string; id?: string }> {
+    const instance = FirecrawlService.getInstance();
+    if (!instance) {
+      return { success: false, error: 'API key not configured' };
+    }
+    
+    return instance.crawlWebsite(params);
+  }
+
+  // Static method for getting crawl status (for use when you don't have an instance)
+  static async getCrawlStatus(crawlId: string): Promise<{ success: boolean; data?: any; error?: string; status?: string }> {
+    const instance = FirecrawlService.getInstance();
+    if (!instance) {
+      return { success: false, error: 'API key not configured' };
+    }
+    
+    return instance.getCrawlStatus(crawlId);
+  }
+
+  // Static method for getting crawl results (for use when you don't have an instance)
+  static async getCrawlResults(crawlId: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    const instance = FirecrawlService.getInstance();
+    if (!instance) {
+      return { success: false, error: 'API key not configured' };
+    }
+    
+    return instance.getCrawlResults(crawlId);
   }
 
   private async makeRequest<T>(request: FirecrawlRequest): Promise<T> {
@@ -141,7 +216,7 @@ export class FirecrawlService {
   async validateUrl(url: string): Promise<ValidateUrlResponse> {
     try {
       // First validate URL format
-      const formatValidation = FirecrawlService.validateUrlFormat(url);
+      const formatValidation = FirecrawlService.validateUrl(url);
       if (!formatValidation.isValid) {
         return {
           success: false,
