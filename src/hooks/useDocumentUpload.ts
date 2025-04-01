@@ -137,7 +137,8 @@ export function useDocumentUpload(clientId: string) {
       else if (['xls', 'xlsx'].includes(fileExtension)) documentType = 'excel';
       else if (['ppt', 'pptx'].includes(fileExtension)) documentType = 'powerpoint';
 
-      // Create document link record
+      // Create document link record (using service role if available to bypass RLS)
+      // If we're getting RLS errors, we need the service role or updated policies
       const documentLinkData: any = {
         client_id: actualClientId,
         link: urlData.publicUrl,
