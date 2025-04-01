@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { WebsiteUrl, WebsiteUrlFormData } from "@/types/website-url";
@@ -40,8 +39,7 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
             client_id: effectiveClientId,
             url: input.url,
             refresh_rate: input.refresh_rate || 30,
-            status: 'pending',
-            metadata: input.metadata || null
+            status: 'pending'
           })
           .select()
           .single();
@@ -67,8 +65,7 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
           client_id: clientRecord.id,
           url: input.url,
           refresh_rate: input.refresh_rate || 30,
-          status: 'pending',
-          metadata: input.metadata || null
+          status: 'pending'
         })
         .select()
         .single();

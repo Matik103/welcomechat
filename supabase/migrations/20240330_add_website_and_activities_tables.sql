@@ -1,4 +1,3 @@
-
 -- Create activities table
 CREATE TABLE IF NOT EXISTS client_activities (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -25,7 +24,8 @@ CREATE TABLE IF NOT EXISTS website_urls (
     last_crawled TIMESTAMP WITH TIME ZONE,
     scrapable BOOLEAN DEFAULT true,
     is_sitemap BOOLEAN DEFAULT false,
-    scrapability VARCHAR(255)
+    scrapability VARCHAR(255),
+    metadata JSONB DEFAULT '{}'::jsonb
 );
 
 -- Add indexes for better performance

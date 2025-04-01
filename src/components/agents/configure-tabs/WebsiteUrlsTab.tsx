@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -43,11 +42,7 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
       const websiteUrlData: WebsiteUrlFormData = {
         url: url,
         refresh_rate: refreshRate,
-        client_id: clientId,
-        metadata: {
-          agent_name: agentName,
-          source: 'agent_config'
-        }
+        client_id: clientId
       };
       
       await addWebsiteUrl(websiteUrlData);
