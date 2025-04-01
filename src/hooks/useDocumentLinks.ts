@@ -42,6 +42,8 @@ export function useDocumentLinks(clientId: string) {
   const addDocumentLink = useMutation({
     mutationFn: async (data: DocumentLinkFormData) => {
       try {
+        console.log("Adding document link:", data);
+        
         // Set defaults
         const documentType = data.document_type || 'document';
         const refreshRate = data.refresh_rate || 30;
@@ -65,6 +67,8 @@ export function useDocumentLinks(clientId: string) {
           throw new Error('Failed to create document link');
         }
         
+        console.log("Document link created:", documentLink);
+        
         // Determine if this is a Google Drive link
         const isGoogleDriveLink = data.link.includes('drive.google.com') || 
                                 data.link.includes('docs.google.com') ||
@@ -74,28 +78,37 @@ export function useDocumentLinks(clientId: string) {
         // Get agent name from metadata or use default
         const agentName = data.metadata?.agent_name || "AI Assistant";
         
-        // Process with LlamaParse if it's a Google Drive link
+        // Always process with LlamaParse
+        let documentTypeForProcessing = documentType;
+        
+        // Use 'google_drive' type if it's a Google Drive link
         if (isGoogleDriveLink) {
-          try {
-            const parseResult = await LlamaCloudService.parseDocument(
-              data.link,
-              'google_drive',
-              clientId,
-              agentName
-            );
-            
-            if (parseResult.success) {
-              console.log("Google Drive link sent to LlamaParse for processing:", parseResult.jobId);
-            } else {
-              console.warn("Google Drive link added but LlamaParse processing failed:", parseResult.error);
-              // We show a warning but don't fail the operation
-              toast.warning("Link added, but content extraction might take some time.");
-            }
-          } catch (parseError) {
-            console.error("Error sending Google Drive link to LlamaParse:", parseError);
-            // Link was still added, so we show a warning but don't fail
-            toast.warning("Link added, but content extraction encountered an issue.");
+          documentTypeForProcessing = 'google_drive';
+          console.log("Detected Google Drive link, using google_drive document type");
+        }
+        
+        // Process with LlamaParse
+        try {
+          console.log(`Sending ${documentTypeForProcessing} link to LlamaParse:`, data.link);
+          
+          const parseResult = await LlamaCloudService.parseDocument(
+            data.link,
+            documentTypeForProcessing,
+            clientId,
+            agentName
+          );
+          
+          if (parseResult.success) {
+            console.log(`${documentTypeForProcessing} link sent to LlamaParse for processing:`, parseResult.jobId);
+          } else {
+            console.warn(`${documentTypeForProcessing} link added but LlamaParse processing failed:`, parseResult.error);
+            // We show a warning but don't fail the operation
+            toast.warning("Link added, but content extraction might take some time.");
           }
+        } catch (parseError) {
+          console.error(`Error sending ${documentTypeForProcessing} link to LlamaParse:`, parseError);
+          // Link was still added, so we show a warning but don't fail
+          toast.warning("Link added, but content extraction encountered an issue.");
         }
         
         return documentLink;

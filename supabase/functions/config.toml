@@ -1,0 +1,14 @@
+
+# project_id is automatically added when deployed using the Supabase CLI
+project_id = "mgjodiqecnnltsgorife"
+# A string value that is used to distinguish between different Edge Functions when caching
+kv_namespaces = []
+
+[check-document-status]
+verify_jwt = false
+
+[process-document]
+verify_jwt = false
+
+[verify-llama-parse]
+verify_jwt = false

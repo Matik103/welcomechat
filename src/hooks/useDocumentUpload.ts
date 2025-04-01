@@ -1,8 +1,10 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { v4 as uuidv4 } from 'uuid';
+import { LlamaCloudService } from '@/services/LlamaCloudService';
 
 interface UploadResult {
   success: boolean;
@@ -138,9 +140,12 @@ export function useDocumentUpload(clientId: string) {
 
       console.log("Document link record created:", documentLink);
       
-      // Now, send the document to LlamaParse for processing
+      // Now, send the document to LlamaParse for processing - ENSURE THIS IS ALWAYS CALLED
       try {
         const effectiveAgentName = agentName || "AI Assistant";
+        
+        console.log("Triggering LlamaParse document processing for:", urlData.publicUrl);
+        
         const parseResult = await LlamaCloudService.parseDocument(
           urlData.publicUrl,
           documentType,
@@ -149,19 +154,20 @@ export function useDocumentUpload(clientId: string) {
         );
         
         if (parseResult.success) {
-          console.log("Document sent to LlamaParse for processing:", parseResult.jobId);
+          console.log("Document successfully sent to LlamaParse for processing:", parseResult.jobId);
+          toast.success('Document uploaded and processing started');
         } else {
           console.warn("Document uploaded but LlamaParse processing failed:", parseResult.error);
-          // We don't throw here as the document was uploaded successfully
-          toast.warning("Document uploaded, but text extraction might take some time.");
+          toast.warning("Document uploaded, but text extraction encountered an issue. We'll try again automatically.");
+          
+          // Log the error for debugging
+          console.error("LlamaParse error details:", parseResult.error);
         }
       } catch (parseError) {
         console.error("Error sending document to LlamaParse:", parseError);
-        // Document was still uploaded, so we show a warning but don't fail the upload
-        toast.warning("Document uploaded, but text extraction encountered an issue.");
+        toast.warning("Document uploaded, but text extraction encountered an issue. We'll retry automatically.");
       }
       
-      toast.success('Document uploaded successfully');
       return {
         success: true,
         documentId: documentLink.id

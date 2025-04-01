@@ -31,13 +31,14 @@ serve(async (req) => {
 
   try {
     // Parse request body
-    const { clientId, documentType, documentUrl, agentName } = await req.json();
+    const { clientId, documentType, documentUrl, agentName, documentId } = await req.json();
 
     // Validate required fields
     if (!clientId || !documentType || !documentUrl || !agentName) {
       return new Response(
         JSON.stringify({
           error: "Missing required fields: clientId, documentType, documentUrl, and agentName are required",
+          success: false
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -50,21 +51,49 @@ serve(async (req) => {
 
     // Create a processing job
     const { data: job, error: jobError } = await supabaseClient.rpc(
-      "process_document",
+      "create_document_processing_job",
       {
         p_client_id: clientId,
         p_agent_name: agentName,
         p_document_url: documentUrl,
         p_document_type: documentType,
+        p_document_id: documentId || crypto.randomUUID()
       }
     );
 
     if (jobError) {
       console.error("Error creating processing job:", jobError);
-      throw jobError;
+      
+      // If the RPC function fails, try direct insert as fallback
+      console.log("Attempting direct insert as fallback...");
+      
+      const { data: fallbackJob, error: fallbackError } = await supabaseClient
+        .from('document_processing_jobs')
+        .insert({
+          client_id: clientId,
+          agent_name: agentName,
+          document_url: documentUrl,
+          document_type: documentType,
+          document_id: documentId || crypto.randomUUID(),
+          status: 'pending',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+        
+      if (fallbackError) {
+        console.error("Fallback insert also failed:", fallbackError);
+        throw fallbackError;
+      }
+      
+      if (fallbackJob) {
+        console.log("Fallback job created successfully:", fallbackJob.id);
+      }
     }
 
-    console.log(`Created processing job: ${job}`);
+    // Get the job ID - either from the RPC function or from the fallback
+    const jobId = job || documentId || crypto.randomUUID();
+    console.log(`Created processing job: ${jobId}`);
 
     // Process the document based on type
     if (documentType === "url" || documentType === "web_page") {
@@ -80,7 +109,7 @@ serve(async (req) => {
       if (!crawlResult.success) {
         // Update job status to failed
         await supabaseClient.rpc("update_document_processing_status", {
-          p_job_id: job,
+          p_job_id: jobId,
           p_status: "failed",
           p_error: crawlResult.error,
         });
@@ -89,23 +118,23 @@ serve(async (req) => {
       }
 
       // Get the job ID from the crawl result
-      const jobId = crawlResult.data?.jobId;
+      const firecrawlJobId = crawlResult.data?.jobId;
       
-      if (!jobId) {
+      if (!firecrawlJobId) {
         throw new Error("No job ID returned from Firecrawl");
       }
 
       // Check the status immediately
-      const status = await firecrawlService.getCrawlStatus(jobId);
+      const status = await firecrawlService.getCrawlStatus(firecrawlJobId);
       
       // If it's already completed, update the job
       if (status.success && status.data?.status === "completed") {
-        const results = await firecrawlService.getCrawlResults(jobId);
+        const results = await firecrawlService.getCrawlResults(firecrawlJobId);
         
         if (results.success && results.data?.content) {
           // Update job with content
           await supabaseClient.rpc("update_document_processing_status", {
-            p_job_id: job,
+            p_job_id: jobId,
             p_status: "completed",
             p_content: results.data.content,
             p_metadata: {
@@ -116,27 +145,121 @@ serve(async (req) => {
         } else {
           // Update job with error
           await supabaseClient.rpc("update_document_processing_status", {
-            p_job_id: job,
+            p_job_id: jobId,
             p_status: "failed",
             p_error: results.error || "Failed to get crawl results",
           });
         }
       } else {
         // Start polling for results
-        console.log(`Website crawl started with job ID: ${jobId}. Will check status asynchronously.`);
+        console.log(`Website crawl started with job ID: ${firecrawlJobId}. Will check status asynchronously.`);
         
         // Update job status to processing
         await supabaseClient.rpc("update_document_processing_status", {
-          p_job_id: job,
+          p_job_id: jobId,
           p_status: "processing",
           p_metadata: {
-            firecrawl_job_id: jobId,
+            firecrawl_job_id: firecrawlJobId,
             url: documentUrl,
           },
         });
       }
+      
+      // Return success response
+      return new Response(
+        JSON.stringify({
+          success: true,
+          jobId: jobId,
+          message: "URL processing started",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
+    } else if (documentType === "google_drive") {
+      // Use LlamaParse for Google Drive document processing
+      console.log("Using LlamaParse for Google Drive document processing");
+      
+      try {
+        const parseResult = await llamaParseService.processDocument({
+          url: documentUrl,
+          metadata: {
+            clientId,
+            agentName,
+            source: "google_drive"
+          }
+        });
+
+        if (parseResult.status === "success" && parseResult.content) {
+          // Update job with content
+          await supabaseClient.rpc("update_document_processing_status", {
+            p_job_id: jobId,
+            p_status: "completed",
+            p_content: parseResult.content,
+            p_metadata: parseResult.metadata,
+          });
+
+          console.log("Google Drive document processed successfully with LlamaParse");
+          
+          return new Response(
+            JSON.stringify({
+              success: true,
+              jobId: jobId,
+              message: "Google Drive document processed successfully",
+              content: parseResult.content.substring(0, 100) + "...", // Just for logging
+            }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            }
+          );
+        } else {
+          // Update job with error
+          await supabaseClient.rpc("update_document_processing_status", {
+            p_job_id: jobId,
+            p_status: "failed",
+            p_error: parseResult.error || "Failed to process Google Drive document",
+          });
+
+          console.error("LlamaParse processing failed for Google Drive:", parseResult.error);
+          
+          return new Response(
+            JSON.stringify({
+              success: false,
+              jobId: jobId,
+              error: parseResult.error || "Failed to process Google Drive document",
+            }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 500,
+            }
+          );
+        }
+      } catch (error) {
+        console.error("Error processing Google Drive document:", error);
+        
+        // Update job with error
+        await supabaseClient.rpc("update_document_processing_status", {
+          p_job_id: jobId,
+          p_status: "failed",
+          p_error: error instanceof Error ? error.message : "Unknown error",
+        });
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            jobId: jobId,
+            error: error instanceof Error ? error.message : "Unknown error",
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
+          }
+        );
+      }
     } else {
-      // Use LlamaParse for document processing
+      // Use LlamaParse for regular document processing
       console.log("Using LlamaParse for document processing");
       const parseResult = await llamaParseService.processDocument({
         file: documentUrl  // Pass the document URL
@@ -145,42 +268,54 @@ serve(async (req) => {
       if (parseResult.status === "success" && parseResult.content) {
         // Update job with content
         await supabaseClient.rpc("update_document_processing_status", {
-          p_job_id: job,
+          p_job_id: jobId,
           p_status: "completed",
           p_content: parseResult.content,
           p_metadata: parseResult.metadata,
         });
 
         console.log("Document processed successfully with LlamaParse");
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            jobId: jobId,
+            message: "Document processed successfully",
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          }
+        );
       } else {
         // Update job with error
         await supabaseClient.rpc("update_document_processing_status", {
-          p_job_id: job,
+          p_job_id: jobId,
           p_status: "failed",
           p_error: parseResult.error || "Failed to process document",
         });
 
         console.error("LlamaParse processing failed:", parseResult.error);
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            jobId: jobId,
+            error: parseResult.error || "Failed to process document",
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
+          }
+        );
       }
     }
-
-    // Return success response
-    return new Response(
-      JSON.stringify({
-        success: true,
-        jobId: job,
-        message: "Document processing started",
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
   } catch (error) {
     console.error("Error in process-document function:", error);
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Internal server error",
+        success: false
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
