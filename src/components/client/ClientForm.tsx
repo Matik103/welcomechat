@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,7 +44,12 @@ export function ClientForm({
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [formError, setFormError] = useState<string | null>(error || null);
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormData>({
+  // Debug logging
+  useEffect(() => {
+    console.log("ClientForm initialData:", initialData);
+  }, [initialData]);
+
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || '',
@@ -53,6 +58,28 @@ export function ClientForm({
       agent_description: initialData?.agent_description || '',
     },
   });
+
+  // Reset form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      console.log("Resetting form with data:", {
+        client_name: initialData.client_name,
+        email: initialData.email,
+        agent_name: initialData.agent_name || initialData.name,
+        agent_description: initialData.agent_description
+      });
+      
+      reset({
+        client_name: initialData.client_name || '',
+        email: initialData.email || '',
+        agent_name: initialData.agent_name || initialData.name || '',
+        agent_description: initialData.agent_description || '',
+      });
+      
+      setLogoUrl(initialData.logo_url || '');
+      setLogoStoragePath(initialData.logo_storage_path || '');
+    }
+  }, [initialData, reset]);
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -63,7 +90,7 @@ export function ClientForm({
       setFormError(null);
       
       // Use clientId if available, otherwise use 'new' as a placeholder
-      const effectiveClientId = initialData?.client_id || 'new';
+      const effectiveClientId = initialData?.client_id || initialData?.id || 'new';
       
       // Upload the logo using the uploadLogo service
       const result = await uploadLogo(file, effectiveClientId);
@@ -118,6 +145,12 @@ export function ClientForm({
   const processFormSubmit = async (data: ClientFormData) => {
     try {
       setFormError(null);
+      console.log("Submitting form with data:", {
+        ...data,
+        logo_url: logoUrl,
+        logo_storage_path: logoStoragePath
+      });
+      
       // Include logo URL and storage path in the form data
       await onSubmit({
         ...data,

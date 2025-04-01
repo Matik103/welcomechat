@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
@@ -32,6 +33,11 @@ export function EditClientInfo() {
     refetchClient
   } = useClientData(id);
 
+  // Debug logging to help track issues
+  useEffect(() => {
+    console.log("Current client data in EditClientInfo:", client);
+  }, [client]);
+
   useEffect(() => {
     if (error) {
       console.error("Error loading client data:", error);
@@ -55,7 +61,8 @@ export function EditClientInfo() {
         return;
       }
       
-      console.log("Submitting with client ID:", updateClientId);
+      console.log("Submitting client update with data:", data);
+      console.log("Using client ID:", updateClientId);
       
       // Extract the current widget settings to retain all values
       const currentWidgetSettings = client.widget_settings || {};
@@ -89,7 +96,8 @@ export function EditClientInfo() {
       });
       
       toast.success("Client information updated successfully");
-      refetchClient();
+      // Force a refetch to get the updated data
+      await refetchClient();
     } catch (error) {
       console.error("Error updating client:", error);
       toast.error(`Failed to update client: ${error instanceof Error ? error.message : String(error)}`);

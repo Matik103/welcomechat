@@ -21,35 +21,30 @@ export const useClientMutation = () => {
       const agentDescription = client.agent_description || '';
       const logoUrl = client.logo_url || '';
       const logoStoragePath = client.logo_storage_path || '';
+      const clientName = client.client_name || '';
+      const email = client.email || '';
       
       // Check if ai_agent record exists
       const { data: existingAgent, error: checkAgentError } = await supabase
         .from('ai_agents')
-        .select('id')
+        .select('id, settings')
         .eq('client_id', client.client_id)
         .eq('interaction_type', 'config')
         .maybeSingle();
         
       if (checkAgentError) {
         console.error('Error checking for AI agent:', checkAgentError);
+        throw checkAgentError;
       }
       
       // Get the current settings to preserve all values
       let currentSettings = {};
       
       if (existingAgent) {
-        // Need to fetch settings separately since we only selected 'id' initially
-        const { data: agentData, error: settingsError } = await supabase
-          .from('ai_agents')
-          .select('settings')
-          .eq('id', existingAgent.id)
-          .single();
-        
-        if (settingsError) {
-          console.error('Error fetching agent settings:', settingsError);
-        } else if (agentData && agentData.settings) {
-          currentSettings = typeof agentData.settings === 'object' ? agentData.settings : {};
-        }
+        // Use settings from the fetched agent data
+        currentSettings = typeof existingAgent.settings === 'object' 
+          ? existingAgent.settings 
+          : {};
       }
       
       // Prepare the settings object with synced fields
@@ -58,7 +53,9 @@ export const useClientMutation = () => {
         agent_name: agentName,
         agent_description: agentDescription,
         logo_url: logoUrl,
-        logo_storage_path: logoStoragePath
+        logo_storage_path: logoStoragePath,
+        client_name: clientName,
+        email: email
       };
       
       if (existingAgent) {
@@ -68,6 +65,8 @@ export const useClientMutation = () => {
           .update({ 
             name: agentName,
             agent_description: agentDescription,
+            client_name: clientName,
+            email: email,
             logo_url: logoUrl,
             logo_storage_path: logoStoragePath,
             settings: updatedSettings,
@@ -87,6 +86,8 @@ export const useClientMutation = () => {
             client_id: client.client_id,
             name: agentName,
             agent_description: agentDescription,
+            client_name: clientName,
+            email: email,
             logo_url: logoUrl,
             logo_storage_path: logoStoragePath,
             interaction_type: 'config',

@@ -67,8 +67,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         const client: Client = {
           id: id,
           client_id: directAgentData.client_id || id,
-          client_name: directAgentData.client_name || '',
-          email: directAgentData.email || '',
+          client_name: directAgentData.client_name || parsedSettings.client_name || '',
+          email: directAgentData.email || parsedSettings.email || '',
           status: directAgentData.status || 'active',
           created_at: directAgentData.created_at || new Date().toISOString(),
           updated_at: directAgentData.updated_at || new Date().toISOString(),
@@ -113,8 +113,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
         const client: Client = {
           id: id,
           client_id: fallbackAgentData.client_id || id,
-          client_name: fallbackAgentData.client_name || '',
-          email: fallbackAgentData.email || '',
+          client_name: fallbackAgentData.client_name || parsedSettings.client_name || '',
+          email: fallbackAgentData.email || parsedSettings.email || '',
           status: fallbackAgentData.status || 'active',
           created_at: fallbackAgentData.created_at || new Date().toISOString(),
           updated_at: fallbackAgentData.updated_at || new Date().toISOString(),
@@ -149,8 +149,8 @@ export const useClient = (id: string, options?: UseClientOptions) => {
       const client: Client = {
         id: id,
         client_id: agentData.client_id || id,
-        client_name: agentData.client_name || '',
-        email: agentData.email || '',
+        client_name: agentData.client_name || parsedSettings.client_name || '',
+        email: agentData.email || parsedSettings.email || '',
         status: agentData.status || 'active',
         created_at: agentData.created_at || new Date().toISOString(),
         updated_at: agentData.updated_at || new Date().toISOString(),

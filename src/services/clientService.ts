@@ -106,7 +106,9 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
           agent_name: data.agent_name,
           agent_description: data.agent_description,
           logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path
+          logo_storage_path: data.logo_storage_path,
+          client_name: data.client_name,
+          email: data.email
         }
       };
       
@@ -145,7 +147,9 @@ export const updateClient = async (clientId: string, data: Partial<ClientFormDat
         agent_name: data.agent_name,
         agent_description: data.agent_description,
         logo_url: data.logo_url,
-        logo_storage_path: data.logo_storage_path
+        logo_storage_path: data.logo_storage_path,
+        client_name: data.client_name,
+        email: data.email
       }
     };
     
