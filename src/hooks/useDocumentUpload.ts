@@ -137,8 +137,7 @@ export function useDocumentUpload(clientId: string) {
       else if (['xls', 'xlsx'].includes(fileExtension)) documentType = 'excel';
       else if (['ppt', 'pptx'].includes(fileExtension)) documentType = 'powerpoint';
 
-      // Create document link record (using service role if available to bypass RLS)
-      // If we're getting RLS errors, we need the service role or updated policies
+      // Create document link record
       const documentLinkData: any = {
         client_id: actualClientId,
         link: urlData.publicUrl,
@@ -167,6 +166,41 @@ export function useDocumentUpload(clientId: string) {
         .single();
 
       if (linkError) {
+        // If we're getting RLS errors, apply the RLS policies
+        if (linkError.message.includes('violates row-level security policy')) {
+          console.log("Detected RLS policy violation. Attempting to apply RLS policies...");
+          const { success } = await import('@/utils/applyDocumentLinksRLS').then(
+            module => module.applyDocumentLinksRLS()
+          );
+          
+          if (success) {
+            // Try again after applying RLS policies
+            console.log("RLS policies applied successfully. Retrying document link creation...");
+            const { data: retryLink, error: retryError } = await supabase
+              .from('document_links')
+              .insert(documentLinkData)
+              .select()
+              .single();
+              
+            if (retryError) {
+              // If link creation still fails, try to delete the uploaded file
+              await supabase.storage
+                .from(DOCUMENTS_BUCKET)
+                .remove([filePath]);
+                
+              console.error('Error creating document link even after RLS fix:', retryError);
+              throw new Error(`Error creating document link: ${retryError.message}`);
+            }
+            
+            console.log("Document link created successfully after RLS fix:", retryLink);
+            toast.success('Document uploaded successfully');
+            return {
+              success: true,
+              documentId: retryLink.id
+            };
+          }
+        }
+        
         // If link creation fails, try to delete the uploaded file
         await supabase.storage
           .from(DOCUMENTS_BUCKET)
