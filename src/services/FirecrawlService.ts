@@ -3,18 +3,54 @@ import { FirecrawlConfig, FirecrawlRequest, FirecrawlResponse } from '@/types/fi
 interface CrawlWebsiteParams {
   url: string;
   maxDepth?: number;
+  maxDiscoveryDepth?: number;
   limit?: number;
+  ignoreSitemap?: boolean;
+  ignoreQueryParameters?: boolean;
+  allowBackwardLinks?: boolean;
+  allowExternalLinks?: boolean;
+  scrapeOptions?: {
+    formats?: string[];
   onlyMainContent?: boolean;
+    includeTags?: string[];
+    excludeTags?: string[];
+    headers?: Record<string, string>;
+    waitFor?: number;
+    mobile?: boolean;
+    skipTlsVerification?: boolean;
+    timeout?: number;
+    removeBase64Images?: boolean;
+    blockAds?: boolean;
+    proxy?: 'basic' | 'stealth';
+  };
+}
+
+interface CrawlResponse {
+  success: boolean;
+  id: string;
+  url: string;
+  error?: string;
 }
 
 interface CrawlStatusResponse {
-  success: boolean;
-  data?: {
-    status: "pending" | "processing" | "completed" | "failed";
-    jobId: string;
-    error?: string;
-  };
-  error?: string;
+  status: 'scraping' | 'completed' | 'failed';
+  total: number;
+  completed: number;
+  creditsUsed: number;
+  expiresAt: string;
+  next?: string;
+  data: Array<{
+    markdown: string;
+    html?: string;
+    metadata: {
+      title: string;
+      description?: string;
+      language?: string;
+      sourceURL: string;
+      statusCode: number;
+      error?: string;
+    };
+  }>;
 }
 
 interface CrawlResultsResponse {
@@ -27,6 +63,27 @@ interface CrawlResultsResponse {
   error?: string;
 }
 
+interface ScrapabilityResponse {
+  success: boolean;
+  data?: {
+    markdown: string;
+    metadata: {
+      viewport?: string;
+      title: string;
+      scrapeId: string;
+      sourceURL: string;
+      url: string;
+      statusCode: number;
+    };
+  };
+  error?: string;
+}
+
+interface ValidateUrlResponse {
+  isValid: boolean;
+  error?: string;
+}
+
 export class FirecrawlService {
   private config: FirecrawlConfig;
   private baseUrl: string;
@@ -36,135 +93,79 @@ export class FirecrawlService {
     this.baseUrl = config.baseUrl || 'https://api.firecrawl.dev/v1';
   }
 
-  private async makeRequest(endpoint: string, options: RequestInit = {}) {
+  private async makeRequest<T>(endpoint: string, method: string = 'GET', body?: any): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
+      method,
       headers: {
         'Authorization': `Bearer ${this.config.apiKey}`,
         'Content-Type': 'application/json',
-        ...options.headers,
+        'Accept': 'application/json'
       },
+      body: body ? JSON.stringify(body) : undefined
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Firecrawl API request failed');
+      throw new Error(`API request failed: ${response.statusText}`);
     }
 
     return response.json();
   }
 
-  async crawlWebsite(params: CrawlWebsiteParams): Promise<CrawlStatusResponse> {
+  async crawlWebsite(params: CrawlWebsiteParams): Promise<CrawlResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/crawl`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${this.config.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const requestBody = {
           url: params.url,
-          maxDepth: params.maxDepth || 2,
-          limit: params.limit || 100,
-          onlyMainContent: params.onlyMainContent ?? true,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        return {
-          success: false,
-          error: error.message || "Failed to start crawl",
-        };
-      }
-
-      const result = await response.json();
-      return {
-        success: true,
-        data: {
-          status: "pending",
-          jobId: result.jobId,
-        },
+        maxDepth: params.maxDepth || 10,
+        maxDiscoveryDepth: params.maxDiscoveryDepth,
+        limit: params.limit || 10000,
+        ignoreSitemap: params.ignoreSitemap || false,
+        ignoreQueryParameters: params.ignoreQueryParameters || false,
+        allowBackwardLinks: params.allowBackwardLinks || false,
+        allowExternalLinks: params.allowExternalLinks || false,
+        scrapeOptions: {
+          formats: params.scrapeOptions?.formats || ['markdown'],
+          onlyMainContent: params.scrapeOptions?.onlyMainContent ?? true,
+          includeTags: params.scrapeOptions?.includeTags,
+          excludeTags: params.scrapeOptions?.excludeTags,
+          headers: params.scrapeOptions?.headers,
+          waitFor: params.scrapeOptions?.waitFor,
+          mobile: params.scrapeOptions?.mobile,
+          skipTlsVerification: params.scrapeOptions?.skipTlsVerification,
+          timeout: params.scrapeOptions?.timeout,
+          removeBase64Images: params.scrapeOptions?.removeBase64Images,
+          blockAds: params.scrapeOptions?.blockAds ?? true,
+          proxy: params.scrapeOptions?.proxy
+        }
       };
+
+      const response = await this.makeRequest<CrawlResponse>('/crawl', 'POST', requestBody);
+      return response;
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "An unexpected error occurred",
+        id: '',
+        url: params.url,
+        error: error instanceof Error ? error.message : 'Failed to start crawl'
       };
     }
   }
 
   async getCrawlStatus(jobId: string): Promise<CrawlStatusResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/crawl/${jobId}/status`, {
-        headers: {
-          "Authorization": `Bearer ${this.config.apiKey}`,
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        return {
-          success: false,
-          error: error.message || "Failed to get crawl status",
-        };
-      }
-
-      const result = await response.json();
-      return {
-        success: true,
-        data: {
-          status: result.status,
-          jobId: result.jobId,
-          error: result.error,
-        },
-      };
+      const response = await this.makeRequest<CrawlStatusResponse>(`/crawl/${jobId}`);
+      return response;
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "An unexpected error occurred",
-      };
+      throw new Error(`Failed to get crawl status: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  async getCrawlResults(jobId: string): Promise<CrawlResultsResponse> {
-    try {
-      const response = await fetch(`${this.baseUrl}/crawl/${jobId}/results`, {
-        headers: {
-          "Authorization": `Bearer ${this.config.apiKey}`,
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        return {
-          success: false,
-          error: error.message || "Failed to get crawl results",
-        };
-      }
-
-      const result = await response.json();
-      return {
-        success: true,
-        data: {
-          content: result.content,
-          pages: result.pages,
-          url: result.url,
-        },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "An unexpected error occurred",
-      };
-    }
+  async getCrawlResults(jobId: string): Promise<CrawlStatusResponse> {
+    return this.getCrawlStatus(jobId);
   }
 
   async cancelCrawl(jobId: string): Promise<boolean> {
     try {
-      await this.makeRequest(`/crawl/${jobId}/cancel`, {
-        method: 'POST',
-      });
+      await this.makeRequest(`/crawl/${jobId}/cancel`, 'POST');
       return true;
     } catch (error) {
       console.error('Error canceling crawl:', error);
@@ -172,17 +173,10 @@ export class FirecrawlService {
     }
   }
 
-  async validateUrl(url: string): Promise<{ isValid: boolean; error?: string }> {
+  async validateUrl(url: string): Promise<ValidateUrlResponse> {
     try {
-      const data = await this.makeRequest('/validate', {
-        method: 'POST',
-        body: JSON.stringify({ url }),
-      });
-
-      return {
-        isValid: data.isValid,
-        error: data.error,
-      };
+      const data = await this.makeRequest<ValidateUrlResponse>('/validate', 'POST', { url });
+      return data;
     } catch (error) {
       console.error('Error validating URL:', error);
       return {
@@ -192,27 +186,14 @@ export class FirecrawlService {
     }
   }
 
-  async checkScrapability(url: string): Promise<{
-    scrapable: boolean;
-    reason?: string;
-    metadata?: Record<string, any>;
-  }> {
+  async checkScrapability(url: string): Promise<ScrapabilityResponse> {
     try {
-      const data = await this.makeRequest('/scrapability', {
-        method: 'POST',
-        body: JSON.stringify({ url }),
-      });
-
-      return {
-        scrapable: data.scrapable,
-        reason: data.reason,
-        metadata: data.metadata,
-      };
+      const response = await this.makeRequest<ScrapabilityResponse>('/scrape', 'POST', { url });
+      return response;
     } catch (error) {
-      console.error('Error checking scrapability:', error);
       return {
-        scrapable: false,
-        reason: error instanceof Error ? error.message : 'Unknown error occurred',
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to check scrapability'
       };
     }
   }
