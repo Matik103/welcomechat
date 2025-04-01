@@ -1,4 +1,5 @@
 import { FirecrawlConfig, FirecrawlResponse } from '@/types/firecrawl.js';
+import { getEffectiveApiKey, getBaseUrlFromEnv } from '@/utils/FirecrawlServiceUtils';
 
 export interface ValidateUrlResponse {
   success: boolean;
@@ -100,6 +101,16 @@ export class FirecrawlService {
     this.apiKey = config.apiKey;
   }
 
+  // Validate URL format
+  static validateUrlFormat(url: string): { isValid: boolean; error?: string } {
+    try {
+      const parsedUrl = new URL(url);
+      return { isValid: true };
+    } catch (error) {
+      return { isValid: false, error: 'Invalid URL format' };
+    }
+  }
+
   private async makeRequest<T>(request: FirecrawlRequest): Promise<T> {
     const { method, endpoint, body } = request;
     const url = `${this.baseUrl}${endpoint}`;
@@ -129,6 +140,16 @@ export class FirecrawlService {
 
   async validateUrl(url: string): Promise<ValidateUrlResponse> {
     try {
+      // First validate URL format
+      const formatValidation = FirecrawlService.validateUrlFormat(url);
+      if (!formatValidation.isValid) {
+        return {
+          success: false,
+          scrapable: false,
+          error: formatValidation.error
+        };
+      }
+
       const response = await this.makeRequest<ScrapabilityResponse>({
         method: 'POST',
         endpoint: '/scrape',
