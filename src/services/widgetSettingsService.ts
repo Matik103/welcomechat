@@ -12,7 +12,7 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
   try {
     console.log(`Getting widget settings for client: ${clientId}`);
     
-    // First try to get settings from ai_agents table (primary source)
+    // Get settings from ai_agents table (primary source)
     const { data: agentData, error: agentError } = await supabase
       .from('ai_agents')
       .select('settings, name, agent_description, logo_url, logo_storage_path')
@@ -60,36 +60,8 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
       return mergedSettings as WidgetSettings;
     }
     
-    // Fallback to clients table if not found in ai_agents
-    console.log('Falling back to clients table for widget settings');
-    const { data: clientData, error: clientError } = await supabase
-      .from('clients')
-      .select('client_name, agent_name, widget_settings, logo_url, logo_storage_path')
-      .eq('id', clientId)
-      .maybeSingle();
-      
-    if (clientError) {
-      console.error('Error fetching from clients:', clientError);
-      throw clientError;
-    }
-    
-    if (clientData) {
-      // Use data from clients table
-      const widgetSettings = clientData.widget_settings || {};
-      
-      // Fixed to make sure we spread an object type
-      const mergedSettings = {
-        ...defaultSettings,
-        agent_name: clientData.agent_name || clientData.client_name || defaultSettings.agent_name,
-        logo_url: clientData.logo_url || '',
-        logo_storage_path: clientData.logo_storage_path || '',
-        ...(typeof widgetSettings === 'object' ? widgetSettings : {})
-      };
-      
-      return mergedSettings;
-    }
-    
-    console.log('No client or agent found, returning default settings');
+    // If no record found, return default settings
+    console.log('No agent config found, returning default settings');
     return { ...defaultSettings };
   } catch (error) {
     console.error('Error getting widget settings:', error);
@@ -164,30 +136,15 @@ export async function updateWidgetSettings(
           logo_storage_path: logo_storage_path,
           settings: updatedSettings,
           interaction_type: 'config',
-          status: 'active'
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
         
       if (error) {
         console.error('Error creating ai_agents record:', error);
         throw error;
       }
-    }
-    
-    // Also update the clients table to ensure backward compatibility
-    console.log('Updating clients table for backward compatibility');
-    const { error: clientUpdateError } = await supabase
-      .from('clients')
-      .update({
-        agent_name: agent_name,
-        logo_url: logo_url,
-        logo_storage_path: logo_storage_path,
-        widget_settings: updatedSettings  // Send the complete settings object
-      })
-      .eq('id', clientId);
-      
-    if (clientUpdateError) {
-      console.error('Warning: Unable to sync with clients table:', clientUpdateError);
-      // Continue anyway, since the primary storage is now ai_agents
     }
   } catch (error) {
     console.error('Error updating widget settings:', error);
