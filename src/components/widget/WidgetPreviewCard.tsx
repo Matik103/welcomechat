@@ -30,7 +30,7 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
       
       // Add all necessary parameters
       url.searchParams.append('clientId', clientId);
-      url.searchParams.append('agentName', settings.agent_name || '');
+      if (settings.agent_name) url.searchParams.append('agentName', settings.agent_name);
       
       // Add additional settings as needed
       if (settings.chat_color) url.searchParams.append('primaryColor', settings.chat_color);
@@ -47,6 +47,8 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
       // Set the preview URL
       setPreviewUrl(url.toString());
       setError(null);
+      
+      console.log("Preview URL generated:", url.toString());
     } catch (err) {
       console.error('Error creating preview URL:', err);
       setError('Unable to generate preview link');

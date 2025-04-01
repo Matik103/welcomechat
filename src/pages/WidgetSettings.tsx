@@ -40,28 +40,17 @@ export default function WidgetSettings() {
   // Sync agent name from client data when settings load
   useEffect(() => {
     if (!isLoadingClient && client && settings) {
-      // Check if we need to sync settings
-      const needsSync = (
-        (client.agent_name && client.agent_name !== settings.agent_name) ||
-        (client.logo_url && client.logo_url !== settings.logo_url)
-      );
-      
-      if (needsSync) {
-        console.log("Syncing settings from client data:", {
-          clientAgentName: client.agent_name,
-          settingsAgentName: settings.agent_name,
-          clientLogoUrl: client.logo_url,
-          settingsLogoUrl: settings.logo_url
-        });
-        
-        // Update settings with client data
-        updateSettingsMutation.mutate({
-          ...settings,
-          agent_name: client.agent_name || settings.agent_name,
-          logo_url: client.logo_url || settings.logo_url,
-          logo_storage_path: client.logo_storage_path || settings.logo_storage_path
-        });
-      }
+      // Only log once per load
+      console.log("Current client and settings state:", { 
+        client: {
+          agent_name: client.agent_name,
+          logo_url: client.logo_url
+        },
+        settings: {
+          agent_name: settings.agent_name,
+          logo_url: settings.logo_url
+        }
+      });
     }
   }, [client, settings, isLoadingClient]);
 

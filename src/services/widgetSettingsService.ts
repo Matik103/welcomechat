@@ -22,6 +22,7 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
     
     if (agentError) {
       console.error('Error fetching from ai_agents:', agentError);
+      return { ...defaultSettings };
     }
     
     if (agentData) {

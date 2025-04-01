@@ -21,7 +21,7 @@ export default function WidgetSettings() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
-  const { logClientActivity } = useClientActivity(clientId);
+  const { logClientActivity } = useClientActivity(clientId || "");
   const widgetSettingsHook = useWidgetSettings(clientId || "");
 
   // Use useClientData with proper client ID
@@ -34,30 +34,16 @@ export default function WidgetSettings() {
     enabled: !!clientId,
   });
 
+  // Log current data state on load for debugging
   useEffect(() => {
-    if (!isLoadingClient && client && settings) {
-      const needsSync = (
-        (client.agent_name && client.agent_name !== settings.agent_name) ||
-        (client.logo_url && client.logo_url !== settings.logo_url)
-      );
-      
-      if (needsSync) {
-        console.log("Syncing settings from client data:", {
-          clientAgentName: client.agent_name,
-          settingsAgentName: settings.agent_name,
-          clientLogoUrl: client.logo_url,
-          settingsLogoUrl: settings.logo_url
-        });
-        
-        updateSettingsMutation.mutate({
-          ...settings,
-          agent_name: client.agent_name || settings.agent_name,
-          logo_url: client.logo_url || settings.logo_url,
-          logo_storage_path: client.logo_storage_path || settings.logo_storage_path
-        });
-      }
+    if (client && settings) {
+      console.log("Client view - current data state:", {
+        clientId,
+        clientAgentName: client.agent_name,
+        settingsAgentName: settings.agent_name
+      });
     }
-  }, [client, settings, isLoadingClient]);
+  }, [client, settings, clientId]);
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
@@ -78,7 +64,7 @@ export default function WidgetSettings() {
     onSuccess: () => {
       refetch();
       if (clientId) {
-        // Invalidate client query to ensure we get fresh data
+        // Invalidate client query to ensure bidirectional sync
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
         refetchClient();
       }

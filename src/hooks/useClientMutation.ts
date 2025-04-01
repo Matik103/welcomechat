@@ -34,52 +34,27 @@ export const useClientMutation = () => {
         console.error('Error checking for AI agent:', checkAgentError);
       }
       
-      // Update clients table
-      const { error: clientError } = await supabase
-        .from('clients')
-        .update({
-          client_name: client.client_name,
-          email: client.email,
-          agent_name: agentName,
-          updated_at: new Date().toISOString(),
-          logo_url: logoUrl,
-          logo_storage_path: logoStoragePath,
-          // Maintain widget_settings structure if it exists
-          widget_settings: client.widget_settings || {
-            agent_name: agentName,
-            agent_description: agentDescription,
-            logo_url: logoUrl,
-            logo_storage_path: logoStoragePath
-          }
-        })
-        .eq('id', client.client_id);
-
-      if (clientError) {
-        console.error('Error updating client:', clientError);
-        throw clientError;
-      }
+      // Get the current settings to preserve all values
+      let currentSettings = {};
       
-      // Get the current widget settings
-      const currentSettings = existingAgent ? 
+      if (existingAgent) {
         // Need to fetch settings separately since we only selected 'id' initially
-        await (async () => {
-          const { data, error } = await supabase
-            .from('ai_agents')
-            .select('settings')
-            .eq('id', existingAgent.id)
-            .single();
-          
-          if (error) {
-            console.error('Error fetching agent settings:', error);
-            return {};
-          }
-          
-          return data?.settings || {};
-        })() : {};
+        const { data: agentData, error: settingsError } = await supabase
+          .from('ai_agents')
+          .select('settings')
+          .eq('id', existingAgent.id)
+          .single();
+        
+        if (settingsError) {
+          console.error('Error fetching agent settings:', settingsError);
+        } else if (agentData && agentData.settings) {
+          currentSettings = typeof agentData.settings === 'object' ? agentData.settings : {};
+        }
+      }
       
       // Prepare the settings object with synced fields
       const updatedSettings = {
-        ...(typeof currentSettings === 'object' ? currentSettings : {}),
+        ...currentSettings,
         agent_name: agentName,
         agent_description: agentDescription,
         logo_url: logoUrl,
@@ -127,7 +102,7 @@ export const useClientMutation = () => {
         }
       }
       
-      console.log('Client and AI agent updated successfully');
+      console.log('AI agent updated successfully');
       
     } catch (error) {
       console.error('Error in client mutation:', error);
