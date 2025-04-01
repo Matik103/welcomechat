@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { checkAndRefreshAuth } from "@/services/authService";
+import { JsonObject } from "@/types/supabase-extensions";
 
 export interface AgentSource {
   url?: string;
@@ -67,28 +68,44 @@ export function useAgentContent(clientId: string | undefined, agentName: string 
         
         // Add document_processing_jobs content
         if (docData && docData.length > 0) {
-          const docSources = docData.map(doc => ({
-            content: doc.content || "",
-            url: doc.document_url,  // Changed from url to document_url
-            title: doc.metadata?.title || doc.document_url?.split('/').pop() || "Document", // Get title from metadata or filename
-            documentType: doc.document_type,
-            createdAt: doc.created_at,
-            source: "document_processing_jobs"
-          }));
+          const docSources = docData.map(doc => {
+            // Safe extraction of title from metadata
+            const metadata = doc.metadata as JsonObject | null;
+            const title = metadata && typeof metadata === 'object' && 'title' in metadata 
+              ? String(metadata.title) 
+              : doc.document_url?.split('/').pop() || "Document";
+              
+            return {
+              content: doc.content || "",
+              url: doc.document_url,  // Changed from url to document_url
+              title,
+              documentType: doc.document_type,
+              createdAt: doc.created_at,
+              source: "document_processing_jobs"
+            };
+          });
           allSources = [...allSources, ...docSources];
         }
         
         // Add ai_agents document content
         if (agentData && agentData.length > 0) {
-          const agentSources = agentData.map(doc => ({
-            content: doc.content || "",
-            url: doc.url,
-            title: typeof doc.settings === 'object' && doc.settings ? doc.settings.title : undefined,
-            documentType: doc.type,
-            createdAt: doc.created_at,
-            source: "ai_agents",
-            settings: doc.settings
-          }));
+          const agentSources = agentData.map(doc => {
+            // Safe extraction of title from settings
+            const settings = doc.settings as JsonObject | null;
+            const title = settings && typeof settings === 'object' && 'title' in settings
+              ? String(settings.title)
+              : undefined;
+              
+            return {
+              content: doc.content || "",
+              url: doc.url,
+              title,
+              documentType: doc.type,
+              createdAt: doc.created_at,
+              source: "ai_agents",
+              settings: doc.settings
+            };
+          });
           allSources = [...allSources, ...agentSources];
         }
         
