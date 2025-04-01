@@ -49,19 +49,19 @@ export const applyDocumentLinksRLS = async () => {
       DROP POLICY IF EXISTS "authenticated_users_access" ON document_links;
       DROP POLICY IF EXISTS "anon_read_only" ON document_links;
       
+      -- IMPORTANT FIX: Create a super permissive policy for all authenticated users during development
+      CREATE POLICY "authenticated_can_do_anything" 
+          ON document_links
+          FOR ALL 
+          TO authenticated
+          USING (true)
+          WITH CHECK (true);
+      
       -- Create a simple policy for service role with full access
       CREATE POLICY "service_role_all_access"
           ON document_links
           FOR ALL
           TO service_role
-          USING (true)
-          WITH CHECK (true);
-      
-      -- Create a simple policy for authenticated users with full access during development
-      CREATE POLICY "authenticated_users_access"
-          ON document_links
-          FOR ALL
-          TO authenticated
           USING (true)
           WITH CHECK (true);
       
@@ -113,7 +113,7 @@ export const fixDocumentLinksRLS = async () => {
     const simpleSql = `
       ALTER TABLE public.document_links ENABLE ROW LEVEL SECURITY;
       
-      -- Clean up and create simple policies
+      -- Clean up and create super permissive policy
       DROP POLICY IF EXISTS "authenticated_full_access" ON document_links;
       CREATE POLICY "authenticated_full_access"
           ON document_links

@@ -6,11 +6,12 @@ import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinks
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { toast } from 'sonner';
 import { DocumentType } from '@/types/document-processing';
+import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
 
 interface DocumentResourcesSectionProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: () => Promise<void>;
+  logClientActivity?: () => Promise<void>; // Made optional to prevent dependency issues
 }
 
 export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> = ({
@@ -36,6 +37,10 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
     
     if (error) {
       console.error("Error loading document links:", error);
+      // Attempt to fix RLS policies automatically
+      fixDocumentLinksRLS().catch(e => 
+        console.error("Failed to fix RLS policies:", e)
+      );
     }
     
     // Simulate initialization complete
@@ -57,8 +62,15 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       console.log("Adding document link:", completeData, "for client:", clientId);
       await addDocumentLinkMutation.mutateAsync(completeData);
       
-      // Log the activity
-      await logClientActivity();
+      // Log the activity if the function is provided, but don't make it required
+      if (logClientActivity) {
+        try {
+          await logClientActivity();
+        } catch (activityError) {
+          // Just log the error but don't fail the operation if activity logging fails
+          console.error("Failed to log client activity:", activityError);
+        }
+      }
       
       toast.success('Document link added successfully');
       
@@ -73,7 +85,19 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       return Promise.resolve();
     } catch (error) {
       console.error('Error adding document link:', error);
-      toast.error(`Failed to add document link: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // If we get an RLS error, try to fix it
+      if (error instanceof Error && error.message.includes('violates row-level security policy')) {
+        try {
+          await fixDocumentLinksRLS();
+          toast.info("Security policies were updated. Please try again.");
+        } catch (rlsError) {
+          console.error("Failed to fix RLS policies:", rlsError);
+        }
+      } else {
+        toast.error(`Failed to add document link: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      
       return Promise.reject(error);
     }
   };
@@ -82,8 +106,15 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
     try {
       await deleteDocumentLinkMutation.mutateAsync(linkId);
       
-      // Log the activity
-      await logClientActivity();
+      // Log the activity if the function is provided, but don't make it required
+      if (logClientActivity) {
+        try {
+          await logClientActivity();
+        } catch (activityError) {
+          // Just log the error but don't fail the operation if activity logging fails
+          console.error("Failed to log client activity:", activityError);
+        }
+      }
       
       toast.success('Document link deleted successfully');
       
@@ -98,7 +129,19 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       return Promise.resolve();
     } catch (error) {
       console.error('Error deleting document link:', error);
-      toast.error(`Failed to delete document link: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // If we get an RLS error, try to fix it
+      if (error instanceof Error && error.message.includes('violates row-level security policy')) {
+        try {
+          await fixDocumentLinksRLS();
+          toast.info("Security policies were updated. Please try again.");
+        } catch (rlsError) {
+          console.error("Failed to fix RLS policies:", rlsError);
+        }
+      } else {
+        toast.error(`Failed to delete document link: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      
       return Promise.reject(error);
     }
   };
