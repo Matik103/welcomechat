@@ -1,10 +1,13 @@
 
 import React from 'react';
-import { Route } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { FirecrawlPage } from '@/components/firecrawl/FirecrawlPage';
 
 export const FirecrawlRoutes = () => {
   return (
-    <Route path="/firecrawl" element={<FirecrawlPage />} />
+    <Routes>
+      <Route path="/firecrawl" element={<FirecrawlPage />} />
+      <Route path="/admin/firecrawl" element={<FirecrawlPage />} />
+    </Routes>
   );
 };

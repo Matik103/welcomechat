@@ -1,6 +1,6 @@
 
 import { useMemo, useEffect } from "react";
-import { Navigate, useLocation, Routes } from "react-router-dom";
+import { Navigate, useLocation, Route, Routes } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { useAuthSafetyTimeout } from "./hooks/useAuthSafetyTimeout";
 import { useAppInitialization } from "./hooks/useAppInitialization";
@@ -137,21 +137,11 @@ function App() {
 
   // Admin routes
   if (userRole === 'admin') {
-    return (
-      <Routes>
-        <AdminRoutes />
-        <FirecrawlRoutes />
-      </Routes>
-    );
+    return <AdminRoutes />;
   }
 
   // Client routes (default)
-  return (
-    <Routes>
-      <ClientRoutes />
-      <FirecrawlRoutes />
-    </Routes>
-  );
+  return <ClientRoutes />;
 }
 
 export default App;
