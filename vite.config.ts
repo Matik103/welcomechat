@@ -45,6 +45,14 @@ export default defineConfig(({ mode }) => ({
       }
     }
   },
+  css: {
+    postcss: {
+      plugins: [
+        require('tailwindcss'),
+        require('autoprefixer'),
+      ],
+    },
+  },
   define: {
     // This ensures environment variables are available at runtime without import.meta
     'window.ENV': {
