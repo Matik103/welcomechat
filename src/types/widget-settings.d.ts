@@ -17,6 +17,8 @@ export interface WidgetSettings {
   placement?: 'bottom' | 'center' | 'top';
   theme?: 'light' | 'dark' | 'system';
   initial_messages?: string[];
+  display_mode?: 'floating' | 'inline' | 'sidebar';
+  chat_color?: string;
   [key: string]: any;
 }
 
@@ -37,5 +39,7 @@ export const defaultSettings: WidgetSettings = {
   theme: 'light',
   logo_url: '',
   logo_storage_path: '',
-  initial_messages: []
+  initial_messages: [],
+  display_mode: 'floating',
+  chat_color: '#7c3aed'
 };

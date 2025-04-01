@@ -266,13 +266,13 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     let responseText = "";
     
     if (/how are you/i.test(query)) {
-      responseText = `I'm doing great today! Thank you for asking. I'm here to help with any questions you have about ${settings.agent_name || "our products and services"}. What can I assist you with?`;
+      responseText = `I'm doing great today! Thank you for asking. As part of the ${settings.agent_name || "team"}, I'm here to help with any questions you have about our products and services. How can I assist you today?`;
     } 
     else if (/what('s| is) your name/i.test(query) || /who are you/i.test(query)) {
-      responseText = `My name is ${settings.agent_name || "AI Assistant"}! I'm part of the team here, ready to assist with any questions you have about our offerings. How can I help you today?`;
+      responseText = `I'm ${settings.agent_name || "your assistant"}! As a member of our team, I'm here to help you with any questions you have about our offerings. What can I help you with today?`;
     }
     else if (/tell me about yourself/i.test(query)) {
-      responseText = `I'm ${settings.agent_name || "an AI Assistant"}, a member of our team dedicated to helping customers like you. I have access to our company information and can assist with any questions you might have about our products, services, or anything else you need. What would you like to know about what we offer?`;
+      responseText = `I'm ${settings.agent_name || "your assistant"}, and I work with our team to provide support and information. I have access to our company information and can assist with any questions you might have about our products, services, or anything else you need. What would you like to know about what we offer?`;
     }
     else if (/^(hi|hello|hey)\b/i.test(query) || /good (morning|afternoon|evening)/i.test(query)) {
       responseText = `Hello there! It's great to connect with you today. I'm ${settings.agent_name || "your assistant"} from the team. How can we help you today?`;
@@ -414,6 +414,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
             overflow-hidden
           `}
           style={{ backgroundColor: expanded ? settings.background_color : settings.chat_color }}
+          onClick={!expanded ? handleToggleExpand : undefined}
         >
           {expanded ? (
             <>
@@ -456,9 +457,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
               )}
             </>
           ) : (
-            <button
-              onClick={handleToggleExpand}
-              style={{ backgroundColor: settings.chat_color }}
+            <div
               className="w-full h-full flex items-center justify-center text-white"
             >
               {settings.logo_url ? (
@@ -473,7 +472,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
               ) : (
                 <MessageCircle className="w-6 h-6" />
               )}
-            </button>
+            </div>
           )}
         </div>
       </div>

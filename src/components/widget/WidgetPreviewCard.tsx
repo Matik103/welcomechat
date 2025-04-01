@@ -43,7 +43,7 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
             <WidgetPreview 
               settings={settings} 
               clientId={clientId} 
-              key={`widget-preview-${clientId}-${isLoaded}`}
+              key={`widget-preview-${clientId}-${isLoaded}-${settings.display_mode}`}
             />
           </div>
         )}
