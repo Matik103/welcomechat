@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => ({
   css: {
     postcss: {
       plugins: [
-        require('tailwindcss'),
+        require('@tailwindcss/postcss'),
         require('autoprefixer'),
       ],
     },
