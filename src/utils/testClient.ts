@@ -24,6 +24,7 @@ export enum ActivityType {
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const resendApiKey = process.env.RESEND_API_KEY || '';
+const apiUrl = process.env.VITE_API_URL || 'http://localhost:3000';
 
 if (!supabaseUrl || !supabaseServiceKey || !resendApiKey) {
   throw new Error('Missing required environment variables');

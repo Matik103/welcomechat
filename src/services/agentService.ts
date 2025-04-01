@@ -12,8 +12,8 @@ export interface Agent {
   last_active: string;
   total_interactions: number;
   average_response_time: number;
-  logo_url?: string;
-  logo_storage_path?: string;
+  logo_url?: string | null;
+  logo_storage_path?: string | null;
 }
 
 /**

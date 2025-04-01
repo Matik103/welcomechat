@@ -1,4 +1,3 @@
-
 import { sendEmail } from './emailSender';
 import { generateClientInvitationTemplate } from './emailTemplates';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
@@ -24,6 +23,11 @@ export const sendWelcomeEmail = async (
       emailSent: false,
       emailError: "Invalid email address"
     };
+  }
+  
+  if (!supabaseAdmin) {
+    console.error('Supabase admin client is not configured');
+    return null; // or appropriate fallback value
   }
   
   try {

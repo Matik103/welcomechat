@@ -12,9 +12,9 @@ export function getEnvVariable(name: string): string | undefined {
     
     // For client-side usage - using window directly rather than import.meta
     if (typeof window !== 'undefined' && 
-        typeof window['ENV'] !== 'undefined' &&
-        window['ENV'][name]) {
-      return window['ENV'][name] as string;
+        typeof window['ENV'] !== 'undefined') {
+      const env = window['ENV'] as Record<string, string>;
+      return env[name];
     }
     
     return undefined;

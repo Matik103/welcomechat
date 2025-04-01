@@ -30,6 +30,10 @@ export const uploadLogo = async (
     console.log('Uploading file to path:', filePath);
     
     // Use supabaseAdmin for uploading to storage
+    if (!supabaseAdmin) {
+      throw new Error('Admin client not configured properly');
+    }
+    
     const { data, error } = await supabaseAdmin.storage
       .from('bot-logos')
       .upload(filePath, file, {
@@ -45,6 +49,10 @@ export const uploadLogo = async (
     console.log('Upload successful:', data);
     
     // Get the public URL of the uploaded file
+    if (!supabaseAdmin) {
+      throw new Error('Admin client not configured properly');
+    }
+    
     const { data: urlData } = supabaseAdmin.storage
       .from('bot-logos')
       .getPublicUrl(filePath);
@@ -120,6 +128,11 @@ export const initializeBotLogosBucket = async (): Promise<boolean> => {
   try {
     if (!isAdminClientConfigured()) {
       console.error('Cannot initialize bucket: Supabase admin client not configured');
+      return false;
+    }
+
+    if (!supabaseAdmin) {
+      console.error('Supabase admin client is null');
       return false;
     }
 

@@ -1,172 +1,102 @@
 import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
-import { Resend } from 'resend';
 
-// Load environment variables
 dotenv.config();
 
-// Initialize cross-fetch
-if (typeof fetch === 'undefined') {
-  require('cross-fetch/polyfill');
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
+
+if (!supabaseServiceKey) {
+  console.error('Error: VITE_SUPABASE_SERVICE_ROLE_KEY is not set in .env');
+  process.exit(1);
 }
 
-// Create a Supabase client with service role key
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL || '',
-  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
+// Create Supabase client with service role key
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
   }
-);
+});
 
-// Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-async function sendDeletionNotificationEmail(clientEmail: string, clientName: string, deletionDate: Date) {
+async function testDeletion() {
   try {
-    console.log('Sending deletion notification email to:', clientEmail);
-    
-    const { data, error } = await resend.emails.send({
-      from: 'WelcomeChat <admin@welcome.chat>',
-      to: clientEmail,
-      subject: 'Account Deletion Notice - WelcomeChat',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Account Deletion Notice</h2>
-          <p>Dear ${clientName},</p>
-          <p>We are writing to inform you that your WelcomeChat account has been scheduled for deletion.</p>
-          <p>Your account will be permanently deleted on <strong>${deletionDate.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })}</strong>.</p>
-          <p>If you believe this is a mistake or would like to cancel the deletion, please contact our support team immediately.</p>
-          <p>Thank you for using WelcomeChat.</p>
-          <p>Best regards,<br>The WelcomeChat Team</p>
-        </div>
-      `
-    });
+    console.log('Starting deletion test with service role...');
+    console.log('Using Supabase URL:', supabaseUrl);
 
-    if (error) {
-      console.error('Failed to send deletion notification email:', error);
-      return false;
+    // First, get a user to delete
+    const { data: users, error: userError } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .limit(1);
+
+    if (userError) {
+      throw new Error(`Error fetching user: ${userError.message}`);
     }
 
-    console.log('Successfully sent deletion notification email:', data);
-    return true;
-  } catch (error) {
-    console.error('Error sending deletion notification email:', error);
-    return false;
-  }
-}
-
-async function testClientDeletionScheduling() {
-  try {
-    console.log('Starting client deletion scheduling test...');
-
-    // Create a test client
-    const testClient = {
-      name: 'Test Agent',
-      client_name: 'Test Client',
-      email: 'delivered@resend.dev',  // Using Resend's testing email
-      company: 'Test Company',
-      model: 'gpt-4-turbo-preview',
-      status: 'active'
-    };
-
-    const { data: client, error: createError } = await supabaseAdmin
-      .from('ai_agents')
-      .insert([testClient])
-      .select()
-      .single();
-
-    if (createError) {
-      throw new Error(`Failed to create test client: ${createError.message}`);
+    if (!users || users.length === 0) {
+      throw new Error('No users found to delete');
     }
 
-    console.log('Created test client:', client);
+    const user = users[0];
+    console.log('Deleting user:', user);
 
-    // Calculate deletion date (30 days from now)
-    const deletionDate = new Date();
-    deletionDate.setDate(deletionDate.getDate() + 30);
+    // Delete the user
+    const { error: deleteError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', user.id);
 
-    // Schedule client deletion
-    const { error: updateError } = await supabaseAdmin
-      .from('ai_agents')
-      .update({
-        status: 'scheduled_deletion',
-        deletion_scheduled_at: deletionDate.toISOString()
-      })
-      .eq('id', client.id);
-
-    if (updateError) {
-      throw new Error(`Failed to schedule client deletion: ${updateError.message}`);
+    if (deleteError) {
+      throw new Error(`Error deleting user: ${deleteError.message}`);
     }
 
-    console.log('Successfully scheduled client deletion');
+    console.log('User deleted successfully');
 
-    // Send deletion notification email
-    const emailSent = await sendDeletionNotificationEmail(client.email, client.client_name, deletionDate);
-    console.log('Email notification status:', emailSent ? 'Sent' : 'Failed');
-
-    // Record the deletion activity
-    const activityData = {
-      ai_agent_id: client.id,
-      type: 'client_deleted',
-      metadata: {
-        client_name: client.client_name,
-        activity_subtype: 'deletion_scheduled',
-        scheduled_deletion_date: deletionDate.toISOString(),
-        email_notification_sent: emailSent
-      }
-    };
-
-    const { error: activityError } = await supabaseAdmin
-      .from('activities')
-      .insert([activityData]);
-
-    if (activityError) {
-      throw new Error(`Failed to record deletion activity: ${activityError.message}`);
-    }
-
-    console.log('Successfully recorded deletion activity');
-
-    // Verify the changes
-    const { data: verifyClient, error: verifyError } = await supabaseAdmin
-      .from('ai_agents')
-      .select('status, deletion_scheduled_at')
-      .eq('id', client.id)
-      .single();
-
-    if (verifyError) {
-      throw new Error(`Failed to verify client status: ${verifyError.message}`);
-    }
-
-    console.log('Verified client status:', verifyClient);
-
-    const { data: activities, error: activitiesError } = await supabaseAdmin
-      .from('activities')
+    // Verify the user was deleted
+    const { data: checkUsers, error: checkError } = await supabase
+      .from('profiles')
       .select('*')
-      .eq('ai_agent_id', client.id)
-      .eq('type', 'client_deleted');
+      .eq('id', user.id);
 
-    if (activitiesError) {
-      throw new Error(`Failed to verify activities: ${activitiesError.message}`);
+    if (checkError) {
+      throw new Error(`Error checking user: ${checkError.message}`);
     }
 
-    console.log('Verified activity record:', activities);
-    console.log('Test completed successfully!');
+    if (checkUsers && checkUsers.length > 0) {
+      console.warn('Warning: User still exists after deletion');
+    } else {
+      console.log('User successfully verified as deleted');
+    }
 
+    // Delete the auth user
+    const { data: authUsers, error: authError } = await supabase
+      .auth.admin.listUsers();
+
+    if (authError) {
+      throw new Error(`Error listing auth users: ${authError.message}`);
+    }
+
+    const authUserToDelete = authUsers.users.find(authUser => authUser.email === user.email || '');
+
+    if (authUserToDelete) {
+      const { error: deleteAuthError } = await supabase
+        .auth.admin.deleteUser(authUserToDelete.id);
+
+      if (deleteAuthError) {
+        console.warn('Warning: Failed to delete auth user:', deleteAuthError.message);
+      } else {
+        console.log('Auth user deleted successfully');
+      }
+    } else {
+      console.log('Auth user not found, skipping deletion');
+    }
+
+    process.exit(0);
   } catch (error) {
     console.error('Test failed:', error);
-    throw error;
+    process.exit(1);
   }
 }
 
-// Run the test
-testClientDeletionScheduling(); 
+testDeletion();
