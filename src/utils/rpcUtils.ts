@@ -39,14 +39,28 @@ export const execSql = async <T>(
   try {
     console.log("Executing SQL:", query.substring(0, 100) + "...");
     
+    // First try with the standard parameter names
     const { data, error } = await supabase.rpc('exec_sql', { 
       sql_query: query,
       query_params: params 
     });
     
     if (error) {
-      console.error('Error executing SQL:', error);
-      throw error;
+      console.error('Error executing SQL (attempt 1):', error);
+      
+      // If first attempt fails, try alternative parameter name
+      const { data: data2, error: error2 } = await supabase.rpc('exec_sql', { 
+        query: query,
+        params: params 
+      });
+      
+      if (error2) {
+        console.error('Error executing SQL (attempt 2):', error2);
+        throw error2;
+      }
+      
+      console.log("SQL execution successful on second attempt");
+      return data2 as T;
     }
     
     console.log("SQL execution successful");

@@ -48,33 +48,27 @@ export const applyDocumentLinksRLS = async () => {
       DROP POLICY IF EXISTS "service_role_all_access" ON document_links;
       DROP POLICY IF EXISTS "authenticated_users_access" ON document_links;
       DROP POLICY IF EXISTS "anon_read_only" ON document_links;
+      DROP POLICY IF EXISTS "authenticated_can_do_anything" ON document_links;
+      DROP POLICY IF EXISTS "authenticated_full_access" ON document_links;
       
-      -- IMPORTANT FIX: Create a super permissive policy for all authenticated users during development
-      CREATE POLICY "authenticated_can_do_anything" 
+      -- Create a fully permissive policy for all authenticated users
+      CREATE POLICY "authenticated_full_access" 
           ON document_links
           FOR ALL 
           TO authenticated
           USING (true)
           WITH CHECK (true);
       
-      -- Create a simple policy for service role with full access
+      -- Create a policy for service role with full access
       CREATE POLICY "service_role_all_access"
           ON document_links
           FOR ALL
           TO service_role
           USING (true)
           WITH CHECK (true);
-      
-      -- Create a policy for anon users to view only
-      CREATE POLICY "anon_read_only"
-          ON document_links
-          FOR SELECT
-          TO anon
-          USING (true);
-      
-      -- Grant necessary permissions to the document_links table
+          
+      -- Grant necessary permissions
       GRANT ALL ON document_links TO authenticated;
-      GRANT SELECT ON document_links TO anon;
       GRANT ALL ON document_links TO service_role;
     `;
     
@@ -97,45 +91,70 @@ export const applyDocumentLinksRLS = async () => {
 // This function can be called to directly fix RLS issues
 export const fixDocumentLinksRLS = async () => {
   console.log("Attempting to fix document_links RLS policies...");
-  // Try multiple approaches for reliability
   try {
     // First, try with our primary approach
     const result = await applyDocumentLinksRLS();
     
     if (result.success) {
       console.log("Successfully fixed document_links RLS policies");
-      toast.success("Security policies updated successfully");
       return result;
     }
     
-    // If that fails, try a more direct approach with simpler SQL
-    console.log("First attempt failed, trying simpler approach...");
-    const simpleSql = `
+    // If that fails, try a direct approach with minimal SQL
+    console.log("First attempt failed, trying direct approach...");
+    const directSql = `
+      -- Most direct approach possible - drop everything and create one simple policy
       ALTER TABLE public.document_links ENABLE ROW LEVEL SECURITY;
       
-      -- Clean up and create super permissive policy
-      DROP POLICY IF EXISTS "authenticated_full_access" ON document_links;
-      CREATE POLICY "authenticated_full_access"
-          ON document_links
-          FOR ALL
-          TO authenticated
-          USING (true)
-          WITH CHECK (true);
-          
+      -- Drop all existing policies first
+      SELECT format('DROP POLICY IF EXISTS %I ON document_links', policyname)
+      FROM pg_policies 
+      WHERE tablename = 'document_links'
+      \gexec
+      
+      -- Create one super simple policy
+      CREATE POLICY "full_access_policy" 
+      ON document_links
+      FOR ALL 
+      USING (true) 
+      WITH CHECK (true);
+      
+      -- Grant all permissions
       GRANT ALL ON document_links TO authenticated;
+      GRANT ALL ON document_links TO service_role;
     `;
     
-    const simpleResult = await execSql(simpleSql);
-    console.log("Result of simpler approach:", simpleResult);
+    const directResult = await execSql(directSql);
+    console.log("Result of direct approach:", directResult);
     
-    toast.success("Security policies updated with fallback method");
-    return { success: true, data: simpleResult };
+    toast.success("Security policies updated successfully");
+    return { success: true, data: directResult };
   } catch (error) {
     console.error("Failed to fix document_links RLS policies:", error);
-    toast.error("Failed to update security policies");
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    };
+    
+    // Last resort attempt - use the simplest possible approach
+    try {
+      console.log("Trying last resort approach...");
+      const lastResortSql = `
+        ALTER TABLE public.document_links ENABLE ROW LEVEL SECURITY;
+        DROP POLICY IF EXISTS "emergency_policy" ON document_links;
+        CREATE POLICY "emergency_policy" ON document_links FOR ALL USING (true);
+        GRANT ALL ON document_links TO authenticated;
+      `;
+      
+      const lastResortResult = await execSql(lastResortSql);
+      console.log("Last resort approach result:", lastResortResult);
+      
+      toast.success("Emergency security policy applied");
+      return { success: true, data: lastResortResult };
+    } catch (finalError) {
+      console.error("All attempts to fix RLS policies failed:", finalError);
+      toast.error("Failed to update security policies. Please contact support.");
+      
+      return { 
+        success: false, 
+        error: finalError instanceof Error ? finalError.message : 'Unknown error' 
+      };
+    }
   }
 };

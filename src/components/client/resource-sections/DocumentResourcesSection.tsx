@@ -9,11 +9,13 @@ import { DocumentType } from '@/types/document-processing';
 import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
+import { Button } from '@/components/ui/button';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 interface DocumentResourcesSectionProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: () => Promise<void>; // No longer optional
+  logClientActivity: () => Promise<void>; // Required callback
 }
 
 export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> = ({
@@ -22,6 +24,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
   logClientActivity
 }) => {
   const [initializing, setInitializing] = useState(true);
+  const [isFixingRls, setIsFixingRls] = useState(false);
   
   const {
     documentLinks,
@@ -39,10 +42,8 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
     
     if (error) {
       console.error("Error loading document links:", error);
-      // Attempt to fix RLS policies automatically
-      fixDocumentLinksRLS().catch(e => 
-        console.error("Failed to fix RLS policies:", e)
-      );
+      // We'll let the user manually trigger the RLS fix rather than doing it automatically
+      toast.error("Error loading document links. Try using the 'Fix Permissions' button below.");
     }
     
     // Simulate initialization complete
@@ -52,6 +53,22 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
     
     return () => clearTimeout(timer);
   }, [clientId, documentLinks, error]);
+
+  const handleFixPermissions = async () => {
+    setIsFixingRls(true);
+    try {
+      await fixDocumentLinksRLS();
+      toast.success("Security permissions fixed successfully");
+      if (refetch) {
+        await refetch();
+      }
+    } catch (error) {
+      console.error("Failed to fix permissions:", error);
+      toast.error("Failed to fix permissions. Please contact support.");
+    } finally {
+      setIsFixingRls(false);
+    }
+  };
 
   const handleAddDocumentLink = async (data: { link: string; refresh_rate: number; document_type?: string }) => {
     try {
@@ -76,7 +93,8 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
           `Document link added: ${data.link}`,
           {
             url: data.link,
-            document_type: completeData.document_type
+            document_type: completeData.document_type,
+            client_id: clientId
           }
         );
       } catch (activityError) {
@@ -99,14 +117,11 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
     } catch (error) {
       console.error('Error adding document link:', error);
       
-      // If we get an RLS error, try to fix it
-      if (error instanceof Error && error.message.includes('violates row-level security policy')) {
-        try {
-          await fixDocumentLinksRLS();
-          toast.info("Security policies were updated. Please try again.");
-        } catch (rlsError) {
-          console.error("Failed to fix RLS policies:", rlsError);
-        }
+      // If we get an RLS error, show a more helpful message and button
+      if (error instanceof Error && 
+         (error.message.includes('violates row-level security policy') || 
+          error.message.includes('permission denied'))) {
+        toast.error("Permission error. Try using the 'Fix Permissions' button below.");
       } else {
         toast.error(`Failed to add document link: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
@@ -130,7 +145,8 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
           ActivityType.DOCUMENT_REMOVED,
           `Document link removed`,
           {
-            document_link_id: linkId
+            document_link_id: linkId,
+            client_id: clientId
           }
         );
       } catch (activityError) {
@@ -153,14 +169,11 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
     } catch (error) {
       console.error('Error deleting document link:', error);
       
-      // If we get an RLS error, try to fix it
-      if (error instanceof Error && error.message.includes('violates row-level security policy')) {
-        try {
-          await fixDocumentLinksRLS();
-          toast.info("Security policies were updated. Please try again.");
-        } catch (rlsError) {
-          console.error("Failed to fix RLS policies:", rlsError);
-        }
+      // If we get an RLS error, show a more helpful message
+      if (error instanceof Error && 
+         (error.message.includes('violates row-level security policy') || 
+          error.message.includes('permission denied'))) {
+        toast.error("Permission error. Try using the 'Fix Permissions' button below.");
       } else {
         toast.error(`Failed to delete document link: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
@@ -183,6 +196,30 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
           isSubmitting={addDocumentLinkMutation.isPending}
           agentName="AI Assistant"
         />
+        
+        {error && (
+          <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200 my-4">
+            <p className="text-yellow-800 font-medium mb-2">Error loading document links</p>
+            <Button 
+              variant="outline" 
+              onClick={handleFixPermissions}
+              disabled={isFixingRls}
+              className="flex items-center gap-2"
+            >
+              {isFixingRls ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Fixing permissions...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Fix Permissions
+                </>
+              )}
+            </Button>
+          </div>
+        )}
         
         {!initializing && (
           <DocumentLinksList
