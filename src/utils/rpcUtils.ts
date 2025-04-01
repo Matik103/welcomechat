@@ -37,7 +37,9 @@ export const execSql = async <T>(
   params: any[] = []
 ): Promise<T> => {
   try {
-    const { data, error } = await supabase.rpc('exec_sql' as any, { 
+    console.log("Executing SQL:", query.substring(0, 100) + "...");
+    
+    const { data, error } = await supabase.rpc('exec_sql', { 
       sql_query: query,
       query_params: params 
     });
@@ -47,9 +49,35 @@ export const execSql = async <T>(
       throw error;
     }
     
+    console.log("SQL execution successful");
     return data as T;
   } catch (error) {
     console.error('Failed to execute SQL:', error);
     throw error;
+  }
+};
+
+/**
+ * Execute a SQL query for RLS policy updates
+ * This is a specialized function that handles RLS policy updates
+ */
+export const executeRlsUpdate = async (sqlQuery: string): Promise<boolean> => {
+  try {
+    console.log("Executing RLS policy update...");
+    
+    const { data, error } = await supabase.rpc('exec_sql', { 
+      sql_query: sqlQuery
+    });
+    
+    if (error) {
+      console.error('Error executing RLS update:', error);
+      return false;
+    }
+    
+    console.log("RLS policy update successful:", data);
+    return true;
+  } catch (error) {
+    console.error('Failed to execute RLS update:', error);
+    return false;
   }
 };

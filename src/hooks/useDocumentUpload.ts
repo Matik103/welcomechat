@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { v4 as uuidv4 } from 'uuid';
+import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
 
 interface UploadResult {
   success: boolean;
@@ -159,54 +160,52 @@ export function useDocumentUpload(clientId: string) {
       }
 
       // Insert the document link
-      const { data: documentLink, error: linkError } = await supabase
-        .from('document_links')
-        .insert(documentLinkData)
-        .select()
-        .single();
-
-      if (linkError) {
-        // If we're getting RLS errors, apply the RLS policies
-        if (linkError.message.includes('violates row-level security policy')) {
-          console.log("Detected RLS policy violation. Attempting to apply RLS policies...");
-          const { success } = await import('@/utils/applyDocumentLinksRLS').then(
-            module => module.applyDocumentLinksRLS()
-          );
+      let insertAttempt = 1;
+      let maxAttempts = 3;
+      let documentLink;
+      let linkError;
+      
+      while (insertAttempt <= maxAttempts) {
+        console.log(`Attempt ${insertAttempt} to insert document link`);
+        
+        const { data, error } = await supabase
+          .from('document_links')
+          .insert(documentLinkData)
+          .select()
+          .single();
+          
+        if (!error) {
+          documentLink = data;
+          break;
+        }
+        
+        linkError = error;
+        
+        // If we're getting RLS errors, try to fix them
+        if (error.message.includes('violates row-level security policy')) {
+          console.log(`RLS error detected on attempt ${insertAttempt}, trying to fix...`);
+          
+          const { success } = await fixDocumentLinksRLS();
           
           if (success) {
-            // Try again after applying RLS policies
-            console.log("RLS policies applied successfully. Retrying document link creation...");
-            const { data: retryLink, error: retryError } = await supabase
-              .from('document_links')
-              .insert(documentLinkData)
-              .select()
-              .single();
-              
-            if (retryError) {
-              // If link creation still fails, try to delete the uploaded file
-              await supabase.storage
-                .from(DOCUMENTS_BUCKET)
-                .remove([filePath]);
-                
-              console.error('Error creating document link even after RLS fix:', retryError);
-              throw new Error(`Error creating document link: ${retryError.message}`);
-            }
-            
-            console.log("Document link created successfully after RLS fix:", retryLink);
-            toast.success('Document uploaded successfully');
-            return {
-              success: true,
-              documentId: retryLink.id
-            };
+            console.log("RLS policies fixed, retrying insert...");
+            insertAttempt++;
+            continue;
           }
         }
         
-        // If link creation fails, try to delete the uploaded file
+        // If not an RLS error or RLS fix failed, break the loop
+        break;
+      }
+      
+      // If we still have an error after all attempts
+      if (linkError && !documentLink) {
+        // Clean up the uploaded file
         await supabase.storage
           .from(DOCUMENTS_BUCKET)
           .remove([filePath]);
           
-        console.error('Error creating document link:', linkError);
+        console.error('Error creating document link after multiple attempts:', linkError);
         throw new Error(`Error creating document link: ${linkError.message}`);
       }
 
