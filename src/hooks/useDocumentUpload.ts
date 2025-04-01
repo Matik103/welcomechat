@@ -16,10 +16,10 @@ const getEffectiveClientId = async (clientId: string) => {
   try {
     console.log("Looking up client in ai_agents table with ID:", clientId);
     
-    // Try finding the client by ID first
+    // Try finding the client by ID first (direct match)
     const { data: directMatch, error: directError } = await supabase
       .from("ai_agents")
-      .select("id")
+      .select("id, client_id")
       .eq("id", clientId)
       .eq("interaction_type", "config")
       .single();
@@ -42,25 +42,32 @@ const getEffectiveClientId = async (clientId: string) => {
       return clientIdMatch.id;
     }
     
-    // Last resort - try with OR condition
-    const { data: orMatch, error: orError } = await supabase
+    // Try one more query with less restrictions
+    const { data: fallbackMatch, error: fallbackError } = await supabase
+      .from("ai_agents")
+      .select("id, client_id")
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .limit(1);
+    
+    if (!fallbackError && fallbackMatch && fallbackMatch.length > 0) {
+      console.log("Found client using fallback query:", fallbackMatch[0].id);
+      return fallbackMatch[0].id;
+    }
+
+    // Last resort - just try to find any record with this ID
+    const { data: lastResort, error: lastResortError } = await supabase
       .from("ai_agents")
       .select("id")
-      .eq("interaction_type", "config")
-      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
-      .single();
-    
-    if (orError) {
-      console.error("All attempts to find client failed:", orError);
-      throw new Error("Could not find client record");
+      .filter('id', 'ilike', `%${clientId}%`)
+      .limit(1);
+      
+    if (!lastResortError && lastResort && lastResort.length > 0) {
+      console.log("Found client using partial ID match:", lastResort[0].id);
+      return lastResort[0].id;
     }
     
-    if (!orMatch) {
-      throw new Error("Client not found in ai_agents table");
-    }
-    
-    console.log("Found client using OR condition:", orMatch.id);
-    return orMatch.id;
+    console.error("All attempts to find client failed for ID:", clientId);
+    throw new Error(`Could not find client record with ID: ${clientId}`);
   } catch (error) {
     console.error("Error getting effective client ID:", error);
     throw error;

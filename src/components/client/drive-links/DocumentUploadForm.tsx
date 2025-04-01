@@ -38,7 +38,13 @@ export const DocumentUploadForm = ({
         }
       } catch (error) {
         console.error('Error uploading document:', error);
-        setError(error instanceof Error ? error.message : 'Unknown error occurred');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        setError(errorMessage);
+        
+        // If the error contains "Could not find client record", provide more specific guidance
+        if (errorMessage.includes("Could not find client record")) {
+          setError(`${errorMessage} - This may be due to an issue with client identification. Please check if the client ID is correct or try reloading the page.`);
+        }
       }
     }
   };
