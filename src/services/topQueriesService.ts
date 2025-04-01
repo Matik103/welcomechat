@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { QueryItem } from '@/types/client-dashboard';
+import { safeString, safeNumber } from '@/utils/typeUtils';
 
 /**
  * Fetch top queries for a client
@@ -30,9 +31,9 @@ export const fetchTopQueries = async (
     return (data || []).map(item => ({
       id: item.id,
       query_text: item.query_text,
-      frequency: item.frequency,
-      last_asked: item.updated_at,
-      created_at: item.created_at
+      frequency: safeNumber(item.frequency),
+      last_asked: safeString(item.updated_at),
+      created_at: safeString(item.created_at)
     }));
   } catch (error) {
     console.error('Error in fetchTopQueries:', error);

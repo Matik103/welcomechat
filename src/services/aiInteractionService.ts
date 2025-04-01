@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { ChatInteraction } from "@/types/agent";
+import { safeString, safeCount } from "@/utils/typeUtils";
 
 /**
  * Fetch chat history for a specific client
@@ -19,12 +20,12 @@ export const fetchChatHistory = async (clientId: string): Promise<ChatInteractio
 
     return (data || []).map(item => ({
       id: item.id,
-      client_id: item.client_id,
-      agent_name: item.name,
-      query_text: item.query_text || "",
-      response: item.content || "",
+      client_id: safeString(item.client_id), // Use safeString for null safety
+      agent_name: safeString(item.name),
+      query_text: safeString(item.query_text),
+      response: safeString(item.content),
       response_time_ms: item.response_time_ms || 0,
-      created_at: item.created_at
+      created_at: safeString(item.created_at)
     }));
   } catch (error) {
     console.error("Error fetching chat history:", error);
@@ -49,12 +50,12 @@ export const fetchRecentInteractions = async (clientId: string): Promise<ChatInt
 
     return (data || []).map(item => ({
       id: item.id,
-      client_id: item.client_id,
-      agent_name: item.name,
-      query_text: item.query_text || "",
-      response: item.content || "",
+      client_id: safeString(item.client_id),
+      agent_name: safeString(item.name),
+      query_text: safeString(item.query_text),
+      response: safeString(item.content),
       response_time_ms: item.response_time_ms || 0,
-      created_at: item.created_at
+      created_at: safeString(item.created_at)
     }));
   } catch (error) {
     console.error("Error fetching recent interactions:", error);
@@ -88,16 +89,18 @@ export const getTotalInteractionsCount = async (): Promise<{ total: number, rece
     if (recentError) throw recentError;
     
     // Calculate change percentage
-    const previousPeriodCount = totalCount - recentCount;
+    const totalCountSafe = safeCount(totalCount);
+    const recentCountSafe = safeCount(recentCount);
+    const previousPeriodCount = totalCountSafe - recentCountSafe;
     let changePercentage = 0;
     
     if (previousPeriodCount > 0) {
-      changePercentage = Math.round((recentCount / previousPeriodCount) * 100) / 5;
+      changePercentage = Math.round((recentCountSafe / previousPeriodCount) * 100) / 5;
     }
     
     return {
-      total: totalCount || 0,
-      recent: recentCount || 0,
+      total: totalCountSafe,
+      recent: recentCountSafe,
       changePercentage
     };
   } catch (error) {

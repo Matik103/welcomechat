@@ -1,11 +1,12 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { QueryItem } from '@/types/client-dashboard';
+import { supabase } from "@/integrations/supabase/client";
+import { QueryItem } from "@/types/client-dashboard";
+import { safeString, safeNumber } from "@/utils/typeUtils";
 
 /**
- * Fetch common queries for a client
+ * Get top queries for a specific client
  */
-export const fetchCommonQueries = async (
+export const getTopQueries = async (
   clientId?: string,
   limit: number = 10
 ): Promise<QueryItem[]> => {
@@ -23,98 +24,112 @@ export const fetchCommonQueries = async (
     const { data, error } = await query;
     
     if (error) {
-      console.error('Error fetching common queries:', error);
+      console.error('Error fetching top queries:', error);
       return [];
     }
     
     return (data || []).map(item => ({
       id: item.id,
       query_text: item.query_text,
-      frequency: item.frequency,
-      last_asked: item.updated_at,
-      created_at: item.created_at
+      frequency: safeNumber(item.frequency),
+      last_asked: safeString(item.updated_at),
+      created_at: safeString(item.created_at)
     }));
   } catch (error) {
-    console.error('Error in fetchCommonQueries:', error);
+    console.error('Error in getTopQueries:', error);
     return [];
   }
 };
 
 /**
- * Record a query and increment its frequency
+ * Increment a query's frequency or create a new query record
  */
-export const recordQuery = async (
-  query_text: string,
-  clientId?: string
-): Promise<QueryItem | null> => {
+export const incrementQueryFrequency = async (
+  clientId: string,
+  queryText: string
+): Promise<boolean> => {
   try {
-    // Check if the query exists
-    const { data: existingQueries, error: fetchError } = await supabase
+    // First check if the query already exists
+    const { data: existingQuery, error: fetchError } = await supabase
       .from('common_queries')
-      .select('*')
-      .eq('query_text', query_text)
-      .eq('client_id', clientId || '')
-      .limit(1);
+      .select('id, frequency')
+      .eq('client_id', clientId)
+      .eq('query_text', queryText)
+      .maybeSingle();
     
     if (fetchError) {
-      console.error('Error checking existing query:', fetchError);
-      return null;
+      console.error('Error fetching existing query:', fetchError);
+      return false;
     }
     
-    if (existingQueries && existingQueries.length > 0) {
-      // Update the existing query
-      const existingQuery = existingQueries[0];
-      const { data: updatedQuery, error: updateError } = await supabase
+    if (existingQuery) {
+      // Increment existing query frequency
+      const newFrequency = safeNumber(existingQuery.frequency) + 1;
+      
+      const { error } = await supabase
         .from('common_queries')
-        .update({
-          frequency: existingQuery.frequency + 1,
+        .update({ 
+          frequency: newFrequency,
           updated_at: new Date().toISOString()
         })
-        .eq('id', existingQuery.id)
-        .select()
-        .single();
-      
-      if (updateError) {
-        console.error('Error updating query frequency:', updateError);
-        return null;
+        .eq('id', existingQuery.id);
+        
+      if (error) {
+        console.error('Error incrementing query frequency:', error);
+        return false;
       }
-      
-      return {
-        id: updatedQuery.id,
-        query_text: updatedQuery.query_text,
-        frequency: updatedQuery.frequency,
-        last_asked: updatedQuery.updated_at,
-        created_at: updatedQuery.created_at
-      };
     } else {
-      // Create a new query
-      const { data: newQuery, error: insertError } = await supabase
+      // Create new query
+      const { error } = await supabase
         .from('common_queries')
         .insert({
-          query_text,
-          client_id: clientId || null,
+          client_id: clientId,
+          query_text: queryText,
           frequency: 1,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-      
-      if (insertError) {
-        console.error('Error inserting new query:', insertError);
-        return null;
+          updated_at: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        });
+        
+      if (error) {
+        console.error('Error creating new query:', error);
+        return false;
       }
-      
-      return {
-        id: newQuery.id,
-        query_text: newQuery.query_text,
-        frequency: newQuery.frequency,
-        last_asked: newQuery.updated_at,
-        created_at: newQuery.created_at
-      };
     }
+    
+    return true;
   } catch (error) {
-    console.error('Error in recordQuery:', error);
-    return null;
+    console.error('Error incrementing query frequency:', error);
+    return false;
+  }
+};
+
+/**
+ * Manually add a common query
+ */
+export const addCommonQuery = async (
+  clientId: string,
+  queryText: string,
+  frequency: number = 1
+): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('common_queries')
+      .insert({
+        client_id: clientId,
+        query_text: queryText,
+        frequency: safeNumber(frequency),
+        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      });
+      
+    if (error) {
+      console.error('Error adding common query:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error adding common query:', error);
+    return false;
   }
 };

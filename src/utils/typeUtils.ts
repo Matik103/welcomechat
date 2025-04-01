@@ -44,3 +44,26 @@ export function safeAccess<T, K extends keyof T>(obj: T | null | undefined, key:
 export function isSafe<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined;
 }
+
+/**
+ * Safely access environment variables
+ */
+export function safeEnv(name: string): string {
+  const value = process.env[name] || '';
+  return value;
+}
+
+/**
+ * Non-null assertion with fallback value
+ * This makes TypeScript happy while providing a fallback for runtime safety
+ */
+export function assertNonNull<T>(value: T | null | undefined, fallback: T): T {
+  return (value !== null && value !== undefined) ? value : fallback;
+}
+
+/**
+ * Safely convert Supabase count from possibly null to a number
+ */
+export function safeCount(count: number | null): number {
+  return count !== null ? count : 0;
+}

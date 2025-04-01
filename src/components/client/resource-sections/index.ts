@@ -1,6 +1,4 @@
 
-// Use proper import syntax for JSX components
-import { DocumentResourcesSection } from "./DocumentResourcesSection";
-import { WebsiteResourcesSection } from "./WebsiteResourcesSection";
-
-export { DocumentResourcesSection, WebsiteResourcesSection };
+// Export components directly without using JSX syntax
+export { DocumentResourcesSection } from "./DocumentResourcesSection";
+export { WebsiteResourcesSection } from "./WebsiteResourcesSection";

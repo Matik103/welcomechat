@@ -49,5 +49,8 @@ declare module "resend" {
   export interface CreateEmailResponse {
     id?: string;
     error?: any;
+    data?: {
+      id: string;
+    };
   }
 }
