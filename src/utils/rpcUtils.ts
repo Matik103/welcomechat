@@ -59,18 +59,25 @@ export const execSql = async <T>(
 
 /**
  * Execute a SQL query for RLS policy updates
- * This is a specialized function that handles RLS policy updates
+ * This is a specialized function that handles RLS policy updates with better error handling
  */
 export const executeRlsUpdate = async (sqlQuery: string): Promise<boolean> => {
   try {
     console.log("Executing RLS policy update...");
     
+    // Using service_role key for this operation (through the RPC function)
     const { data, error } = await supabase.rpc('exec_sql', { 
       sql_query: sqlQuery
     });
     
     if (error) {
       console.error('Error executing RLS update:', error);
+      // Try to provide more specific error information
+      if (error.message.includes('permission denied')) {
+        console.error('Permission denied - make sure the RPC function has appropriate privileges');
+      } else if (error.message.includes('syntax error')) {
+        console.error('SQL syntax error in the RLS policy');
+      }
       return false;
     }
     

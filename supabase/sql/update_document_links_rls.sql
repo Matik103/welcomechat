@@ -14,24 +14,45 @@ DROP POLICY IF EXISTS "insert_document_links" ON document_links;
 DROP POLICY IF EXISTS "select_document_links" ON document_links;
 DROP POLICY IF EXISTS "update_document_links" ON document_links;
 
--- Create a policy for service role (admin access)
-CREATE POLICY "service_role_all_access"
+-- Create policies with EXPLICIT full permissions for service role
+CREATE POLICY "service_role_full_access"
     ON document_links
     FOR ALL
     TO service_role
     USING (true)
     WITH CHECK (true);
 
--- Create a completely permissive policy for authenticated users
-CREATE POLICY "authenticated_all_access"
+-- Create a policy for authenticated users to view any document links
+CREATE POLICY "authenticated_select_all"
     ON document_links
-    FOR ALL
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Create a policy for authenticated users to insert document links
+CREATE POLICY "authenticated_insert"
+    ON document_links
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Create a policy for authenticated users to update document links
+CREATE POLICY "authenticated_update"
+    ON document_links
+    FOR UPDATE
     TO authenticated
     USING (true)
     WITH CHECK (true);
 
--- Create a policy for anon users (read only)
-CREATE POLICY "anon_read_only"
+-- Create a policy for authenticated users to delete document links
+CREATE POLICY "authenticated_delete"
+    ON document_links
+    FOR DELETE
+    TO authenticated
+    USING (true);
+
+-- Anon users can only view
+CREATE POLICY "anon_view_only"
     ON document_links
     FOR SELECT
     TO anon

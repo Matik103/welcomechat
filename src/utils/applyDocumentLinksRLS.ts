@@ -20,6 +20,7 @@ export const applyDocumentLinksRLS = async () => {
         // Execute the SQL directly using exec_sql RPC function
         const result = await execSql(sqlContent);
         console.log('Successfully applied document_links RLS policies from storage:', result);
+        toast.success("Security policies updated successfully");
         return { success: true, data: result };
       }
     } catch (storageError) {
@@ -31,7 +32,7 @@ export const applyDocumentLinksRLS = async () => {
       -- Enable RLS on document_links table
       ALTER TABLE public.document_links ENABLE ROW LEVEL SECURITY;
       
-      -- Drop all existing policies
+      -- Drop all existing policies for a clean slate
       DROP POLICY IF EXISTS "Service role has full access to document links" ON document_links;
       DROP POLICY IF EXISTS "Authenticated users can manage document links" ON document_links;
       DROP POLICY IF EXISTS "Users can view their own document links" ON document_links;
@@ -42,28 +43,57 @@ export const applyDocumentLinksRLS = async () => {
       DROP POLICY IF EXISTS "insert_document_links" ON document_links;
       DROP POLICY IF EXISTS "select_document_links" ON document_links;
       DROP POLICY IF EXISTS "update_document_links" ON document_links;
+      DROP POLICY IF EXISTS "service_role_all_access" ON document_links;
+      DROP POLICY IF EXISTS "authenticated_all_access" ON document_links;
+      DROP POLICY IF EXISTS "anon_read_only" ON document_links;
       
-      -- Create a policy for service role (admin access)
-      CREATE POLICY "service_role_all_access"
+      -- Service role policy
+      CREATE POLICY "service_role_full_access"
           ON document_links
           FOR ALL
           TO service_role
           USING (true)
           WITH CHECK (true);
       
-      -- Create a completely permissive policy for authenticated users
-      CREATE POLICY "authenticated_all_access"
+      -- Authenticated users policies - explicit policies for each operation
+      CREATE POLICY "authenticated_select_all"
           ON document_links
-          FOR ALL
+          FOR SELECT
+          TO authenticated
+          USING (true);
+      
+      CREATE POLICY "authenticated_insert"
+          ON document_links
+          FOR INSERT
+          TO authenticated
+          WITH CHECK (true);
+      
+      CREATE POLICY "authenticated_update"
+          ON document_links
+          FOR UPDATE
           TO authenticated
           USING (true)
           WITH CHECK (true);
+      
+      CREATE POLICY "authenticated_delete"
+          ON document_links
+          FOR DELETE
+          TO authenticated
+          USING (true);
+      
+      -- Anon users can only view
+      CREATE POLICY "anon_view_only"
+          ON document_links
+          FOR SELECT
+          TO anon
+          USING (true);
     `;
     
     // Execute the hardcoded SQL
     const result = await execSql(hardcodedSql);
     
     console.log('Successfully applied document_links RLS policies using hardcoded SQL:', result);
+    toast.success("Security policies updated successfully");
     return { success: true, data: result };
   } catch (error) {
     console.error('Error applying RLS policies:', error);
