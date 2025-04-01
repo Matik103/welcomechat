@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
@@ -21,6 +22,12 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [conversationContext, setConversationContext] = useState<{
+    userPreferences?: Record<string, string>;
+    userName?: string;
+    previousTopics?: string[];
+    lastQuestion?: string;
+  }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Use the agent name from settings
@@ -85,6 +92,88 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     }, 15);
   };
 
+  const updateConversationContext = (userQuery: string, response: string) => {
+    const newContext = { ...conversationContext };
+    
+    // Store the last question for context
+    newContext.lastQuestion = userQuery;
+    
+    // Add to previous topics
+    if (!newContext.previousTopics) {
+      newContext.previousTopics = [];
+    }
+    newContext.previousTopics.push(userQuery);
+    
+    // Extract potential user name from greetings
+    if (!newContext.userName && userQuery.toLowerCase().includes("my name is")) {
+      const nameParts = userQuery.match(/my name is\s+([a-zA-Z]+)/i);
+      if (nameParts && nameParts[1]) {
+        newContext.userName = nameParts[1];
+      }
+    }
+    
+    // Update user preferences based on likes/dislikes
+    if (!newContext.userPreferences) {
+      newContext.userPreferences = {};
+    }
+    
+    if (userQuery.toLowerCase().includes("like") || userQuery.toLowerCase().includes("prefer")) {
+      const likesMatch = userQuery.match(/(?:like|prefer|love)\s+([a-zA-Z\s]+)/i);
+      if (likesMatch && likesMatch[1]) {
+        newContext.userPreferences[likesMatch[1].trim()] = "likes";
+      }
+    }
+    
+    if (userQuery.toLowerCase().includes("don't like") || userQuery.toLowerCase().includes("hate")) {
+      const dislikesMatch = userQuery.match(/(?:don't like|hate|dislike)\s+([a-zA-Z\s]+)/i);
+      if (dislikesMatch && dislikesMatch[1]) {
+        newContext.userPreferences[dislikesMatch[1].trim()] = "dislikes";
+      }
+    }
+    
+    // Update the context
+    setConversationContext(newContext);
+    console.log("Updated conversation context:", newContext);
+    
+    return newContext;
+  };
+
+  const personalizeResponse = (baseResponse: string, context: typeof conversationContext) => {
+    let response = baseResponse;
+    
+    // Add user name if we have it
+    if (context.userName && !response.includes(context.userName)) {
+      if (response.includes("?") || response.includes("!")) {
+        response = response.replace(/([?.!])\s+/, `$1 ${context.userName}, `);
+      } else if (!response.includes(context.userName)) {
+        response = `${context.userName}, ${response.charAt(0).toLowerCase()}${response.slice(1)}`;
+      }
+    }
+    
+    // Reference previous preferences if relevant
+    if (context.userPreferences && Object.keys(context.userPreferences).length > 0) {
+      for (const [pref, sentiment] of Object.entries(context.userPreferences)) {
+        if (baseResponse.toLowerCase().includes(pref.toLowerCase())) {
+          if (sentiment === "likes") {
+            response += ` I remember you mentioned you like ${pref}!`;
+          } else {
+            response += ` I recall you weren't a fan of ${pref}.`;
+          }
+          break;
+        }
+      }
+    }
+    
+    // Reference previous conversation if helpful
+    if (context.lastQuestion && context.lastQuestion !== context.previousTopics?.slice(-1)[0]) {
+      if (response.length < 100) { // Only for short responses
+        response += ` Going back to our earlier conversation about "${context.lastQuestion.substring(0, 30)}...", would you like to continue discussing that?`;
+      }
+    }
+    
+    return response;
+  };
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isTyping) return;
 
@@ -93,6 +182,12 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     
     // Add user message immediately
     setMessages(prev => [...prev, { text: userQuery, isUser: true }]);
+    
+    // Process conversational queries
+    if (isConversationalQuery(userQuery)) {
+      handleConversationalQuery(userQuery);
+      return;
+    }
     
     if (clientId) {
       try {
@@ -129,7 +224,16 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         
         if (response.ok) {
           const data = await response.json();
-          typeResponse(data.generatedText || "I couldn't generate a response. Please try again.");
+          // Replace third-person references with first-person
+          let generatedText = convertToFirstPerson(data.generatedText || "I couldn't generate a response. Please try again.");
+          
+          // Update conversation context
+          const context = updateConversationContext(userQuery, generatedText);
+          
+          // Personalize response with context
+          generatedText = personalizeResponse(generatedText, context);
+          
+          typeResponse(generatedText);
         } else {
           console.error("Error calling chat API:", await response.text());
           simulateResponse(userQuery);
@@ -143,6 +247,63 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     }
   };
 
+  const isConversationalQuery = (query: string): boolean => {
+    const conversationalPatterns = [
+      /how are you/i,
+      /what('s| is) your name/i,
+      /who are you/i,
+      /tell me about yourself/i,
+      /^hi\b/i,
+      /^hello\b/i,
+      /^hey\b/i,
+      /good (morning|afternoon|evening)/i
+    ];
+    
+    return conversationalPatterns.some(pattern => pattern.test(query));
+  };
+
+  const handleConversationalQuery = (query: string) => {
+    let responseText = "";
+    
+    if (/how are you/i.test(query)) {
+      responseText = `I'm doing great today! Thank you for asking. I'm here to help with any questions you have about ${settings.agent_name || "our products and services"}. What can I assist you with?`;
+    } 
+    else if (/what('s| is) your name/i.test(query) || /who are you/i.test(query)) {
+      responseText = `My name is ${settings.agent_name || "AI Assistant"}! I'm part of the team here, ready to assist with any questions you have about our offerings. How can I help you today?`;
+    }
+    else if (/tell me about yourself/i.test(query)) {
+      responseText = `I'm ${settings.agent_name || "an AI Assistant"}, a member of our team dedicated to helping customers like you. I have access to our company information and can assist with any questions you might have about our products, services, or anything else you need. What would you like to know about what we offer?`;
+    }
+    else if (/^(hi|hello|hey)\b/i.test(query) || /good (morning|afternoon|evening)/i.test(query)) {
+      responseText = `Hello there! It's great to connect with you today. I'm ${settings.agent_name || "your assistant"} from the team. How can we help you today?`;
+    }
+    
+    // Update conversation context
+    const context = updateConversationContext(query, responseText);
+    
+    // Personalize the response
+    responseText = personalizeResponse(responseText, context);
+    
+    typeResponse(responseText);
+  };
+
+  const convertToFirstPerson = (text: string): string => {
+    // Replace third-person references with first-person
+    return text
+      .replace(/the company('s)?/gi, 'our team$1')
+      .replace(/they (are|have|will)/gi, 'we $1')
+      .replace(/their/gi, 'our')
+      .replace(/them/gi, 'us')
+      .replace(/([^a-zA-Z0-9])the team('s)?/gi, '$1our team$2')
+      .replace(/(your|this) company/gi, 'our team')
+      .replace(/company('s| is| has)/gi, 'we$1')
+      .replace(/company will/gi, 'we will')
+      .replace(/the business/gi, 'our business')
+      .replace(/it offers/gi, 'we offer')
+      .replace(/it provides/gi, 'we provide')
+      .replace(/it has/gi, 'we have');
+  };
+
   const simulateResponse = (userQuery: string) => {
     // Simulate response for preview purposes
     setTimeout(() => {
@@ -150,10 +311,10 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       
       // Personalized responses for common questions
       if (userQuery.toLowerCase().includes("how are you")) {
-        responseText = `I'm doing great today! Thank you for asking. How about yourself?`;
+        responseText = `I'm doing great today! Thank you for asking. As part of the ${settings.agent_name || "team"}, I'm always ready to help. How about yourself?`;
       } 
       else if (userQuery.toLowerCase().includes("your name") || userQuery.toLowerCase().match(/who (are|is) you/)) {
-        responseText = `My name is ${settings.agent_name || "AI Assistant"}! How can I help you today?`;
+        responseText = `My name is ${settings.agent_name || "AI Assistant"}! I'm part of our team and I'm here to help you today. What can I assist you with?`;
       }
       else if (agentContent && agentContent.length > 0) {
         // Document-related queries
@@ -163,8 +324,8 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           
           // Show document sources information
           const sourceInfo = sources && sources.length > 0 
-            ? `I have access to ${sources.length} documents${sources[0]?.title ? ` including "${sources[0]?.title}"` : ''}.` 
-            : "I have access to your organization's knowledge base.";
+            ? `We have ${sources.length} documents${sources[0]?.title ? ` including "${sources[0]?.title}"` : ''} in our knowledge base.` 
+            : "We have comprehensive information in our knowledge base.";
           
           responseText = `${sourceInfo} How can I help you today?`;
         }
@@ -176,14 +337,14 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           
           const documentTypes = [...new Set(sources.filter(s => s.documentType).map(s => s.documentType))].join(", ");
           const docsInfo = documentTypes 
-            ? `I can help with information from ${documentTypes} documents.` 
-            : `I can help with information from various documents.`;
+            ? `We can help with information from our ${documentTypes} documents.` 
+            : `We can help with information from our various resources.`;
           
-          responseText = `${docsInfo} Based on the content I have access to, I can help with: ${agentContent.substring(0, 150)}...`;
+          responseText = `${docsInfo} Based on what we have, I can assist with: ${agentContent.substring(0, 150)}...`;
         }
         // Help query
         else if (userQuery.toLowerCase().includes("help")) {
-          responseText = "I can help answer questions based on the documents and websites that have been shared with me. What would you like to know?";
+          responseText = "I can help answer questions based on the documents and websites that we've shared. What would you like to know about our offerings?";
         } 
         // Search for relevant content
         else {
@@ -200,12 +361,21 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
             }
           }
           
-          responseText = `Based on the available information, I can tell you that ${relevantContent.substring(0, 150)}...`;
+          responseText = `Based on our information, I can tell you that ${relevantContent.substring(0, 150)}...`;
         }
       } else {
         // Default response if nothing else matches
-        responseText = `Thanks for your message! I'm ${settings.agent_name || "your AI assistant"} and I'm here to help with any questions related to ${settings.agent_name || "our services"}. How can I assist you today?`;
+        responseText = `Thanks for your message! I'm ${settings.agent_name || "your assistant"} from the team. I'm here to help with any questions related to our services. How can I assist you today?`;
       }
+      
+      // Update conversation context
+      const context = updateConversationContext(userQuery, responseText);
+      
+      // Personalize the response with context
+      responseText = personalizeResponse(responseText, context);
+      
+      // Convert any remaining third-person references
+      responseText = convertToFirstPerson(responseText);
       
       // Add AI response
       typeResponse(responseText);
