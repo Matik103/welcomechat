@@ -9,6 +9,21 @@ import './index.css';
 import { initializeRpcFunctions } from './utils/supabaseUtils.ts';
 import { AuthProvider } from './contexts/AuthContext';
 
+// Create a global ENV object to store environment variables in the browser
+// This allows us to access environment variables without using import.meta
+if (typeof window !== 'undefined') {
+  window.ENV = window.ENV || {};
+  
+  // Add any additional environment variables here if needed
+  if (!window.ENV.VITE_FIRECRAWL_API_KEY) {
+    window.ENV.VITE_FIRECRAWL_API_KEY = '';
+  }
+  
+  if (!window.ENV.VITE_FIRECRAWL_API_URL) {
+    window.ENV.VITE_FIRECRAWL_API_URL = 'https://api.firecrawl.dev/v1';
+  }
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

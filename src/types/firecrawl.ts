@@ -55,3 +55,16 @@ export interface FirecrawlResponse {
   error?: string;
   id?: string;
 }
+
+// Define necessary types for URL checking
+export interface UrlCheckResult {
+  isAccessible: boolean;
+  canScrape: boolean;
+  hasScrapingRestrictions?: boolean;
+  statusCode?: number;
+  contentType?: string;
+  robotsRestrictions?: string[];
+  metaRestrictions?: string[];
+  content?: string;
+  error?: string;
+}

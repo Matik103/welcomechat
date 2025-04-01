@@ -5,10 +5,32 @@ import { FirecrawlService } from '@/services/FirecrawlService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Helper function to safely get environment variables
+const getEnvVariable = (key: string, defaultValue: string = ''): string => {
+  // For Vite, we can access import.meta.env if it exists
+  if (typeof window !== 'undefined' && 
+      // @ts-ignore - This is a runtime check
+      window.ENV && 
+      // @ts-ignore
+      window.ENV[key]) {
+    // @ts-ignore
+    return window.ENV[key];
+  }
+  
+  // For Node.js environments
+  if (typeof process !== 'undefined' && 
+      process.env && 
+      process.env[key]) {
+    return process.env[key];
+  }
+  
+  return defaultValue;
+};
+
 export const useStoreWebsiteContent = (clientId: string) => {
   const firecrawlService = new FirecrawlService({
-    apiKey: import.meta.env.VITE_FIRECRAWL_API_KEY || '',
-    baseUrl: import.meta.env.VITE_FIRECRAWL_API_URL || 'https://api.firecrawl.dev/v1'
+    apiKey: getEnvVariable('VITE_FIRECRAWL_API_KEY', ''),
+    baseUrl: getEnvVariable('VITE_FIRECRAWL_API_URL', 'https://api.firecrawl.dev/v1')
   });
 
   return useMutation({
