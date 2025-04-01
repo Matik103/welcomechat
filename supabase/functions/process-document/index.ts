@@ -1,8 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { LlamaParseService } from "../../../src/services/LlamaParseService.ts";
-import { FirecrawlService } from "../../../src/services/FirecrawlService.ts";
+import { LlamaParseService } from "../_shared/LlamaParseService.ts";
+import { FirecrawlService } from "../_shared/FirecrawlService.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Initialize services
@@ -46,6 +46,8 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Processing document: ${documentUrl} (type: ${documentType}) for client: ${clientId}`);
+
     // Create a processing job
     const { data: job, error: jobError } = await supabaseClient.rpc(
       "process_document",
@@ -58,12 +60,16 @@ serve(async (req) => {
     );
 
     if (jobError) {
+      console.error("Error creating processing job:", jobError);
       throw jobError;
     }
+
+    console.log(`Created processing job: ${job}`);
 
     // Process the document based on type
     if (documentType === "url" || documentType === "web_page") {
       // Use Firecrawl for website crawling
+      console.log("Using Firecrawl for URL processing");
       const crawlResult = await firecrawlService.crawlWebsite({
         url: documentUrl,
         maxDepth: 2,
@@ -82,57 +88,61 @@ serve(async (req) => {
         throw new Error(crawlResult.error || "Failed to crawl website");
       }
 
-      // Start polling for crawl results
-      const pollInterval = setInterval(async () => {
-        const status = await firecrawlService.getCrawlStatus(crawlResult.data?.jobId || "");
+      // Get the job ID from the crawl result
+      const jobId = crawlResult.data?.jobId;
+      
+      if (!jobId) {
+        throw new Error("No job ID returned from Firecrawl");
+      }
+
+      // Check the status immediately
+      const status = await firecrawlService.getCrawlStatus(jobId);
+      
+      // If it's already completed, update the job
+      if (status.success && status.data?.status === "completed") {
+        const results = await firecrawlService.getCrawlResults(jobId);
         
-        if (status.success && status.data?.status === "completed") {
-          clearInterval(pollInterval);
-          
-          // Get crawl results
-          const results = await firecrawlService.getCrawlResults(crawlResult.data?.jobId || "");
-          
-          if (results.success && results.data?.content) {
-            // Update job with content
-            await supabaseClient.rpc("update_document_processing_status", {
-              p_job_id: job,
-              p_status: "completed",
-              p_content: results.data.content,
-              p_metadata: {
-                pages: results.data.pages,
-                url: results.data.url,
-              },
-            });
-          } else {
-            // Update job with error
-            await supabaseClient.rpc("update_document_processing_status", {
-              p_job_id: job,
-              p_status: "failed",
-              p_error: results.error || "Failed to get crawl results",
-            });
-          }
-        } else if (status.success && status.data?.status === "failed") {
-          clearInterval(pollInterval);
-          
+        if (results.success && results.data?.content) {
+          // Update job with content
+          await supabaseClient.rpc("update_document_processing_status", {
+            p_job_id: job,
+            p_status: "completed",
+            p_content: results.data.content,
+            p_metadata: {
+              pages: results.data.pages,
+              url: results.data.url,
+            },
+          });
+        } else {
           // Update job with error
           await supabaseClient.rpc("update_document_processing_status", {
             p_job_id: job,
             p_status: "failed",
-            p_error: status.error || "Crawl failed",
+            p_error: results.error || "Failed to get crawl results",
           });
         }
-      }, 5000); // Poll every 5 seconds
+      } else {
+        // Start polling for results
+        console.log(`Website crawl started with job ID: ${jobId}. Will check status asynchronously.`);
+        
+        // Update job status to processing
+        await supabaseClient.rpc("update_document_processing_status", {
+          p_job_id: job,
+          p_status: "processing",
+          p_metadata: {
+            firecrawl_job_id: jobId,
+            url: documentUrl,
+          },
+        });
+      }
     } else {
       // Use LlamaParse for document processing
+      console.log("Using LlamaParse for document processing");
       const parseResult = await llamaParseService.processDocument({
-        file: new File([documentUrl], "document", { type: documentType }),
-        metadata: {
-          clientId,
-          agentName,
-        },
+        file: documentUrl  // Pass the document URL
       });
 
-      if (parseResult.status === "success") {
+      if (parseResult.status === "success" && parseResult.content) {
         // Update job with content
         await supabaseClient.rpc("update_document_processing_status", {
           p_job_id: job,
@@ -140,6 +150,8 @@ serve(async (req) => {
           p_content: parseResult.content,
           p_metadata: parseResult.metadata,
         });
+
+        console.log("Document processed successfully with LlamaParse");
       } else {
         // Update job with error
         await supabaseClient.rpc("update_document_processing_status", {
@@ -147,6 +159,8 @@ serve(async (req) => {
           p_status: "failed",
           p_error: parseResult.error || "Failed to process document",
         });
+
+        console.error("LlamaParse processing failed:", parseResult.error);
       }
     }
 

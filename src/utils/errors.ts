@@ -1,33 +1,25 @@
 
+/**
+ * Custom error classes for the application
+ */
+
 export class LlamaParseError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly details?: any
-  ) {
-    super(message)
-    this.name = 'LlamaParseError'
+  constructor(message: string) {
+    super(message);
+    this.name = 'LlamaParseError';
   }
 }
 
-export class OpenAIAssistantError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly details?: any
-  ) {
-    super(message)
-    this.name = 'OpenAIAssistantError'
+export class StorageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StorageError';
   }
 }
 
-export class DatabaseError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly details?: any
-  ) {
-    super(message)
-    this.name = 'DatabaseError'
+export class UrlProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UrlProcessingError';
   }
-} 
+}
