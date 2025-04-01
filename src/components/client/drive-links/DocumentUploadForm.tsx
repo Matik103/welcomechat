@@ -3,20 +3,23 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Loader2, Upload } from 'lucide-react';
+import { Loader2, Upload, AlertCircle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { DocumentUploadFormProps } from '@/types/document-processing';
+import { Alert, AlertDescription } from '@/components/ui/alert'; 
 
 export const DocumentUploadForm = ({
   onSubmitDocument,
   isUploading
 }: DocumentUploadFormProps) => {
   const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       setFile(files[0]);
+      setError(null); // Clear any previous errors
     }
   };
 
@@ -24,6 +27,7 @@ export const DocumentUploadForm = ({
     e.preventDefault();
     if (file) {
       try {
+        setError(null);
         await onSubmitDocument(file);
         setFile(null);
         
@@ -34,6 +38,7 @@ export const DocumentUploadForm = ({
         }
       } catch (error) {
         console.error('Error uploading document:', error);
+        setError(error instanceof Error ? error.message : 'Unknown error occurred');
       }
     }
   };
@@ -41,6 +46,13 @@ export const DocumentUploadForm = ({
   return (
     <Card className="p-4">
       <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
         <div>
           <Label htmlFor="document-file">Select Document</Label>
           <Input

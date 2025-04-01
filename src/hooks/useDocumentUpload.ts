@@ -11,25 +11,56 @@ interface UploadResult {
   documentId?: number;
 }
 
+// Improved function to get the effective client ID with better error handling
 const getEffectiveClientId = async (clientId: string) => {
   try {
-    const { data: clientData, error: clientError } = await supabase
+    console.log("Looking up client in ai_agents table with ID:", clientId);
+    
+    // Try finding the client by ID first
+    const { data: directMatch, error: directError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("id", clientId)
+      .eq("interaction_type", "config")
+      .single();
+      
+    if (!directError && directMatch) {
+      console.log("Found client by direct ID match:", directMatch.id);
+      return directMatch.id;
+    }
+    
+    // If that fails, try by client_id field
+    const { data: clientIdMatch, error: clientIdError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("interaction_type", "config")
+      .single();
+      
+    if (!clientIdError && clientIdMatch) {
+      console.log("Found client by client_id match:", clientIdMatch.id);
+      return clientIdMatch.id;
+    }
+    
+    // Last resort - try with OR condition
+    const { data: orMatch, error: orError } = await supabase
       .from("ai_agents")
       .select("id")
       .eq("interaction_type", "config")
       .or(`id.eq.${clientId},client_id.eq.${clientId}`)
       .single();
-      
-    if (clientError) {
-      console.error("Error finding client:", clientError);
+    
+    if (orError) {
+      console.error("All attempts to find client failed:", orError);
       throw new Error("Could not find client record");
     }
     
-    if (!clientData) {
-      throw new Error("Client not found");
+    if (!orMatch) {
+      throw new Error("Client not found in ai_agents table");
     }
     
-    return clientData.id;
+    console.log("Found client using OR condition:", orMatch.id);
+    return orMatch.id;
   } catch (error) {
     console.error("Error getting effective client ID:", error);
     throw error;
@@ -49,7 +80,7 @@ export function useDocumentUpload(clientId: string) {
     console.log("Starting document upload for client:", clientId, "agent:", agentName || "default");
 
     try {
-      // Get the effective client ID
+      // Get the effective client ID with improved error handling
       const actualClientId = await getEffectiveClientId(clientId);
       console.log("Found client record with ID:", actualClientId);
 
@@ -113,30 +144,11 @@ export function useDocumentUpload(clientId: string) {
       };
       
       // Try to add metadata if agent name is provided
-      try {
-        // Check if the metadata column exists
-        if (agentName) {
-          // First check if metadata column exists by requesting the table schema
-          const { data: tableInfo, error: tableError } = await supabase
-            .from('document_links')
-            .select('client_id')
-            .limit(1);
-          
-          // If we got here without error, try to add metadata
-          if (!tableError) {
-            // Try to add metadata - will fail gracefully if column doesn't exist
-            try {
-              documentLinkData.metadata = {
-                agent_name: agentName,
-                source: 'agent_config'
-              };
-            } catch (metaError) {
-              console.warn("Couldn't add metadata to document_links, proceeding without it:", metaError);
-            }
-          }
-        }
-      } catch (schemaError) {
-        console.warn("Error checking schema, proceeding without metadata:", schemaError);
+      if (agentName) {
+        documentLinkData.metadata = {
+          agent_name: agentName,
+          source: 'agent_config'
+        };
       }
 
       // Insert the document link
