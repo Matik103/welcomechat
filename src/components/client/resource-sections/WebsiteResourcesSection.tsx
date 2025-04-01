@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { WebsiteUrlForm } from '@/components/client/website-urls/WebsiteUrlForm';
-import { WebsiteUrlFormData } from '@/types/website-url';
+import { WebsiteUrlFormData, WebsiteUrlMetadata } from '@/types/website-url';
 import { toast } from 'sonner';
 import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutation';
 import { WebsiteUrls } from '@/components/client/website-urls'; 
@@ -41,6 +41,18 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
       
       if (!clientId) {
         throw new Error("Client ID is required");
+      }
+      
+      // Ensure metadata is properly initialized
+      if (!data.metadata) {
+        data.metadata = {
+          source: 'website_resources',
+          added_at: new Date().toISOString(),
+          status_history: [{
+            status: 'added',
+            timestamp: new Date().toISOString()
+          }]
+        };
       }
       
       await addWebsiteUrl({ 

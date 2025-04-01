@@ -3585,6 +3585,7 @@ export type Database = {
           id: number
           is_sitemap: boolean | null
           last_crawled: string | null
+          metadata: Json | null
           refresh_rate: number | null
           scrapability: string | null
           scrapable: boolean | null
@@ -3599,6 +3600,7 @@ export type Database = {
           id?: number
           is_sitemap?: boolean | null
           last_crawled?: string | null
+          metadata?: Json | null
           refresh_rate?: number | null
           scrapability?: string | null
           scrapable?: boolean | null
@@ -3613,6 +3615,7 @@ export type Database = {
           id?: number
           is_sitemap?: boolean | null
           last_crawled?: string | null
+          metadata?: Json | null
           refresh_rate?: number | null
           scrapability?: string | null
           scrapable?: boolean | null
@@ -3774,7 +3777,7 @@ export type Database = {
           sql_query: string
           query_params?: Json
         }
-        Returns: Json[]
+        Returns: Json
       }
       extract_google_drive_links: {
         Args: {

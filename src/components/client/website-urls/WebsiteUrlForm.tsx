@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Form } from "@/components/ui/form";
-import { WebsiteUrlFormProps, WebsiteUrlFormData } from "@/types/website-url";
+import { WebsiteUrlFormProps, WebsiteUrlFormData, WebsiteUrlMetadata } from "@/types/website-url";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
@@ -32,6 +32,22 @@ export function WebsiteUrlForm({ onAdd, onSubmit, isAdding = false, isSubmitting
       }
       
       console.log("Submitting website URL:", data);
+      
+      // Prepare metadata if agentName is provided
+      if (agentName && !data.metadata) {
+        data.metadata = {
+          agent_name: agentName,
+          source: 'user_form',
+          added_at: new Date().toISOString(),
+          last_interaction: null,
+          ai_notes: '',
+          tags: [],
+          status_history: [{
+            status: 'added',
+            timestamp: new Date().toISOString()
+          }]
+        };
+      }
       
       // Prevent default navigation
       await submitFunction(data);
