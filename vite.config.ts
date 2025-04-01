@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -42,6 +43,21 @@ export default defineConfig(({ mode }) => ({
           state: ['@tanstack/react-query']
         }
       }
+    }
+  },
+  css: {
+    postcss: {
+      plugins: [
+        require('@tailwindcss/postcss'),
+        require('autoprefixer'),
+      ],
+    },
+  },
+  define: {
+    // This ensures environment variables are available at runtime without import.meta
+    'window.ENV': {
+      VITE_FIRECRAWL_API_KEY: process.env.VITE_FIRECRAWL_API_KEY || '',
+      VITE_FIRECRAWL_API_URL: process.env.VITE_FIRECRAWL_API_URL || 'https://api.firecrawl.dev/v1'
     }
   }
 }));

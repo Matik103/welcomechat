@@ -1,55 +1,58 @@
 
 /**
- * Utility functions for string manipulation
- */
-
-/**
- * Truncates a string to a specified length and adds ellipsis if needed
- * @param str String to truncate
- * @param length Maximum length
- * @returns Truncated string
+ * Truncates a string to the specified length and adds an ellipsis
+ * @param str - String to truncate
+ * @param length - Maximum length
+ * @returns Truncated string with ellipsis if necessary
  */
 export const truncateString = (str: string, length: number): string => {
   if (!str) return '';
-  if (str.length <= length) return str;
-  return str.substring(0, length) + '...';
+  return str.length > length ? str.substring(0, length) + '...' : str;
 };
 
 /**
- * Formats a date string to a human-readable format
- * @param dateString ISO date string
+ * Formats a date string to a more readable format
+ * @param dateString - ISO date string
  * @returns Formatted date string
  */
-export const formatDate = (dateString: string): string => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+export const formatDate = (dateString?: string): string => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid Date';
+  }
 };
 
 /**
- * Converts camelCase to Title Case with spaces
- * @param str String in camelCase
- * @returns Title Case string
+ * Capitalizes the first letter of a string
+ * @param str - String to capitalize
+ * @returns Capitalized string
  */
-export const camelToTitleCase = (str: string): string => {
+export const capitalizeFirstLetter = (str: string): string => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
+/**
+ * Slugifies a string (converts spaces to hyphens, lowercases, removes special chars)
+ * @param str - String to slugify
+ * @returns Slugified string
+ */
+export const slugify = (str: string): string => {
   if (!str) return '';
   return str
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, (str) => str.toUpperCase());
-};
-
-/**
- * Sanitizes a string for SQL use
- * @param str String to sanitize
- * @returns Sanitized string
- */
-export const sanitizeForSQL = (str: string): string => {
-  if (!str) return '';
-  return str.replace(/['"\\;]/g, '');
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 };
