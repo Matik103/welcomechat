@@ -35,7 +35,7 @@ export const testAuthFlow = async () => {
     const { data: clientData, error: clientError } = await supabase
       .from('ai_agents')
       .select('id, name')
-      .eq('email', user.email)
+      .eq('email', user.email || '')
       .eq('interaction_type', 'config')
       .maybeSingle();
     

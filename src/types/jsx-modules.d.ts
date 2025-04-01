@@ -28,7 +28,7 @@ declare module "@/contexts/AuthContext" {
   export const AuthContext: React.Context<any>;
   export const AuthProvider: React.ComponentType<any>;
   export const useAuth: () => any;
-  export type UserRole = 'admin' | 'client' | 'user' | null;
+  export type UserRole = 'admin' | 'client' | null;
 }
 
 // Add import.meta support
