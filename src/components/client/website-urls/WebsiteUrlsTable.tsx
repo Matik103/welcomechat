@@ -9,20 +9,26 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Trash2, RefreshCw } from 'lucide-react';
 import { WebsiteUrl } from '@/types/website-url';
 import { truncateString, formatDate } from '@/utils/stringUtils';
 
 export interface WebsiteUrlsTableProps {
   urls: WebsiteUrl[];
   onDelete: (urlId: number) => Promise<void>;
+  onProcess?: (website: WebsiteUrl) => Promise<void>;
   isDeleting: boolean;
+  isProcessing?: boolean;
+  processingUrlId?: number | null;
 }
 
 export const WebsiteUrlsTable: React.FC<WebsiteUrlsTableProps> = ({
   urls,
   onDelete,
-  isDeleting
+  onProcess,
+  isDeleting,
+  isProcessing = false,
+  processingUrlId = null
 }) => {
   const getStatusBadgeColor = (status?: string) => {
     if (!status) return "bg-gray-100 text-gray-800";
@@ -47,7 +53,7 @@ export const WebsiteUrlsTable: React.FC<WebsiteUrlsTableProps> = ({
           <TableHead>URL</TableHead>
           <TableHead>Added</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead className="w-[100px]">Actions</TableHead>
+          <TableHead className="w-[120px]">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -78,12 +84,26 @@ export const WebsiteUrlsTable: React.FC<WebsiteUrlsTableProps> = ({
                 </span>
               )}
             </TableCell>
-            <TableCell>
+            <TableCell className="flex items-center space-x-1">
+              {onProcess && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onProcess(url)}
+                  disabled={isProcessing || isDeleting || processingUrlId === url.id}
+                >
+                  {isProcessing && processingUrlId === url.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 text-blue-600" />
+                  )}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => onDelete(url.id)}
-                disabled={isDeleting}
+                disabled={isDeleting || isProcessing}
               >
                 {isDeleting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

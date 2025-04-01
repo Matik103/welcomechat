@@ -1,3 +1,4 @@
+
 import { FirecrawlService } from './src/services/FirecrawlService';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
@@ -106,4 +107,4 @@ async function testWebsiteScraping() {
 }
 
 // Run the test
-testWebsiteScraping(); 
+testWebsiteScraping();

@@ -1,3 +1,4 @@
+
 import { FirecrawlConfig, FirecrawlRequest, FirecrawlResponse } from '@/types/firecrawl';
 
 interface CrawlWebsiteParams {
@@ -11,7 +12,7 @@ interface CrawlWebsiteParams {
   allowExternalLinks?: boolean;
   scrapeOptions?: {
     formats?: string[];
-  onlyMainContent?: boolean;
+    onlyMainContent?: boolean;
     includeTags?: string[];
     excludeTags?: string[];
     headers?: Record<string, string>;
@@ -114,7 +115,7 @@ export class FirecrawlService {
   async crawlWebsite(params: CrawlWebsiteParams): Promise<CrawlResponse> {
     try {
       const requestBody = {
-          url: params.url,
+        url: params.url,
         maxDepth: params.maxDepth || 10,
         maxDiscoveryDepth: params.maxDiscoveryDepth,
         limit: params.limit || 10000,
@@ -197,4 +198,4 @@ export class FirecrawlService {
       };
     }
   }
-} 
+}
