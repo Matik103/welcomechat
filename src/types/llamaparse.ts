@@ -1,3 +1,4 @@
+
 /**
  * Types for the LlamaParse document processing service
  */
@@ -17,7 +18,7 @@ export interface LlamaParseMetadata {
   fileType?: string;
   fileName?: string;
   fileSize?: number;
-  status?: 'success' | 'error' | 'processing';
+  status?: 'success' | 'failed' | 'processing';
   errorMessage?: string;
 }
 
@@ -27,25 +28,14 @@ export interface LlamaParseRequest {
 }
 
 export interface LlamaParseResponse {
-  status: 'success' | 'error';
+  status: 'success' | 'failed' | 'processing';
   content?: string;
-  metadata?: Record<string, any>;
-  error?: string;
   documentId?: string;
+  error?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface LlamaParseConfig {
   apiKey: string;
   baseUrl?: string;
-}
-
-export interface LlamaParseErrorResponse {
-  message: string;
-}
-
-export interface LlamaParseSuccessResponse {
-  content: string;
-  metadata: Record<string, any>;
-  documentId?: string;
-  status?: 'success' | 'error' | 'processing';
 }

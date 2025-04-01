@@ -1,24 +1,14 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Client } from '@/types/client';
 
-interface ClientUpdateData extends Partial<Client> {
-  client_id: string;
-  client_name: string;
-  email: string;
-  agent_name: string;
-}
-
-interface MutationResponse {
-  success: boolean;
-}
-
 export const useClientMutation = () => {
   const queryClient = useQueryClient();
 
-  const mutation = useMutation<MutationResponse, Error, ClientUpdateData>({
-    mutationFn: async (clientData: ClientUpdateData) => {
+  const mutation = useMutation({
+    mutationFn: async (clientData: Partial<Client> & { client_id: string }) => {
       try {
         console.log('Updating client with data:', clientData);
         
@@ -53,9 +43,9 @@ export const useClientMutation = () => {
             .from('ai_agents')
             .update({
               name: clientData.agent_name,
-              agent_description: clientData.agent_description || '',
-              logo_url: clientData.logo_url || '',
-              logo_storage_path: clientData.logo_storage_path || '',
+              agent_description: clientData.agent_description,
+              logo_url: clientData.logo_url,
+              logo_storage_path: clientData.logo_storage_path,
               client_name: clientData.client_name,
               email: clientData.email,
               updated_at: new Date().toISOString()
@@ -74,9 +64,9 @@ export const useClientMutation = () => {
             .insert({
               client_id: clientData.client_id,
               name: clientData.agent_name,
-              agent_description: clientData.agent_description || '',
-              logo_url: clientData.logo_url || '',
-              logo_storage_path: clientData.logo_storage_path || '',
+              agent_description: clientData.agent_description,
+              logo_url: clientData.logo_url,
+              logo_storage_path: clientData.logo_storage_path,
               client_name: clientData.client_name,
               email: clientData.email,
               interaction_type: 'config',
@@ -103,31 +93,35 @@ export const useClientMutation = () => {
             widget_settings: {
               ...(clientData.widget_settings || {}),
               agent_name: clientData.agent_name,
-              agent_description: clientData.agent_description || '',
-              logo_url: clientData.logo_url || '',
-              logo_storage_path: clientData.logo_storage_path || ''
+              agent_description: clientData.agent_description,
+              logo_url: clientData.logo_url,
+              logo_storage_path: clientData.logo_storage_path
             }
           })
-          .eq('client_id', clientData.client_id);
-
+          .eq('id', clientData.client_id);
+        
         if (clientError) {
           console.error('Error updating client:', clientError);
-          throw clientError;
+          // Don't throw here, just log since the primary data is in ai_agents
         }
-
-        return { success: true };
+        
+        return clientData.client_id;
       } catch (error) {
-        console.error('Error in client mutation:', error);
+        console.error('Error updating client:', error);
         throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      toast.success('Client updated successfully');
+    onSuccess: (clientId) => {
+      // Invalidate cached client data
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      // Also invalidate widget settings
+      queryClient.invalidateQueries({ queryKey: ['widget-settings', clientId] });
+      toast.success('Client information updated successfully');
     },
-    onError: (error: Error) => {
-      console.error('Error in client mutation:', error);
-      toast.error('Failed to update client');
+    onError: (error) => {
+      console.error('Mutation error:', error);
+      toast.error(`Error updating client: ${error instanceof Error ? error.message : String(error)}`);
+      return Promise.reject(error);
     }
   });
 

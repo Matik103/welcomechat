@@ -1,6 +1,6 @@
 
 import { useMemo, useEffect } from "react";
-import { Navigate, useLocation, Route, Routes } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { useAuthSafetyTimeout } from "./hooks/useAuthSafetyTimeout";
 import { useAppInitialization } from "./hooks/useAppInitialization";
@@ -9,7 +9,6 @@ import { PublicRoutes } from "./components/routes/PublicRoutes";
 import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes";
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
-import { FirecrawlRoutes } from "./routes/FirecrawlRoutes";
 import { ConfigError } from "./components/routes/ErrorDisplay";
 
 function App() {

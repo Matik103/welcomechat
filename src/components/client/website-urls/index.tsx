@@ -5,25 +5,14 @@ import WebsiteUrlsListEmpty from './WebsiteUrlsListEmpty';
 import { WebsiteUrlsTable } from './WebsiteUrlsTable';
 import { useWebsiteUrlsFetch } from '@/hooks/website-urls/useWebsiteUrlsFetch';
 import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutation';
-import { WebsiteUrl } from '@/types/website-url';
 
 export interface WebsiteUrlsProps {
   clientId: string;
   onResourceChange?: () => void;
   logClientActivity?: () => Promise<void>;
-  onProcessUrl?: (website: WebsiteUrl) => Promise<void>;
-  processingUrlId?: number | null;
-  isProcessing?: boolean;
 }
 
-export function WebsiteUrls({ 
-  clientId, 
-  onResourceChange, 
-  logClientActivity,
-  onProcessUrl,
-  processingUrlId,
-  isProcessing = false
-}: WebsiteUrlsProps) {
+export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: WebsiteUrlsProps) {
   const [initializing, setInitializing] = useState(true);
   
   const { 
@@ -77,12 +66,6 @@ export function WebsiteUrls({
     }
   };
 
-  const handleProcess = async (website: WebsiteUrl) => {
-    if (onProcessUrl) {
-      await onProcessUrl(website);
-    }
-  };
-
   if (initializing || isLoading) {
     return <WebsiteUrlsLoading />;
   }
@@ -95,10 +78,7 @@ export function WebsiteUrls({
     <WebsiteUrlsTable 
       urls={websiteUrls} 
       onDelete={handleDelete} 
-      onProcess={onProcessUrl ? handleProcess : undefined}
       isDeleting={deleteWebsiteUrlMutation.isPending}
-      isProcessing={isProcessing}
-      processingUrlId={processingUrlId}
     />
   );
 }

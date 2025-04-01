@@ -1,123 +1,130 @@
+# Document Processing Service
 
-# Knowledge Base Setup
+A Supabase Edge Function for processing documents using LlamaParse and Firecrawl.
 
-This repository contains the necessary components for setting up a knowledge base system that integrates with LlamaParse for document processing and Firecrawl for web scraping.
+## Features
 
-## Components
-
-### Database Tables
-
-1. `document_processing_jobs`
-   - Tracks document processing jobs
-   - Stores document content and metadata
-   - Handles job status and error tracking
-
-2. `website_urls`
-   - Manages website URLs for web scraping
-   - Stores scraped content and metadata
-   - Handles URL status and error tracking
-
-### Edge Functions
-
-1. `process-document`
-   - Handles document processing requests
-   - Integrates with LlamaParse for document processing
-   - Integrates with Firecrawl for web scraping
-   - Updates job status in the database
-
-### Services
-
-1. `LlamaParseService`
-   - Handles document processing using LlamaParse API
-   - Supports various document types
-   - Manages API authentication and requests
-
-2. `FirecrawlService`
-   - Handles web scraping using Firecrawl API
-   - Supports crawling with configurable depth and limits
-   - Manages API authentication and requests
+- Asynchronous document processing
+- Support for multiple document types (PDF, DOCX, XLSX, PPTX)
+- Website crawling and content extraction
+- Job status tracking
+- Error handling and logging
+- Rate limiting and file size validation
+- OpenAI Assistant integration
 
 ## Setup
 
-1. Set up environment variables:
-   ```bash
-   LLAMA_CLOUD_API_KEY=your_llama_cloud_api_key
-   FIRECRAWL_API_KEY=your_firecrawl_api_key
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-   ```
+1. **Environment Variables**
 
-2. Apply database migrations:
-   ```bash
-   supabase db push
-   ```
+```bash
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+LLAMA_CLOUD_API_KEY=your_llama_cloud_api_key
+FIRECRAWL_API_KEY=your_firecrawl_api_key
+```
 
-3. Deploy Edge Functions:
-   ```bash
-   supabase functions deploy process-document
-   ```
+2. **Deploy Function**
+
+```bash
+supabase functions deploy process-document
+```
 
 ## Usage
 
-### Processing Documents
+### Process Document
 
-1. Send a POST request to the `process-document` Edge Function:
-   ```json
-   {
-     "clientId": "uuid",
-     "documentType": "pdf|docx|txt|url|web_page",
-     "documentUrl": "https://example.com/document.pdf",
-     "agentName": "agent_name"
-   }
-   ```
+```bash
+curl -X POST 'https://[PROJECT_REF].supabase.co/functions/v1/process-document' \
+-H 'Authorization: Bearer [ANON_KEY]' \
+-H 'Content-Type: application/json' \
+-d '{
+  "documentType": "pdf",
+  "clientId": "your-client-id",
+  "agentName": "your-agent",
+  "documentId": "your-doc-id",
+  "documentUrl": "your-document-url"
+}'
+```
 
-2. The function will:
-   - Create a processing job
-   - Process the document using LlamaParse or Firecrawl
-   - Update the job status with results
+### Response
 
-3. Monitor job status:
-   ```sql
-   SELECT * FROM document_processing_jobs WHERE id = 'job_id';
-   ```
+```json
+{
+  "success": true,
+  "jobId": "job-uuid",
+  "status": "pending",
+  "message": "Document processing started",
+  "metadata": {
+    "document_type": "pdf",
+    "document_url": "url",
+    "processing_method": "llamaparse",
+    "request_time_ms": 123
+  }
+}
+```
 
-### Web Scraping
+## Configuration
 
-1. Send a POST request to the `process-document` Edge Function with:
-   ```json
-   {
-     "clientId": "uuid",
-     "documentType": "url",
-     "documentUrl": "https://example.com",
-     "agentName": "agent_name"
-   }
-   ```
+The service includes configurable settings in `config.ts`:
 
-2. The function will:
-   - Create a website URL entry
-   - Crawl the website using Firecrawl
-   - Update the URL status with results
+- Rate limiting (30 requests/minute)
+- Maximum file size (50MB)
+- Processing timeout (5 minutes)
+- Supported document types
+- Error messages
 
-3. Monitor URL status:
-   ```sql
-   SELECT * FROM website_urls WHERE id = 'url_id';
-   ```
+## Database Tables
 
-## Security
-
-- Row Level Security (RLS) is enabled on all tables
-- Clients can only view and create their own entries
-- Service role is required for updating entries
-- API keys are stored securely as environment variables
+1. `document_processing_jobs`: Tracks processing jobs
+2. `client_activities`: Logs client activities
+3. `ai_agents`: Stores processed content
+4. `function_metrics`: Monitors function performance
 
 ## Error Handling
 
-- All errors are logged and stored in the database
-- Failed jobs and URLs can be retried
-- Error messages are descriptive and actionable
+The service includes comprehensive error handling:
+- Input validation
+- File type validation
+- Processing errors
+- API errors
+- Timeout handling
 
 ## Monitoring
 
-- Job and URL statuses can be monitored through the database
-- Timestamps track creation and updates
-- Metadata stores additional processing information
+Monitor function performance through:
+- Job status tracking
+- Error logging
+- Performance metrics
+- Client activity tracking
+
+## Development
+
+1. Clone the repository
+2. Install dependencies
+3. Set up environment variables
+4. Run locally:
+```bash
+supabase start
+supabase functions serve process-document
+```
+
+## Production
+
+For production deployment:
+1. Update environment variables
+2. Deploy function
+3. Monitor logs and metrics
+4. Set up alerts for errors
+
+## Security
+
+- JWT authentication
+- Rate limiting
+- File size validation
+- Input sanitization
+- Error message sanitization
+
+## License
+
+MIT

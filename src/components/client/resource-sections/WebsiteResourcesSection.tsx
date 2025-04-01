@@ -2,12 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { WebsiteUrlForm } from '@/components/client/website-urls/WebsiteUrlForm';
-import { WebsiteUrlFormData, WebsiteUrl } from '@/types/website-url';
+import { WebsiteUrlFormData } from '@/types/website-url';
 import { toast } from 'sonner';
 import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutation';
-import { WebsiteUrls } from '@/components/client/website-urls';
-import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
-import { useWebsiteUrlsFetch } from '@/hooks/website-urls/useWebsiteUrlsFetch';
+import { WebsiteUrls } from '@/components/client/website-urls'; 
 
 interface WebsiteResourcesSectionProps {
   clientId: string;
@@ -21,11 +19,7 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
   logClientActivity
 }) => {
   const [initializing, setInitializing] = useState(true);
-  const [processingUrlId, setProcessingUrlId] = useState<number | null>(null);
-  
   const { addWebsiteUrl, addWebsiteUrlMutation } = useWebsiteUrlsMutation(clientId);
-  const { websiteUrls, refetchWebsiteUrls } = useWebsiteUrlsFetch(clientId);
-  const storeWebsiteContent = useStoreWebsiteContent(clientId);
 
   useEffect(() => {
     // Debug info
@@ -69,29 +63,6 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
     }
   };
 
-  const handleProcessUrl = async (website: WebsiteUrl) => {
-    try {
-      setProcessingUrlId(website.id);
-      await storeWebsiteContent.mutateAsync(website);
-      
-      // Refetch after processing
-      refetchWebsiteUrls();
-      
-      // Log client activity
-      await logClientActivity();
-      
-      // Notify parent component about the change if callback provided
-      if (onResourceChange) {
-        onResourceChange();
-      }
-    } catch (error) {
-      console.error("Error processing website URL:", error);
-      toast.error(`Failed to process website URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setProcessingUrlId(null);
-    }
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -112,9 +83,6 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
             clientId={clientId} 
             onResourceChange={onResourceChange}
             logClientActivity={logClientActivity}
-            onProcessUrl={handleProcessUrl}
-            processingUrlId={processingUrlId}
-            isProcessing={storeWebsiteContent.isPending}
           />
         )}
       </CardContent>
