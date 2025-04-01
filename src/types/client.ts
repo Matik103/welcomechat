@@ -42,8 +42,8 @@ export interface QueryItem {
   id: string;
   query_text: string;
   frequency: number;
-  last_asked?: string;
-  created_at?: string;
+  last_asked?: string | null;
+  created_at?: string | null;
 }
 
 export interface ChatInteraction {
@@ -53,7 +53,7 @@ export interface ChatInteraction {
   response_text: string;
   created_at: string;
   agent_name?: string;
-  response_time_ms?: number;
+  response_time_ms?: number | null;
 }
 
 export interface ClientActivity {
@@ -90,6 +90,7 @@ export interface WebsiteUrl {
   notified_at?: string;
   last_crawled?: string;
   scrapable?: boolean;
+  scrapability?: 'high' | 'medium' | 'low';
 }
 
 export interface DocumentLink {

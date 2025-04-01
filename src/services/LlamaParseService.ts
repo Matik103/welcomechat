@@ -1,137 +1,155 @@
 
-import { LlamaParseConfig, LlamaParseRequest, LlamaParseResponse } from '@/types/llamaparse';
-import fetch from 'node-fetch';
-
-interface LlamaParseErrorResponse {
-  message: string;
+export interface LlamaParseServiceConfig {
+  apiKey: string;
+  baseUrl?: string;
 }
 
-interface LlamaParseSuccessResponse {
-  content: string;
-  metadata: Record<string, any>;
-}
-
-interface ProcessDocumentParams {
-  file: File;
+export interface ProcessDocumentOptions {
+  url: string;
   metadata?: Record<string, any>;
+  callbackUrl?: string;
 }
 
-interface ProcessDocumentResult {
+export interface LlamaParseResponse {
   status: "success" | "error";
   content?: string;
   metadata?: Record<string, any>;
   error?: string;
+  jobId?: string;
+  documentId?: string;
 }
 
 export class LlamaParseService {
   private apiKey: string;
   private baseUrl: string;
 
-  constructor(config: LlamaParseConfig) {
+  constructor(config: LlamaParseServiceConfig) {
     this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || 'https://api.llamacloud.ai/v1';
-  }
-
-  private async makeRequest(endpoint: string, options: RequestInit = {}) {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'LlamaParse API request failed');
+    this.baseUrl = config.baseUrl || "https://cloud.llamaindex.ai/api/parse";
+    
+    // Verify API key is set
+    if (!this.apiKey) {
+      console.warn("LlamaParse API key not provided. Set LLAMA_CLOUD_API_KEY environment variable.");
     }
-
-    return response.json();
   }
 
-  async processDocument(params: LlamaParseRequest): Promise<LlamaParseResponse> {
+  async processDocument(options: ProcessDocumentOptions): Promise<LlamaParseResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/parse`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-        } as Record<string, string>,
-        // @ts-ignore - FormData is compatible with fetch body
-        body: params.file,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json() as LlamaParseErrorResponse;
+      if (!this.apiKey) {
         return {
-          status: 'error',
-          error: errorData.message || 'Failed to process document',
+          status: "error",
+          error: "LlamaParse API key not configured. Please set LLAMA_CLOUD_API_KEY environment variable."
         };
       }
-
-      const data = await response.json() as LlamaParseSuccessResponse;
-      return {
-        status: 'success',
-        content: data.content,
-        metadata: data.metadata,
+      
+      const headers = {
+        "Authorization": `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json"
       };
-    } catch (error) {
-      return {
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  }
-
-  async getDocumentStatus(documentId: string): Promise<LlamaParseResponse> {
-    try {
-      const data = await this.makeRequest(`/documents/${documentId}`);
-      return {
-        status: data.status,
-        content: data.content,
-        documentId: data.documentId,
-        metadata: data.metadata,
-      };
-    } catch (error) {
-      console.error('Error getting document status:', error);
-      return {
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  }
-
-  async deleteDocument(documentId: string): Promise<boolean> {
-    try {
-      await this.makeRequest(`/documents/${documentId}`, {
-        method: 'DELETE',
+      
+      // Log request for debugging
+      console.log(`Requesting document processing for URL: ${options.url}`);
+      
+      const response = await fetch(this.baseUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          url: options.url,
+          metadata: options.metadata || {},
+          callback_url: options.callbackUrl
+        })
       });
-      return true;
+      
+      if (!response.ok) {
+        let errorText = await response.text();
+        console.error(`LlamaParse API error (${response.status}): ${errorText}`);
+        
+        return {
+          status: "error",
+          error: `LlamaParse API error: ${response.status} ${response.statusText}. ${errorText}`
+        };
+      }
+      
+      const responseData = await response.json();
+      
+      if (responseData && responseData.success) {
+        return {
+          status: "success",
+          content: responseData.content,
+          metadata: responseData.metadata,
+          jobId: responseData.job_id,
+          documentId: responseData.documentId
+        };
+      } else {
+        return {
+          status: "error",
+          error: responseData.error || "Unknown error processing document"
+        };
+      }
     } catch (error) {
-      console.error('Error deleting document:', error);
-      return false;
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("LlamaParse processing error:", errorMessage);
+      
+      return {
+        status: "error",
+        error: `LlamaParse error: ${errorMessage}`
+      };
     }
   }
 
-  async listDocuments(options: {
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<LlamaParseResponse[]> {
+  async checkJobStatus(jobId: string): Promise<LlamaParseResponse> {
     try {
-      const queryParams = new URLSearchParams();
-      if (options.limit) queryParams.append('limit', options.limit.toString());
-      if (options.offset) queryParams.append('offset', options.offset.toString());
-
-      const data = await this.makeRequest(`/documents?${queryParams.toString()}`);
-      return data.documents.map((doc: any) => ({
-        status: doc.status,
-        content: doc.content,
-        documentId: doc.documentId,
-        metadata: doc.metadata,
-      }));
+      if (!this.apiKey) {
+        return {
+          status: "error",
+          error: "LlamaParse API key not configured"
+        };
+      }
+      
+      const jobStatusUrl = `${this.baseUrl}/jobs/${jobId}`;
+      
+      const response = await fetch(jobStatusUrl, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json"
+        }
+      });
+      
+      if (!response.ok) {
+        return {
+          status: "error",
+          error: `LlamaParse API error: ${response.status} ${response.statusText}`
+        };
+      }
+      
+      const responseData = await response.json();
+      
+      if (responseData.status === "completed") {
+        return {
+          status: "success",
+          content: responseData.content,
+          metadata: responseData.metadata
+        };
+      } else if (responseData.status === "failed") {
+        return {
+          status: "error",
+          error: responseData.error || "Processing failed"
+        };
+      } else {
+        return {
+          status: "error",
+          error: `Job status: ${responseData.status}`
+        };
+      }
     } catch (error) {
-      console.error('Error listing documents:', error);
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("LlamaParse status check error:", errorMessage);
+      
+      return {
+        status: "error",
+        error: `LlamaParse error: ${errorMessage}`
+      };
     }
   }
 }
