@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
@@ -12,6 +11,8 @@ import type { WidgetSettings as WidgetSettingsType } from "@/types/widget-settin
 import { toast } from "sonner";
 import { useNavigation } from "@/hooks/useNavigation";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
+import { useClientData } from "@/hooks/useClientData";
+import { useEffect } from "react";
 
 export default function WidgetSettings() {
   const { user } = useAuth();
@@ -22,42 +23,87 @@ export default function WidgetSettings() {
   const { logClientActivity } = useClientActivity(clientId);
   const widgetSettingsHook = useWidgetSettings(clientId || "");
 
-  // Fetch widget settings
+  const { client, isLoadingClient, refetchClient } = useClientData(clientId);
+
   const { data: settings, isLoading, refetch } = useQuery({
     queryKey: ["widget-settings", clientId],
     queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
     enabled: !!clientId,
   });
 
-  // Update widget settings mutation
+  useEffect(() => {
+    if (!isLoadingClient && client && settings) {
+      const needsSync = (
+        (client.agent_name && client.agent_name !== settings.agent_name) ||
+        (client.logo_url && client.logo_url !== settings.logo_url)
+      );
+      
+      if (needsSync) {
+        console.log("Syncing settings from client data:", {
+          clientAgentName: client.agent_name,
+          settingsAgentName: settings.agent_name,
+          clientLogoUrl: client.logo_url,
+          settingsLogoUrl: settings.logo_url
+        });
+        
+        updateSettingsMutation.mutate({
+          ...settings,
+          agent_name: client.agent_name || settings.agent_name,
+          logo_url: client.logo_url || settings.logo_url,
+          logo_storage_path: client.logo_storage_path || settings.logo_storage_path
+        });
+      }
+    }
+  }, [client, settings, isLoadingClient]);
+
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
       if (clientId) {
         await updateWidgetSettings(clientId, newSettings);
         
-        // Make sure we have a client name for the activity log
         const clientName = settings?.agent_name || "Unknown";
         
-        // Log the activity with safe activity type and client name
         await logClientActivity("widget_settings_updated", 
           `Widget settings updated for "${clientName}"`, 
           {
-            agent_name: newSettings.agent_name,
+            agent_name: settings?.agent_name,
             settings_changed: true
           });
+          
+        if (client) {
+          await clientMutation.mutateAsync({
+            client_id: clientId,
+            agent_name: newSettings.agent_name,
+            logo_url: newSettings.logo_url,
+            logo_storage_path: newSettings.logo_storage_path,
+            widget_settings: newSettings
+          });
+        }
       }
     },
     onSuccess: () => {
       refetch();
-      // Also invalidate client queries to ensure bidirectional sync
       if (clientId) {
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+        refetchClient();
       }
       toast.success("Your AI assistant settings have been updated");
     },
     onError: (error) => {
       toast.error(`Failed to update settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
+  });
+
+  const clientMutation = useMutation({
+    mutationFn: async (clientData: any): Promise<void> => {
+      await fetch(`/api/client/${clientId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(clientData)
+      });
+    }
   });
 
   const handleNavigateBack = () => {
@@ -74,10 +120,8 @@ export default function WidgetSettings() {
       if (result) {
         await widgetSettingsHook.updateLogo(result.url, result.path);
         
-        // Make sure we have a client name for the activity log
         const clientName = settings?.agent_name || "Unknown";
         
-        // Log with the correct client name
         await logClientActivity("logo_uploaded", 
           `Logo updated for "${clientName}"`, 
           {
@@ -85,9 +129,7 @@ export default function WidgetSettings() {
             logo_url: result.url
           });
           
-        // Refetch widget settings
         refetch();
-        // Also invalidate client queries
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
       }
     } catch (error) {
@@ -102,15 +144,12 @@ export default function WidgetSettings() {
     return <ClientViewLoading />;
   }
 
-  // Create a wrapper for updateSettingsMutation to match expected props
   const updateSettingsWrapper = {
     isPending: updateSettingsMutation.isPending,
     mutateAsync: updateSettingsMutation.mutateAsync
   };
 
-  // Type-safe logClientActivity with client name
   const logActivityWrapper = async (): Promise<void> => {
-    // Make sure we have a client name for the activity log
     const clientName = settings?.agent_name || "Unknown";
     
     await logClientActivity("widget_previewed", 

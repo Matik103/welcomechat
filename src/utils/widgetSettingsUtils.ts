@@ -89,6 +89,20 @@ export const getWidgetSettings = async (clientId: string): Promise<WidgetSetting
       return extractWidgetSettings(agentResult[0]);
     }
     
+    // If no ai_agent record, try to get from clients table
+    const clientQuery = `
+      SELECT client_name, agent_name, widget_settings, logo_url, logo_storage_path
+      FROM clients
+      WHERE id = $1
+      LIMIT 1
+    `;
+    
+    const clientResult = await execSql(clientQuery, [clientId]);
+    
+    if (clientResult && Array.isArray(clientResult) && clientResult.length > 0) {
+      return extractWidgetSettings(clientResult[0]);
+    }
+    
     return defaultSettings;
   } catch (error) {
     console.error("Error in getWidgetSettings:", error);
@@ -131,6 +145,21 @@ export const updateWidgetSettings = async (clientId: string, settings: WidgetSet
         settings.logo_storage_path,
         clientId
       ]);
+      
+      // Also update clients table for bidirectional sync
+      const updateClientQuery = `
+        UPDATE clients
+        SET
+          agent_name = $1,
+          widget_settings = $2
+        WHERE id = $3
+      `;
+      
+      await execSql(updateClientQuery, [
+        settings.agent_name,
+        JSON.stringify(settings),
+        clientId
+      ]);
     } else {
       // Insert new record
       const insertQuery = `
@@ -154,6 +183,21 @@ export const updateWidgetSettings = async (clientId: string, settings: WidgetSet
         settings.logo_url,
         settings.logo_storage_path,
         JSON.stringify(settings)
+      ]);
+      
+      // Update clients table as well
+      const updateClientQuery = `
+        UPDATE clients
+        SET
+          agent_name = $1,
+          widget_settings = $2
+        WHERE id = $3
+      `;
+      
+      await execSql(updateClientQuery, [
+        settings.agent_name,
+        JSON.stringify(settings),
+        clientId
       ]);
     }
     

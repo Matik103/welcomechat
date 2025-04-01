@@ -39,12 +39,27 @@ export default function WidgetSettings() {
 
   // Sync agent name from client data when settings load
   useEffect(() => {
-    if (!isLoadingClient && client && settings && !settings.agent_name) {
-      // If we have client data and settings don't have agent_name, sync it
-      if (client.agent_name) {
+    if (!isLoadingClient && client && settings) {
+      // Check if we need to sync settings
+      const needsSync = (
+        (client.agent_name && client.agent_name !== settings.agent_name) ||
+        (client.logo_url && client.logo_url !== settings.logo_url)
+      );
+      
+      if (needsSync) {
+        console.log("Syncing settings from client data:", {
+          clientAgentName: client.agent_name,
+          settingsAgentName: settings.agent_name,
+          clientLogoUrl: client.logo_url,
+          settingsLogoUrl: settings.logo_url
+        });
+        
+        // Update settings with client data
         updateSettingsMutation.mutate({
           ...settings,
-          agent_name: client.agent_name
+          agent_name: client.agent_name || settings.agent_name,
+          logo_url: client.logo_url || settings.logo_url,
+          logo_storage_path: client.logo_storage_path || settings.logo_storage_path
         });
       }
     }
@@ -74,6 +89,8 @@ export default function WidgetSettings() {
       // Also invalidate client queries to ensure bidirectional sync
       if (clientId) {
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+        // Also refetch client data to ensure bidirectional sync
+        refetchClient();
       }
       
       if (isAdmin) {

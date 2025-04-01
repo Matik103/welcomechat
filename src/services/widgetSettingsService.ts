@@ -44,7 +44,7 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
       
       // Merge settings with other fields from the record
       const recordSettings = {
-        agent_name: agentData.name || settingsObj.agent_name,
+        agent_name: agentData.name || settingsObj.agent_name || defaultSettings.agent_name,
         agent_description: agentData.agent_description || settingsObj.agent_description,
         logo_url: agentData.logo_url || settingsObj.logo_url,
         logo_storage_path: agentData.logo_storage_path || settingsObj.logo_storage_path,
@@ -175,13 +175,7 @@ export async function updateWidgetSettings(
       .from('clients')
       .update({
         agent_name: agent_name,
-        widget_settings: {
-          ...otherSettings,
-          agent_name: agent_name,
-          agent_description: agent_description,
-          logo_url: logo_url,
-          logo_storage_path: logo_storage_path
-        }
+        widget_settings: updatedSettings  // Send the complete settings object
       })
       .eq('id', clientId);
       
