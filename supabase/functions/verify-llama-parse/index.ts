@@ -1,4 +1,5 @@
 
+// @deno-types="https://deno.land/std@0.168.0/http/server.d.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { LlamaParseService } from "../_shared/LlamaParseService.ts";

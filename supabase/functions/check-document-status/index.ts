@@ -1,16 +1,17 @@
 
+// @deno-types="https://deno.land/std@0.168.0/http/server.d.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { LlamaParseService } from "../_shared/LlamaParseService.ts";
 
 // Initialize Supabase client
-const supabaseClient = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-);
+const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 serve(async (req) => {
-  // Handle CORS preflight
+  // Handle CORS preflight request
   if (req.method === "OPTIONS") {
     return new Response(null, {
       headers: corsHeaders,
@@ -19,13 +20,14 @@ serve(async (req) => {
   }
 
   try {
-    const { jobId } = await req.json();
+    // Parse the request body
+    const { jobId, documentId } = await req.json();
 
-    if (!jobId) {
+    if (!jobId || !documentId) {
       return new Response(
         JSON.stringify({
-          error: "Missing required field: jobId",
-          success: false
+          success: false,
+          message: "Missing required parameters: jobId and documentId",
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -34,138 +36,82 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Checking status for processing job: ${jobId}`);
+    console.log(`Checking document status for job ${jobId}, document ${documentId}`);
 
-    // Query the document_processing_jobs table
-    const { data: job, error } = await supabaseClient
-      .from('document_processing_jobs')
-      .select('*')
-      .eq('id', jobId)
-      .single();
+    // Initialize LlamaParseService
+    const llamaParseService = new LlamaParseService({
+      apiKey: Deno.env.get("LLAMA_CLOUD_API_KEY") || "",
+    });
 
-    if (error) {
-      console.error("Error fetching job:", error);
+    // Check the status of the job
+    const result = await llamaParseService.checkJobStatus(jobId);
+
+    if (result.status === "success" && result.content) {
+      // Update the document in the database with the content
+      const { error: updateError } = await supabase
+        .from("document_processing_jobs")
+        .update({
+          content: result.content,
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          metadata: { ...result.metadata }
+        })
+        .eq("id", documentId);
+
+      if (updateError) {
+        console.error("Error updating document:", updateError);
+        throw new Error(`Failed to update document: ${updateError.message}`);
+      }
+
       return new Response(
         JSON.stringify({
-          error: error.message,
-          success: false
+          success: true,
+          message: "Document processing completed",
+          status: "completed",
+          documentId,
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
+          status: 200,
         }
       );
-    }
+    } else {
+      // Update the document with the error
+      const { error: updateError } = await supabase
+        .from("document_processing_jobs")
+        .update({
+          status: "failed",
+          error: result.error || "Unknown error",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", documentId);
 
-    if (!job) {
+      if (updateError) {
+        console.error("Error updating document status:", updateError);
+      }
+
       return new Response(
         JSON.stringify({
-          error: "Job not found",
-          success: false
+          success: false,
+          message: "Document processing failed",
+          error: result.error,
+          status: "failed",
+          documentId,
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 404,
+          status: 200, // Still return 200 to avoid retries
         }
       );
     }
-
-    // If the job is in processing state and has firecrawl_job_id in metadata,
-    // check the status with Firecrawl
-    if (job.status === 'processing' && 
-        job.metadata && 
-        job.metadata.firecrawl_job_id) {
-      
-      try {
-        const firecrawlJobId = job.metadata.firecrawl_job_id;
-        console.log(`Checking Firecrawl job status: ${firecrawlJobId}`);
-        
-        // Import here to avoid initialization issues
-        const { FirecrawlService } = await import('../_shared/FirecrawlService.ts');
-        
-        const firecrawlService = new FirecrawlService({
-          apiKey: Deno.env.get("FIRECRAWL_API_KEY") || "",
-        });
-        
-        const status = await firecrawlService.getCrawlStatus(firecrawlJobId);
-        
-        if (status.success && status.data?.status === "completed") {
-          const results = await firecrawlService.getCrawlResults(firecrawlJobId);
-          
-          if (results.success && results.data?.content) {
-            // Update job with content
-            await supabaseClient.rpc("update_document_processing_status", {
-              p_job_id: jobId,
-              p_status: "completed",
-              p_content: results.data.content,
-              p_metadata: {
-                ...job.metadata,
-                pages: results.data.pages,
-                url: results.data.url,
-              },
-            });
-            
-            // Return updated job status
-            return new Response(
-              JSON.stringify({
-                success: true,
-                status: "completed",
-                message: "Document processing completed",
-                pages: results.data.pages,
-              }),
-              {
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-                status: 200,
-              }
-            );
-          }
-        }
-        
-        // If still processing, return current status
-        return new Response(
-          JSON.stringify({
-            success: true,
-            status: job.status,
-            firecrawlStatus: status.data?.status || "unknown",
-            message: "Document still processing",
-          }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          }
-        );
-      } catch (firecrawlError) {
-        console.error("Error checking Firecrawl status:", firecrawlError);
-      }
-    }
-
-    // Return job details
-    return new Response(
-      JSON.stringify({
-        success: true,
-        status: job.status,
-        message: `Document processing ${job.status}`,
-        job: {
-          id: job.id,
-          status: job.status,
-          document_url: job.document_url,
-          document_type: job.document_type,
-          created_at: job.created_at,
-          updated_at: job.updated_at,
-          error_message: job.error_message,
-        }
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
   } catch (error) {
-    console.error("Error in check-document-status function:", error);
+    console.error("Error checking document status:", error);
+
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Internal server error",
-        success: false
+        success: false,
+        message: "Error checking document status",
+        error: error instanceof Error ? error.message : "Unknown error",
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

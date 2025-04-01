@@ -1,215 +1,153 @@
 
-export interface LlamaParseConfig {
+export interface LlamaParseServiceConfig {
   apiKey: string;
   baseUrl?: string;
 }
 
-export interface LlamaParseRequest {
-  file?: File | string;
-  url?: string;
+export interface ProcessDocumentOptions {
+  url: string;
   metadata?: Record<string, any>;
+  callbackUrl?: string;
 }
 
 export interface LlamaParseResponse {
-  status: 'success' | 'error';
+  status: "success" | "error";
   content?: string;
   metadata?: Record<string, any>;
   error?: string;
+  jobId?: string;
 }
 
 export class LlamaParseService {
   private apiKey: string;
   private baseUrl: string;
 
-  constructor(config: LlamaParseConfig) {
+  constructor(config: LlamaParseServiceConfig) {
     this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || 'https://api.cloud.llamaindex.ai/api/parsing';
+    this.baseUrl = config.baseUrl || "https://cloud.llamaindex.ai/api/parse";
     
-    // Check if API key is available
+    // Verify API key is set
     if (!this.apiKey) {
-      console.warn("LlamaParse API key not set! Please set LLAMA_CLOUD_API_KEY environment variable.");
+      console.warn("LlamaParse API key not provided. Set LLAMA_CLOUD_API_KEY environment variable.");
     }
   }
 
-  async processDocument(params: LlamaParseRequest): Promise<LlamaParseResponse> {
+  async processDocument(options: ProcessDocumentOptions): Promise<LlamaParseResponse> {
     try {
-      // Verify API key is set
       if (!this.apiKey) {
         return {
-          status: 'error',
-          error: 'LlamaParse API key not configured. Please set LLAMA_CLOUD_API_KEY in environment variables.'
+          status: "error",
+          error: "LlamaParse API key not configured. Please set LLAMA_CLOUD_API_KEY environment variable."
         };
       }
       
-      // Log the request
-      console.log(`LlamaParse processing request:`, { 
-        hasUrl: !!params.url, 
-        hasFile: !!params.file, 
-        hasMetadata: !!params.metadata,
-        fileType: typeof params.file === 'string' ? 'url' : (params.file instanceof File ? 'File object' : null)
+      const headers = {
+        "Authorization": `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json"
+      };
+      
+      // Log request for debugging
+      console.log(`Requesting document processing for URL: ${options.url}`);
+      
+      const response = await fetch(this.baseUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          url: options.url,
+          metadata: options.metadata || {},
+          callback_url: options.callbackUrl
+        })
       });
-
-      let response;
-      let body;
-
-      // Handle URL-based documents (Google Drive, web links, etc.)
-      if (params.url) {
-        console.log(`Processing URL: ${maskUrl(params.url)}`);
+      
+      if (!response.ok) {
+        let errorText = await response.text();
+        console.error(`LlamaParse API error (${response.status}): ${errorText}`);
         
-        body = JSON.stringify({
-          url: params.url,
-          metadata: params.metadata || {}
-        });
-
-        response = await fetch(`${this.baseUrl}/url`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body
-        });
-      } 
-      // Handle direct file upload or storage URL processing
-      else if (params.file) {
-        // For string URLs, we pass them directly to the backend
-        if (typeof params.file === 'string') {
-          console.log(`Processing file URL: ${maskUrl(params.file)}`);
-          
-          body = JSON.stringify({
-            url: params.file,
-            metadata: params.metadata || {}
-          });
-
-          response = await fetch(`${this.baseUrl}/url`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${this.apiKey}`,
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body
-          });
-        } 
-        // For actual File objects, we'd use FormData
-        else {
-          console.log(`Processing file object named: ${params.file.name}, size: ${params.file.size} bytes`);
-          
-          const formData = new FormData();
-          formData.append('file', params.file);
-          
-          if (params.metadata) {
-            formData.append('metadata', JSON.stringify(params.metadata));
-          }
-          
-          response = await fetch(`${this.baseUrl}/upload`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${this.apiKey}`,
-              'Accept': 'application/json'
-            },
-            body: formData
-          });
-        }
+        return {
+          status: "error",
+          error: `LlamaParse API error: ${response.status} ${response.statusText}. ${errorText}`
+        };
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.success) {
+        return {
+          status: "success",
+          content: data.content,
+          metadata: data.metadata,
+          jobId: data.job_id
+        };
       } else {
         return {
-          status: 'error',
-          error: 'No file or URL provided for processing'
-        };
-      }
-
-      // Check response
-      if (!response) {
-        return {
-          status: 'error',
-          error: 'No response received from LlamaParse API'
-        };
-      }
-      
-      console.log(`LlamaParse response status: ${response.status}`);
-
-      if (!response.ok) {
-        let errorMessage = `Failed to process document: ${response.statusText}`;
-        
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-          console.error("LlamaParse error data:", errorData);
-        } catch (e) {
-          console.error("Could not parse error response as JSON:", e);
-        }
-        
-        return {
-          status: 'error',
-          error: errorMessage
-        };
-      }
-
-      // Parse successful response
-      try {
-        const data = await response.json();
-        
-        // Log truncated content for debugging
-        const contentSample = data.content || data.text;
-        console.log(`LlamaParse processed document successfully. Content sample: ${
-          contentSample ? contentSample.substring(0, 100) + '...' : 'No content returned'
-        }`);
-        
-        return {
-          status: 'success',
-          content: data.content || data.text,
-          metadata: data.metadata
-        };
-      } catch (jsonError) {
-        console.error("Error parsing JSON response:", jsonError);
-        return {
-          status: 'error',
-          error: 'Failed to parse LlamaParse API response'
+          status: "error",
+          error: data.error || "Unknown error processing document"
         };
       }
     } catch (error) {
-      console.error("LlamaParse processing error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("LlamaParse processing error:", errorMessage);
+      
       return {
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        status: "error",
+        error: `LlamaParse error: ${errorMessage}`
       };
     }
   }
-}
 
-// Helper function to mask sensitive parts of URLs for logging
-function maskUrl(url: string): string {
-  try {
-    // Don't mask URLs that don't have query params
-    if (!url.includes('?')) {
-      return url;
-    }
-    
-    const urlObj = new URL(url);
-    
-    // Create a copy of searchParams so we can modify it
-    const maskedParams = new URLSearchParams();
-    
-    // For each parameter, mask the value if it looks like it could be sensitive
-    for (const [key, value] of urlObj.searchParams.entries()) {
-      const sensitiveKeys = ['key', 'token', 'auth', 'password', 'secret', 'credential', 'access', 'api'];
-      const isSensitive = sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive));
-      
-      if (isSensitive && value.length > 4) {
-        // Mask middle of the value
-        const start = value.substring(0, 3);
-        const end = value.substring(value.length - 3);
-        maskedParams.set(key, `${start}...${end}`);
-      } else {
-        maskedParams.set(key, value);
+  async checkJobStatus(jobId: string): Promise<LlamaParseResponse> {
+    try {
+      if (!this.apiKey) {
+        return {
+          status: "error",
+          error: "LlamaParse API key not configured"
+        };
       }
+      
+      const jobStatusUrl = `${this.baseUrl}/jobs/${jobId}`;
+      
+      const response = await fetch(jobStatusUrl, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json"
+        }
+      });
+      
+      if (!response.ok) {
+        return {
+          status: "error",
+          error: `LlamaParse API error: ${response.status} ${response.statusText}`
+        };
+      }
+      
+      const data = await response.json();
+      
+      if (data.status === "completed") {
+        return {
+          status: "success",
+          content: data.content,
+          metadata: data.metadata
+        };
+      } else if (data.status === "failed") {
+        return {
+          status: "error",
+          error: data.error || "Processing failed"
+        };
+      } else {
+        return {
+          status: "error",
+          error: `Job status: ${data.status}`
+        };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("LlamaParse status check error:", errorMessage);
+      
+      return {
+        status: "error",
+        error: `LlamaParse error: ${errorMessage}`
+      };
     }
-    
-    // Reconstruct the URL with masked parameters
-    return `${urlObj.origin}${urlObj.pathname}?${maskedParams.toString()}`;
-  } catch (e) {
-    console.error("Error masking URL:", e);
-    return "[Error masking URL]";
   }
 }
