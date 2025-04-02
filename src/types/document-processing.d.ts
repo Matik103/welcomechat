@@ -14,6 +14,8 @@ export interface DocumentProcessingOptions {
   folder?: string;
   description?: string;
   clientId: string;
+  documentType?: string;
+  agentName?: string;
 }
 
 export interface DocumentProcessingStatus {

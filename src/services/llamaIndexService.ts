@@ -1,5 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
-import { LlamaIndexJobResponse, LlamaIndexParsingResult, LlamaIndexProcessingOptions } from '@/types/document-processing';
+import { 
+  LlamaIndexJobResponse, 
+  LlamaIndexParsingResult, 
+  LlamaIndexProcessingOptions 
+} from '@/types/document-processing';
 
 const LLAMA_INDEX_API_URL = process.env.NEXT_PUBLIC_LLAMA_INDEX_API_URL || 'http://localhost:8000';
 
