@@ -81,6 +81,11 @@ export const ClientResourceSections = ({
     ensureAgentConfig();
   }, [clientId]);
 
+  // Create wrapper functions to fix TypeScript errors with logClientActivity
+  const handleLogClientActivity = async () => {
+    await logClientActivity();
+  };
+
   const handleUploadDocument = async (file: File) => {
     // Add size check to prevent large file uploads that would slow down the system
     if (file.size > 10 * 1024 * 1024) { // 10MB limit
@@ -94,7 +99,7 @@ export const ClientResourceSections = ({
       toast.success('Document uploaded successfully');
       
       // Log client activity
-      await logClientActivity();
+      await handleLogClientActivity();
       
       // Also log specific document activity with client_id
       await createClientActivity(
@@ -127,13 +132,13 @@ export const ClientResourceSections = ({
       <WebsiteResourcesSection 
         clientId={clientId}
         onResourceChange={onResourceChange}
-        logClientActivity={logClientActivity}
+        logClientActivity={handleLogClientActivity}
       />
       
       <DocumentResourcesSection 
         clientId={clientId}
         onResourceChange={onResourceChange}
-        logClientActivity={logClientActivity}
+        logClientActivity={handleLogClientActivity}
       />
       
       <Card>
