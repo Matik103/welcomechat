@@ -85,7 +85,7 @@ export const ClientResourceSections = ({
     ensureAgentConfig();
   }, [clientId]);
 
-  // Create wrapper functions with the correct signatures
+  // Create wrapper functions with the correct signatures to adapt the existing function
   const handleLogClientActivity = async () => {
     await logClientActivity('DOCUMENT_UPLOAD', {
       client_id: clientId,
@@ -137,13 +137,13 @@ export const ClientResourceSections = ({
       <WebsiteResourcesSection 
         clientId={clientId}
         onResourceChange={onResourceChange}
-        logClientActivity={logClientActivity}
+        logClientActivity={() => logClientActivity('WEBSITE_UPDATE', { client_id: clientId })}
       />
       
       <DocumentResourcesSection 
         clientId={clientId}
         onResourceChange={onResourceChange}
-        logClientActivity={logClientActivity}
+        logClientActivity={() => logClientActivity('DOCUMENT_UPDATE', { client_id: clientId })}
       />
       
       <Card>
