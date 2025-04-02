@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseAdmin, isAdminClientConfigured } from "@/integrations/supabase/client-admin";
 
@@ -75,90 +74,8 @@ export const parseStorageUrl = (url: string) => {
 };
 
 /**
- * Creates the document-storage bucket if it doesn't exist
+ * Document storage bucket is already created, so this function always returns true
  */
 export const ensureDocumentStorageBucket = async (): Promise<boolean> => {
-  try {
-    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-    
-    if (listError) {
-      console.error("Error listing buckets:", listError);
-      return false;
-    }
-    
-    // Check if the document-storage bucket exists
-    const bucketExists = buckets?.some(bucket => bucket.name === DOCUMENTS_BUCKET);
-    
-    if (!bucketExists) {
-      console.log(`Creating ${DOCUMENTS_BUCKET} bucket...`);
-      
-      // First try with admin client if available
-      if (isAdminClientConfigured()) {
-        try {
-          const { error: createError } = await supabaseAdmin.storage.createBucket(DOCUMENTS_BUCKET, {
-            public: true,
-            fileSizeLimit: 20971520, // 20MB
-            allowedMimeTypes: [
-              'application/pdf',
-              'application/msword',
-              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              'text/plain',
-              'application/vnd.ms-excel',
-              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              'application/vnd.ms-powerpoint',
-              'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-              'text/csv'
-            ]
-          });
-          
-          if (createError && !createError.message.includes('already exists')) {
-            console.error(`Error creating ${DOCUMENTS_BUCKET} bucket with admin client:`, createError);
-            // Fall back to regular client
-          } else {
-            console.log(`Created ${DOCUMENTS_BUCKET} bucket with admin client`);
-            return true;
-          }
-        } catch (adminError) {
-          console.error(`Error creating ${DOCUMENTS_BUCKET} bucket with admin client:`, adminError);
-          // Fall back to regular client
-        }
-      }
-      
-      // Try with regular client if admin failed or isn't available
-      try {
-        const { error: createError } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
-          public: true,
-          fileSizeLimit: 20971520, // 20MB
-          allowedMimeTypes: [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'text/plain',
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-powerpoint',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'text/csv'
-          ]
-        });
-        
-        if (createError && !createError.message.includes('already exists')) {
-          console.error(`Error creating ${DOCUMENTS_BUCKET} bucket with regular client:`, createError);
-          return false;
-        }
-        
-        console.log(`Created ${DOCUMENTS_BUCKET} bucket with regular client`);
-        return true;
-      } catch (error) {
-        console.error(`Error creating ${DOCUMENTS_BUCKET} bucket:`, error);
-        return false;
-      }
-    }
-    
-    console.log(`${DOCUMENTS_BUCKET} bucket already exists`);
-    return true;
-  } catch (error) {
-    console.error(`Error ensuring ${DOCUMENTS_BUCKET} bucket:`, error);
-    return false;
-  }
+  return true;
 };
