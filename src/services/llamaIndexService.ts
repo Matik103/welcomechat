@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { 
   LlamaIndexJobResponse, 
@@ -5,7 +6,7 @@ import {
   LlamaIndexProcessingOptions 
 } from '@/types/document-processing';
 
-const LLAMA_INDEX_API_URL = process.env.NEXT_PUBLIC_LLAMA_INDEX_API_URL || 'http://localhost:8000';
+const LLAMA_INDEX_API_URL = import.meta.env.VITE_LLAMA_INDEX_API_URL || 'http://localhost:8000';
 
 // Upload a document to LlamaIndex for processing
 export const uploadDocumentToLlamaIndex = async (
