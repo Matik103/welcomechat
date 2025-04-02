@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
-import { DocumentProcessingService } from '@/utils/DocumentProcessingService';
 import { DocumentProcessingResult } from '@/types/document-processing';
+import { DocumentProcessingService } from '@/utils/DocumentProcessingService';
 import { toast } from 'sonner';
 import { LLAMA_CLOUD_API_KEY } from '@/config/env'; // Import to check if we have the API key
 
@@ -21,11 +21,11 @@ export function useLlamaIndexProcessing(clientId: string) {
     try {
       console.log(`Starting LlamaIndex processing for ${file.name} (${file.type}, ${file.size} bytes)`);
       
-      // Log if we have an API key configured
+      // Log if we have an API key configured in the environment
       if (LLAMA_CLOUD_API_KEY) {
         console.log('LlamaIndex API key is configured via environment variables');
       } else {
-        console.warn('No LlamaIndex API key found in environment variables - will try to fetch from Supabase secrets');
+        console.log('No LlamaIndex API key found in environment variables - will try to use edge function');
       }
       
       // Simulate progress updates
@@ -40,7 +40,7 @@ export function useLlamaIndexProcessing(clientId: string) {
       }, 500);
       
       try {
-        // Process document with LlamaIndex
+        // Process document with LlamaIndex via DocumentProcessingService
         console.log("Calling DocumentProcessingService.processDocument...");
         const result = await DocumentProcessingService.processDocument(file, clientId);
         console.log("Document processing completed with result:", result);
@@ -73,6 +73,7 @@ export function useLlamaIndexProcessing(clientId: string) {
         clearInterval(progressInterval);
         
         const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown error';
+        console.error("Document processing failed:", errorMessage);
         
         const failResult: DocumentProcessingResult = {
           success: false,
