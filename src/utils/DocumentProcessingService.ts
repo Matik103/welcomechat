@@ -3,7 +3,7 @@ import {
   LlamaParseReader, 
   VectorStoreIndex,
   Document as LlamaDocument,
-  serviceContextFromDefaults
+  storageContextFromDefaults
 } from "llamaindex";
 import { supabase } from "@/integrations/supabase/client";
 import { convertWordToPdf, splitPdfIntoChunks } from "./documentConverters";
@@ -245,12 +245,18 @@ export class DocumentProcessingService {
           // Create a blob from the PDF chunk
           const blob = new Blob([pdfChunks[i]], { type: 'application/pdf' });
           
-          // Use the reader to parse the PDF chunk
-          const chunkDocuments = await reader.parseBlob(blob);
+          // Use the correct method from LlamaParseReader to load the PDF data
+          // Using loadData with the blob
+          const file = new File([blob], `chunk-${i+1}.pdf`, { type: 'application/pdf' });
+          const tempFilePath = URL.createObjectURL(file);
+          const chunkDocuments = await reader.loadData(tempFilePath);
           
           if (chunkDocuments && chunkDocuments.length > 0) {
             documents.push(...chunkDocuments);
           }
+          
+          // Clean up the temporary URL
+          URL.revokeObjectURL(tempFilePath);
         } catch (error) {
           console.error(`Error processing chunk ${i + 1}:`, error);
           failedChunks++;
