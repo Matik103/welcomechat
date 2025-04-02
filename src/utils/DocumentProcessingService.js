@@ -4,6 +4,7 @@ import { supabase } from '../integrations/supabase/client.js';
 import { supabaseService } from '../integrations/supabase/service-client.js';
 import { convertWordToPdf, convertHtmlToPdf, splitPdfIntoChunks } from './documentConverters.js';
 import { LLAMA_EXTRACTION_AGENT_ID } from '../config/env';
+import { DOCUMENTS_BUCKET } from '../utils/supabaseStorage';
 
 export class DocumentProcessingService {
   static EXTRACTION_AGENT_ID = LLAMA_EXTRACTION_AGENT_ID;
@@ -13,8 +14,8 @@ export class DocumentProcessingService {
   static MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB per chunk
   static MAX_PAGES_PER_CHUNK = 20; // Maximum pages per chunk
   
-  // Storage bucket name - consistent across the application
-  static STORAGE_BUCKET = 'document-storage';
+  // Storage bucket name - use the consistent DOCUMENTS_BUCKET from supabaseStorage.ts
+  static STORAGE_BUCKET = DOCUMENTS_BUCKET;
 
   /**
    * Process a document from file upload or URL

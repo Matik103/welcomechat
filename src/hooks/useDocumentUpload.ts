@@ -57,7 +57,7 @@ export function useDocumentUpload(clientId: string) {
       setUploadProgress(100);
       
       if (result.success) {
-        // Fix parameter order: clientId, ActivityType enum, description, metadata object
+        // Create client activity with correct parameter order: clientId, ActivityType enum, description, metadata
         await createClientActivity(
           clientId,
           ActivityType.DOCUMENT_ADDED,

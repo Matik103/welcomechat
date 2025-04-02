@@ -1,10 +1,38 @@
 
+import { supabase } from '../integrations/supabase/client';
 import { LLAMA_CLOUD_API_KEY } from '../config/env';
 
-const LLAMA_API_KEY = LLAMA_CLOUD_API_KEY;
+// Base URL for Llama Cloud API
 const LLAMA_API_BASE = 'https://api.cloud.llamaindex.ai/api/v1';
 
 export class LlamaExtractionService {
+  /**
+   * Get the Llama API key from Supabase or environment variables
+   */
+  static async getApiKey() {
+    try {
+      // Try to get the API key from Supabase first
+      const { data, error } = await supabase.functions.invoke('get-secrets', {
+        body: { keys: ['LLAMA_CLOUD_API_KEY'] }
+      });
+      
+      if (!error && data && data.LLAMA_CLOUD_API_KEY) {
+        console.log('Using LLAMA_CLOUD_API_KEY from Supabase');
+        return data.LLAMA_CLOUD_API_KEY;
+      }
+    } catch (err) {
+      console.warn('Error getting LLAMA_CLOUD_API_KEY from Supabase:', err);
+    }
+    
+    // Fallback to environment variable
+    if (LLAMA_CLOUD_API_KEY) {
+      console.log('Using LLAMA_CLOUD_API_KEY from environment');
+      return LLAMA_CLOUD_API_KEY;
+    }
+    
+    throw new Error('LLAMA_CLOUD_API_KEY not found in Supabase or environment');
+  }
+
   /**
    * Upload a document to LlamaParse
    */
@@ -14,14 +42,15 @@ export class LlamaExtractionService {
       type: file.type,
       size: file.size
     });
-
+    
+    const apiKey = await this.getApiKey();
     const formData = new FormData();
     formData.append('upload_file', file);
 
     const response = await fetch(`${LLAMA_API_BASE}/files`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LLAMA_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: formData
     });
@@ -46,11 +75,13 @@ export class LlamaExtractionService {
    */
   static async startExtractionJob(fileId, agentId) {
     console.log(`Starting extraction job for file ${fileId} with agent ${agentId}`);
+    
+    const apiKey = await this.getApiKey();
     const response = await fetch(`${LLAMA_API_BASE}/extraction/jobs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LLAMA_API_KEY}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         file_id: fileId,
@@ -73,6 +104,8 @@ export class LlamaExtractionService {
   static async getExtractionResult(jobId) {
     console.log(`Getting extraction result for job: ${jobId}`);
     
+    const apiKey = await this.getApiKey();
+    
     // Poll for result with exponential backoff
     let attempts = 0;
     const maxAttempts = 5;
@@ -83,7 +116,7 @@ export class LlamaExtractionService {
         const response = await fetch(`${LLAMA_API_BASE}/extraction/jobs/${jobId}/result`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${LLAMA_API_KEY}`
+            'Authorization': `Bearer ${apiKey}`
           }
         });
 

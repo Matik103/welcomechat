@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ensurePublicUrl } from "@/utils/supabaseStorage";
 import { toast } from "sonner";
@@ -5,6 +6,7 @@ import { LlamaParseError } from "@/utils/errors";
 import { ParseResponse } from "@/types/document-processing";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { DOCUMENTS_BUCKET } from "@/utils/supabaseStorage";
+import { LLAMA_CLOUD_API_KEY } from "@/config/env";
 
 interface ParseDocumentResult {
   success: boolean;
@@ -15,6 +17,33 @@ interface ParseDocumentResult {
 }
 
 export class LlamaCloudService {
+  /**
+   * Get the Llama API key from Supabase or environment variables
+   */
+  static async getApiKey(): Promise<string> {
+    try {
+      // Try to get the API key from Supabase first
+      const { data, error } = await supabase.functions.invoke('get-secrets', {
+        body: { keys: ['LLAMA_CLOUD_API_KEY'] }
+      });
+      
+      if (!error && data && data.LLAMA_CLOUD_API_KEY) {
+        console.log('Using LLAMA_CLOUD_API_KEY from Supabase');
+        return data.LLAMA_CLOUD_API_KEY;
+      }
+    } catch (err) {
+      console.warn('Error getting LLAMA_CLOUD_API_KEY from Supabase:', err);
+    }
+    
+    // Fallback to environment variable
+    if (LLAMA_CLOUD_API_KEY) {
+      console.log('Using LLAMA_CLOUD_API_KEY from environment');
+      return LLAMA_CLOUD_API_KEY;
+    }
+    
+    throw new Error('LLAMA_CLOUD_API_KEY not found in Supabase or environment');
+  }
+
   /**
    * Parse a document using LlamaParse
    * @param documentUrl URL of the document to parse
@@ -49,14 +78,18 @@ export class LlamaCloudService {
         }
       }
       
-      // Call the Edge Function to process the document
+      // Get the API key before calling the edge function
+      const apiKey = await this.getApiKey();
+      
+      // Call the Edge Function to process the document with the API key
       const { data, error } = await supabase.functions.invoke("process-document", {
         body: {
           documentUrl,
           documentType,
           clientId,
           agentName,
-          documentId: crypto.randomUUID()
+          documentId: crypto.randomUUID(),
+          llamaApiKey: apiKey  // Pass the API key to the edge function
         }
       });
       
