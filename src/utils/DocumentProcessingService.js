@@ -1,10 +1,12 @@
+
 import { LlamaExtractionService } from './LlamaExtractionService.js';
 import { supabase } from '../integrations/supabase/client.js';
 import { supabaseService } from '../integrations/supabase/service-client.js';
 import { convertWordToPdf, convertHtmlToPdf, splitPdfIntoChunks } from './documentConverters.js';
+import { LLAMA_EXTRACTION_AGENT_ID } from '../config/env';
 
 export class DocumentProcessingService {
-  static EXTRACTION_AGENT_ID = '27ef6aaa-fcb5-4a2b-8d8c-be152ce89d90';
+  static EXTRACTION_AGENT_ID = LLAMA_EXTRACTION_AGENT_ID;
   
   // File size limits in bytes
   static MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -278,4 +280,4 @@ export class DocumentProcessingService {
     
     throw new Error('Extraction timed out');
   }
-} 
+}

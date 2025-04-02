@@ -1,270 +1,101 @@
+
 import { useState } from 'react';
+import { DocumentProcessingService } from '@/utils/DocumentProcessingService';
+import { DocumentProcessingResult } from '@/types/document-processing';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
-import { v4 as uuidv4 } from 'uuid';
-import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
-
-interface UploadResult {
-  success: boolean;
-  error?: string;
-  documentId?: number;
-}
-
-// Improved function to get the effective client ID with better error handling
-const getEffectiveClientId = async (clientId: string) => {
-  try {
-    console.log("Looking up client in ai_agents table with ID:", clientId);
-    
-    // Try finding the client by ID first (direct match)
-    const { data: directMatch, error: directError } = await supabase
-      .from("ai_agents")
-      .select("id")
-      .eq("id", clientId)
-      .limit(1)
-      .maybeSingle();
-      
-    if (!directError && directMatch) {
-      console.log("Found client by direct ID match:", directMatch.id);
-      return directMatch.id;
-    }
-    
-    // Try finding by client_id field
-    const { data: clientIdMatch, error: clientIdError } = await supabase
-      .from("ai_agents")
-      .select("id")
-      .eq("client_id", clientId)
-      .limit(1)
-      .maybeSingle();
-      
-    if (!clientIdError && clientIdMatch) {
-      console.log("Found client by client_id match:", clientIdMatch.id);
-      return clientIdMatch.id;
-    }
-    
-    // Try with a more flexible OR query
-    const { data: results, error: queryError } = await supabase
-      .from("ai_agents")
-      .select("id")
-      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
-      .limit(1);
-      
-    if (!queryError && results && results.length > 0) {
-      console.log("Found client with flexible query:", results[0].id);
-      return results[0].id;
-    }
-    
-    // Last attempt: Try with interaction_type filter removed and a direct lookup
-    const { data: anyMatch, error: anyError } = await supabase
-      .from("ai_agents")
-      .select("id")
-      .eq("id", clientId)
-      .limit(1);
-      
-    if (!anyError && anyMatch && anyMatch.length > 0) {
-      console.log("Found client without filters:", anyMatch[0].id);
-      return anyMatch[0].id;
-    }
-    
-    console.error("All attempts to find client failed for ID:", clientId);
-    console.error("Direct match error:", directError);
-    console.error("Client ID match error:", clientIdError);
-    console.error("Flexible query error:", queryError);
-    console.error("Any match error:", anyError);
-    
-    // Last resort: just use the provided ID
-    console.log("Using provided ID as last resort:", clientId);
-    return clientId;
-  } catch (error) {
-    console.error("Error getting effective client ID:", error);
-    // Instead of failing, return the original client ID as fallback
-    console.log("Using original client ID as fallback after error:", clientId);
-    return clientId;
-  }
-};
+import { createClientActivity } from '@/services/clientActivityService';
+import { ActivityType } from '@/types/activity';
 
 export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
 
-  const uploadDocument = async (file: File, agentName?: string): Promise<UploadResult> => {
+  const uploadDocument = async (file: File): Promise<void> => {
     if (!clientId) {
-      toast.error('Client ID is required');
-      return { success: false, error: 'Client ID is required' };
+      throw new Error('Client ID is required');
     }
 
     setIsUploading(true);
-    console.log("Starting document upload for client:", clientId, "agent:", agentName || "default");
-
+    setUploadProgress(0);
+    
     try {
-      // Get the effective client ID with improved error handling
-      const actualClientId = await getEffectiveClientId(clientId);
-      console.log("Using effective client ID for upload:", actualClientId);
-
-      // Create a unique file path with a clean filename
-      const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
-      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').toLowerCase();
-      const uniqueFileName = `${uuidv4()}-${cleanFileName}`;
-      const filePath = `${actualClientId}/${uniqueFileName}`;
+      // First, get the agent name
+      const { data: agentData, error: agentError } = await supabase
+        .from('ai_agents')
+        .select('name')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .single();
       
-      console.log("Uploading document to path:", filePath);
-
-      // Ensure the bucket exists
-      try {
-        await ensureDocumentBucketExists();
-      } catch (bucketError) {
-        console.error("Error ensuring bucket exists:", bucketError);
-        // Continue anyway, the bucket might already exist
+      if (agentError) {
+        throw new Error(`Failed to get agent name: ${agentError.message}`);
       }
-
-      // Upload file to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from(DOCUMENTS_BUCKET)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type // Ensure proper content type is set
-        });
-
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        throw new Error(`Failed to upload file: ${uploadError.message}`);
-      }
-
-      // Get the public URL
-      const { data: urlData } = await supabase.storage
-        .from(DOCUMENTS_BUCKET)
-        .getPublicUrl(filePath);
-
-      if (!urlData?.publicUrl) {
-        throw new Error('Failed to get document URL');
-      }
-
-      // Determine document type from file extension
-      let documentType = 'document';
-      if (fileExtension === 'pdf') documentType = 'pdf';
-      else if (['doc', 'docx'].includes(fileExtension)) documentType = 'word';
-      else if (['xls', 'xlsx'].includes(fileExtension)) documentType = 'excel';
-      else if (['ppt', 'pptx'].includes(fileExtension)) documentType = 'powerpoint';
-
-      // Create document link record
-      const documentLinkData: any = {
-        client_id: actualClientId,
-        link: urlData.publicUrl,
-        document_type: documentType,
-        refresh_rate: 30,
-        access_status: 'accessible',
-        file_name: cleanFileName,
-        file_size: file.size,
-        mime_type: file.type,
-        storage_path: filePath
-      };
       
-      // Try to add metadata if agent name is provided
-      if (agentName) {
-        documentLinkData.metadata = {
-          agent_name: agentName,
-          source: 'agent_config'
-        };
-      }
-
-      // Insert the document link
-      let insertAttempt = 1;
-      let maxAttempts = 3;
-      let documentLink;
-      let linkError;
+      const agentName = agentData?.name || 'AI Assistant';
       
-      while (insertAttempt <= maxAttempts) {
-        console.log(`Attempt ${insertAttempt} to insert document link`);
-        
-        const { data, error } = await supabase
-          .from('document_links')
-          .insert(documentLinkData)
-          .select()
-          .single();
-          
-        if (!error) {
-          documentLink = data;
-          break;
-        }
-        
-        linkError = error;
-        
-        // If we're getting RLS errors, try to fix them
-        if (error.message.includes('violates row-level security policy')) {
-          console.log(`RLS error detected on attempt ${insertAttempt}, trying to fix...`);
-          
-          const { success } = await fixDocumentLinksRLS();
-          
-          if (success) {
-            console.log("RLS policies fixed, retrying insert...");
-            insertAttempt++;
-            continue;
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
           }
-        }
-        
-        // If not an RLS error or RLS fix failed, break the loop
-        break;
-      }
+          return prev + 5;
+        });
+      }, 500);
       
-      // If we still have an error after all attempts
-      if (linkError && !documentLink) {
-        // Clean up the uploaded file
-        await supabase.storage
-          .from(DOCUMENTS_BUCKET)
-          .remove([filePath]);
-          
-        console.error('Error creating document link after multiple attempts:', linkError);
-        throw new Error(`Error creating document link: ${linkError.message}`);
+      // Process the document
+      const result = await DocumentProcessingService.processDocument(
+        file,
+        file.type === 'application/pdf' ? 'pdf' : 'document',
+        clientId,
+        agentName
+      );
+      
+      // Clear the interval and set final progress
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      if (result.success) {
+        // Create client activity record
+        await createClientActivity(
+          clientId,
+          undefined,
+          ActivityType.DOCUMENT_ADDED,
+          `Document uploaded: ${file.name}`,
+          {
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type
+          }
+        );
+        
+        setUploadResult(result);
+        toast.success('Document uploaded successfully');
+      } else {
+        setUploadResult({
+          success: false,
+          error: result.error,
+          processed: 0,
+          failed: 1
+        });
+        throw new Error(result.error || 'Failed to process document');
       }
-
-      console.log("Document link record created:", documentLink);
-      toast.success('Document uploaded successfully');
-      return {
-        success: true,
-        documentId: documentLink.id
-      };
-
     } catch (error) {
-      console.error('Document upload failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Unknown error');
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
+      console.error('Error in uploadDocument:', error);
+      toast.error(`Error uploading document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
     } finally {
       setIsUploading(false);
     }
   };
 
-  // Helper function to ensure the documents bucket exists
-  const ensureDocumentBucketExists = async () => {
-    // First check if the bucket already exists
-    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-    
-    if (bucketsError) {
-      console.error("Error listing buckets:", bucketsError);
-      throw bucketsError;
-    }
-    
-    const bucketExists = buckets?.some(bucket => bucket.name === DOCUMENTS_BUCKET);
-    
-    if (!bucketExists) {
-      console.log(`Creating ${DOCUMENTS_BUCKET} bucket...`);
-      const { error: createError } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
-        public: true,
-        allowedMimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-        fileSizeLimit: 52428800 // 50MB
-      });
-      
-      if (createError) {
-        console.error("Error creating bucket:", createError);
-        throw createError;
-      }
-    }
-  };
-
   return {
     uploadDocument,
-    isUploading
+    isUploading,
+    uploadProgress,
+    uploadResult
   };
 }

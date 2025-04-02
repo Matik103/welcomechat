@@ -1,4 +1,7 @@
-const LLAMA_API_KEY = 'llx-Lkyec3ctqMJsgD68nU3Vy2EddiPPToU9zgFcwc73hUkQPfIf';
+
+import { LLAMA_CLOUD_API_KEY } from '../config/env';
+
+const LLAMA_API_KEY = LLAMA_CLOUD_API_KEY;
 const LLAMA_API_BASE = 'https://api.cloud.llamaindex.ai/api/v1';
 
 export class LlamaExtractionService {
@@ -116,4 +119,4 @@ export class LlamaExtractionService {
 
     throw new Error(`Extraction timed out after ${maxAttempts} attempts`);
   }
-} 
+}
