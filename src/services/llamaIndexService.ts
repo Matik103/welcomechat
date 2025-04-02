@@ -1,5 +1,5 @@
 
-import { LLAMA_CLOUD_API_KEY } from '@/config/env';
+import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 import { toast } from 'sonner';
 
 interface LlamaIndexParsingJobResponse {
@@ -27,9 +27,19 @@ export const uploadDocumentToLlamaIndex = async (
     throw new Error('LlamaIndex API key not set. Please set LLAMA_CLOUD_API_KEY in environment.');
   }
 
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not set. LlamaIndex requires an OpenAI API key to process documents.');
+  }
+
   try {
     const formData = new FormData();
     formData.append('file', file);
+    
+    // Include OpenAI API key in the request metadata
+    formData.append('metadata', JSON.stringify({
+      openai_api_key: OPENAI_API_KEY,
+      use_openai: true
+    }));
 
     const response = await fetch('https://api.cloud.llamaindex.ai/api/parsing/upload', {
       method: 'POST',
@@ -162,4 +172,39 @@ export const processLlamaIndexJob = async (
   }
   
   throw new Error(`LlamaIndex job timed out after ${maxAttempts} attempts`);
+};
+
+/**
+ * Process a document using LlamaIndex with OpenAI
+ * @param file The file to process
+ * @returns The extracted text and metadata
+ */
+export const processDocumentWithLlamaIndex = async (
+  file: File | Blob
+): Promise<{ text: string, metadata: Record<string, any> }> => {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API key is required for LlamaIndex document processing');
+  }
+  
+  try {
+    // 1. Upload document to LlamaIndex
+    const jobId = await uploadDocumentToLlamaIndex(file);
+    
+    // 2. Process the job and wait for results
+    const extractedText = await processLlamaIndexJob(jobId);
+    
+    // 3. Return the results
+    return {
+      text: extractedText,
+      metadata: {
+        jobId,
+        processingMethod: 'llamaindex',
+        processingTime: new Date().toISOString(),
+        openaiEnabled: true
+      }
+    };
+  } catch (error) {
+    console.error('Error processing document with LlamaIndex:', error);
+    throw error;
+  }
 };

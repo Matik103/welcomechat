@@ -1,54 +1,79 @@
 
+/**
+ * Widget settings type definitions
+ */
+
+export interface DocumentMetadata {
+  documentId: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  uploadDate: string;
+  url: string;
+  aiProcessed?: boolean;
+}
+
 export interface WidgetSettings {
-  agent_name: string;
-  agent_description?: string;
-  welcome_text?: string;
-  response_time_text?: string;
-  primary_color?: string;
-  secondary_color?: string;
-  accent_color?: string;
-  background_color?: string;
-  text_color?: string;
-  font_family?: string;
-  border_radius?: string;
-  logo_url?: string;
-  logo_storage_path?: string;
-  position?: 'right' | 'left';
-  placement?: 'bottom' | 'center' | 'top';
-  theme?: 'light' | 'dark' | 'system';
-  initial_messages?: string[];
-  display_mode?: 'floating' | 'inline' | 'sidebar';
-  chat_color?: string;
-  documents?: Array<{
-    documentId: string;
-    fileName: string;
-    fileSize: number;
-    fileType: string;
-    uploadDate: string;
-    url: string;
-  }>;
-  [key: string]: any;
+  appearance: {
+    primaryColor?: string;
+    secondaryColor?: string;
+    buttonRadius?: string;
+    fontFamily?: string;
+    darkMode?: boolean;
+  };
+  behavior: {
+    initialMessage?: string;
+    position?: 'left' | 'right';
+    autoOpen?: boolean;
+    autoOpenDelay?: number;
+    soundEffects?: boolean;
+  };
+  content: {
+    widgetTitle?: string;
+    widgetSubtitle?: string;
+    agentName?: string;
+    logoUrl?: string;
+  };
+  advanced: {
+    customCss?: string;
+    customJavaScript?: string;
+    trackingEnabled?: boolean;
+  };
+  documents?: DocumentMetadata[];
+}
+
+export interface WidgetConfigProps {
+  clientId: string;
+  agentName?: string;
+  settings: WidgetSettings;
+  onSettingsUpdate: (settings: WidgetSettings) => Promise<void>;
 }
 
 export const defaultSettings: WidgetSettings = {
-  agent_name: 'AI Assistant',
-  agent_description: '',
-  welcome_text: 'Hi 👋, how can I help?',
-  response_time_text: 'I typically respond right away',
-  primary_color: '#7c3aed',
-  secondary_color: '#6d28d9',
-  accent_color: '#4c1d95',
-  background_color: '#ffffff',
-  text_color: '#000000',
-  font_family: 'Inter, system-ui, sans-serif',
-  border_radius: '12px',
-  position: 'right',
-  placement: 'bottom',
-  theme: 'light',
-  logo_url: '',
-  logo_storage_path: '',
-  initial_messages: [],
-  display_mode: 'floating',
-  chat_color: '#7c3aed',
-  documents: []
+  appearance: {
+    primaryColor: '#007bff',
+    secondaryColor: '#6c757d',
+    buttonRadius: '50%',
+    fontFamily: 'Inter, sans-serif',
+    darkMode: false,
+  },
+  behavior: {
+    initialMessage: 'Hi there! How can I help you today?',
+    position: 'right',
+    autoOpen: false,
+    autoOpenDelay: 3000,
+    soundEffects: true,
+  },
+  content: {
+    widgetTitle: 'Chat Assistant',
+    widgetSubtitle: 'We typically reply within a few minutes',
+    agentName: 'AI Assistant',
+    logoUrl: '',
+  },
+  advanced: {
+    customCss: '',
+    customJavaScript: '',
+    trackingEnabled: true,
+  },
+  documents: [],
 };

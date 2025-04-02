@@ -8,18 +8,23 @@ import { ActivityType } from '@/types/activity';
 import { v4 as uuidv4 } from 'uuid';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { getWidgetSettings, updateWidgetSettings } from '@/services/widgetSettingsService';
+import { convertToPdfIfNeeded } from '@/utils/documentConverter';
+import { processDocumentWithLlamaIndex } from '@/services/llamaIndexService';
+import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 
 interface SyncOptions {
   syncToAgent: boolean;
   syncToProfile: boolean;
   syncToWidgetSettings: boolean;
+  useLlamaIndex: boolean;
 }
 
 // Default sync options
 const defaultSyncOptions: SyncOptions = {
   syncToAgent: true,
   syncToProfile: true,
-  syncToWidgetSettings: false
+  syncToWidgetSettings: true,
+  useLlamaIndex: true
 };
 
 export function useUnifiedDocumentUpload(clientId: string) {
@@ -54,6 +59,79 @@ export function useUnifiedDocumentUpload(clientId: string) {
   };
 
   /**
+   * Process a document using appropriate method based on file type
+   * @param file The file to process
+   * @returns Processing result with extracted text
+   */
+  const processDocument = async (file: File): Promise<DocumentProcessingResult> => {
+    try {
+      // Check if we should use LlamaIndex (if API keys are available)
+      const canUseLlamaIndex = !!LLAMA_CLOUD_API_KEY && !!OPENAI_API_KEY;
+      
+      // If we have plain text or CSV, use simple processing
+      if (file.type === 'text/plain' || file.type === 'text/csv') {
+        const text = await file.text();
+        return processTextContent(text, file.name);
+      }
+      
+      // If we can use LlamaIndex, use it for PDF and other document types
+      if (canUseLlamaIndex) {
+        console.log('Using LlamaIndex to process document:', file.name);
+        
+        try {
+          // Convert to PDF if needed
+          const pdfFile = await convertToPdfIfNeeded(file);
+          
+          // Process with LlamaIndex
+          const { text, metadata } = await processDocumentWithLlamaIndex(pdfFile);
+          
+          return {
+            success: true,
+            documentId: uuidv4(),
+            processed: 1,
+            failed: 0,
+            extractedText: text,
+            message: 'Document processed with LlamaIndex AI',
+            metadata
+          };
+        } catch (llamaError) {
+          console.error('LlamaIndex processing failed, falling back to basic handling:', llamaError);
+          
+          // If LlamaIndex fails, fall back to basic processing
+          if (file.type === 'application/pdf') {
+            return {
+              success: true,
+              documentId: uuidv4(),
+              processed: 0,
+              failed: 1,
+              error: 'PDF processing failed. LlamaIndex error: ' + (llamaError instanceof Error ? llamaError.message : String(llamaError)),
+              extractedText: `Uploaded document: ${file.name}. Content could not be extracted.`
+            };
+          }
+        }
+      }
+      
+      // For other files or if LlamaIndex is not available, return basic metadata
+      return {
+        success: true,
+        documentId: uuidv4(),
+        processed: 0,
+        failed: 0,
+        extractedText: `Document uploaded: ${file.name}. Content extraction not supported for this file type without LlamaIndex integration.`
+      };
+    } catch (error) {
+      console.error('Error in document processing:', error);
+      return {
+        success: false,
+        documentId: uuidv4(),
+        processed: 0,
+        failed: 1,
+        error: 'Document processing error: ' + (error instanceof Error ? error.message : String(error))
+      };
+    }
+  };
+
+  /**
    * Upload and process a document file
    * @param file The file to upload and process
    * @param options Options for synchronizing the document with different services
@@ -61,12 +139,14 @@ export function useUnifiedDocumentUpload(clientId: string) {
    */
   const uploadDocument = async (
     file: File, 
-    options: SyncOptions = defaultSyncOptions
+    options: Partial<SyncOptions> = {}
   ): Promise<void> => {
     if (!clientId) {
       throw new Error('Client ID is required');
     }
 
+    const mergedOptions = { ...defaultSyncOptions, ...options };
+    
     setIsUploading(true);
     setUploadProgress(0);
     
@@ -129,27 +209,15 @@ export function useUnifiedDocumentUpload(clientId: string) {
         
         console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
 
-        // 3. Process the document (simple approach - for text-based files, read the text)
-        let result: DocumentProcessingResult;
+        // 3. Process the document using appropriate method
+        console.log('Processing document:', file.name, 'using AI:', mergedOptions.useLlamaIndex);
+        const result = await processDocument(file);
         
-        if (file.type === 'text/plain' || file.type === 'text/csv') {
-          // For text-based files, simply read the text
-          const text = await file.text();
-          result = await processTextContent(text, file.name);
-        } else {
-          // For non-text files, just get metadata
-          result = {
-            success: true,
-            documentId: uuidv4(),
-            processed: 1,
-            failed: 0,
-            documentUrl: publicUrl,
-            extractedText: `Document uploaded: ${file.name}`
-          };
-        }
+        // Add the document URL to the result
+        result.documentUrl = publicUrl;
 
         // 4. Synchronize document data with agent content if requested
-        if (options.syncToAgent && result.extractedText) {
+        if (mergedOptions.syncToAgent && result.extractedText) {
           try {
             // Get the existing agent content
             const { data: agentContent, error: contentError } = await supabase
@@ -186,7 +254,7 @@ export function useUnifiedDocumentUpload(clientId: string) {
         }
 
         // 5. Update user profile with document data if requested
-        if (options.syncToProfile) {
+        if (mergedOptions.syncToProfile) {
           try {
             // Create a document processing job record
             const { error: jobError } = await supabase
@@ -204,7 +272,8 @@ export function useUnifiedDocumentUpload(clientId: string) {
                   file_size: file.size,
                   storage_path: filePath,
                   processed_sections: result.processed,
-                  failed_sections: result.failed
+                  failed_sections: result.failed,
+                  processing_method: mergedOptions.useLlamaIndex ? 'llamaindex' : 'basic'
                 }
               });
             
@@ -219,7 +288,7 @@ export function useUnifiedDocumentUpload(clientId: string) {
         }
         
         // 6. Update widget settings if requested
-        if (options.syncToWidgetSettings) {
+        if (mergedOptions.syncToWidgetSettings) {
           try {
             // Use the imported service functions instead of RPC calls
             const currentSettings = await getWidgetSettings(clientId);
@@ -231,7 +300,8 @@ export function useUnifiedDocumentUpload(clientId: string) {
               fileSize: file.size,
               fileType: file.type,
               uploadDate: new Date().toISOString(),
-              url: publicUrl
+              url: publicUrl,
+              aiProcessed: mergedOptions.useLlamaIndex && result.processed > 0
             };
             
             // Add document to widget settings
@@ -261,7 +331,8 @@ export function useUnifiedDocumentUpload(clientId: string) {
             file_type: file.type,
             processed_sections: result.processed,
             failed_sections: result.failed,
-            document_id: result.documentId
+            document_id: result.documentId,
+            ai_processed: mergedOptions.useLlamaIndex && result.processed > 0
           }
         );
 
