@@ -7,7 +7,10 @@ import {
 } from '@/types/document-processing';
 import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 
-const LLAMA_CLOUD_API_URL = 'https://cloud.llamaindex.ai/api/v1';
+// Base URL for our Supabase Edge Function that proxies requests to LlamaIndex
+const SUPABASE_FUNCTION_URL = import.meta.env.VITE_SUPABASE_URL 
+  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/llama-index-proxy`
+  : 'https://mgjodiqecnnltsgorife.supabase.co/functions/v1/llama-index-proxy';
 
 // Upload a document to LlamaIndex for processing
 export const uploadDocumentToLlamaIndex = async (
@@ -21,13 +24,9 @@ export const uploadDocumentToLlamaIndex = async (
     const formData = new FormData();
     formData.append('file', file);
     
-    // Make the API request to LlamaIndex Cloud
-    const response = await fetch(`${LLAMA_CLOUD_API_URL}/process_file`, {
+    // Use our Supabase Edge Function as a proxy to avoid CORS issues
+    const response = await fetch(`${SUPABASE_FUNCTION_URL}/process_file`, {
       method: 'POST',
-      headers: {
-        'x-api-key': LLAMA_CLOUD_API_KEY,
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
-      },
       body: formData,
     });
     
@@ -51,12 +50,8 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
   try {
     console.log(`Checking status of LlamaIndex job ${jobId}`);
     
-    const response = await fetch(`${LLAMA_CLOUD_API_URL}/jobs/${jobId}`, {
+    const response = await fetch(`${SUPABASE_FUNCTION_URL}/jobs/${jobId}`, {
       method: 'GET',
-      headers: {
-        'x-api-key': LLAMA_CLOUD_API_KEY,
-        'Content-Type': 'application/json',
-      },
     });
     
     if (!response.ok) {

@@ -3,6 +3,17 @@
  * Document processing type definitions
  */
 
+export interface DocumentProcessingStatus {
+  status?: 'pending' | 'processing' | 'completed' | 'failed';
+  id?: string;
+  error?: string | Error;
+  stage: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed' | 'init' | 'storing' | 'syncing';
+  progress: number;
+  message?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface DocumentProcessingOptions {
   shouldExtractText?: boolean;
   shouldParsePDF?: boolean;
@@ -16,17 +27,6 @@ export interface DocumentProcessingOptions {
   clientId: string;
   documentType?: string;
   agentName?: string;
-}
-
-export interface DocumentProcessingStatus {
-  status?: 'pending' | 'processing' | 'completed' | 'failed';
-  id?: string;
-  error?: string | Error;
-  stage: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed';
-  progress: number;
-  message?: string;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export interface DocumentProcessingResult {
@@ -51,37 +51,23 @@ export interface DocumentProcessingResult {
   message?: string;
 }
 
-export interface LlamaIndexProcessingOptions {
-  shouldUseAI?: boolean;
-  maxTokens?: number;
-  temperature?: number;
+export interface DocumentProcessingRequest {
+  client_id: string;
+  document_url: string;
+  document_type: string;
 }
 
-export interface LlamaIndexJobResponse {
-  job_id: string;
-  status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
-  error?: string;
+export interface DocumentChunk {
+  content: string;
+  metadata?: Record<string, any>;
+  id?: string;
 }
 
-export interface LlamaIndexParsingResult {
-  job_id: string;
-  status: 'SUCCEEDED' | 'FAILED';
-  parsed_content?: string;
-  error?: string;
-  document_chunks?: LlamaIndexDocumentChunk[];
-}
-
-export interface LlamaIndexDocumentChunk {
-  text: string;
-  metadata?: {
-    page_number?: number;
-    source?: string;
-    [key: string]: any;
-  };
-}
-
-export interface DocumentType {
-  type: 'pdf' | 'text' | 'google_doc' | 'google_drive' | 'docx' | 'html' | 'url' | 'web_page';
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  message?: string;
+  status?: 'success' | 'error' | 'warning' | 'info';
 }
 
 export interface DocumentUploadFormProps {
@@ -89,16 +75,24 @@ export interface DocumentUploadFormProps {
   isUploading: boolean;
 }
 
-export interface DocumentMetadata {
-  title?: string;
-  author?: string;
-  subject?: string;
-  keywords?: string[];
-  creationDate?: string;
-  modificationDate?: string;
-  pageCount?: number;
-  [key: string]: any;
+export interface ParseResponse {
+  success: boolean;
+  text?: string;
+  chunks?: DocumentChunk[];
+  error?: string;
 }
+
+export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
+
+export type DocumentType = 
+  | 'pdf' 
+  | 'text' 
+  | 'google_doc' 
+  | 'google_drive' 
+  | 'docx' 
+  | 'html' 
+  | 'url' 
+  | 'web_page';
 
 export interface DocumentLink {
   id: number;
@@ -115,4 +109,62 @@ export interface DocumentLink {
   storage_path?: string;
 }
 
-export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
+export interface DocumentLinkFormData {
+  link: string;
+  refresh_rate: number;
+  document_type: string;
+}
+
+export interface DriveLinksProps {
+  documents?: DocumentLink[];
+  isLoading?: boolean;
+  isUploading?: boolean;
+  addDocumentLink?: (data: DocumentLinkFormData) => Promise<void>;
+  deleteDocumentLink?: (linkId: number) => Promise<void>;
+  uploadDocument?: (file: File) => Promise<void>;
+  isClientView?: boolean;
+  isValidating?: boolean;
+  deletingId?: number | null;
+  isDeleteLoading?: boolean;
+}
+
+export interface DocumentMetadata {
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string[];
+  creationDate?: string;
+  modificationDate?: string;
+  pageCount?: number;
+  [key: string]: any;
+}
+
+// LlamaIndex specific types
+export interface LlamaIndexProcessingOptions {
+  shouldUseAI?: boolean;
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export interface LlamaIndexJobResponse {
+  job_id: string;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
+  error?: string;
+}
+
+export interface LlamaIndexParsingResult {
+  job_id: string;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
+  parsed_content?: string;
+  error?: string;
+  document_chunks?: LlamaIndexDocumentChunk[];
+}
+
+export interface LlamaIndexDocumentChunk {
+  text: string;
+  metadata?: {
+    page_number?: number;
+    source?: string;
+    [key: string]: any;
+  };
+}
