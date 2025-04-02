@@ -48,8 +48,6 @@ enabled = true
 [functions]
 enabled = true
 
-# Vector configuration (removed as it was causing errors)
-
 # Inbucket configuration
 [inbucket]
 enabled = true
