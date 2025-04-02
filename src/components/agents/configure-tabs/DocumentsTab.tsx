@@ -24,6 +24,7 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
     try {
       // Use the unified document upload with all sync options enabled
       await uploadDocument(file, {
+        useAI: true,
         syncToAgent: true,
         syncToProfile: true,
         syncToWidgetSettings: true

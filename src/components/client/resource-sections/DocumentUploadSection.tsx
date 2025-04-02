@@ -23,7 +23,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const handleUpload = async (file: File) => {
     try {
       console.log("Starting document upload process for:", file.name);
-      await uploadDocument(file);
+      await uploadDocument(file, { useAI: true });
       await logClientActivity(); // Log the activity after successful upload
       
       if (onUploadComplete) {

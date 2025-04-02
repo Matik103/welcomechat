@@ -14,21 +14,29 @@ export interface DocumentProcessingStatus {
   stage: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed';
   progress: number;
   message?: string;
-  error?: Error;
+  error?: Error | string;
 }
 
 export interface DocumentProcessingResult {
-  documentId: string;
-  fileName: string;
-  fileSize: number;
-  fileType: string;
-  url: string;
-  uploadDate: string;
+  success: boolean;
+  error?: string;
+  documentId?: string;
+  jobId?: string;
+  status?: string;
+  documentUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  url?: string;
+  uploadDate?: string;
   extractedText?: string;
-  aiSummary?: string;
-  aiProcessed: boolean;
-  status: 'success' | 'failed' | 'pending';
-  metadata?: Record<string, any>;
+  aiProcessed?: boolean;
+  downloadUrl?: string;
+  processed: number;
+  failed: number;
+  urlsScraped?: number;
+  contentStored?: number;
+  message?: string;
 }
 
 export interface LlamaIndexProcessingOptions {
@@ -58,4 +66,13 @@ export interface LlamaIndexDocumentChunk {
     source?: string;
     [key: string]: any;
   };
+}
+
+export interface DocumentType {
+  type: 'pdf' | 'text' | 'google_doc' | 'google_drive' | 'docx' | 'html' | 'url' | 'web_page';
+}
+
+export interface DocumentUploadFormProps {
+  onSubmitDocument: (file: File) => Promise<void>;
+  isUploading: boolean;
 }

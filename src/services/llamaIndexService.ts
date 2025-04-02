@@ -1,5 +1,5 @@
 
-import { LlamaIndexJobResponse, LlamaIndexParsingResult } from '@/types/document-processing';
+import { LlamaIndexJobResponse, LlamaIndexParsingResult, LlamaIndexProcessingOptions } from '@/types/document-processing';
 import { toast } from 'sonner';
 import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 
@@ -8,11 +8,7 @@ import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
  */
 export async function processDocumentWithLlamaIndex(
   file: File,
-  options: {
-    shouldUseAI?: boolean;
-    maxTokens?: number;
-    temperature?: number;
-  } = {}
+  options: LlamaIndexProcessingOptions = {}
 ): Promise<LlamaIndexParsingResult | null> {
   // Check if API keys are available
   if (!LLAMA_CLOUD_API_KEY || !OPENAI_API_KEY) {
@@ -31,7 +27,7 @@ export async function processDocumentWithLlamaIndex(
     const jobId = uploadResponse.job_id;
     
     // Step 2: Poll for job completion
-    const result = await pollForJobCompletion(jobId);
+    const result = await processLlamaIndexJob(jobId);
     
     if (!result) {
       throw new Error('Failed to get parsing results from LlamaIndex API');
@@ -52,7 +48,7 @@ export async function processDocumentWithLlamaIndex(
 /**
  * Upload a document to LlamaIndex API
  */
-async function uploadDocumentToLlamaIndex(file: File): Promise<LlamaIndexJobResponse | null> {
+export async function uploadDocumentToLlamaIndex(file: File): Promise<LlamaIndexJobResponse | null> {
   try {
     // Create form data for the file upload
     const formData = new FormData();
@@ -82,9 +78,9 @@ async function uploadDocumentToLlamaIndex(file: File): Promise<LlamaIndexJobResp
 }
 
 /**
- * Poll for job completion
+ * Poll for job completion and process the results
  */
-async function pollForJobCompletion(
+export async function processLlamaIndexJob(
   jobId: string,
   maxAttempts = 30,
   intervalMs = 2000
@@ -174,4 +170,11 @@ export async function getParsingResults(jobId: string): Promise<LlamaIndexParsin
     console.error('Error getting LlamaIndex parsing results:', error);
     return null;
   }
+}
+
+// Add the missing functions to the documentConverter utility
+export function convertToPdfIfNeeded(file: File): Promise<File> {
+  // For now, we just pass through the file as-is
+  // In a real implementation, this would convert non-PDF files to PDF format
+  return Promise.resolve(file);
 }

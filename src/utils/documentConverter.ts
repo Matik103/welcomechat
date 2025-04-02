@@ -1,9 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-// Do not re-import functions that are defined in this file
-// import { isGoogleDriveUrl, getGoogleDriveDownloadUrl } from '@/utils/documentUtils';
 
 /**
  * Converts a document to the specified format
@@ -39,6 +35,25 @@ export async function convertDocument(
     console.error('Failed to convert document:', error);
     toast.error('Failed to convert document');
     return null;
+  }
+}
+
+/**
+ * Convert a file to PDF if it's not already in PDF format
+ * @param file The file to convert
+ * @returns The PDF file or the original file if conversion failed
+ */
+export async function convertToPdfIfNeeded(file: File): Promise<File> {
+  if (file.type === 'application/pdf') {
+    return file; // Already a PDF
+  }
+
+  try {
+    const pdfFile = await convertDocument(file, 'pdf');
+    return pdfFile || file; // Return the converted file or original if conversion failed
+  } catch (error) {
+    console.error('Failed to convert to PDF:', error);
+    return file; // Return original file on error
   }
 }
 

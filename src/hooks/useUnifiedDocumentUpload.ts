@@ -5,17 +5,25 @@ import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DocumentProcessingResult, DocumentProcessingStatus } from '@/types/document-processing';
-import { convertDocument, processDocumentUrl, downloadFileFromUrl } from '@/utils/documentConverter';
-import { updateWidgetSettings } from '@/services/widgetSettingsService';
+import { convertToPdfIfNeeded, processDocumentUrl, downloadFileFromUrl } from '@/utils/documentConverter';
 import { DocumentMetadata } from '@/types/widget-settings';
 import { processDocumentWithLlamaIndex } from '@/services/llamaIndexService';
 
 export const useUnifiedDocumentUpload = (clientId: string) => {
   const [uploadStatus, setUploadStatus] = useState<DocumentProcessingStatus>({
     stage: 'uploading',
-    progress: 0
+    progress: 0,
+    message: 'Ready to upload'
   });
+  const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
   const queryClient = useQueryClient();
+
+  // Computed properties for component compatibility
+  const isUploading = uploadStatus.stage === 'uploading' || 
+                      uploadStatus.stage === 'processing' || 
+                      uploadStatus.stage === 'analyzing';
+  
+  const uploadProgress = uploadStatus.progress;
 
   // Fetch existing documents for the client
   const { data: existingDocuments = [], refetch } = useQuery({
@@ -119,11 +127,13 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       const documentRecord = {
         id: documentId,
         client_id: clientId,
-        url: publicUrl,
+        link: publicUrl,
+        document_type: file.type.includes('pdf') ? 'pdf' : 'document',
         file_name: file.name,
         file_size: file.size,
-        file_type: file.type,
+        mime_type: file.type,
         storage_path: filePath,
+        refresh_rate: 30,
         description: options.description || '',
         extracted_text: extractedText,
         ai_processed: aiProcessed,
@@ -160,6 +170,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
 
       // Create processing result
       const result: DocumentProcessingResult = {
+        success: true,
         documentId,
         fileName: file.name,
         fileSize: file.size,
@@ -168,7 +179,9 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         uploadDate: new Date().toISOString(),
         extractedText,
         aiProcessed,
-        status: 'success'
+        status: 'success',
+        processed: 1,
+        failed: 0
       };
 
       setUploadStatus({
@@ -176,6 +189,8 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         progress: 100,
         message: 'Document uploaded successfully'
       });
+
+      setUploadResult(result);
 
       // Invalidate documents query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['documents', clientId] });
@@ -190,11 +205,20 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         stage: 'failed',
         progress: 0,
         message: errorMessage,
-        error: error instanceof Error ? error : new Error('Unknown error')
+        error: errorMessage
       });
       
+      const failedResult = {
+        success: false,
+        error: errorMessage,
+        processed: 0,
+        failed: 1
+      };
+      
+      setUploadResult(failedResult);
+      
       toast.error(`Document upload failed: ${errorMessage}`);
-      return null;
+      return failedResult;
     }
   };
 
@@ -218,12 +242,12 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       });
 
       // Process URL to get downloadable link
-      const processResult = await processDocumentUrl(url);
-      if (!processResult) {
+      const urlProcessResult = await processDocumentUrl(url);
+      if (!urlProcessResult) {
         throw new Error('Failed to process document URL');
       }
 
-      const { downloadUrl, fileName } = processResult;
+      const { downloadUrl, fileName } = urlProcessResult;
 
       setUploadStatus({
         stage: 'uploading',
@@ -253,11 +277,20 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         stage: 'failed',
         progress: 0,
         message: errorMessage,
-        error: error instanceof Error ? error : new Error('Unknown error')
+        error: errorMessage
       });
       
+      const failedResult = {
+        success: false,
+        error: errorMessage,
+        processed: 0,
+        failed: 1
+      };
+      
+      setUploadResult(failedResult);
+      
       toast.error(`Document URL processing failed: ${errorMessage}`);
-      return null;
+      return failedResult;
     }
   };
 
@@ -278,7 +311,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       }
 
       // Parse settings
-      let settings = {};
+      let settings = {} as any;
       if (agentData?.settings) {
         if (typeof agentData.settings === 'string') {
           try {
@@ -324,9 +357,10 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
     try {
       // Get existing agent content
       const { data: existingContent, error: getError } = await supabase
-        .from('agent_content')
+        .from('ai_agents')
         .select('id, content')
         .eq('client_id', clientId)
+        .eq('interaction_type', 'content')
         .maybeSingle();
 
       if (getError) {
@@ -342,7 +376,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         const updatedContent = `${existingContent.content || ''}\n${documentContent}`;
         
         const { error: updateError } = await supabase
-          .from('agent_content')
+          .from('ai_agents')
           .update({
             content: updatedContent,
             updated_at: new Date().toISOString()
@@ -355,11 +389,11 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       } else {
         // Create new content record
         const { error: insertError } = await supabase
-          .from('agent_content')
+          .from('ai_agents')
           .insert({
             client_id: clientId,
             content: documentContent,
-            content_type: 'document',
+            interaction_type: 'content',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
@@ -385,7 +419,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       const { error: deleteError } = await supabase
         .from('document_links')
         .update({
-          deleted_at: new Date().toISOString()
+          updated_at: new Date().toISOString()
         })
         .eq('id', documentId)
         .eq('client_id', clientId);
@@ -408,7 +442,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
           console.error('Error fetching agent settings:', getError);
         } else if (agentData?.settings) {
           // Parse settings
-          let settings = {};
+          let settings = {} as any;
           if (typeof agentData.settings === 'string') {
             try {
               settings = JSON.parse(agentData.settings);
@@ -462,12 +496,23 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
     }
   };
 
+  // Unified interface for component compatibility
+  const uploadDocument = async (file: File, options = {}) => {
+    return await uploadFile(file, options);
+  };
+
   return {
     uploadFile,
+    uploadDocument,
     processDocumentUrl,
     deleteDocument,
     uploadStatus,
     existingDocuments,
-    refetchDocuments: refetch
+    refetchDocuments: refetch,
+    isUploading,
+    uploadProgress,
+    uploadResult
   };
 };
+
+export default useUnifiedDocumentUpload;
