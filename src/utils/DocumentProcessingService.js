@@ -2,7 +2,10 @@
 import { LLAMA_EXTRACTION_AGENT_ID } from '../config/env';
 import { LlamaExtractionService } from './LlamaExtractionService';
 import { supabase } from '../integrations/supabase/client';
-import { DOCUMENTS_BUCKET } from './supabaseStorage';
+import { convertWordToPdf, convertHtmlToPdf, splitPdfIntoChunks } from './documentConverters';
+
+// Constant for the storage bucket name
+const DOCUMENT_STORAGE_BUCKET = 'document-storage';
 
 export class DocumentProcessingService {
   /**
@@ -29,11 +32,11 @@ export class DocumentProcessingService {
       const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const filePath = `${clientId}/${fileName}`;
       
-      console.log(`Uploading to path: ${filePath} in bucket: ${DOCUMENTS_BUCKET}`);
+      console.log(`Uploading to path: ${filePath} in bucket: ${DOCUMENT_STORAGE_BUCKET}`);
       
       // Upload the original file to Supabase storage
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(DOCUMENTS_BUCKET)
+        .from(DOCUMENT_STORAGE_BUCKET)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -46,44 +49,27 @@ export class DocumentProcessingService {
       
       // Get the public URL of the uploaded file
       const { data: { publicUrl } } = supabase.storage
-        .from(DOCUMENTS_BUCKET)
+        .from(DOCUMENT_STORAGE_BUCKET)
         .getPublicUrl(filePath);
       
       console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
       
-      // Upload to Llama Cloud for extraction
-      console.log('Uploading document to LlamaParse...');
-      const uploadResult = await LlamaExtractionService.uploadDocument(file);
+      // Start Llama extraction process
+      const fileId = await this.startLlamaExtraction(file);
       
-      if (!uploadResult || !uploadResult.file_id) {
-        throw new Error('Failed to upload file to LlamaParse');
+      if (!fileId) {
+        throw new Error('Failed to get file ID from Llama extraction');
       }
       
-      console.log('Starting extraction job...');
-      const jobResult = await LlamaExtractionService.startExtractionJob(
-        uploadResult.file_id,
-        LLAMA_EXTRACTION_AGENT_ID
-      );
+      // Track processing success in the database
+      await this.trackDocumentProcessing(clientId, filePath, publicUrl, file.name, file.size, 'completed');
       
-      if (!jobResult || !jobResult.job_id) {
-        throw new Error('Failed to start extraction job');
-      }
-      
-      // Track processing in the database
-      await this.trackDocumentProcessing(clientId, filePath, publicUrl, file.name, file.size, 'processing', null, {
-        llama_file_id: uploadResult.file_id,
-        llama_job_id: jobResult.job_id
-      });
-      
-      // For immediate response, don't wait for extraction to complete
       return {
         success: true,
-        fileId: uploadResult.file_id,
-        jobId: jobResult.job_id,
+        fileId,
         publicUrl,
-        processed: 0,
-        failed: 0,
-        status: 'processing'
+        processed: 1,
+        failed: 0
       };
     } catch (error) {
       console.error('Error processing document:', error);
@@ -115,6 +101,52 @@ export class DocumentProcessingService {
   }
   
   /**
+   * Start the Llama extraction process for a file
+   * @param {File} file The document file
+   * @returns {Promise<string>} The file ID
+   */
+  static async startLlamaExtraction(file) {
+    try {
+      console.log('Starting Llama extraction for file:', file.name);
+      
+      // Upload the file to Llama
+      const uploadResult = await LlamaExtractionService.uploadDocument(file);
+      
+      if (!uploadResult || !uploadResult.file_id) {
+        throw new Error('Failed to upload file to Llama');
+      }
+      
+      console.log('File uploaded to Llama successfully. File ID:', uploadResult.file_id);
+      
+      // Start extraction job
+      const jobResult = await LlamaExtractionService.startExtractionJob(
+        uploadResult.file_id,
+        LLAMA_EXTRACTION_AGENT_ID
+      );
+      
+      if (!jobResult || !jobResult.job_id) {
+        throw new Error('Failed to start extraction job');
+      }
+      
+      console.log('Extraction job started successfully. Job ID:', jobResult.job_id);
+      
+      // Get extraction result
+      const extractionResult = await LlamaExtractionService.getExtractionResult(jobResult.job_id);
+      
+      if (!extractionResult) {
+        throw new Error('Failed to get extraction result');
+      }
+      
+      console.log('Extraction completed successfully');
+      
+      return uploadResult.file_id;
+    } catch (error) {
+      console.error('Error in Llama extraction:', error);
+      throw error;
+    }
+  }
+  
+  /**
    * Track document processing in the database
    * @param {string} clientId The client ID
    * @param {string} filePath The file path in storage
@@ -123,7 +155,6 @@ export class DocumentProcessingService {
    * @param {number} fileSize The file size in bytes
    * @param {string} status The processing status
    * @param {string} errorMessage Optional error message
-   * @param {Object} metadata Additional metadata
    */
   static async trackDocumentProcessing(
     clientId, 
@@ -132,8 +163,7 @@ export class DocumentProcessingService {
     fileName, 
     fileSize, 
     status, 
-    errorMessage = null,
-    metadata = {}
+    errorMessage = null
   ) {
     try {
       const { error } = await supabase
@@ -146,7 +176,6 @@ export class DocumentProcessingService {
           file_size: fileSize,
           status,
           error_message: errorMessage,
-          metadata: metadata || {},
           created_at: new Date().toISOString()
         });
       
@@ -155,24 +184,6 @@ export class DocumentProcessingService {
       }
     } catch (error) {
       console.error('Error tracking document processing:', error);
-    }
-  }
-  
-  /**
-   * Get processing status for a document from Llama
-   * @param {string} jobId The job ID from Llama
-   */
-  static async getProcessingStatus(jobId) {
-    try {
-      const result = await LlamaExtractionService.checkJobStatus(jobId);
-      return result;
-    } catch (error) {
-      console.error('Error getting processing status:', error);
-      return {
-        exists: false,
-        status: 'error',
-        error: error.message
-      };
     }
   }
 }

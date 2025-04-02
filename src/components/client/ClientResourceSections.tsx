@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
 import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
@@ -9,13 +10,10 @@ import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { supabase } from '@/integrations/supabase/client';
 
-// Constants
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
-
 interface ClientResourceSectionsProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: (action: string, details: Record<string, any>) => Promise<void>;
+  logClientActivity: () => Promise<void>; // Required callback
 }
 
 export const ClientResourceSections = ({
@@ -84,30 +82,43 @@ export const ClientResourceSections = ({
   }, [clientId]);
 
   const handleUploadDocument = async (file: File) => {
+    // Add size check to prevent large file uploads that would slow down the system
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error('File size exceeds 10MB limit. Please upload a smaller file.');
+      return;
+    }
+    
     try {
-      // Add size check to prevent large file uploads
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error('File size exceeds 50MB limit. Please upload a smaller file.');
-        return;
-      }
-
+      console.log("Uploading document for client:", clientId);
       await uploadDocument(file);
-      
-      // Log the activity
-      await logClientActivity('DOCUMENT_UPLOADED', {
-        file_name: file.name,
-        file_size: file.size,
-        file_type: file.type,
-        client_id: clientId
-      });
-
-      // Notify parent component about the change
-      await onResourceChange();
-      
       toast.success('Document uploaded successfully');
+      
+      // Log client activity
+      await logClientActivity();
+      
+      // Also log specific document activity with client_id
+      await createClientActivity(
+        clientId,
+        undefined,
+        ActivityType.DOCUMENT_ADDED,
+        `Document uploaded: ${file.name}`,
+        {
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type,
+          client_id: clientId
+        }
+      );
+      
+      // Notify parent component about the change
+      if (onResourceChange) {
+        onResourceChange();
+      }
     } catch (error) {
       console.error('Error uploading document:', error);
-      toast.error(`Failed to upload document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to upload document: ${errorMessage}`);
     }
   };
   
@@ -129,7 +140,7 @@ export const ClientResourceSections = ({
         <CardHeader>
           <CardTitle>Upload Documents</CardTitle>
           <CardDescription>
-            Upload PDF, Word, or text documents to enhance your AI assistant's knowledge. Maximum file size: 50MB.
+            Upload PDF, Word, or text documents to enhance your AI assistant's knowledge
           </CardDescription>
         </CardHeader>
         <CardContent>
