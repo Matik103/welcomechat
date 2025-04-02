@@ -373,11 +373,17 @@ export class DocumentProcessingService {
           // Create a blob from the PDF chunk
           const blob = new Blob([pdfChunks[i]], { type: 'application/pdf' });
           
-          // Use the correct method from LlamaParseReader to load the PDF data
-          // Using loadData with the blob
+          // Create a File object from the blob and use loadData
           const file = new File([blob], `chunk-${i+1}.pdf`, { type: 'application/pdf' });
+          
+          // Create a temporary URL for the file
           const tempFilePath = URL.createObjectURL(file);
+          
+          // Use loadData to process the file
           const chunkDocuments = await reader.loadData(tempFilePath);
+          
+          // Revoke the URL to free up memory
+          URL.revokeObjectURL(tempFilePath);
           
           if (chunkDocuments && chunkDocuments.length > 0) {
             documents.push(...chunkDocuments);
@@ -387,9 +393,6 @@ export class DocumentProcessingService {
               extractedText += doc.text + "\n\n";
             }
           }
-          
-          // Clean up the temporary URL
-          URL.revokeObjectURL(tempFilePath);
         } catch (error) {
           console.error(`Error processing chunk ${i + 1}:`, error);
           failedChunks++;
