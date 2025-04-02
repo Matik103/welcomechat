@@ -50,7 +50,7 @@ export async function processExistingDocuments(
       try {
         const documentUrl = doc.url;
         const documentType = doc.type || 'pdf';
-        const settings = doc.settings as JsonObject | null;
+        const settings = doc.settings as Record<string, any> | null;
         
         // Safely extract title with type checking
         const documentTitle = settings && typeof settings === 'object' && 'title' in settings 
@@ -86,10 +86,11 @@ export async function processExistingDocuments(
         }
         
         // Update document with processing information
-        const existingSettings: JsonObject = typeof doc.settings === 'object' ? 
-          (doc.settings as JsonObject) : {};
+        const existingSettings: Record<string, any> = typeof doc.settings === 'object' && doc.settings !== null
+          ? doc.settings as Record<string, any>
+          : {};
         
-        const newSettings: JsonObject = {
+        const newSettings: Record<string, any> = {
           ...existingSettings,
           processing_method: 'llamaparse',
           llama_file_id: uploadResult.file_id,
@@ -113,10 +114,11 @@ export async function processExistingDocuments(
         
         // Update document with error
         const errorMessage = docError instanceof Error ? docError.message : String(docError);
-        const existingSettings: JsonObject = typeof doc.settings === 'object' ? 
-          (doc.settings as JsonObject) : {};
+        const existingSettings: Record<string, any> = typeof doc.settings === 'object' && doc.settings !== null
+          ? doc.settings as Record<string, any>
+          : {};
         
-        const newSettings: JsonObject = {
+        const newSettings: Record<string, any> = {
           ...existingSettings,
           processing_method: 'llamaparse',
           processing_error: errorMessage,
@@ -192,7 +194,7 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
     for (const doc of documents) {
       try {
         checked++;
-        const settings = doc.settings as JsonObject | null;
+        const settings = doc.settings as Record<string, any> | null;
         
         if (!settings || typeof settings !== 'object') {
           console.log(`Document ${doc.id} has invalid settings, skipping`);
@@ -208,8 +210,8 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
         }
         
         // Safely check for completion status
-        const isCompleted = settings.processing_completed_at !== undefined;
-        const isFailed = settings.processing_failed_at !== undefined;
+        const isCompleted = 'processing_completed_at' in settings;
+        const isFailed = 'processing_failed_at' in settings;
         
         // If already completed or failed, skip
         if (isCompleted || isFailed) {
@@ -232,7 +234,7 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
           const extractionResult = await LlamaExtractionService.getExtractionResult(jobId);
           
           // Update document with result
-          const updatedSettings: JsonObject = {
+          const updatedSettings: Record<string, any> = {
             ...settings,
             processing_completed_at: new Date().toISOString(),
             extraction_result: extractionResult
@@ -250,7 +252,7 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
           console.log(`Successfully processed document ${doc.id}`);
         } else if (result.status === 'FAILED') {
           // Job failed
-          const updatedSettings: JsonObject = {
+          const updatedSettings: Record<string, any> = {
             ...settings,
             processing_failed_at: new Date().toISOString(),
             processing_error: 'Extraction job failed',
@@ -278,10 +280,10 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
         
         // Update document with error
         const errorMessage = docError instanceof Error ? docError.message : String(docError);
-        const settings = doc.settings as JsonObject | null;
+        const settings = doc.settings as Record<string, any> | null;
         
-        const updatedSettings: JsonObject = {
-          ...(typeof settings === 'object' ? settings || {} : {}),
+        const updatedSettings: Record<string, any> = {
+          ...(typeof settings === 'object' && settings !== null ? settings : {}),
           processing_error: errorMessage,
           processing_error_at: new Date().toISOString()
         };
