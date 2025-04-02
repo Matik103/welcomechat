@@ -4,6 +4,12 @@ import { Client } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
 import { safeParseSettings } from '@/utils/clientSettingsUtils';
 
+// Helper function to safely get a value from settings or return a default
+const getSettingValue = <T>(settings: Record<string, any>, key: string, defaultValue: T): T => {
+  if (!settings) return defaultValue;
+  return settings[key] !== undefined ? settings[key] : defaultValue;
+};
+
 export const useClientList = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +69,7 @@ export const useClientList = () => {
           agent_description: agent.agent_description || '',
           logo_url: agent.logo_url || '',
           widget_settings: parsedSettings,
+          // Add missing properties with default values
           user_id: '',
           company: agent.company || '',
           description: agent.description || '',
