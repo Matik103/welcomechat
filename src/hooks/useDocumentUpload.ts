@@ -9,7 +9,7 @@ export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<DocumentProcessingStatus>({
-    status: 'init',
+    status: 'pending',
     stage: 'init',
     progress: 0
   });
@@ -18,7 +18,7 @@ export function useDocumentUpload(clientId: string) {
   const uploadDocumentToStorage = async (file: File): Promise<{ path: string; url: string }> => {
     try {
       setUploadStatus({
-        status: 'uploading',
+        status: 'processing',
         stage: 'uploading',
         progress: 10,
         message: 'Uploading to storage...'
@@ -30,19 +30,20 @@ export function useDocumentUpload(clientId: string) {
         .storage
         .from('documents')
         .upload(filePath, file, {
-          onUploadProgress: (progress) => {
-            const calculatedProgress = Math.round((progress.loaded / progress.total) * 100);
-            setUploadProgress(calculatedProgress);
-            setUploadStatus({
-              status: 'uploading',
-              stage: 'uploading',
-              progress: calculatedProgress,
-              message: `Uploading: ${calculatedProgress}%`
-            });
-          }
+          cacheControl: '3600',
+          upsert: false
         });
       
       if (error) throw new Error(`Storage upload failed: ${error.message}`);
+      
+      // Update progress after upload completes
+      setUploadProgress(50);
+      setUploadStatus({
+        status: 'processing',
+        stage: 'processing',
+        progress: 50,
+        message: 'Upload complete, processing...'
+      });
       
       const { data: urlData } = await supabase
         .storage
@@ -70,7 +71,7 @@ export function useDocumentUpload(clientId: string) {
       
       setUploadStatus({
         status: 'processing',
-        stage: 'processing',
+        stage: 'analyzing',
         progress: 70,
         message: 'Analyzing document contents...'
       });
@@ -113,7 +114,7 @@ export function useDocumentUpload(clientId: string) {
       setUploadProgress(0);
       setUploadResult(null);
       setUploadStatus({
-        status: 'init',
+        status: 'pending',
         stage: 'init',
         progress: 0,
         message: 'Starting upload...'

@@ -18,9 +18,9 @@ export interface DocumentProcessingOptions {
 }
 
 export interface DocumentProcessingStatus {
-  status?: 'init' | 'uploading' | 'parsing' | 'processing' | 'storing' | 'syncing' | 'completed' | 'failed';
-  stage?: 'init' | 'uploading' | 'parsing' | 'processing' | 'storing' | 'syncing' | 'completed' | 'failed' | 'analyzing';
-  progress?: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  stage: 'init' | 'uploading' | 'parsing' | 'processing' | 'storing' | 'syncing' | 'completed' | 'failed' | 'analyzing';
+  progress: number;
   message?: string;
   error?: string;
 }
@@ -30,7 +30,7 @@ export interface DocumentProcessingResult {
   error?: string;
   processed: number;
   failed: number;
-  aiProcessed?: number;
+  aiProcessed?: boolean;
   fileName?: string;
   fileSize?: number;
   fileType?: string;
@@ -77,7 +77,7 @@ export interface DocumentMetadata {
   content_type?: string;
   storage_path: string;
   processing_completed?: string;
-  llama_job_id?: LlamaIndexJobResponse;
+  llama_job_id?: string;
   [key: string]: any;
 }
 

@@ -1,24 +1,21 @@
 
 import axios from 'axios';
-import { 
-  LlamaIndexJobResponse, 
-  LlamaIndexParsingResult, 
-  LlamaIndexProcessingOptions,
-  DocumentChunk
-} from '@/types/document-processing';
+import { v4 as uuidv4 } from 'uuid';
+import { LlamaIndexJobResponse } from '@/types/document-processing';
 import { env } from '@/config/env';
 
-const API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
 const API_KEY = env.LLAMA_CLOUD_API_KEY;
+const API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
 
 /**
- * Upload a file to LlamaParse for processing
+ * Upload a document to LlamaIndex for processing
  */
-export const uploadFileToLlamaParse = async (
-  file: File
+export const uploadDocumentToLlamaIndex = async (
+  file: File, 
+  options: any = {}
 ): Promise<LlamaIndexJobResponse> => {
   try {
-    console.log(`Uploading file to LlamaParse: ${file.name}`);
+    console.log(`Uploading file to LlamaIndex API: ${file.name}`);
     
     const formData = new FormData();
     formData.append('file', file);
@@ -26,108 +23,78 @@ export const uploadFileToLlamaParse = async (
     const response = await axios.post(`${API_URL}/upload`, formData, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
-        'accept': 'application/json',
         'Content-Type': 'multipart/form-data'
       }
     });
     
-    console.log("LlamaParse upload initiated:", response.data);
+    console.log("LlamaIndex upload response:", response.data);
+    
     return {
-      job_id: response.data.job_id,
+      job_id: response.data.job_id || uuidv4(),
       status: 'pending',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-  } catch (error: any) {
-    console.error("Error uploading file to LlamaParse:", error.response ? error.response.data : error.message);
-    throw new Error(error.response ? error.response.data.message : error.message);
+  } catch (error) {
+    console.error('Error in uploadDocumentToLlamaIndex:', error);
+    throw error;
   }
 };
 
 /**
- * Check the status of a LlamaParse parsing job
+ * Process a LlamaIndex job by polling until completion
  */
-export const checkParsingStatus = async (jobId: string): Promise<LlamaIndexJobResponse> => {
-  try {
-    const response = await axios.get(`${API_URL}/job/${jobId}`, {
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'accept': 'application/json'
-      }
-    });
-    
-    console.log(`Job status for ${jobId}:`, response.data);
-    return {
-      job_id: jobId,
-      status: response.data.status,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  } catch (error: any) {
-    console.error(`Error checking parsing status for ${jobId}:`, error.response ? error.response.data : error.message);
-    throw new Error(error.response ? error.response.data.message : error.message);
-  }
-};
-
-/**
- * Get the parsing results in Markdown format
- */
-export const getMarkdownResults = async (jobId: string): Promise<LlamaIndexParsingResult> => {
-  try {
-    const response = await axios.get(`${API_URL}/job/${jobId}/result/markdown`, {
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'accept': 'application/json'
-      }
-    });
-    
-    console.log("Retrieved markdown results from LlamaParse");
-    
-    // Create a single chunk with the markdown content
-    const chunk: DocumentChunk = {
-      content: response.data,
-      metadata: {
-        format: 'markdown',
-        job_id: jobId
-      }
-    };
-    
-    return {
-      chunks: [chunk],
-      length: response.data.length
-    };
-  } catch (error: any) {
-    console.error("Error getting markdown results from LlamaParse:", error.response ? error.response.data : error.message);
-    throw new Error(error.response ? error.response.data.message : error.message);
-  }
-};
-
-// Compatibility functions for existing code
-export const uploadDocumentToLlamaIndex = async (
-  file: File,
-  options: LlamaIndexProcessingOptions
-): Promise<LlamaIndexJobResponse> => {
-  return uploadFileToLlamaParse(file);
-};
-
 export const processLlamaIndexJob = async (jobId: string): Promise<any> => {
-  const status = await checkParsingStatus(jobId);
-  if (status.status === 'completed') {
-    const results = await getMarkdownResults(jobId);
+  try {
+    console.log(`Processing LlamaIndex job: ${jobId}`);
+    
+    // Poll for completion
+    let status = 'PENDING';
+    let attempts = 0;
+    let result = null;
+    
+    while (status === 'PENDING' || status === 'PROCESSING') {
+      if (attempts > 30) {
+        throw new Error('Job processing timeout');
+      }
+      
+      // Wait between polling attempts
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Check job status
+      const response = await axios.get(`${API_URL}/job/${jobId}`, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      });
+      
+      status = response.data.status;
+      console.log(`Job ${jobId} status: ${status}`);
+      
+      if (status === 'SUCCEEDED') {
+        // Get the result
+        const resultResponse = await axios.get(`${API_URL}/job/${jobId}/result`, {
+          headers: {
+            'Authorization': `Bearer ${API_KEY}`
+          }
+        });
+        
+        result = resultResponse.data;
+        break;
+      } else if (status === 'FAILED') {
+        throw new Error(`Job processing failed: ${response.data.error || 'Unknown error'}`);
+      }
+      
+      attempts++;
+    }
+    
     return {
-      status: 'SUCCEEDED',
-      parsed_content: results.chunks[0].content
+      status,
+      job_id: jobId,
+      parsed_content: result
     };
+  } catch (error) {
+    console.error('Error in processLlamaIndexJob:', error);
+    throw error;
   }
-  return {
-    status: status.status.toUpperCase(),
-    parsed_content: null
-  };
-};
-
-// Helper function for file conversion (stub - implement if needed)
-export const convertToPdfIfNeeded = async (file: File): Promise<File> => {
-  // For now, just return the original file
-  // Implement PDF conversion logic if needed
-  return file;
 };

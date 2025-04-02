@@ -1,6 +1,56 @@
 
 import { DocumentChunk } from '@/types/document-processing';
 import { v4 as uuidv4 } from 'uuid';
+import { ValidationResult } from '@/types/document-processing';
+
+/**
+ * Validates a document link URL
+ */
+export function validateDocumentLink(url: string): ValidationResult {
+  if (!url) {
+    return {
+      isValid: false,
+      errors: ['URL is required']
+    };
+  }
+
+  // Basic URL validation
+  try {
+    new URL(url);
+  } catch (e) {
+    return {
+      isValid: false,
+      errors: ['Invalid URL format']
+    };
+  }
+
+  // Check if it's a Google Drive link
+  const isGoogleDrive = url.includes('drive.google.com') || 
+                        url.includes('docs.google.com') || 
+                        url.includes('sheets.google.com') || 
+                        url.includes('slides.google.com');
+  
+  // Check if it's a direct file link
+  const isPDF = url.toLowerCase().endsWith('.pdf');
+  const isDocx = url.toLowerCase().endsWith('.docx');
+  const isTxt = url.toLowerCase().endsWith('.txt');
+  const isFile = isPDF || isDocx || isTxt;
+
+  // If it's neither a Google Drive link nor a direct file, warn the user
+  if (!isGoogleDrive && !isFile) {
+    return {
+      isValid: true,
+      errors: ['URL may not be a supported document link. Supported formats include Google Drive links and direct file links (.pdf, .docx, .txt).'],
+      status: 'warning'
+    };
+  }
+
+  return {
+    isValid: true,
+    errors: [],
+    status: 'success'
+  };
+}
 
 /**
  * Splits long text into smaller chunks for better processing
