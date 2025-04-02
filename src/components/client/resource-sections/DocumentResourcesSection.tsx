@@ -12,6 +12,7 @@ import { ActivityType } from '@/types/activity';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 interface DocumentResourcesSectionProps {
   clientId: string;
@@ -52,13 +53,13 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
           return;
         }
         
-        const docStorageBucket = buckets?.find(b => b.name === 'document-storage');
+        const docStorageBucket = buckets?.find(b => b.name === DOCUMENTS_BUCKET);
         setBucketExists(!!docStorageBucket);
         
         if (!docStorageBucket) {
-          console.warn("document-storage bucket not found");
+          console.warn(`${DOCUMENTS_BUCKET} bucket not found`);
         } else {
-          console.log("document-storage bucket exists");
+          console.log(`${DOCUMENTS_BUCKET} bucket exists`);
         }
       } catch (err) {
         console.error("Error checking bucket existence:", err);
@@ -84,7 +85,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
         toast.success("Security permissions fixed successfully");
         // Check bucket again after fixing permissions
         const { data: buckets } = await supabase.storage.listBuckets();
-        const docStorageBucket = buckets?.find(b => b.name === 'document-storage');
+        const docStorageBucket = buckets?.find(b => b.name === DOCUMENTS_BUCKET);
         setBucketExists(!!docStorageBucket);
       } else {
         toast.error(`Failed to fix permissions: ${result.message}`);
@@ -232,7 +233,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
           <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200 my-4">
             <p className="text-yellow-800 font-medium mb-2">
               {!bucketExists 
-                ? "The document storage bucket does not exist. Click the button below to fix this issue."
+                ? `The ${DOCUMENTS_BUCKET} bucket does not exist. Click the button below to fix this issue.`
                 : "Error loading document links. Click the button below to fix permissions."}
             </p>
             <Button 

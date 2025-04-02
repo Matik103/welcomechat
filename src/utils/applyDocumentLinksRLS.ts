@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin, isAdminClientConfigured } from '@/integrations/supabase/client-admin';
 import { executeRlsUpdate } from '@/utils/rpcUtils';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 // Function to fix document links RLS
 export const fixDocumentLinksRLS = async (): Promise<{ success: boolean; message?: string }> => {
@@ -53,12 +54,18 @@ export const fixDocumentLinksRLS = async (): Promise<{ success: boolean; message
       return { success: false, message: 'Failed to update document links RLS policies' };
     }
 
-    // Now fix the storage bucket RLS policies if it exists
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = buckets?.some(bucket => bucket.name === 'document-storage');
+    // Now check if storage bucket exists and fix its policies
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    
+    if (bucketsError) {
+      console.error('Error checking buckets:', bucketsError);
+      return { success: false, message: `Error checking buckets: ${bucketsError.message}` };
+    }
+    
+    const bucketExists = buckets?.some(bucket => bucket.name === DOCUMENTS_BUCKET);
     
     if (bucketExists) {
-      console.log('document-storage bucket exists, updating RLS policies...');
+      console.log(`${DOCUMENTS_BUCKET} bucket exists, updating RLS policies...`);
       
       // Create permissive RLS policies for the existing bucket
       const storageSuccess = await executeRlsUpdate(`
@@ -73,8 +80,8 @@ export const fixDocumentLinksRLS = async (): Promise<{ success: boolean; message
         -- Create permissive policies for development
         CREATE POLICY "Enable storage access for all users"
           ON storage.objects FOR ALL
-          USING (bucket_id = 'document-storage')
-          WITH CHECK (bucket_id = 'document-storage');
+          USING (bucket_id = '${DOCUMENTS_BUCKET}')
+          WITH CHECK (bucket_id = '${DOCUMENTS_BUCKET}');
         
         -- Ensure RLS is enabled
         ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
@@ -90,33 +97,71 @@ export const fixDocumentLinksRLS = async (): Promise<{ success: boolean; message
         console.error('Error fixing storage RLS');
         return { success: false, message: 'Failed to update storage RLS policies' };
       }
+      
+      console.log('Successfully updated storage RLS policies');
     } else {
       // Try to create the bucket
+      let bucketCreated = false;
+      
       if (isAdminClientConfigured()) {
         try {
           console.log('Creating document-storage bucket using admin client...');
-          await supabaseAdmin.storage.createBucket('document-storage', {
+          await supabaseAdmin.storage.createBucket(DOCUMENTS_BUCKET, {
             public: true,
             fileSizeLimit: 20971520, // 20MB
           });
-          console.log('Successfully created document-storage bucket');
+          console.log('Successfully created document-storage bucket with admin client');
+          bucketCreated = true;
         } catch (error) {
           console.error('Error creating bucket with admin client:', error);
           // Continue to try with regular client as fallback
         }
-      } else {
+      }
+      
+      if (!bucketCreated) {
         try {
           console.log('Creating document-storage bucket using regular client...');
-          await supabase.storage.createBucket('document-storage', {
+          await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
             public: true,
             fileSizeLimit: 20971520, // 20MB
           });
-          console.log('Successfully created document-storage bucket');
+          console.log('Successfully created document-storage bucket with regular client');
+          bucketCreated = true;
         } catch (error) {
-          console.error('Error creating bucket:', error);
+          console.error('Error creating bucket with regular client:', error);
           return { 
             success: false, 
-            message: 'Unable to create document-storage bucket. Please contact an administrator to create it manually.' 
+            message: `Unable to create ${DOCUMENTS_BUCKET} bucket. You might need admin privileges to create storage buckets.` 
+          };
+        }
+      }
+      
+      if (bucketCreated) {
+        // Also set bucket policies
+        const storageSuccess = await executeRlsUpdate(`
+          BEGIN;
+          
+          -- Create permissive policies for development
+          CREATE POLICY "Enable storage access for all users"
+            ON storage.objects FOR ALL
+            USING (bucket_id = '${DOCUMENTS_BUCKET}')
+            WITH CHECK (bucket_id = '${DOCUMENTS_BUCKET}');
+          
+          -- Ensure RLS is enabled
+          ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+          
+          -- Grant necessary permissions
+          GRANT ALL ON storage.objects TO authenticated;
+          GRANT ALL ON storage.objects TO service_role;
+          
+          COMMIT;
+        `);
+        
+        if (!storageSuccess) {
+          console.error('Error setting storage RLS policies after bucket creation');
+          return { 
+            success: true, 
+            message: 'Created bucket successfully but failed to set optimal permissions'
           };
         }
       }

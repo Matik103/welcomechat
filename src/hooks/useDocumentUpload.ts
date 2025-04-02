@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
@@ -25,10 +26,10 @@ export function useDocumentUpload(clientId: string) {
         return false;
       }
       
-      const exists = buckets?.some(bucket => bucket.name === 'document-storage');
+      const exists = buckets?.some(bucket => bucket.name === DOCUMENTS_BUCKET);
       
       if (!exists) {
-        setBucketError("The document-storage bucket does not exist");
+        setBucketError(`The ${DOCUMENTS_BUCKET} bucket does not exist`);
       } else {
         setBucketError(null);
       }
@@ -67,7 +68,7 @@ export function useDocumentUpload(clientId: string) {
         // Try to fix permissions and create bucket
         const fixed = await fixPermissions();
         if (!fixed) {
-          throw new Error("Could not create or access the document-storage bucket. Please contact an administrator.");
+          throw new Error(`Could not create or access the ${DOCUMENTS_BUCKET} bucket. Please contact an administrator.`);
         }
       }
       
@@ -172,6 +173,7 @@ export function useDocumentUpload(clientId: string) {
     uploadProgress,
     uploadResult,
     bucketError,
-    fixPermissions
+    fixPermissions,
+    checkBucketExists
   };
 }
