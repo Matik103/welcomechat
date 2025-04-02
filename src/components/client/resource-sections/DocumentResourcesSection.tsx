@@ -11,6 +11,7 @@ import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DocumentResourcesSectionProps {
   clientId: string;
@@ -25,6 +26,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
 }) => {
   const [initializing, setInitializing] = useState(true);
   const [isFixingRls, setIsFixingRls] = useState(false);
+  const [bucketExists, setBucketExists] = useState(true);
   
   const {
     documentLinks,
@@ -38,27 +40,56 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
   useEffect(() => {
     // Debug info
     console.log("DocumentResourcesSection rendered with clientId:", clientId);
-    console.log("Document links:", documentLinks);
+    
+    // Check if the document-storage bucket exists
+    const checkBucket = async () => {
+      try {
+        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+        
+        if (bucketsError) {
+          console.error("Error checking buckets:", bucketsError);
+          setBucketExists(false);
+          return;
+        }
+        
+        const docStorageBucket = buckets?.find(b => b.name === 'document-storage');
+        setBucketExists(!!docStorageBucket);
+        
+        if (!docStorageBucket) {
+          console.warn("document-storage bucket not found");
+        } else {
+          console.log("document-storage bucket exists");
+        }
+      } catch (err) {
+        console.error("Error checking bucket existence:", err);
+        setBucketExists(false);
+      } finally {
+        setInitializing(false);
+      }
+    };
+    
+    checkBucket();
     
     if (error) {
       console.error("Error loading document links:", error);
-      // We'll let the user manually trigger the RLS fix rather than doing it automatically
-      toast.error("Error loading document links. Try using the 'Fix Permissions' button below.");
     }
-    
-    // Simulate initialization complete
-    const timer = setTimeout(() => {
-      setInitializing(false);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [clientId, documentLinks, error]);
+  }, [clientId, error]);
 
   const handleFixPermissions = async () => {
     setIsFixingRls(true);
     try {
-      await fixDocumentLinksRLS();
-      toast.success("Security permissions fixed successfully");
+      const result = await fixDocumentLinksRLS();
+      
+      if (result.success) {
+        toast.success("Security permissions fixed successfully");
+        // Check bucket again after fixing permissions
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const docStorageBucket = buckets?.find(b => b.name === 'document-storage');
+        setBucketExists(!!docStorageBucket);
+      } else {
+        toast.error(`Failed to fix permissions: ${result.message}`);
+      }
+      
       if (refetch) {
         await refetch();
       }
@@ -197,9 +228,13 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
           agentName="AI Assistant"
         />
         
-        {error && (
+        {(error || !bucketExists) && (
           <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200 my-4">
-            <p className="text-yellow-800 font-medium mb-2">Error loading document links</p>
+            <p className="text-yellow-800 font-medium mb-2">
+              {!bucketExists 
+                ? "The document storage bucket does not exist. Click the button below to fix this issue."
+                : "Error loading document links. Click the button below to fix permissions."}
+            </p>
             <Button 
               variant="outline" 
               onClick={handleFixPermissions}

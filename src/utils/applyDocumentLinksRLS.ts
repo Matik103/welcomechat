@@ -53,35 +53,73 @@ export const fixDocumentLinksRLS = async (): Promise<{ success: boolean; message
       return { success: false, message: 'Failed to update document links RLS policies' };
     }
 
-    // Now fix the storage bucket RLS policies for the existing bucket
-    const storageSuccess = await executeRlsUpdate(`
-      BEGIN;
+    // Now fix the storage bucket RLS policies if it exists
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(bucket => bucket.name === 'document-storage');
+    
+    if (bucketExists) {
+      console.log('document-storage bucket exists, updating RLS policies...');
       
-      -- Drop existing storage policies
-      DROP POLICY IF EXISTS "Enable storage access for authenticated users" ON storage.objects;
-      DROP POLICY IF EXISTS "Public Access to document-storage" ON storage.objects;
-      DROP POLICY IF EXISTS "Authenticated users can upload to document-storage" ON storage.objects;
-      DROP POLICY IF EXISTS "Users can delete their own uploads in document-storage" ON storage.objects;
-      
-      -- Create permissive policies for development
-      CREATE POLICY "Enable storage access for all users"
-        ON storage.objects FOR ALL
-        USING (bucket_id = 'document-storage')
-        WITH CHECK (bucket_id = 'document-storage');
-      
-      -- Ensure RLS is enabled
-      ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-      
-      -- Grant necessary permissions
-      GRANT ALL ON storage.objects TO authenticated;
-      GRANT ALL ON storage.objects TO service_role;
-      
-      COMMIT;
-    `);
+      // Create permissive RLS policies for the existing bucket
+      const storageSuccess = await executeRlsUpdate(`
+        BEGIN;
+        
+        -- Drop existing storage policies
+        DROP POLICY IF EXISTS "Enable storage access for authenticated users" ON storage.objects;
+        DROP POLICY IF EXISTS "Public Access to document-storage" ON storage.objects;
+        DROP POLICY IF EXISTS "Authenticated users can upload to document-storage" ON storage.objects;
+        DROP POLICY IF EXISTS "Users can delete their own uploads in document-storage" ON storage.objects;
+        
+        -- Create permissive policies for development
+        CREATE POLICY "Enable storage access for all users"
+          ON storage.objects FOR ALL
+          USING (bucket_id = 'document-storage')
+          WITH CHECK (bucket_id = 'document-storage');
+        
+        -- Ensure RLS is enabled
+        ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+        
+        -- Grant necessary permissions
+        GRANT ALL ON storage.objects TO authenticated;
+        GRANT ALL ON storage.objects TO service_role;
+        
+        COMMIT;
+      `);
 
-    if (!storageSuccess) {
-      console.error('Error fixing storage RLS');
-      return { success: false, message: 'Failed to update storage RLS policies' };
+      if (!storageSuccess) {
+        console.error('Error fixing storage RLS');
+        return { success: false, message: 'Failed to update storage RLS policies' };
+      }
+    } else {
+      // Try to create the bucket
+      if (isAdminClientConfigured()) {
+        try {
+          console.log('Creating document-storage bucket using admin client...');
+          await supabaseAdmin.storage.createBucket('document-storage', {
+            public: true,
+            fileSizeLimit: 20971520, // 20MB
+          });
+          console.log('Successfully created document-storage bucket');
+        } catch (error) {
+          console.error('Error creating bucket with admin client:', error);
+          // Continue to try with regular client as fallback
+        }
+      } else {
+        try {
+          console.log('Creating document-storage bucket using regular client...');
+          await supabase.storage.createBucket('document-storage', {
+            public: true,
+            fileSizeLimit: 20971520, // 20MB
+          });
+          console.log('Successfully created document-storage bucket');
+        } catch (error) {
+          console.error('Error creating bucket:', error);
+          return { 
+            success: false, 
+            message: 'Unable to create document-storage bucket. Please contact an administrator to create it manually.' 
+          };
+        }
+      }
     }
 
     console.log("Successfully applied RLS policies");

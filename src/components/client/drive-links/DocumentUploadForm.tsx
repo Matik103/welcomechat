@@ -1,9 +1,10 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { DocumentUploadFormProps } from '@/types/document-processing';
-import { Upload, X, AlertCircle } from 'lucide-react';
+import { Upload, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
 
 export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
   onSubmitDocument,
@@ -12,6 +13,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isFixingPermissions, setIsFixingPermissions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -60,6 +62,24 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
     setUploadError(null); // Clear any previous errors
   };
 
+  const handleFixPermissions = async () => {
+    setIsFixingPermissions(true);
+    try {
+      const result = await fixDocumentLinksRLS();
+      if (result.success) {
+        toast.success("Security permissions fixed successfully");
+        setUploadError(null);
+      } else {
+        toast.error(`Failed to fix permissions: ${result.message}`);
+      }
+    } catch (error) {
+      console.error("Failed to fix permissions:", error);
+      toast.error(`Error fixing permissions: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsFixingPermissions(false);
+    }
+  };
+
   const handleUpload = async () => {
     if (!selectedFile) return;
     
@@ -73,7 +93,20 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
     } catch (error) {
       console.error('Error uploading document:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setUploadError(`Upload failed: ${errorMessage}`);
+      
+      // Check if this is a permission related error
+      const isPossiblePermissionError = 
+        errorMessage.includes('permission denied') || 
+        errorMessage.includes('not authorized') || 
+        errorMessage.includes('violates row-level security') ||
+        errorMessage.includes('bucket') ||
+        errorMessage.includes('storage');
+      
+      if (isPossiblePermissionError) {
+        setUploadError(`Permission error: ${errorMessage}. Try fixing permissions first.`);
+      } else {
+        setUploadError(`Upload failed: ${errorMessage}`);
+      }
     }
   };
 
@@ -123,7 +156,30 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
       {uploadError && (
         <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm flex items-start gap-2">
           <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-          <p>{uploadError}</p>
+          <div className="flex-1">
+            <p>{uploadError}</p>
+            {uploadError.includes('Permission') && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleFixPermissions}
+                disabled={isFixingPermissions}
+                className="mt-2 flex items-center gap-1"
+              >
+                {isFixingPermissions ? (
+                  <>
+                    <span className="animate-spin mr-1">⟳</span> 
+                    Fixing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1" /> 
+                    Fix Permissions
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       )}
 

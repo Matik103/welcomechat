@@ -9,6 +9,9 @@ import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { supabase } from '@/integrations/supabase/client';
+import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
+import { Button } from '@/components/ui/button';
+import { RefreshCw, Loader2 } from 'lucide-react';
 
 interface ClientResourceSectionsProps {
   clientId: string;
@@ -21,7 +24,8 @@ export const ClientResourceSections = ({
   onResourceChange,
   logClientActivity
 }: ClientResourceSectionsProps) => {
-  const { uploadDocument, isUploading } = useDocumentUpload(clientId);
+  const { uploadDocument, isUploading, bucketError, fixPermissions } = useDocumentUpload(clientId);
+  const [isFixingPermissions, setIsFixingPermissions] = useState(false);
 
   // Debug client ID with less frequent logging
   useEffect(() => {
@@ -80,6 +84,23 @@ export const ClientResourceSections = ({
     
     ensureAgentConfig();
   }, [clientId]);
+
+  const handleFixPermissions = async () => {
+    setIsFixingPermissions(true);
+    try {
+      const result = await fixDocumentLinksRLS();
+      if (result.success) {
+        toast.success("Security permissions fixed successfully");
+      } else {
+        toast.error(`Failed to fix permissions: ${result.message}`);
+      }
+    } catch (error) {
+      console.error("Failed to fix permissions:", error);
+      toast.error(`Error fixing permissions: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsFixingPermissions(false);
+    }
+  };
 
   const handleUploadDocument = async (file: File) => {
     // Add size check to prevent large file uploads that would slow down the system
@@ -144,6 +165,34 @@ export const ClientResourceSections = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {bucketError && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md flex items-start">
+              <div className="flex-1">
+                <p className="text-yellow-800 font-medium">Storage bucket issue detected</p>
+                <p className="text-sm text-yellow-700 mt-1">{bucketError}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleFixPermissions}
+                  disabled={isFixingPermissions}
+                  className="mt-2"
+                >
+                  {isFixingPermissions ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Fixing Permissions...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Fix Security Permissions
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+          
           <DocumentUploadForm
             onSubmitDocument={handleUploadDocument}
             isUploading={isUploading}
