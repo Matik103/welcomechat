@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { LlamaExtractionService } from './LlamaExtractionService';
 import { LLAMA_EXTRACTION_AGENT_ID } from '@/config/env';
 import { DocumentProcessingResult } from '@/types/document-processing';
+import { JsonObject, toJson } from '@/types/supabase-extensions';
 
 /**
  * Process existing documents using LlamaParse
@@ -49,7 +50,10 @@ export async function processExistingDocuments(
       try {
         const documentUrl = doc.url;
         const documentType = doc.type || 'pdf';
-        const documentTitle = doc?.settings?.title || doc.name || 'Untitled Document';
+        const settings = doc.settings as JsonObject;
+        const documentTitle = settings && typeof settings === 'object' && 'title' in settings 
+          ? String(settings.title) 
+          : doc.name || 'Untitled Document';
         
         console.log(`Processing document: ${documentTitle} (${documentUrl})`);
         
@@ -80,16 +84,18 @@ export async function processExistingDocuments(
         }
         
         // Update document with processing information
+        const newSettings: JsonObject = {
+          ...(typeof doc.settings === 'object' ? (doc.settings as JsonObject) : {}),
+          processing_method: 'llamaparse',
+          llama_file_id: uploadResult.file_id,
+          llama_job_id: jobResult.job_id,
+          processing_started_at: new Date().toISOString()
+        };
+        
         await supabase
           .from('ai_agents')
           .update({
-            'settings': {
-              ...doc.settings,
-              processing_method: 'llamaparse',
-              llama_file_id: uploadResult.file_id,
-              llama_job_id: jobResult.job_id,
-              processing_started_at: new Date().toISOString()
-            }
+            settings: toJson(newSettings)
           })
           .eq('id', doc.id);
         
@@ -101,15 +107,18 @@ export async function processExistingDocuments(
         failed++;
         
         // Update document with error
+        const errorMessage = docError instanceof Error ? docError.message : String(docError);
+        const newSettings: JsonObject = {
+          ...(typeof doc.settings === 'object' ? (doc.settings as JsonObject) : {}),
+          processing_method: 'llamaparse',
+          processing_error: errorMessage,
+          processing_error_at: new Date().toISOString()
+        };
+        
         await supabase
           .from('ai_agents')
           .update({
-            'settings': {
-              ...doc.settings,
-              processing_method: 'llamaparse',
-              processing_error: docError.message,
-              processing_error_at: new Date().toISOString()
-            }
+            settings: toJson(newSettings)
           })
           .eq('id', doc.id);
       }
@@ -128,8 +137,8 @@ export async function processExistingDocuments(
       success: false,
       processed,
       failed: failed + 1,
-      error: error.message,
-      message: `Error processing documents: ${error.message}`
+      error: error instanceof Error ? error.message : String(error),
+      message: `Error processing documents: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 }
@@ -175,7 +184,14 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
     for (const doc of documents) {
       try {
         checked++;
-        const jobId = doc?.settings?.llama_job_id;
+        const settings = doc.settings as JsonObject;
+        
+        if (!settings || typeof settings !== 'object') {
+          console.log(`Document ${doc.id} has invalid settings, skipping`);
+          continue;
+        }
+        
+        const jobId = settings.llama_job_id ? String(settings.llama_job_id) : null;
         
         if (!jobId) {
           console.log(`Document ${doc.id} has no job ID, skipping`);
@@ -183,7 +199,7 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
         }
         
         // If already completed or failed, skip
-        if (doc?.settings?.processing_completed_at || doc?.settings?.processing_failed_at) {
+        if (settings.processing_completed_at || settings.processing_failed_at) {
           console.log(`Document ${doc.id} already processed, skipping`);
           completed++;
           continue;
@@ -203,15 +219,17 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
           const extractionResult = await LlamaExtractionService.getExtractionResult(jobId);
           
           // Update document with result
+          const newSettings: JsonObject = {
+            ...settings,
+            processing_completed_at: new Date().toISOString(),
+            extraction_result: extractionResult
+          };
+          
           await supabase
             .from('ai_agents')
             .update({
               content: extractionResult.content || extractionResult.text || "",
-              'settings': {
-                ...doc.settings,
-                processing_completed_at: new Date().toISOString(),
-                extraction_result: extractionResult
-              }
+              settings: toJson(newSettings)
             })
             .eq('id', doc.id);
           
@@ -219,15 +237,17 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
           console.log(`Successfully processed document ${doc.id}`);
         } else if (result.status === 'FAILED') {
           // Job failed
+          const newSettings: JsonObject = {
+            ...settings,
+            processing_failed_at: new Date().toISOString(),
+            processing_error: 'Extraction job failed',
+            job_status: result.status
+          };
+          
           await supabase
             .from('ai_agents')
             .update({
-              'settings': {
-                ...doc.settings,
-                processing_failed_at: new Date().toISOString(),
-                processing_error: 'Extraction job failed',
-                job_status: result.status
-              }
+              settings: toJson(newSettings)
             })
             .eq('id', doc.id);
           
@@ -244,14 +264,19 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
         failed++;
         
         // Update document with error
+        const errorMessage = docError instanceof Error ? docError.message : String(docError);
+        const settings = doc.settings as JsonObject;
+        
+        const newSettings: JsonObject = {
+          ...(typeof settings === 'object' ? settings : {}),
+          processing_error: errorMessage,
+          processing_error_at: new Date().toISOString()
+        };
+        
         await supabase
           .from('ai_agents')
           .update({
-            'settings': {
-              ...doc.settings,
-              processing_error: docError.message,
-              processing_error_at: new Date().toISOString()
-            }
+            settings: toJson(newSettings)
           })
           .eq('id', doc.id);
       }
@@ -270,8 +295,8 @@ export async function checkProcessingDocuments(clientId: string): Promise<Docume
       success: false,
       processed: completed,
       failed: failed + 1,
-      error: error.message,
-      message: `Error checking documents: ${error.message}`
+      error: error instanceof Error ? error.message : String(error),
+      message: `Error checking documents: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 }

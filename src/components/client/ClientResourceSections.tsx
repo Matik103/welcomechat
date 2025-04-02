@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
 import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
@@ -102,7 +103,9 @@ export const ClientResourceSections = ({
       });
 
       // Notify parent component about the change
-      await onResourceChange();
+      if (onResourceChange) {
+        await onResourceChange();
+      }
       
       toast.success('Document uploaded successfully');
     } catch (error) {
@@ -111,18 +114,27 @@ export const ClientResourceSections = ({
     }
   };
   
+  // Create wrapper functions to handle the logClientActivity with parameters
+  const handleLogWebsiteActivity = async () => {
+    await logClientActivity('WEBSITE_ADDED', { client_id: clientId });
+  };
+
+  const handleLogDocumentActivity = async () => {
+    await logClientActivity('DOCUMENT_ADDED', { client_id: clientId });
+  };
+  
   return (
     <div className="space-y-8">
       <WebsiteResourcesSection 
         clientId={clientId}
         onResourceChange={onResourceChange}
-        logClientActivity={logClientActivity}
+        logClientActivity={handleLogWebsiteActivity}
       />
       
       <DocumentResourcesSection 
         clientId={clientId}
         onResourceChange={onResourceChange}
-        logClientActivity={logClientActivity}
+        logClientActivity={handleLogDocumentActivity}
       />
       
       <Card>
