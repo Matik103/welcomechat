@@ -1,6 +1,6 @@
 
 import { supabase } from '../integrations/supabase/client';
-import { LLAMA_CLOUD_API_KEY, LLAMA_EXTRACTION_AGENT_ID } from '../config/env';
+import { LLAMA_CLOUD_API_KEY } from '../config/env';
 
 // Base URL for Llama Cloud API
 const LLAMA_API_BASE = 'https://api.cloud.llamaindex.ai/api/v1';
@@ -34,7 +34,7 @@ export class LlamaExtractionService {
   }
 
   /**
-   * Upload a document to LlamaParse following their API documentation
+   * Upload a document to LlamaParse
    */
   static async uploadDocument(file) {
     console.log('Uploading document to LlamaParse:', {
@@ -71,15 +71,10 @@ export class LlamaExtractionService {
   }
 
   /**
-   * Start an extraction job using the extraction agent and file ID
+   * Start an extraction job
    */
-  static async startExtractionJob(fileId, agentId = LLAMA_EXTRACTION_AGENT_ID) {
+  static async startExtractionJob(fileId, agentId) {
     console.log(`Starting extraction job for file ${fileId} with agent ${agentId}`);
-    
-    // Ensure we have an agent ID
-    if (!agentId) {
-      throw new Error('Extraction agent ID is required');
-    }
     
     const apiKey = await this.getApiKey();
     const response = await fetch(`${LLAMA_API_BASE}/extraction/jobs`, {
@@ -104,7 +99,7 @@ export class LlamaExtractionService {
   }
 
   /**
-   * Get extraction job result by job ID
+   * Get extraction job result
    */
   static async getExtractionResult(jobId) {
     console.log(`Getting extraction result for job: ${jobId}`);
@@ -125,27 +120,25 @@ export class LlamaExtractionService {
           }
         });
 
-        // Check if job is still pending
-        if (response.status === 404) {
-          console.log(`Extraction still in progress (attempt ${attempts + 1}/${maxAttempts}), waiting...`);
-          await new Promise(resolve => setTimeout(resolve, initialDelay * Math.pow(2, attempts)));
-          attempts++;
-          continue;
+        const responseBody = await response.json();
+
+        if (response.status === 200) {
+          console.log('Extraction completed successfully');
+          return responseBody;
         }
 
-        if (!response.ok) {
-          const errorBody = await response.text();
+        if (!responseBody.detail?.includes('PENDING')) {
           console.error('Result error details:', {
             status: response.status,
             statusText: response.statusText,
-            body: errorBody
+            body: JSON.stringify(responseBody)
           });
-          throw new Error(`Failed to get extraction result: ${response.statusText} - ${errorBody}`);
+          throw new Error(`Failed to get extraction result: ${response.statusText} - ${JSON.stringify(responseBody)}`);
         }
 
-        const result = await response.json();
-        console.log('Extraction completed successfully');
-        return result;
+        console.log(`Extraction still pending (attempt ${attempts + 1}/${maxAttempts}), waiting ${initialDelay * Math.pow(2, attempts)}ms...`);
+        await new Promise(resolve => setTimeout(resolve, initialDelay * Math.pow(2, attempts)));
+        attempts++;
       } catch (error) {
         if (error.code === 'UND_ERR_CONNECT_TIMEOUT') {
           console.log(`Connection timeout on attempt ${attempts + 1}, retrying...`);
@@ -158,31 +151,5 @@ export class LlamaExtractionService {
     }
 
     throw new Error(`Extraction timed out after ${maxAttempts} attempts`);
-  }
-  
-  /**
-   * Check if a job exists and get its status
-   */
-  static async checkJobStatus(jobId) {
-    const apiKey = await this.getApiKey();
-    
-    try {
-      const response = await fetch(`${LLAMA_API_BASE}/extraction/jobs/${jobId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
-      
-      if (!response.ok) {
-        return { exists: false, status: null };
-      }
-      
-      const data = await response.json();
-      return { exists: true, status: data.status, data };
-    } catch (error) {
-      console.error('Error checking job status:', error);
-      return { exists: false, status: null, error: error.message };
-    }
   }
 }
