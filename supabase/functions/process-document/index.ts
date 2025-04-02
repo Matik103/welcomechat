@@ -37,7 +37,9 @@ serve(async (req) => {
     
     const { fileContent, fileName, clientId, agentName } = requestData;
     
+    // Validate required fields
     if (!fileContent) {
+      console.error("Missing file content in request");
       return new Response(
         JSON.stringify({ success: false, error: "Missing file content" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -45,6 +47,7 @@ serve(async (req) => {
     }
     
     if (!fileName) {
+      console.error("Missing file name in request");
       return new Response(
         JSON.stringify({ success: false, error: "Missing file name" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -52,6 +55,7 @@ serve(async (req) => {
     }
     
     if (!clientId) {
+      console.error("Missing client ID in request");
       return new Response(
         JSON.stringify({ success: false, error: "Missing client ID" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -59,6 +63,7 @@ serve(async (req) => {
     }
     
     if (!agentName) {
+      console.error("Missing agent name in request");
       return new Response(
         JSON.stringify({ success: false, error: "Missing agent name" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -66,6 +71,26 @@ serve(async (req) => {
     }
 
     console.log(`Processing document: ${fileName} for client: ${clientId} with agent: ${agentName}`);
+    console.log(`File content length: ${fileContent.length} characters`);
+
+    // Ensure fileContent is properly base64 encoded
+    let base64Content = fileContent;
+    if (!fileContent.match(/^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$/)) {
+      console.log("File content doesn't appear to be valid base64, attempting to fix...");
+      try {
+        // Try to clean up the string if it's not properly formatted
+        base64Content = fileContent.replace(/\s/g, '');
+        if (!base64Content.match(/^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$/)) {
+          throw new Error("Invalid base64 format");
+        }
+      } catch (e) {
+        console.error("Failed to process file content as base64:", e);
+        return new Response(
+          JSON.stringify({ success: false, error: "Invalid file content format" }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+    }
 
     // Call the LlamaIndex API
     const llamaEndpoint = 'https://api.cloud.llamaindex.ai/api/parsing';
@@ -80,14 +105,14 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           file_name: fileName,
-          file_content: fileContent,
+          file_content: base64Content,
           extract_all: true
         })
       });
       
       if (!llamaResponse.ok) {
         const errorText = await llamaResponse.text();
-        console.error("LlamaIndex API error:", errorText);
+        console.error(`LlamaIndex API error (${llamaResponse.status}):`, errorText);
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -102,6 +127,7 @@ serve(async (req) => {
       
       // Extract the text from the response
       const extractedText = extractionResult.text || "No text was extracted";
+      console.log(`Extracted text length: ${extractedText.length} characters`);
       
       // Return the extracted text
       return new Response(
