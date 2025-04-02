@@ -1,0 +1,67 @@
+
+project_id = "mgjodiqecnnltsgorife"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[storage]
+enabled = true
+buckets_regex = ".*"
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
+
+[functions]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+port = 54325
+
+[realtime]
+enabled = true
+port = 54326
+
+[vector]
+enabled = false
+port = 54327
+
+[inbucket]
+enabled = true
+port = 54328
+
+[edge_functions]
+port = 54324
+
+[edge_runtime]
+enabled = true
+
+[analytics]
+enabled = false
+port = 54327
+vector_port = 54328
+
+[experimental]
+minimal_gss = true
+events_per_recvr = 1
+flush_all_batched_events_timeout_ms = 0
+
