@@ -1,7 +1,11 @@
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { DocumentProcessingResult, DocumentProcessingStatus } from "@/types/document-processing";
+import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
+import { 
+  DocumentProcessingStatus, 
+  DocumentProcessingResult 
+} from '@/types/document-processing';
 import { v4 as uuidv4 } from "uuid";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useDocumentUrlProcessing = (clientId: string) => {
   const [processingStatus, setProcessingStatus] = useState<DocumentProcessingStatus>({
@@ -111,7 +115,7 @@ export const useDocumentUrlProcessing = (clientId: string) => {
         }
         
         setProcessingStatus({
-          stage: 'complete',
+          stage: 'completed',
           progress: 100,
           message: 'Document processed successfully'
         });
