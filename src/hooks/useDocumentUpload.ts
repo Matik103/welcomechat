@@ -27,13 +27,15 @@ export function useDocumentUpload(clientId: string) {
         .select('name')
         .eq('client_id', clientId)
         .eq('interaction_type', 'config')
-        .single();
+        .limit(1)
+        .maybeSingle();
       
       if (agentError) {
         console.error('Failed to get agent name:', agentError);
         throw new Error(`Failed to get agent name: ${agentError.message}`);
       }
       
+      // Use a default agent name if none is found
       const agentName = agentData?.name || 'AI Assistant';
       
       // Simulate progress updates

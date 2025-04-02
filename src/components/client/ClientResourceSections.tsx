@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
 import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
@@ -10,6 +11,7 @@ import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { Button } from '@/components/ui/button';
 import { Loader2, ShieldAlert } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ClientResourceSectionsProps {
   clientId: string;
@@ -29,6 +31,59 @@ export const ClientResourceSections = ({
   // Debug client ID with less frequent logging
   useEffect(() => {
     console.log("ClientResourceSections rendered with clientId:", clientId);
+    
+    // Check if agent configuration exists, create if not
+    const ensureAgentConfig = async () => {
+      try {
+        // Check if config exists
+        const { data, error } = await supabase
+          .from('ai_agents')
+          .select('id')
+          .eq('client_id', clientId)
+          .eq('interaction_type', 'config')
+          .limit(1);
+        
+        if (error) {
+          console.error("Error checking agent config:", error);
+          return;
+        }
+        
+        if (!data || data.length === 0) {
+          console.log("No agent config found, creating default config");
+          
+          // Get client info to use for agent name
+          const { data: clientData } = await supabase
+            .from('clients')
+            .select('client_name, agent_name')
+            .eq('id', clientId)
+            .single();
+          
+          const agentName = clientData?.agent_name || 'AI Assistant';
+          
+          // Create default agent config
+          await supabase
+            .from('ai_agents')
+            .insert({
+              client_id: clientId,
+              name: agentName,
+              interaction_type: 'config',
+              content: '',
+              settings: {
+                agent_name: agentName,
+                created_at: new Date().toISOString()
+              },
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            
+          console.log("Created default agent config with name:", agentName);
+        }
+      } catch (err) {
+        console.error("Failed to ensure agent config exists:", err);
+      }
+    };
+    
+    ensureAgentConfig();
   }, [clientId]);
 
   const handleFixPermissions = async () => {
