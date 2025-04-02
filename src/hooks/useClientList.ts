@@ -117,25 +117,25 @@ export const useClientList = () => {
           return {
             id: agent.id,
             client_id: agent.client_id || '',
-            client_name: agent.client_name || agent.name || 'Unnamed Client',
+            client_name: agent.client_name || parsedSettings.client_name || agent.name || 'Unnamed Client',
             email: agent.email || parsedSettings.email || '',
             status: agent.status || 'active',
             created_at: agent.created_at || '',
             updated_at: agent.updated_at || '',
             agent_name: agent.name || 'AI Assistant',
             agent_description: agent.agent_description || '',
-            logo_url: agent.logo_url || '',
+            logo_url: agent.logo_url || parsedSettings.logo_url || '',
             widget_settings: parsedSettings,
-            user_id: agent.user_id || '',
+            user_id: agent.user_id || parsedSettings.user_id || '',
             company: agent.company || parsedSettings.company || '',
-            description: agent.description || '',
-            logo_storage_path: agent.logo_storage_path || '',
+            description: agent.description || parsedSettings.description || '',
+            logo_storage_path: agent.logo_storage_path || parsedSettings.logo_storage_path || '',
             deletion_scheduled_at: agent.deletion_scheduled_at || null,
             deleted_at: agent.deleted_at || null,
             last_active: agent.last_active || null,
             name: agent.name || agent.client_name || 'Unnamed Client',
             is_error: agent.is_error || false,
-            openai_assistant_id: agent.openai_assistant_id || undefined
+            openai_assistant_id: agent.openai_assistant_id || parsedSettings.openai_assistant_id || undefined
           };
         });
         

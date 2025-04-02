@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
 import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { toast } from 'sonner';
@@ -86,7 +85,7 @@ export const ClientResourceSections = ({
     ensureAgentConfig();
   }, [clientId]);
 
-  // Wrapper function to match expected signature
+  // Create wrapper functions with the correct signatures
   const handleLogClientActivity = async () => {
     await logClientActivity('DOCUMENT_UPLOAD', {
       client_id: clientId,
@@ -111,7 +110,7 @@ export const ClientResourceSections = ({
       await createClientActivity(
         clientId,
         undefined,
-        ActivityType.DOCUMENT_UPLOADED,
+        ActivityType.DOCUMENT_ADDED,
         `Document uploaded: ${file.name}`,
         {
           file_name: file.name,
