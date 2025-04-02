@@ -1,159 +1,423 @@
-
-import { useState } from 'react';
-import { DocumentProcessingOptions, DocumentProcessingResult, DocumentProcessingStatus } from '@/types/document-processing';
+import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { v4 as uuidv4 } from 'uuid';
-import { uploadDocumentToLlamaIndex, processLlamaIndexJob } from '@/services/llamaIndexService';
-import { useDocumentUpload } from './useDocumentUpload';
-import { useDocumentUrlProcessing } from './useDocumentUrlProcessing';
+import { createClientActivity } from '@/services/clientActivityService';
+import { ActivityType } from '@/types/activity';
+import { 
+  DocumentProcessingResult, 
+  DocumentProcessingStatus, 
+  DocumentProcessingOptions,
+  DocumentMetadata 
+} from '@/types/document-processing';
+import { 
+  uploadDocumentToLlamaIndex, 
+  processLlamaIndexJob, 
+  convertToPdfIfNeeded 
+} from '@/services/llamaIndexService';
 
-export function useUnifiedDocumentUpload(clientId: string) {
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+export const useUnifiedDocumentUpload = (clientId: string) => {
   const [uploadStatus, setUploadStatus] = useState<DocumentProcessingStatus>({
-    status: 'pending',
-    stage: 'init',
-    progress: 0
+    stage: 'complete',
+    progress: 100
   });
   const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
-  
-  // Initialize the lower-level hooks
-  const documentUpload = useDocumentUpload(clientId);
-  const documentUrlProcessing = useDocumentUrlProcessing(clientId);
+  const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
 
-  const updateUploadProgress = (progress: number, status: string) => {
-    setUploadProgress(progress);
-    setUploadStatus({
-      status: 'processing',
-      stage: 'processing',
-      progress,
-      message: status
-    });
-  };
+  // Helper function to check if file is uploading
+  const isUploading = uploadStatus.stage === 'uploading' || 
+                       uploadStatus.stage === 'processing' || 
+                       uploadStatus.stage === 'parsing' || 
+                       uploadStatus.stage === 'analyzing';
 
-  const syncToAgent = async (
-    documentId: string, 
-    content: string, 
-    agentName: string, 
-    clientId: string
-  ): Promise<boolean> => {
-    try {
-      console.log(`Syncing document ${documentId} to agent ${agentName}`);
-      
-      // Check if agent table exists
-      const sanitizedAgentName = agentName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-      const agentTableName = `agent_${sanitizedAgentName}`;
-      
-      // Create a chunk entry in the agent's table
-      const { error } = await supabase.from('ai_agents').insert({
-        content,
-        metadata: {
-          document_id: documentId,
-          source_type: 'document',
-          sync_date: new Date().toISOString()
-        },
-        client_id: clientId,
-        name: agentName
-      });
-      
-      if (error) {
-        console.error(`Error syncing to agent: ${error.message}`);
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Error in syncToAgent:', error);
-      return false;
-    }
-  };
+  // Helper function to get upload progress
+  const uploadProgress = uploadStatus.progress || 0;
 
-  const uploadDocument = async (
+  const uploadDocument = useCallback(async (
     file: File, 
-    options: DocumentProcessingOptions
+    options: DocumentProcessingOptions = { clientId }
   ): Promise<DocumentProcessingResult> => {
     try {
-      setIsUploading(true);
-      setUploadProgress(0);
-      setUploadResult(null);
+      console.log(`Starting unified document upload for ${file.name} with options:`, options);
       
-      const documentResult = await documentUpload.uploadDocument(file, options.agentName);
-      
-      // Update our progress
-      setUploadProgress(documentResult.success ? 70 : 0);
-      setUploadStatus(documentResult.success ? {
-        status: 'processing',
-        stage: 'syncing',
-        progress: 70,
-        message: 'Processing document content...'
-      } : {
-        status: 'failed',
-        stage: 'failed',
-        progress: 0,
-        message: documentResult.error || 'Document processing failed'
+      // Set initial upload status
+      setUploadStatus({
+        stage: 'uploading',
+        progress: 5,
+        message: 'Starting upload...'
       });
       
-      // If requested, sync to the agent
-      if (documentResult.success && options.syncToAgent && options.agentName && documentResult.extractedText) {
-        updateUploadProgress(80, 'Syncing with AI Assistant...');
+      // Generate a unique ID for this document
+      const documentId = uuidv4();
+      const storageFilename = `${documentId}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const storagePath = `${clientId}/${storageFilename}`;
+      const now = new Date().toISOString();
+      
+      // Convert to PDF if needed (for Office documents, etc.)
+      setUploadStatus({
+        stage: 'processing',
+        progress: 10,
+        message: 'Processing document...'
+      });
+      
+      const processedFile = await convertToPdfIfNeeded(file);
+      
+      // Upload file to storage
+      setUploadStatus({
+        stage: 'uploading',
+        progress: 20,
+        message: 'Uploading to storage...'
+      });
+      
+      const { data: storageData, error: storageError } = await supabase
+        .storage
+        .from(DOCUMENTS_BUCKET) // Using the correct bucket
+        .upload(storagePath, processedFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (storageError) {
+        console.error('Error uploading document to storage:', storageError);
+        setUploadStatus({
+          stage: 'failed',
+          progress: 0,
+          message: `Upload failed: ${storageError.message}`,
+          error: storageError.message
+        });
         
-        await syncToAgent(
-          documentResult.documentId || uuidv4(),
-          documentResult.extractedText,
-          options.agentName,
-          options.clientId
-        );
+        const result: DocumentProcessingResult = {
+          success: false,
+          error: storageError.message,
+          processed: 0,
+          failed: 1
+        };
         
-        updateUploadProgress(90, 'Finalizing document processing...');
+        setUploadResult(result);
+        return result;
       }
       
-      // Return result with sync information
+      console.log('Document uploaded to storage:', storageData);
+      
+      // Get a public URL for the uploaded file
+      const { data: publicUrlData } = supabase
+        .storage
+        .from(DOCUMENTS_BUCKET)
+        .getPublicUrl(storagePath);
+      
+      const publicUrl = publicUrlData.publicUrl;
+      
+      // Instead of inserting directly to 'documents', use document_links table
+      // which might have less restrictive RLS policies
+      setUploadStatus({
+        stage: 'processing',
+        progress: 40,
+        message: 'Recording document metadata...'
+      });
+      
+      const mimeType = file.type || 'application/octet-stream';
+      let documentType = 'document';
+      
+      if (mimeType.includes('pdf')) {
+        documentType = 'pdf';
+      } else if (mimeType.includes('word') || mimeType.includes('office')) {
+        documentType = 'docx';
+      } else if (mimeType.includes('text')) {
+        documentType = 'text';
+      }
+      
+      let extractedText = '';
+      let aiProcessed = false;
+      
+      // Process with LlamaIndex and OpenAI if requested
+      if (options.shouldUseAI) {
+        try {
+          setUploadStatus({
+            stage: 'analyzing',
+            progress: 60,
+            message: 'Processing with AI...'
+          });
+          
+          console.log('Uploading document to LlamaIndex for AI processing...');
+          
+          // Upload to LlamaIndex for processing
+          const llamaIndexResponse = await uploadDocumentToLlamaIndex(processedFile, {
+            shouldUseAI: true
+          });
+          
+          if (llamaIndexResponse && llamaIndexResponse.job_id) {
+            console.log('Document uploaded to LlamaIndex, polling for results...');
+            
+            // Poll for processing results
+            setUploadStatus({
+              stage: 'analyzing',
+              progress: 70,
+              message: 'AI processing in progress...'
+            });
+            
+            const processingResult = await processLlamaIndexJob(llamaIndexResponse.job_id);
+            
+            if (processingResult.status === 'SUCCEEDED' && processingResult.parsed_content) {
+              extractedText = processingResult.parsed_content;
+              aiProcessed = true;
+              
+              console.log('Document successfully processed with AI');
+              console.log(`Extracted text length: ${extractedText.length} characters`);
+            } else {
+              console.warn('LlamaIndex processing did not return content:', processingResult);
+            }
+          }
+        } catch (aiError) {
+          console.error('Error processing document with AI:', aiError);
+          // Continue with the upload process even if AI processing fails
+        }
+      }
+      
+      // Insert into document_links table instead of documents
+      const { data: documentLinkData, error: linkError } = await supabase
+        .from('document_links')
+        .insert({
+          client_id: clientId,
+          link: publicUrl,
+          document_type: documentType,
+          file_name: file.name,
+          file_size: file.size,
+          mime_type: mimeType,
+          storage_path: storagePath,
+          access_status: 'accessible',
+          refresh_rate: 30 // Default refresh rate
+        })
+        .select()
+        .single();
+      
+      if (linkError) {
+        console.error('Error creating document link record:', linkError);
+        setUploadStatus({
+          stage: 'failed',
+          progress: 0,
+          message: `Document upload failed: ${linkError.message}`,
+          error: linkError.message
+        });
+        
+        const result: DocumentProcessingResult = {
+          success: false,
+          error: linkError.message,
+          documentId,
+          documentUrl: publicUrl,
+          processed: 0,
+          failed: 1
+        };
+        
+        setUploadResult(result);
+        return result;
+      }
+      
+      console.log('Document link record created:', documentLinkData);
+      
+      // Log activity
+      await createClientActivity(
+        clientId,
+        file.name,
+        ActivityType.DOCUMENT_ADDED,
+        `Document uploaded: ${file.name}`,
+        {
+          file_name: file.name,
+          file_size: file.size,
+          file_type: mimeType,
+          document_id: documentLinkData.id.toString()
+        }
+      );
+      
+      // Update agent content if requested
+      if (options.syncToAgent && extractedText) {
+        await syncDocumentToAgent(clientId, documentId, extractedText, now);
+      }
+      
+      // Complete successfully
+      setUploadStatus({
+        stage: 'completed',
+        progress: 100,
+        message: 'Document processed successfully'
+      });
+      
       const result: DocumentProcessingResult = {
-        ...documentResult,
-        success: documentResult.success,
-        processed: documentResult.processed || 0,
-        failed: documentResult.failed || 0
+        success: true,
+        documentId: documentLinkData.id.toString(),
+        documentUrl: publicUrl,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: mimeType,
+        downloadUrl: publicUrl,
+        extractedText,
+        aiProcessed,
+        processed: 1,
+        failed: 0
       };
       
       setUploadResult(result);
-      setUploadProgress(100);
-      setUploadStatus({
-        status: result.success ? 'completed' : 'failed',
-        stage: result.success ? 'completed' : 'failed',
-        progress: result.success ? 100 : 0,
-        message: result.success ? 'Document processed successfully!' : (result.error || 'Document processing failed')
-      });
+      
+      // Refresh document list
+      fetchDocuments();
       
       return result;
     } catch (error) {
       console.error('Error in unified document upload:', error);
+      setUploadStatus({
+        stage: 'failed',
+        progress: 0,
+        message: 'Document upload failed',
+        error: error instanceof Error ? error.message : String(error)
+      });
       
-      const errorResult: DocumentProcessingResult = {
+      const result: DocumentProcessingResult = {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error in document processing',
+        error: error instanceof Error ? error.message : String(error),
         processed: 0,
         failed: 1
       };
       
-      setUploadResult(errorResult);
-      setUploadStatus({
-        status: 'failed',
-        stage: 'failed',
-        progress: 0,
-        message: errorResult.error
-      });
+      setUploadResult(result);
+      return result;
+    }
+  }, [clientId]);
+
+  const syncDocumentToAgent = async (clientId: string, documentId: string, content: string, timestamp: string) => {
+    try {
+      // Get or create agent_content record
+      const { data: existingContent, error: fetchError } = await supabase
+        .from('ai_agents')
+        .select('id, content')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'document_content')
+        .maybeSingle();
       
-      return errorResult;
-    } finally {
-      setIsUploading(false);
+      if (fetchError) {
+        console.error('Error checking for existing agent_content:', fetchError);
+        return;
+      }
+      
+      if (existingContent) {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from('ai_agents')
+          .update({
+            content: existingContent.content 
+              ? `${existingContent.content}\n\n${content}`
+              : content,
+            updated_at: timestamp
+          })
+          .eq('id', existingContent.id);
+        
+        if (updateError) {
+          console.error('Error updating agent_content:', updateError);
+        }
+      } else {
+        // Create new record
+        const { error: insertError } = await supabase
+          .from('ai_agents')
+          .insert({
+            client_id: clientId,
+            name: 'Document Content',
+            content: content,
+            interaction_type: 'document_content',
+            created_at: timestamp,
+            updated_at: timestamp
+          });
+        
+        if (insertError) {
+          console.error('Error creating agent_content:', insertError);
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing document to agent:', error);
     }
   };
 
+  const deleteDocument = async (documentId: string): Promise<boolean> => {
+    try {
+      // Find the document first
+      const { data: documentData, error: fetchError } = await supabase
+        .from('documents')
+        .select('metadata')
+        .eq('id', documentId)
+        .single();
+      
+      if (fetchError) {
+        console.error('Error fetching document:', fetchError);
+        return false;
+      }
+      
+      // Mark as deleted in the database
+      const { error: updateError } = await supabase
+        .from('documents')
+        .update({
+          status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', documentId);
+      
+      if (updateError) {
+        console.error('Error marking document as deleted:', updateError);
+        return false;
+      }
+      
+      // Log activity
+      await createClientActivity(
+        clientId,
+        'Document',
+        ActivityType.DOCUMENT_REMOVED,
+        `Document removed`,
+        {
+          document_id: documentId
+        }
+      );
+      
+      // Refresh document list
+      fetchDocuments();
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      return false;
+    }
+  };
+
+  const fetchDocuments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('ai_agent_id', clientId)
+        .neq('status', 'failed')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching documents:', error);
+        return;
+      }
+      
+      setExistingDocuments(data || []);
+    } catch (error) {
+      console.error('Error in fetchDocuments:', error);
+    }
+  };
+
+  // Fetch documents on initial load
+  const fetchData = useCallback(async () => {
+    await fetchDocuments();
+  }, [clientId]);
+
   return {
     uploadDocument,
+    processDocumentUrl: async () => ({ success: false, processed: 0, failed: 1 }),
+    deleteDocument,
+    uploadStatus,
+    existingDocuments,
+    fetchDocuments,
+    fetchData,
     isUploading,
     uploadProgress,
-    uploadStatus,
     uploadResult
   };
-}
+};

@@ -1,198 +1,193 @@
-
-import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useState } from 'react';
+import { 
+  DocumentProcessingStatus, 
+  DocumentProcessingResult, 
+  LlamaIndexJobResponse, 
+  LlamaIndexParsingResult 
+} from '@/types/document-processing';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { v4 as uuidv4 } from 'uuid';
-import { DocumentProcessingStatus, DocumentProcessingResult } from '@/types/document-processing';
-import { uploadDocumentToLlamaIndex, processLlamaIndexJob } from '@/services/llamaIndexService';
+import { convertToPdfIfNeeded } from '@/utils/documentConverter';
+import { 
+  uploadDocumentToLlamaIndex, 
+  processLlamaIndexJob 
+} from '@/services/llamaIndexService';
 
 export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStatus, setUploadStatus] = useState<DocumentProcessingStatus>({
-    status: 'pending',
-    stage: 'init',
-    progress: 0
-  });
-  const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
 
-  const uploadDocumentToStorage = async (file: File): Promise<{ path: string; url: string }> => {
+  /**
+   * Upload a document to Supabase storage and process with LlamaIndex
+   * @param file The file to upload
+   * @returns Promise resolving when the upload is complete
+   */
+  const uploadDocument = async (file: File): Promise<void> => {
+    if (!clientId) {
+      throw new Error('Client ID is required');
+    }
+
+    setIsUploading(true);
+    
     try {
-      setUploadStatus({
-        status: 'processing',
-        stage: 'uploading',
-        progress: 10,
-        message: 'Uploading to storage...'
-      });
-
-      const filePath = `documents/${clientId}/${Date.now()}_${file.name}`;
+      // 1. Get the agent name for this client
+      const { data: agentData, error: agentError } = await supabase
+        .from('ai_agents')
+        .select('name')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .limit(1)
+        .maybeSingle();
       
-      const { data, error } = await supabase
-        .storage
-        .from('documents')
+      if (agentError) {
+        console.error('Failed to get agent name:', agentError);
+        throw new Error(`Failed to get agent name: ${agentError.message}`);
+      }
+      
+      if (!agentData || !agentData.name) {
+        throw new Error('Agent name not found for this client');
+      }
+      
+      const agentName = agentData.name;
+      console.log("Using agent name for document upload:", agentName);
+
+      // 2. Convert the file to PDF if needed
+      console.log("Converting document to PDF if needed:", file.name);
+      const pdfFile = await convertToPdfIfNeeded(file);
+      
+      // 3. Upload the file to storage
+      const timestamp = new Date().getTime();
+      const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const filePath = `${clientId}/${fileName}`;
+      
+      // Upload the original file to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(DOCUMENTS_BUCKET)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
         });
       
-      if (error) throw new Error(`Storage upload failed: ${error.message}`);
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
+      }
       
-      // Update progress after upload completes
-      setUploadProgress(50);
-      setUploadStatus({
-        status: 'processing',
-        stage: 'processing',
-        progress: 50,
-        message: 'Upload complete, processing...'
-      });
-      
-      const { data: urlData } = await supabase
-        .storage
-        .from('documents')
+      // Get the public URL of the uploaded file
+      const { data: { publicUrl } } = supabase.storage
+        .from(DOCUMENTS_BUCKET)
         .getPublicUrl(filePath);
       
-      return { path: filePath, url: urlData.publicUrl };
-    } catch (error) {
-      console.error('Error uploading to storage:', error);
-      throw error;
-    }
-  };
-
-  const processWithAI = async (file: File, agentName?: string): Promise<DocumentProcessingResult> => {
-    try {
-      setUploadStatus({
-        status: 'processing',
-        stage: 'processing',
-        progress: 60,
-        message: 'Processing with AI...'
-      });
+      console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
       
-      // Upload to LlamaIndex for processing
-      const jobResponse = await uploadDocumentToLlamaIndex(file, {});
+      // 4. Process the document with LlamaIndex
+      console.log("Uploading document to LlamaIndex for processing:", pdfFile.name);
+      const jobId = await uploadDocumentToLlamaIndex(pdfFile);
+      console.log("LlamaIndex job created:", jobId);
       
-      setUploadStatus({
-        status: 'processing',
-        stage: 'analyzing',
-        progress: 70,
-        message: 'Analyzing document contents...'
-      });
-      
-      // Poll for job completion (simplified for now)
-      const result = await processLlamaIndexJob(jobResponse.job_id);
-      
-      if (result.status === 'SUCCEEDED') {
-        return {
-          success: true,
-          processed: 1,
-          failed: 0,
-          aiProcessed: true,
-          fileName: file.name,
-          fileSize: file.size,
-          extractedText: result.parsed_content || ''
-        };
-      } else {
-        return {
-          success: false,
-          error: 'AI processing failed',
-          processed: 0,
-          failed: 1
-        };
-      }
-    } catch (error) {
-      console.error('Error processing with AI:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error in AI processing',
-        processed: 0,
-        failed: 1
-      };
-    }
-  };
-
-  const uploadDocument = async (file: File, agentName?: string): Promise<DocumentProcessingResult> => {
-    try {
-      setIsUploading(true);
-      setUploadProgress(0);
-      setUploadResult(null);
-      setUploadStatus({
-        status: 'pending',
-        stage: 'init',
-        progress: 0,
-        message: 'Starting upload...'
-      });
-      
-      // Step 1: Upload to storage
-      const { path, url } = await uploadDocumentToStorage(file);
-      
-      setUploadStatus({
-        status: 'processing',
-        stage: 'processing',
-        progress: 50,
-        message: 'Document uploaded, processing content...'
-      });
-      
-      // Step 2: Process with AI
-      const aiResult = await processWithAI(file, agentName);
-      
-      // Step 3: Create document record in database
+      // 5. Create a document processing job record
       const documentId = uuidv4();
-      const { error } = await supabase.from('document_processing_jobs').insert({
-        client_id: clientId,
-        document_id: documentId,
-        document_url: url,
-        document_type: file.type.includes('pdf') ? 'pdf' : 'document',
-        agent_name: agentName || '',
-        status: aiResult.success ? 'completed' : 'failed',
-        error: aiResult.error,
-        content: aiResult.extractedText,
-        metadata: {
+      const { error: jobError } = await supabase
+        .from('document_processing_jobs')
+        .insert({
+          client_id: clientId,
+          agent_name: agentName,
+          document_url: publicUrl,
+          document_type: file.type.includes('pdf') ? 'pdf' : 'document',
+          document_id: documentId,
+          status: 'processing',
+          metadata: {
+            file_name: fileName,
+            file_size: file.size,
+            storage_path: filePath,
+            llama_job_id: JSON.stringify(jobId)
+          }
+        });
+      
+      if (jobError) {
+        console.error('Error creating document processing job:', jobError);
+        throw new Error(`Failed to create document record: ${jobError.message}`);
+      }
+      
+      // 6. Create a document link record
+      const { error: linkError } = await supabase
+        .from('document_links')
+        .insert({
+          client_id: clientId,
+          document_type: file.type.includes('pdf') ? 'pdf' : 'document',
+          link: publicUrl,
+          storage_path: filePath,
           file_name: file.name,
           file_size: file.size,
-          file_type: file.type,
-          storage_path: path
-        }
-      });
+          file_type: file.type
+        });
       
-      if (error) throw new Error(`Database record creation failed: ${error.message}`);
+      if (linkError) {
+        console.error('Error creating document link record:', linkError);
+        throw new Error(`Failed to create document record: ${linkError.message}`);
+      }
       
-      setUploadStatus({
-        status: 'completed',
-        stage: 'completed',
-        progress: 100,
-        message: 'Document processed successfully!'
-      });
+      // 7. Wait for LlamaIndex job to complete and get the results
+      console.log("Waiting for LlamaIndex job to complete...");
+      const extractedText = await processLlamaIndexJob(jobId);
+      console.log("LlamaIndex processing complete, text length:", extractedText.length);
       
-      const result = {
-        success: true,
-        processed: aiResult.processed,
-        failed: aiResult.failed,
-        aiProcessed: aiResult.aiProcessed,
-        fileName: file.name,
-        fileSize: file.size,
-        documentId,
-        documentUrl: url
-      };
+      // 8. Update the document processing job with the extracted text
+      const { error: updateJobError } = await supabase
+        .from('document_processing_jobs')
+        .update({
+          status: 'completed',
+          content: extractedText,
+          metadata: {
+            file_name: fileName,
+            file_size: file.size,
+            storage_path: filePath,
+            llama_job_id: JSON.stringify(jobId),
+            processing_completed: new Date().toISOString()
+          }
+        })
+        .eq('document_id', documentId);
       
-      setUploadResult(result);
-      return result;
+      if (updateJobError) {
+        console.error('Error updating document processing job:', updateJobError);
+        throw new Error(`Failed to update document record: ${updateJobError.message}`);
+      }
+      
+      // 9. Update the AI agent content with the extracted text
+      const { data: agentContent, error: contentError } = await supabase
+        .from('ai_agents')
+        .select('content')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .limit(1)
+        .single();
+      
+      if (contentError) {
+        console.error('Error fetching agent content:', contentError);
+        throw new Error(`Failed to fetch agent content: ${contentError.message}`);
+      }
+      
+      // Append the new document content
+      const existingContent = agentContent.content || '';
+      const updatedContent = `${existingContent}\n\n--- Document: ${file.name} ---\n${extractedText}`;
+      
+      const { error: updateAgentError } = await supabase
+        .from('ai_agents')
+        .update({ content: updatedContent })
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config');
+      
+      if (updateAgentError) {
+        console.error('Error updating agent content:', updateAgentError);
+        throw new Error(`Failed to update agent content: ${updateAgentError.message}`);
+      }
+      
+      toast.success(`Document "${file.name}" uploaded and processed successfully`);
     } catch (error) {
-      console.error('Error in document upload process:', error);
-      
-      setUploadStatus({
-        status: 'failed',
-        stage: 'failed',
-        progress: 0,
-        message: error instanceof Error ? error.message : 'Document upload failed'
-      });
-      
-      const result = {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        processed: 0,
-        failed: 1
-      };
-      
-      setUploadResult(result);
-      return result;
+      console.error('Error uploading document:', error);
+      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
     } finally {
       setIsUploading(false);
     }
@@ -200,9 +195,6 @@ export function useDocumentUpload(clientId: string) {
 
   return {
     uploadDocument,
-    isUploading,
-    uploadProgress,
-    uploadStatus,
-    uploadResult
+    isUploading
   };
 }

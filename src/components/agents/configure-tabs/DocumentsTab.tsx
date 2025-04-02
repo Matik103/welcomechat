@@ -27,7 +27,8 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
         clientId,
         shouldUseAI: true,
         syncToAgent: true,
-        agentName
+        syncToProfile: true,
+        syncToWidgetSettings: true
       });
       
       // Create client activity

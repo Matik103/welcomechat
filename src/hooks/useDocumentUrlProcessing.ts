@@ -1,178 +1,214 @@
+import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
+import { 
+  DocumentProcessingStatus, 
+  DocumentProcessingResult 
+} from '@/types/document-processing';
+import { v4 as uuidv4 } from "uuid";
+import { supabase } from "@/integrations/supabase/client";
 
-import { useState } from 'react';
-import { DocumentProcessingStatus, DocumentProcessingResult } from '@/types/document-processing';
-import { supabase } from '@/integrations/supabase/client';
-import { v4 as uuidv4 } from 'uuid';
-
-export function useDocumentUrlProcessing(clientId: string) {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingProgress, setProcessingProgress] = useState(0);
+export const useDocumentUrlProcessing = (clientId: string) => {
   const [processingStatus, setProcessingStatus] = useState<DocumentProcessingStatus>({
-    status: 'pending',
-    stage: 'init',
-    progress: 0
+    stage: 'complete',
+    progress: 100
   });
   const [processingResult, setProcessingResult] = useState<DocumentProcessingResult | null>(null);
 
-  const processDocumentUrl = async (
-    url: string, 
-    documentType: string = 'url',
-    agentName?: string
-  ): Promise<DocumentProcessingResult> => {
+  const processDocumentUrl = async (url: string, options?: {
+    shouldUseAI?: boolean,
+    syncToAgent?: boolean,
+    description?: string
+  }): Promise<DocumentProcessingResult> => {
     try {
-      setIsProcessing(true);
-      setProcessingProgress(0);
-      setProcessingResult(null);
       setProcessingStatus({
-        status: 'pending',
-        stage: 'init',
-        progress: 0,
-        message: 'Starting URL processing...'
+        stage: 'uploading',
+        progress: 10,
+        message: 'Starting document processing...'
       });
       
-      // Validate URL
-      try {
-        new URL(url);
-      } catch (error) {
-        throw new Error('Invalid URL format');
-      }
+      console.log(`Processing document URL: ${url}`);
       
-      // Step 1: Create document processing job
-      setProcessingStatus({
-        status: 'processing',
-        stage: 'processing',
-        progress: 20,
-        message: 'Initiating URL processing...'
-      });
-      
+      // Generate a unique ID for this document
       const documentId = uuidv4();
-      const { error: createError } = await supabase.from('document_processing_jobs').insert({
-        client_id: clientId,
-        document_id: documentId,
-        document_url: url,
-        document_type: documentType,
-        agent_name: agentName || '',
-        status: 'pending',
-        metadata: {
-          processing_started: new Date().toISOString()
-        }
-      });
+      const now = new Date().toISOString();
+      const shouldUseAI = options?.shouldUseAI ?? true;
       
-      if (createError) throw new Error(`Error creating processing job: ${createError.message}`);
-      
-      setProcessingProgress(30);
-      setProcessingStatus({
-        status: 'processing',
-        stage: 'processing',
-        progress: 30,
-        message: 'Fetching URL content...'
-      });
-      
-      // Step 2: Process URL through edge function or direct fetch
-      let content = '';
-      try {
-        // For simplicity, we'll use a direct fetch here
-        // In production, you might want to use an edge function for more complex processing
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch URL: ${response.statusText}`);
-        }
-        
-        // Get content based on content type
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('text/html')) {
-          content = await response.text();
-        } else if (contentType.includes('application/json')) {
-          const json = await response.json();
-          content = JSON.stringify(json, null, 2);
-        } else {
-          content = await response.text();
-        }
-      } catch (fetchError) {
-        console.error('Error fetching URL:', fetchError);
-        
-        // Update the job with error
-        await supabase.from('document_processing_jobs').update({
-          status: 'failed',
-          error: fetchError instanceof Error ? fetchError.message : 'Unknown error fetching URL',
-          updated_at: new Date().toISOString()
-        }).eq('document_id', documentId);
-        
-        throw new Error(`Error fetching URL content: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`);
-      }
-      
-      setProcessingProgress(70);
-      setProcessingStatus({
-        status: 'processing',
-        stage: 'storing',
-        progress: 70,
-        message: 'Storing URL content...'
-      });
-      
-      // Step 3: Update the job with the content
-      const { error: updateError } = await supabase.from('document_processing_jobs').update({
-        content,
-        status: 'completed',
-        updated_at: new Date().toISOString(),
-        metadata: {
-          processing_completed: new Date().toISOString(),
-          content_length: content.length,
-          url
-        }
-      }).eq('document_id', documentId);
-      
-      if (updateError) {
-        throw new Error(`Error updating job with content: ${updateError.message}`);
-      }
-      
-      setProcessingProgress(100);
-      setProcessingStatus({
-        status: 'completed',
-        stage: 'completed',
-        progress: 100,
-        message: 'URL processed successfully!'
-      });
-      
-      const result: DocumentProcessingResult = {
-        success: true,
-        processed: 1,
-        failed: 0,
-        documentId,
+      // Fix error handling
+      let result: DocumentProcessingResult = {
+        success: false,
+        documentId: '',
         documentUrl: url,
-        extractedText: content
+        processed: 0,
+        failed: 0
       };
+      
+      try {
+        // First, call the fetch-url service to get metadata and content
+        setProcessingStatus({
+          stage: 'processing',
+          progress: 20,
+          message: 'Fetching URL content...'
+        });
+        
+        const fetchResponse = await fetch(
+          'https://mgjodiqecnnltsgorife.supabase.co/functions/v1/fetch-url',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`,
+            },
+            body: JSON.stringify({ url }),
+          }
+        );
+        
+        if (!fetchResponse.ok) {
+          throw new Error(`Failed to fetch URL: ${await fetchResponse.text()}`);
+        }
+        
+        const fetchResult = await fetchResponse.json();
+        console.log('URL fetch result:', fetchResult);
+        
+        setProcessingStatus({
+          stage: 'parsing',
+          progress: 50,
+          message: 'Analyzing document content...'
+        });
+        
+        // Insert document_link record instead of document
+        const { data: documentLinkData, error: documentLinkError } = await supabase
+          .from('document_links')
+          .insert({
+            client_id: clientId,
+            link: url,
+            document_type: 'url',
+            access_status: 'accessible',
+            file_name: fetchResult.title || url,
+            refresh_rate: 30
+          })
+          .select()
+          .single();
+        
+        if (documentLinkError) {
+          throw new Error(`Failed to insert document link record: ${documentLinkError.message}`);
+        }
+        
+        result = {
+          ...result,
+          success: true,
+          documentId: documentLinkData.id.toString(),
+          fileName: fetchResult.title || url,
+          fileType: 'text/html',
+          fileSize: fetchResult.content?.length || 0,
+          extractedText: fetchResult.content || '',
+          processed: 1,
+          failed: 0,
+        };
+        
+        if (options?.shouldUseAI) {
+          result.aiProcessed = true;
+        }
+        
+        // Sync to agent if requested
+        if (options?.syncToAgent) {
+          await syncDocumentToAgent(clientId, documentId, fetchResult.content || '', now);
+        }
+        
+        setProcessingStatus({
+          stage: 'completed',
+          progress: 100,
+          message: 'Document processed successfully'
+        });
+      } catch (error) {
+        console.error('Error processing URL:', error);
+        setProcessingStatus({
+          stage: 'failed',
+          progress: 0,
+          message: `Failed to process URL: ${error instanceof Error ? error.message : String(error)}`,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        
+        result.success = false;
+        result.error = error instanceof Error ? error.message : String(error);
+      }
       
       setProcessingResult(result);
       return result;
     } catch (error) {
-      console.error('Error processing document URL:', error);
-      
+      console.error('Error in processDocumentUrl:', error);
       setProcessingStatus({
-        status: 'failed',
         stage: 'failed',
         progress: 0,
-        message: error instanceof Error ? error.message : 'URL processing failed'
+        message: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        error: error instanceof Error ? error.message : String(error)
       });
       
       const result: DocumentProcessingResult = {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error in URL processing',
+        error: error instanceof Error ? error.message : String(error),
         processed: 0,
         failed: 1
       };
       
       setProcessingResult(result);
       return result;
-    } finally {
-      setIsProcessing(false);
     }
   };
-
+  
+  const syncDocumentToAgent = async (clientId: string, documentId: string, content: string, timestamp: string) => {
+    try {
+      // Get or create agent_content record
+      const { data: existingContent, error: fetchError } = await supabase
+        .from('ai_agents')
+        .select('id, content')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'document_content')
+        .maybeSingle();
+      
+      if (fetchError) {
+        console.error('Error checking for existing agent_content:', fetchError);
+        return;
+      }
+      
+      if (existingContent) {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from('ai_agents')
+          .update({
+            content: content,
+            updated_at: timestamp
+          })
+          .eq('id', existingContent.id);
+        
+        if (updateError) {
+          console.error('Error updating agent_content:', updateError);
+        }
+      } else {
+        // Create new record
+        const { error: insertError } = await supabase
+          .from('ai_agents')
+          .insert({
+            client_id: clientId,
+            name: 'Document Content',
+            content: content,
+            interaction_type: 'document_content',
+            created_at: timestamp,
+            updated_at: timestamp
+          });
+        
+        if (insertError) {
+          console.error('Error creating agent_content:', insertError);
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing document to agent:', error);
+    }
+  };
+  
   return {
     processDocumentUrl,
-    isProcessing,
-    processingProgress,
     processingStatus,
-    processingResult
+    processingResult,
+    isProcessing: processingStatus.stage !== 'complete' && processingStatus.stage !== 'failed'
   };
-}
+};

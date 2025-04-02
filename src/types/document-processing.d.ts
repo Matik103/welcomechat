@@ -3,42 +3,50 @@
  * Document processing type definitions
  */
 
-export type DocumentType = 'pdf' | 'docx' | 'txt' | 'csv' | 'xlsx' | 'md' | 'html' | 'google_drive' | 'document' | 'url';
-
 export interface DocumentProcessingOptions {
   shouldExtractText?: boolean;
   shouldParsePDF?: boolean;
   shouldUseAI?: boolean;
   maxPages?: number;
   syncToAgent?: boolean;
+  syncToProfile?: boolean;
+  syncToWidgetSettings?: boolean;
+  folder?: string;
+  description?: string;
   clientId: string;
   documentType?: string;
   agentName?: string;
-  processingMethod?: 'auto' | 'text' | 'pdf' | 'docx' | 'csv' | 'html';
 }
 
 export interface DocumentProcessingStatus {
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  stage: 'init' | 'uploading' | 'parsing' | 'processing' | 'storing' | 'syncing' | 'completed' | 'failed' | 'analyzing';
+  status?: 'pending' | 'processing' | 'completed' | 'failed';
+  id?: string;
+  error?: string | Error;
+  stage: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed';
   progress: number;
   message?: string;
-  error?: string;
 }
 
 export interface DocumentProcessingResult {
   success: boolean;
   error?: string;
-  processed: number;
-  failed: number;
-  aiProcessed?: boolean;
+  documentId?: string;
+  jobId?: string;
+  status?: string;
+  documentUrl?: string;
   fileName?: string;
   fileSize?: number;
   fileType?: string;
-  documentId?: string;
-  documentUrl?: string;
+  url?: string;
+  uploadDate?: string;
   extractedText?: string;
-  message?: string;
+  aiProcessed?: boolean;
   downloadUrl?: string;
+  processed: number;
+  failed: number;
+  urlsScraped?: number;
+  contentStored?: number;
+  message?: string;
 }
 
 export interface LlamaIndexProcessingOptions {
@@ -49,41 +57,45 @@ export interface LlamaIndexProcessingOptions {
 
 export interface LlamaIndexJobResponse {
   job_id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  created_at: string;
-  updated_at: string;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
   error?: string;
 }
 
 export interface LlamaIndexParsingResult {
-  chunks: DocumentChunk[];
-  length: number;
+  job_id: string;
+  status: 'SUCCEEDED' | 'FAILED';
+  parsed_content?: string;
+  error?: string;
+  document_chunks?: LlamaIndexDocumentChunk[];
 }
 
-export interface DocumentChunk {
-  id?: string;
-  content: string;
-  metadata: {
-    format: string;
-    job_id: string;
+export interface LlamaIndexDocumentChunk {
+  text: string;
+  metadata?: {
+    page_number?: number;
+    source?: string;
     [key: string]: any;
   };
 }
 
-export interface DocumentMetadata {
-  file_name: string;
-  file_size: number;
-  file_type: string;
-  content_type?: string;
-  storage_path: string;
-  processing_completed?: string;
-  llama_job_id?: string;
-  [key: string]: any;
+export interface DocumentType {
+  type: 'pdf' | 'text' | 'google_doc' | 'google_drive' | 'docx' | 'html' | 'url' | 'web_page';
 }
 
 export interface DocumentUploadFormProps {
   onSubmitDocument: (file: File) => Promise<void>;
   isUploading: boolean;
+}
+
+export interface DocumentMetadata {
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string[];
+  creationDate?: string;
+  modificationDate?: string;
+  pageCount?: number;
+  [key: string]: any;
 }
 
 export interface DocumentLink {
@@ -109,3 +121,10 @@ export interface ValidationResult {
   message?: string;
   status?: 'success' | 'error' | 'warning' | 'info';
 }
+
+export interface DocumentChunk {
+  content: string;
+  metadata?: Record<string, any>;
+  id?: string;
+}
+
