@@ -12,6 +12,7 @@ Deno.serve(async (req) => {
       headers: {
         ...corsHeaders,
         'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
       },
     });
   }
@@ -22,6 +23,10 @@ Deno.serve(async (req) => {
     const pathSegments = url.pathname.split('/');
     const endpoint = pathSegments[pathSegments.length - 1]; // Get the last segment
     
+    // Log the request details for debugging
+    console.log(`Processing LlamaIndex request for endpoint: ${endpoint}`);
+    console.log(`Headers: ${JSON.stringify([...req.headers.entries()].map(([k, v]) => `${k}: ${v}`))}`);
+    
     if (endpoint === 'process_file') {
       // Handle file upload to LlamaIndex Cloud
       const formData = await req.formData();
@@ -31,12 +36,13 @@ Deno.serve(async (req) => {
         method: 'POST',
         headers: {
           'x-api-key': LLAMA_CLOUD_API_KEY,
-          'Authorization': `Bearer ${OPENAI_API_KEY}`
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
         },
         body: formData,
       });
       
       const data = await llamaResponse.json();
+      console.log(`LlamaIndex upload response: ${JSON.stringify(data)}`);
       
       return new Response(JSON.stringify(data), {
         headers: {
@@ -58,6 +64,7 @@ Deno.serve(async (req) => {
       });
       
       const data = await llamaResponse.json();
+      console.log(`LlamaIndex job status response for ${jobId}: ${JSON.stringify(data)}`);
       
       return new Response(JSON.stringify(data), {
         headers: {

@@ -150,14 +150,18 @@ export interface LlamaIndexJobResponse {
   job_id: string;
   status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
   error?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface LlamaIndexParsingResult {
-  job_id: string;
+  job_id?: string;
   status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
   parsed_content?: string;
   error?: string;
   document_chunks?: LlamaIndexDocumentChunk[];
+  chunks?: DocumentChunk[];
+  length?: number;
 }
 
 export interface LlamaIndexDocumentChunk {
