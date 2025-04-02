@@ -71,28 +71,34 @@ export const useClientList = () => {
         console.log(`Fetched ${clientsData?.length || 0} records from clients table`);
         
         // Convert clients data to Client type
-        const formattedClients: Client[] = (clientsData || []).map(client => ({
-          id: client.id,
-          client_id: client.id,
-          client_name: client.client_name || client.name || 'Unnamed Client',
-          email: client.email || '',
-          company: client.company || '',
-          description: client.description || '',
-          status: client.status || 'active',
-          created_at: client.created_at || '',
-          updated_at: client.updated_at || '',
-          deleted_at: client.deleted_at,
-          deletion_scheduled_at: client.deletion_scheduled_at,
-          last_active: client.last_active,
-          logo_url: client.logo_url || '',
-          logo_storage_path: client.logo_storage_path || '',
-          agent_name: client.agent_name || 'AI Assistant',
-          agent_description: '',
-          widget_settings: client.widget_settings || {},
-          name: client.name || client.client_name || 'Unnamed Client',
-          is_error: false,
-          user_id: client.user_id || ''
-        }));
+        const formattedClients: Client[] = (clientsData || []).map(client => {
+          // Parse widget settings to ensure it's an object
+          const widgetSettings = safeParseSettings(client.widget_settings);
+          
+          return {
+            id: client.id,
+            client_id: client.id,
+            client_name: client.client_name || 'Unnamed Client',
+            email: client.email || '',
+            company: client.company || '',
+            description: client.description || '',
+            status: client.status || 'active',
+            created_at: client.created_at || '',
+            updated_at: client.updated_at || '',
+            deleted_at: client.deleted_at || null,
+            deletion_scheduled_at: client.deletion_scheduled_at || null,
+            last_active: client.last_active || null,
+            logo_url: client.logo_url || '',
+            logo_storage_path: client.logo_storage_path || '',
+            agent_name: client.agent_name || 'AI Assistant',
+            agent_description: '',
+            widget_settings: widgetSettings,
+            name: client.client_name || 'Unnamed Client',
+            is_error: false,
+            user_id: client.user_id || '',
+            openai_assistant_id: client.openai_assistant_id || undefined
+          };
+        });
         
         // Filter out deleted clients
         const filteredClients = formattedClients.filter(client => 
@@ -120,7 +126,7 @@ export const useClientList = () => {
             agent_description: agent.agent_description || '',
             logo_url: agent.logo_url || '',
             widget_settings: parsedSettings,
-            user_id: '',
+            user_id: agent.user_id || '',
             company: agent.company || parsedSettings.company || '',
             description: agent.description || '',
             logo_storage_path: agent.logo_storage_path || '',
@@ -128,7 +134,8 @@ export const useClientList = () => {
             deleted_at: agent.deleted_at || null,
             last_active: agent.last_active || null,
             name: agent.name || agent.client_name || 'Unnamed Client',
-            is_error: agent.is_error || false
+            is_error: agent.is_error || false,
+            openai_assistant_id: agent.openai_assistant_id || undefined
           };
         });
         

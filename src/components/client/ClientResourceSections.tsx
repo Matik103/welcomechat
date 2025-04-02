@@ -1,4 +1,6 @@
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
 import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -23,6 +25,7 @@ export const ClientResourceSections = ({
   onResourceChange,
   logClientActivity
 }: ClientResourceSectionsProps) => {
+  const [initializing, setInitializing] = useState(true);
   const { uploadDocument, isUploading } = useDocumentUpload(clientId);
 
   // Debug client ID with less frequent logging
@@ -83,6 +86,14 @@ export const ClientResourceSections = ({
     ensureAgentConfig();
   }, [clientId]);
 
+  // Wrapper function to match expected signature
+  const handleLogClientActivity = async () => {
+    await logClientActivity('DOCUMENT_UPLOAD', {
+      client_id: clientId,
+      timestamp: new Date().toISOString()
+    });
+  };
+
   const handleUploadDocument = async (file: File) => {
     try {
       // Add size check to prevent large file uploads
@@ -93,16 +104,27 @@ export const ClientResourceSections = ({
 
       await uploadDocument(file);
       
-      // Log the activity
-      await logClientActivity('DOCUMENT_UPLOADED', {
-        file_name: file.name,
-        file_size: file.size,
-        file_type: file.type,
-        client_id: clientId
-      });
+      // Log the activity with wrapper function
+      await handleLogClientActivity();
+
+      // Also log specific activity with details
+      await createClientActivity(
+        clientId,
+        undefined,
+        ActivityType.DOCUMENT_UPLOADED,
+        `Document uploaded: ${file.name}`,
+        {
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type,
+          client_id: clientId
+        }
+      );
 
       // Notify parent component about the change
-      await onResourceChange();
+      if (onResourceChange) {
+        await onResourceChange();
+      }
       
       toast.success('Document uploaded successfully');
     } catch (error) {
