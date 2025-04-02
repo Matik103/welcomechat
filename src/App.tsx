@@ -7,7 +7,6 @@ import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
 import { ConfigError } from "./components/routes/ErrorDisplay";
-import { toast } from "sonner";
 
 function App() {
   const { user, userRole, isLoading, session } = useAuth();
@@ -49,27 +48,22 @@ function App() {
     return <UnauthenticatedRoutes />;
   }
 
-  // User authenticated but role not determined - use metadata as fallback
-  if (!userRole && user) {
-    const roleFromMetadata = user.user_metadata?.role;
-    
-    if (roleFromMetadata === 'admin') {
-      return <AdminRoutes />;
-    } else if (roleFromMetadata === 'client') {
-      return <ClientRoutes />;
-    }
-    
-    // Default to client view if we can't determine role
-    console.log('User is authenticated but role is not determined, defaulting to client view');
+  // If we have a user and a definitive role, render the appropriate routes
+  if (user && userRole === 'admin') {
+    return <AdminRoutes />;
+  }
+  
+  if (user && userRole === 'client') {
     return <ClientRoutes />;
   }
 
-  // Admin routes
-  if (userRole === 'admin') {
-    return <AdminRoutes />;
+  // If user is authenticated but role not determined yet, don't render anything
+  // This prevents the flash of wrong content
+  if (user && !userRole) {
+    return null;
   }
-
-  // Client routes (default)
+  
+  // Default to client view as fallback
   return <ClientRoutes />;
 }
 

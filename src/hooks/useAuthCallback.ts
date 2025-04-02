@@ -48,25 +48,23 @@ export const useAuthCallback = ({
           setSession(data.session);
           setUser(data.session.user);
           
-          // Get role with a slight delay to avoid circular dependency
-          setTimeout(async () => {
-            try {
-              const role = await getUserRole();
-              setUserRole(role);
-              
-              // Store role in session storage as a fallback
-              if (role) {
-                sessionStorage.setItem('user_role_set', role);
-              }
-            } catch (error) {
-              console.error('Error getting user role in callback:', error);
-            } finally {
-              // Mark as completed regardless of outcome
-              sessionStorage.setItem('auth_callback_processed', 'true');
-              sessionStorage.removeItem('auth_callback_processing');
-              setIsLoading(false);
+          // Get role immediately to avoid flashing wrong content
+          try {
+            const role = await getUserRole();
+            setUserRole(role);
+            
+            // Store role in session storage as a fallback
+            if (role) {
+              sessionStorage.setItem('user_role_set', role);
             }
-          }, 500);
+          } catch (error) {
+            console.error('Error getting user role in callback:', error);
+          } finally {
+            // Mark as completed regardless of outcome
+            sessionStorage.setItem('auth_callback_processed', 'true');
+            sessionStorage.removeItem('auth_callback_processing');
+            setIsLoading(false);
+          }
         } else {
           setIsLoading(false);
           sessionStorage.setItem('auth_callback_processed', 'true');

@@ -10,8 +10,16 @@ import ClientAgents from "@/pages/client/Agents";
 import NotFound from "@/pages/NotFound";
 import { Toaster } from "sonner";
 import { ClientLayout } from "@/components/layout/ClientLayout";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const ClientRoutes = () => {
+  const { userRole } = useAuth();
+  
+  // If user is an admin, redirect to admin dashboard
+  if (userRole === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <ClientLayout>

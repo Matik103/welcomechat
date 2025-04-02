@@ -19,9 +19,14 @@ export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  if (!userRole || !allowedRoles.includes(userRole as UserRole)) {
+  // If role is still being determined, don't render anything to prevent flashing
+  if (!userRole) {
+    return null;
+  }
+
+  if (!allowedRoles.includes(userRole as UserRole)) {
     // Redirect admin to admin dashboard, clients to client dashboard
-    const redirectPath = userRole === 'admin' ? '/' : '/client/dashboard';
+    const redirectPath = userRole === 'admin' ? '/admin/dashboard' : '/client/dashboard';
     return <Navigate to={redirectPath} replace />;
   }
 

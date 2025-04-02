@@ -39,6 +39,16 @@ export const getUserRole = async (): Promise<UserRole> => {
       
       if (!roleError && roleData && roleData.role) {
         console.log("Role found in user_roles table:", roleData.role);
+        
+        // Store the role in user metadata for faster access next time
+        try {
+          await supabase.auth.updateUser({
+            data: { role: roleData.role }
+          });
+        } catch (updateErr) {
+          console.error("Error updating user metadata with role:", updateErr);
+        }
+        
         return roleData.role as UserRole;
       }
     } catch (roleErr) {
@@ -56,6 +66,16 @@ export const getUserRole = async (): Promise<UserRole> => {
       
       if (!clientError && clientData) {
         console.log("User found as client in ai_agents table");
+        
+        // Store the role in user metadata for faster access next time
+        try {
+          await supabase.auth.updateUser({
+            data: { role: 'client' }
+          });
+        } catch (updateErr) {
+          console.error("Error updating user metadata with role:", updateErr);
+        }
+        
         return 'client';
       }
     } catch (clientErr) {
@@ -65,6 +85,16 @@ export const getUserRole = async (): Promise<UserRole> => {
     // For Google users, default to admin role
     if (isGoogleUser) {
       console.log("Google user with no explicit role, defaulting to admin");
+      
+      // Store the role in user metadata for faster access next time
+      try {
+        await supabase.auth.updateUser({
+          data: { role: 'admin' }
+        });
+      } catch (updateErr) {
+        console.error("Error updating user metadata with role:", updateErr);
+      }
+      
       return 'admin';
     }
     
