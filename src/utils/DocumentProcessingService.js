@@ -110,7 +110,7 @@ export class DocumentProcessingService {
   ) {
     try {
       const { error } = await supabase
-        .from('document_processing_jobs')  // Changed from 'document_processing' to 'document_processing_jobs'
+        .from('document_processing_jobs')  // Using 'document_processing_jobs' table
         .insert({
           client_id: clientId,
           document_url: publicUrl,
