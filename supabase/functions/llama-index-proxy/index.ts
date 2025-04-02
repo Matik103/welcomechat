@@ -2,7 +2,8 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '../_shared/config.ts';
 
-const LLAMA_CLOUD_API_URL = 'https://cloud.llamaindex.ai/api/v1';
+// Updated API endpoint for LlamaIndex Cloud
+const LLAMA_CLOUD_API_URL = 'https://api.cloud.llamaindex.ai';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -25,8 +26,8 @@ Deno.serve(async (req) => {
       // Handle file upload to LlamaIndex Cloud
       const formData = await req.formData();
       
-      // Forward to LlamaIndex Cloud API
-      const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/process_file`, {
+      // Forward to LlamaIndex Cloud API using the correct parsing endpoint
+      const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/api/parsing/upload`, {
         method: 'POST',
         headers: {
           'x-api-key': LLAMA_CLOUD_API_KEY,
@@ -48,7 +49,7 @@ Deno.serve(async (req) => {
       // Handle job status check
       const jobId = url.pathname.split('/jobs/')[1];
       
-      const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/jobs/${jobId}`, {
+      const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/api/parsing/jobs/${jobId}`, {
         method: 'GET',
         headers: {
           'x-api-key': LLAMA_CLOUD_API_KEY,
