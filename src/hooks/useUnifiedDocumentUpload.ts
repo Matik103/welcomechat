@@ -49,7 +49,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       // Generate a unique ID for this document
       const documentId = uuidv4();
       const storageFilename = `${documentId}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const storagePath = `documents/${clientId}/${storageFilename}`;
+      const storagePath = `${clientId}/${storageFilename}`;
       const now = new Date().toISOString();
       
       // Convert to PDF if needed (for Office documents, etc.)
@@ -61,7 +61,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       
       const processedFile = await convertToPdfIfNeeded(file);
       
-      // Upload file to storage
+      // Upload file to storage - IMPORTANT: Using the document-storage bucket instead of client-documents
       setUploadStatus({
         stage: 'uploading',
         progress: 20,
@@ -70,7 +70,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       
       const { data: storageData, error: storageError } = await supabase
         .storage
-        .from('client-documents')
+        .from('document-storage') // Use 'document-storage' bucket
         .upload(storagePath, processedFile, {
           cacheControl: '3600',
           upsert: true
@@ -101,7 +101,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       // Get a public URL for the uploaded file
       const { data: publicUrlData } = supabase
         .storage
-        .from('client-documents')
+        .from('document-storage') // Use 'document-storage' bucket
         .getPublicUrl(storagePath);
       
       const publicUrl = publicUrlData.publicUrl;
@@ -178,7 +178,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
           ai_agent_id: clientId,
           filename: file.name,
           type: documentType as any,
-          status: 'completed',
+          status: 'processed', // Use 'processed' instead of 'completed'
           created_at: now,
           updated_at: now,
           metadata: {

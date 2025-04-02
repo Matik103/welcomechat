@@ -7,7 +7,6 @@ export interface DocumentProcessingOptions {
   shouldExtractText?: boolean;
   shouldParsePDF?: boolean;
   shouldUseAI?: boolean;
-  useAI?: boolean;
   maxPages?: number;
   syncToAgent?: boolean;
   syncToProfile?: boolean;
