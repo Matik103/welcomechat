@@ -1,73 +1,102 @@
 import axios from 'axios';
-import { supabase } from '@/integrations/supabase/client';
 import { 
   LlamaIndexJobResponse, 
   LlamaIndexParsingResult, 
-  LlamaIndexProcessingOptions
+  LlamaIndexProcessingOptions,
+  DocumentChunk
 } from '@/types/document-processing';
+import { env } from '@/config/env';
 
-const LLAMA_INDEX_API_URL = process.env.LLAMA_INDEX_API_URL || 'http://localhost:8000';
+const API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
+const API_KEY = env.LLAMA_CLOUD_API_KEY;
 
 /**
- * Process a document with Llama Index
+ * Upload a file to LlamaParse for processing
  */
-export const processDocumentWithLlamaIndex = async (
-  fileUrl: string,
-  options: LlamaIndexProcessingOptions
+export const uploadFileToLlamaParse = async (
+  file: File
 ): Promise<LlamaIndexJobResponse> => {
   try {
-    console.log(`Sending document for processing to Llama Index: ${fileUrl}`);
+    console.log(`Uploading file to LlamaParse: ${file.name}`);
     
-    const response = await axios.post(`${LLAMA_INDEX_API_URL}/process_document`, {
-      file_url: fileUrl,
-      client_id: options.clientId,
-      chunk_size: options.chunkSize || 512,
-      chunk_overlap: options.overlapSize || 50
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await axios.post(`${API_URL}/upload`, formData, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'accept': 'application/json',
+        'Content-Type': 'multipart/form-data'
+      }
     });
     
-    console.log("Llama Index processing initiated:", response.data);
-    return response.data as LlamaIndexJobResponse;
+    console.log("LlamaParse upload initiated:", response.data);
+    return {
+      job_id: response.data.job_id,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
   } catch (error: any) {
-    console.error("Error processing document with Llama Index:", error.response ? error.response.data : error.message);
+    console.error("Error uploading file to LlamaParse:", error.response ? error.response.data : error.message);
     throw new Error(error.response ? error.response.data.message : error.message);
   }
 };
 
 /**
- * Get the status of a Llama Index job
+ * Check the status of a LlamaParse parsing job
  */
-export const getLlamaIndexJobStatus = async (jobId: string): Promise<LlamaIndexJobResponse> => {
+export const checkParsingStatus = async (jobId: string): Promise<LlamaIndexJobResponse> => {
   try {
-    const response = await axios.get(`${LLAMA_INDEX_API_URL}/job_status/${jobId}`);
+    const response = await axios.get(`${API_URL}/job/${jobId}`, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'accept': 'application/json'
+      }
+    });
+    
     console.log(`Job status for ${jobId}:`, response.data);
-    return response.data as LlamaIndexJobResponse;
+    return {
+      job_id: jobId,
+      status: response.data.status,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
   } catch (error: any) {
-    console.error(`Error getting job status for ${jobId}:`, error.response ? error.response.data : error.message);
+    console.error(`Error checking parsing status for ${jobId}:`, error.response ? error.response.data : error.message);
     throw new Error(error.response ? error.response.data.message : error.message);
   }
 };
 
 /**
- * Parse a document with Llama Index
+ * Get the parsing results in Markdown format
  */
-export const parseDocumentWithLlamaIndex = async (
-  fileUrl: string,
-  options: LlamaIndexProcessingOptions
-): Promise<LlamaIndexParsingResult> => {
+export const getMarkdownResults = async (jobId: string): Promise<LlamaIndexParsingResult> => {
   try {
-    console.log(`Sending document for parsing to Llama Index: ${fileUrl}`);
-    
-    const response = await axios.post(`${LLAMA_INDEX_API_URL}/parse_document`, {
-      file_url: fileUrl,
-      client_id: options.clientId,
-      chunk_size: options.chunkSize || 512,
-      chunk_overlap: options.overlapSize || 50
+    const response = await axios.get(`${API_URL}/job/${jobId}/result/markdown`, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'accept': 'application/json'
+      }
     });
     
-    console.log("Llama Index parsing complete:", response.data);
-    return response.data as LlamaIndexParsingResult;
+    console.log("Retrieved markdown results from LlamaParse");
+    
+    // Create a single chunk with the markdown content
+    const chunk: DocumentChunk = {
+      content: response.data,
+      metadata: {
+        format: 'markdown',
+        job_id: jobId
+      }
+    };
+    
+    return {
+      chunks: [chunk],
+      length: response.data.length
+    };
   } catch (error: any) {
-    console.error("Error parsing document with Llama Index:", error.response ? error.response.data : error.message);
+    console.error("Error getting markdown results from LlamaParse:", error.response ? error.response.data : error.message);
     throw new Error(error.response ? error.response.data.message : error.message);
   }
 };

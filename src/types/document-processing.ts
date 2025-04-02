@@ -92,8 +92,11 @@ export interface DocumentProcessingOptions {
 
 export interface DocumentChunk {
   content: string;
-  metadata?: Record<string, any>;
-  id?: string;
+  metadata: {
+    format: string;
+    job_id: string;
+    [key: string]: any;
+  };
 }
 
 export interface ValidationResult {
@@ -126,22 +129,17 @@ export interface DocumentMetadata {
 
 export interface LlamaIndexJobResponse {
   job_id: string;
-  status: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   created_at: string;
   updated_at: string;
   error?: string;
 }
 
 export interface LlamaIndexParsingResult {
-  text: string;
-  metadata: Record<string, any>;
-  chunks?: DocumentChunk[];
+  chunks: DocumentChunk[];
+  length: number;
 }
 
 export interface LlamaIndexProcessingOptions {
-  shouldExtractText?: boolean;
-  shouldChunkContent?: boolean;
-  chunkSize?: number;
-  chunkOverlap?: number;
-  metadata?: Record<string, any>;
+  // No options needed for basic file upload
 }
