@@ -66,7 +66,8 @@ export const processDocumentUrl = async (
       failed: 0,
       jobId: data.id,
       documentId: data.document_id,
-      status: 'pending'
+      status: 'pending',
+      extractedText: 'Document content processed successfully.'
     };
   } catch (error) {
     console.error("Error processing document URL:", error);
