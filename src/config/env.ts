@@ -1,8 +1,7 @@
-
 // Environment variables configuration
 export const env = {
   // API URLs
-  LLAMA_INDEX_API_URL: import.meta.env.VITE_LLAMA_INDEX_API_URL || 'http://localhost:8000',
+  LLAMA_INDEX_API_URL: 'https://api.cloud.llamaindex.ai/api/parsing',
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
   

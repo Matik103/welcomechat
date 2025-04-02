@@ -100,3 +100,33 @@ export const getMarkdownResults = async (jobId: string): Promise<LlamaIndexParsi
     throw new Error(error.response ? error.response.data.message : error.message);
   }
 };
+
+// Compatibility functions for existing code
+export const uploadDocumentToLlamaIndex = async (
+  file: File,
+  options: LlamaIndexProcessingOptions
+): Promise<LlamaIndexJobResponse> => {
+  return uploadFileToLlamaParse(file);
+};
+
+export const processLlamaIndexJob = async (jobId: string): Promise<any> => {
+  const status = await checkParsingStatus(jobId);
+  if (status.status === 'completed') {
+    const results = await getMarkdownResults(jobId);
+    return {
+      status: 'SUCCEEDED',
+      parsed_content: results.chunks[0].content
+    };
+  }
+  return {
+    status: status.status.toUpperCase(),
+    parsed_content: null
+  };
+};
+
+// Helper function for file conversion (stub - implement if needed)
+export const convertToPdfIfNeeded = async (file: File): Promise<File> => {
+  // For now, just return the original file
+  // Implement PDF conversion logic if needed
+  return file;
+};
