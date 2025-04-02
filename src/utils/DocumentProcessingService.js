@@ -1,5 +1,6 @@
 
 import { supabase } from '../integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
 // Constant for the storage bucket name
 const DOCUMENT_STORAGE_BUCKET = 'document-storage';
@@ -72,6 +73,9 @@ export class DocumentProcessingService {
       const agentName = agentData.name;
       console.log(`Using agent name: ${agentName} for client: ${clientId}`);
       
+      // Generate a document ID
+      const documentId = uuidv4();
+      
       // Track processing success in the database
       await this.trackDocumentProcessing(
         clientId, 
@@ -81,7 +85,8 @@ export class DocumentProcessingService {
         file.size, 
         'completed', 
         null, 
-        agentName
+        agentName,
+        documentId
       );
       
       return {
@@ -89,6 +94,7 @@ export class DocumentProcessingService {
         publicUrl,
         processed: 1,
         failed: 0,
+        documentId,
         extractedText: 'Document content extracted successfully.'
       };
     } catch (error) {
@@ -120,6 +126,9 @@ export class DocumentProcessingService {
         throw new Error('Failed to process document: Could not determine agent name');
       }
       
+      // Generate a document ID even for failures to satisfy the constraint
+      const documentId = uuidv4();
+      
       // Track processing failure in the database
       if (clientId) {
         try {
@@ -131,7 +140,8 @@ export class DocumentProcessingService {
             file?.size || 0, 
             'failed',
             error.message,
-            agentName
+            agentName,
+            documentId
           );
         } catch (trackingError) {
           console.error('Error tracking document processing failure:', trackingError);
@@ -142,7 +152,8 @@ export class DocumentProcessingService {
         success: false,
         error: error.message || 'Unknown error occurred',
         processed: 0,
-        failed: 1
+        failed: 1,
+        documentId
       };
     }
   }
@@ -157,6 +168,7 @@ export class DocumentProcessingService {
    * @param {string} status The processing status
    * @param {string} errorMessage Optional error message
    * @param {string} agentName The agent name
+   * @param {string} documentId The document ID (required)
    */
   static async trackDocumentProcessing(
     clientId, 
@@ -166,9 +178,14 @@ export class DocumentProcessingService {
     fileSize, 
     status, 
     errorMessage = null,
-    agentName
+    agentName,
+    documentId
   ) {
     try {
+      if (!documentId) {
+        documentId = uuidv4(); // Ensure we have a document ID as a fallback
+      }
+      
       const { error } = await supabase
         .from('document_processing_jobs')
         .insert({
@@ -179,6 +196,7 @@ export class DocumentProcessingService {
           document_type: 'pdf', // Default to PDF for now
           created_at: new Date().toISOString(),
           agent_name: agentName, // Required field, must be provided
+          document_id: documentId, // Required field
           metadata: {
             original_filename: fileName,
             file_size: fileSize,
@@ -188,9 +206,11 @@ export class DocumentProcessingService {
       
       if (error) {
         console.error('Error tracking document processing:', error);
+        throw error;
       }
     } catch (error) {
       console.error('Error tracking document processing:', error);
+      throw error;
     }
   }
   
@@ -232,6 +252,7 @@ export class DocumentProcessingService {
       }
       
       const agentName = agentData.name;
+      const documentId = uuidv4(); // Generate a document ID
       
       // Create a processing job in the database
       const { data, error } = await supabase
@@ -240,6 +261,7 @@ export class DocumentProcessingService {
           client_id: clientId,
           document_url: url,
           document_type: 'url',
+          document_id: documentId,
           status: 'pending',
           created_at: new Date().toISOString(),
           agent_name: agentName // Required field
@@ -261,6 +283,7 @@ export class DocumentProcessingService {
         processed: 1,
         failed: 0,
         jobId: data.id,
+        documentId,
         extractedText: 'Document content from URL extracted successfully.'
       };
     } catch (error) {

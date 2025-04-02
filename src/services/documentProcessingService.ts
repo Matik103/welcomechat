@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentProcessingResult, DocumentLink } from '@/types/document-processing';
+import { v4 as uuidv4 } from 'uuid';
 
 // Create a new document processing job
 export const createDocumentProcessingJob = async (
@@ -47,6 +48,8 @@ export const processDocumentUrl = async (
   agentName: string
 ): Promise<DocumentProcessingResult> => {
   try {
+    const documentId = uuidv4(); // Generate a document ID
+    
     const { data, error } = await supabase
       .from('document_processing_jobs')
       .insert({
@@ -54,6 +57,7 @@ export const processDocumentUrl = async (
         document_url: documentUrl,
         document_type: documentType,
         agent_name: agentName,
+        document_id: documentId,
         status: 'pending'
       } as any)
       .select()
@@ -66,7 +70,7 @@ export const processDocumentUrl = async (
       processed: 0,
       failed: 0,
       jobId: data.id,
-      documentId: data.document_id,
+      documentId: documentId,
       status: 'pending',
       extractedText: 'Document content processed successfully.'
     };
@@ -110,6 +114,7 @@ export const uploadDocument = async (
     // Create a processing job for the uploaded document
     const documentUrl = urlData.publicUrl;
     const documentType = file.type.includes('pdf') ? 'pdf' : 'document';
+    const documentId = uuidv4(); // Generate a document ID
     
     const result = await processDocumentUrl(clientId, documentUrl, documentType, agentName);
     

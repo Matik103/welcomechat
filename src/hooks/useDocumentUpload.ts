@@ -7,6 +7,7 @@ import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { useLlamaIndexProcessing } from './useLlamaIndexProcessing';
+import { v4 as uuidv4 } from 'uuid';
 
 export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
@@ -73,7 +74,8 @@ export function useDocumentUpload(clientId: string) {
             file_type: file.type,
             processed_sections: result.processed,
             failed_sections: result.failed,
-            processed_with: 'llamaindex'
+            processed_with: 'llamaindex',
+            document_id: result.documentId
           }
         );
         
@@ -83,9 +85,10 @@ export function useDocumentUpload(clientId: string) {
         console.error("Document processing failed:", result.error);
         setUploadResult({
           success: false,
-          error: result.error,
+          error: result.error || 'Failed to process document',
           processed: 0,
-          failed: 1
+          failed: 1,
+          documentId: result.documentId
         });
         throw new Error(result.error || 'Failed to process document');
       }
