@@ -46,7 +46,8 @@ enabled = true
 
 # Edge Functions configuration
 [functions]
-enabled = true
+[functions.llamaindex-proxy]
+verify_jwt = false
 
 # Inbucket configuration
 [inbucket]
