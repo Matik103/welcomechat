@@ -2,7 +2,6 @@
 import React from 'react';
 import { DocumentResourcesSection } from '../client/resource-sections/DocumentResourcesSection';
 import { WebsiteResourcesSection } from '../client/resource-sections/WebsiteResourcesSection';
-import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { DocumentUploadSection } from './resource-sections/DocumentUploadSection';
 
 interface ClientResourceSectionsProps {

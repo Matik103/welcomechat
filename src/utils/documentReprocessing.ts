@@ -130,8 +130,8 @@ interface RpcFunctionResponse {
   [key: string]: any;
 }
 
-// Extract document using Llama API
-export const extractDocumentUsingLlama = async (
+// Extract document using a service
+export const extractDocumentContent = async (
   documentId: string,
   clientId: string
 ): Promise<boolean> => {
@@ -187,7 +187,7 @@ export const extractDocumentUsingLlama = async (
         status: 'completed',
         metadata: {
           processed_at: new Date().toISOString(),
-          method: 'llama_extract'
+          method: 'document_extract'
         }
       })
       .eq('id', documentId);
