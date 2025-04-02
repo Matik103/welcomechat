@@ -70,6 +70,7 @@ export interface DocumentProcessingResult {
   urlsScraped?: number;
   contentStored?: number;
   message?: string;
+  extractedText?: string;
 }
 
 export interface DocumentProcessingRequest {
