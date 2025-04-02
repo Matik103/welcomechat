@@ -8,9 +8,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { convertWordToPdf, splitPdfIntoChunks } from "./documentConverters";
 import { LLAMA_CLOUD_API_KEY } from "@/config/env";
-import { DocumentProcessingResult } from "@/types/document-processing";
+import { DocumentProcessingResult, DocumentType } from "@/types/document-processing";
 import { toast } from "sonner";
 import { DOCUMENTS_BUCKET } from "./supabaseStorage";
+import { google } from 'googleapis';
+import axios from 'axios';
 
 export class DocumentProcessingService {
   /**
@@ -95,19 +97,32 @@ export class DocumentProcessingService {
     try {
       console.log(`Processing document URL for client ${clientId}:`, documentUrl);
       
-      // 1. Fetch the document
-      const response = await fetch(documentUrl);
-      if (!response.ok) {
-        return {
-          success: false,
-          error: `Failed to fetch document: ${response.statusText}`,
-          processed: 0,
-          failed: 1
-        };
-      }
+      // 1. Determine if this is a Google Drive URL
+      const isGoogleDriveUrl = this.isGoogleDriveUrl(documentUrl);
       
-      const documentData = await response.blob();
-      const fileName = documentUrl.split('/').pop() || 'document.pdf';
+      let documentData: Blob;
+      let fileName: string;
+      
+      if (isGoogleDriveUrl) {
+        // Handle Google Drive document
+        const { data, filename } = await this.downloadGoogleDriveFile(documentUrl);
+        documentData = new Blob([data]);
+        fileName = filename || 'google-document.pdf';
+      } else {
+        // Regular URL - direct fetch
+        const response = await fetch(documentUrl);
+        if (!response.ok) {
+          return {
+            success: false,
+            error: `Failed to fetch document: ${response.statusText}`,
+            processed: 0,
+            failed: 1
+          };
+        }
+        
+        documentData = await response.blob();
+        fileName = documentUrl.split('/').pop() || 'document.pdf';
+      }
       
       // 2. Create a File object from the blob
       const file = new File([documentData], fileName, { 
@@ -124,6 +139,103 @@ export class DocumentProcessingService {
         processed: 0,
         failed: 1
       };
+    }
+  }
+  
+  /**
+   * Check if URL is from Google Drive
+   * @param url The URL to check
+   * @returns Whether the URL is a Google Drive URL
+   */
+  private static isGoogleDriveUrl(url: string): boolean {
+    return url.includes('drive.google.com') || 
+           url.includes('docs.google.com') || 
+           url.includes('sheets.google.com') || 
+           url.includes('slides.google.com');
+  }
+  
+  /**
+   * Download a file from Google Drive
+   * @param url The Google Drive URL
+   * @returns The file data and filename
+   */
+  private static async downloadGoogleDriveFile(url: string): Promise<{ data: Uint8Array, filename: string }> {
+    try {
+      // Extract the file ID from various Google URL formats
+      let fileId = '';
+      
+      if (url.includes('drive.google.com/file/d/')) {
+        // Format: https://drive.google.com/file/d/FILE_ID/view
+        const match = url.match(/\/file\/d\/([^\/]+)/);
+        if (match) fileId = match[1];
+      } else if (url.includes('drive.google.com/open')) {
+        // Format: https://drive.google.com/open?id=FILE_ID
+        const match = url.match(/[?&]id=([^&]+)/);
+        if (match) fileId = match[1];
+      } else if (url.includes('docs.google.com') || 
+                url.includes('sheets.google.com') || 
+                url.includes('slides.google.com')) {
+        // Format: https://docs.google.com/document/d/FILE_ID/edit
+        const match = url.match(/\/d\/([^\/]+)/);
+        if (match) fileId = match[1];
+      }
+      
+      if (!fileId) {
+        throw new Error('Could not extract file ID from Google Drive URL');
+      }
+      
+      // Check if we need to use Google API (requiring authentication)
+      // If we have a service account, we could use Google API here
+      // For simplicity, we'll try direct download with the export format parameter
+      
+      // Determine if this is a Google Docs, Sheets, or Slides URL
+      let exportFormat = '';
+      if (url.includes('document')) {
+        exportFormat = 'application/pdf';
+      } else if (url.includes('spreadsheets')) {
+        exportFormat = 'application/pdf';
+      } else if (url.includes('presentation')) {
+        exportFormat = 'application/pdf';
+      }
+      
+      let downloadUrl = '';
+      let filename = '';
+      
+      if (exportFormat) {
+        // Google Docs/Sheets/Slides - export as PDF
+        downloadUrl = `https://docs.google.com/document/d/${fileId}/export?format=pdf`;
+        filename = `google-doc-${fileId}.pdf`;
+      } else {
+        // Regular Drive file - direct download
+        downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        filename = `drive-file-${fileId}`;
+      }
+      
+      // Try to get file metadata to determine actual name
+      try {
+        const metadataUrl = `https://drive.google.com/file/d/${fileId}/view`;
+        const response = await axios.get(metadataUrl);
+        const titleMatch = response.data.match(/<title>(.*?)<\/title>/);
+        if (titleMatch && titleMatch[1]) {
+          const cleanTitle = titleMatch[1].replace(' - Google Drive', '');
+          if (cleanTitle) {
+            filename = cleanTitle;
+          }
+        }
+      } catch (metadataError) {
+        console.log('Could not get file metadata, using default filename');
+      }
+      
+      // Download the file
+      const response = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
+      
+      return {
+        data: new Uint8Array(response.data),
+        filename: filename
+      };
+    } catch (error) {
+      console.error('Error downloading Google Drive file:', error);
+      throw new Error(`Failed to download Google Drive file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
   
@@ -164,6 +276,21 @@ export class DocumentProcessingService {
     if (fileType === 'text/csv' || fileName.endsWith('.csv')) {
       console.log('Converting CSV file to PDF');
       const text = await file.text();
+      return await this.textToPdf(text);
+    }
+    
+    // Convert Excel to PDF (simplified approach - extract as text)
+    if (fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        fileType === 'application/vnd.ms-excel' ||
+        fileName.endsWith('.xlsx') || 
+        fileName.endsWith('.xls')) {
+      console.log('Converting Excel file to PDF (text extraction)');
+      // For Excel, we'd need a specialized library like xlsx
+      // For simplicity, we'll convert to text-based PDF
+      const arrayBuffer = await file.arrayBuffer();
+      // This is a placeholder - in a real implementation, 
+      // use xlsx or similar library to extract text
+      const text = `Content of Excel file: ${fileName}`;
       return await this.textToPdf(text);
     }
     
@@ -237,6 +364,7 @@ export class DocumentProcessingService {
       // 4. Process each chunk
       const documents: LlamaDocument[] = [];
       let failedChunks = 0;
+      let extractedText = '';
       
       for (let i = 0; i < pdfChunks.length; i++) {
         try {
@@ -253,6 +381,11 @@ export class DocumentProcessingService {
           
           if (chunkDocuments && chunkDocuments.length > 0) {
             documents.push(...chunkDocuments);
+            
+            // Combine all document text
+            for (const doc of chunkDocuments) {
+              extractedText += doc.text + "\n\n";
+            }
           }
           
           // Clean up the temporary URL
@@ -263,7 +396,9 @@ export class DocumentProcessingService {
         }
       }
       
-      // 5. Save extracted data to database (simplified for this implementation)
+      // 5. Save extracted data to database - both ai_agents and document_processing_jobs tables
+      
+      // Save to document_links table
       const { data: documentLinkData, error: documentLinkError } = await supabase
         .from('document_links')
         .insert({
@@ -281,6 +416,53 @@ export class DocumentProcessingService {
         console.error('Error saving document link:', documentLinkError);
       }
       
+      // Save to ai_agents table with the extracted text content
+      const { data: aiAgentData, error: aiAgentError } = await supabase
+        .from('ai_agents')
+        .insert({
+          client_id: clientId,
+          content: extractedText,
+          name: `Document: ${fileName}`,
+          type: 'document',
+          interaction_type: 'document',
+          metadata: {
+            document_url: documentUrl,
+            file_name: fileName,
+            processed_sections: documents.length,
+            failed_sections: failedChunks
+          }
+        })
+        .select()
+        .single();
+      
+      if (aiAgentError) {
+        console.error('Error saving to ai_agents:', aiAgentError);
+      }
+      
+      // Save to document_processing_jobs table
+      const { data: processingJobData, error: processingJobError } = await supabase
+        .from('document_processing_jobs')
+        .insert({
+          client_id: clientId,
+          document_url: documentUrl,
+          document_type: 'pdf',
+          agent_name: `Document: ${fileName}`,
+          status: 'completed',
+          content: extractedText,
+          document_id: documentLinkData?.id?.toString() || 'unknown',
+          metadata: {
+            file_name: fileName,
+            processed_sections: documents.length,
+            failed_sections: failedChunks
+          }
+        })
+        .select()
+        .single();
+      
+      if (processingJobError) {
+        console.error('Error saving to document_processing_jobs:', processingJobError);
+      }
+      
       console.log(`Document processing complete. Processed ${documents.length} sections with ${failedChunks} failures`);
       
       return {
@@ -288,7 +470,8 @@ export class DocumentProcessingService {
         processed: documents.length,
         failed: failedChunks,
         documentId: documentLinkData?.id?.toString(),
-        documentUrl: documentUrl
+        documentUrl: documentUrl,
+        extractedText: extractedText
       };
     } catch (error) {
       console.error('Error in processWithLlamaIndex:', error);
