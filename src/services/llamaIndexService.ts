@@ -1,10 +1,12 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  LlamaIndexJobResponse, 
-  LlamaIndexParsingResult, 
-  LlamaIndexProcessingOptions,
-  DocumentChunk
+  DocumentChunk,
+  DocumentProcessingOptions,
+  DocumentProcessingResult,
+  DocumentProcessingStatus,
+  LlamaIndexParsingResult,
+  LlamaIndexJobResponse
 } from '@/types/document-processing';
 import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 
@@ -21,7 +23,7 @@ if (!LLAMA_CLOUD_API_KEY) {
  */
 export const uploadDocumentToLlamaIndex = async (
   file: File,
-  options: LlamaIndexProcessingOptions = {}
+  options: DocumentProcessingOptions = {}
 ): Promise<LlamaIndexJobResponse> => {
   try {
     console.log('Uploading document to LlamaIndex Cloud:', file.name);
