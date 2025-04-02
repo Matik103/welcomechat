@@ -47,19 +47,8 @@ Deno.serve(async (req) => {
       
       // Set up headers with required API keys and authorization
       const headers: Record<string, string> = {
-        'x-api-key': apiKey,
+        'Authorization': `Bearer ${apiKey}`,
       };
-      
-      // Add authorization from client request or use OPENAI_API_KEY as fallback
-      if (authorization) {
-        headers['Authorization'] = authorization;
-        console.log('Using authorization header from client request');
-      } else if (OPENAI_API_KEY) {
-        headers['Authorization'] = `Bearer ${OPENAI_API_KEY}`;
-        console.log('Using OPENAI_API_KEY as fallback authorization');
-      } else {
-        console.log('No authorization header available');
-      }
       
       // Forward to LlamaIndex Cloud API using the correct parsing endpoint
       console.log('Sending request to LlamaIndex with headers:', JSON.stringify(headers));
@@ -96,20 +85,9 @@ Deno.serve(async (req) => {
       
       // Set up headers with required API key
       const headers: Record<string, string> = {
-        'x-api-key': apiKey,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       };
-      
-      // Add authorization if available
-      if (authorization) {
-        headers['Authorization'] = authorization;
-        console.log('Using authorization header from client request');
-      } else if (OPENAI_API_KEY) {
-        headers['Authorization'] = `Bearer ${OPENAI_API_KEY}`;
-        console.log('Using OPENAI_API_KEY as fallback authorization');
-      } else {
-        console.log('No authorization header available');
-      }
       
       // Check if this is a job status request or content request
       if (jobPath.includes('/content')) {
