@@ -12,11 +12,14 @@ export class DocumentProcessingService {
   static MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
   static MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB per chunk
   static MAX_PAGES_PER_CHUNK = 20; // Maximum pages per chunk
+  
+  // Storage bucket name - consistent across the application
+  static STORAGE_BUCKET = 'document-storage';
 
   /**
    * Process a document from file upload or URL
    */
-  static async processDocument(fileOrUrl, documentType, clientId, agentName) {
+  static async processDocument(fileOrUrl, clientId) {
     let jobData = null;
 
     try {
@@ -34,7 +37,7 @@ export class DocumentProcessingService {
         // Upload to document-storage bucket using service client
         const filePath = `${clientId}/${Date.now()}-${fileToProcess.name}`;
         const { error: uploadError } = await supabaseService.storage
-          .from('document-storage')
+          .from(this.STORAGE_BUCKET)
           .upload(filePath, fileToProcess, {
             upsert: true,
             contentType: fileToProcess.type
@@ -46,7 +49,7 @@ export class DocumentProcessingService {
 
         // Get the public URL
         const { data: { publicUrl } } = supabaseService.storage
-          .from('document-storage')
+          .from(this.STORAGE_BUCKET)
           .getPublicUrl(filePath);
 
         documentUrl = publicUrl;
@@ -71,9 +74,8 @@ export class DocumentProcessingService {
         .from('document_processing_jobs')
         .insert({
           client_id: clientId,
-          agent_name: agentName,
           document_url: documentUrl,
-          document_type: documentType,
+          document_type: this.getDocumentType(fileToProcess),
           document_id: crypto.randomUUID(),
           status: 'processing',
           created_at: new Date().toISOString()
@@ -89,11 +91,11 @@ export class DocumentProcessingService {
 
       // Step 3: Convert to PDF if needed
       let pdfFile = fileToProcess;
-      if (documentType === 'text') {
+      if (fileToProcess.type === 'text/plain') {
         const text = await fileToProcess.text();
         const pdfBuffer = await this.convertTextToPdf(text);
         pdfFile = new File([pdfBuffer], 'converted.pdf', { type: 'application/pdf' });
-      } else if (documentType === 'docx') {
+      } else if (fileToProcess.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         const pdfBuffer = await convertWordToPdf(fileToProcess);
         pdfFile = new File([pdfBuffer], 'converted.pdf', { type: 'application/pdf' });
       }
@@ -136,6 +138,22 @@ export class DocumentProcessingService {
         error: error.message
       };
     }
+  }
+
+  /**
+   * Determine document type from file
+   */
+  static getDocumentType(file) {
+    const mimeType = file.type.toLowerCase();
+    
+    if (mimeType.includes('pdf')) return 'pdf';
+    if (mimeType.includes('word') || mimeType.includes('docx')) return 'docx';
+    if (mimeType.includes('text/plain')) return 'text';
+    if (mimeType.includes('csv')) return 'csv';
+    if (mimeType.includes('excel') || mimeType.includes('xlsx')) return 'xlsx';
+    
+    // Default to generic document type
+    return 'document';
   }
 
   /**

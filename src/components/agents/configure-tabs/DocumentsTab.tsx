@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,10 +37,10 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
-        // Fix: Only pass the file parameter without the second argument
+        // Only pass the file parameter
         await uploadDocument(file);
         
-        // Fix: Pass parameters in the correct order (clientId, type, description, metadata)
+        // Fix parameter order: clientId, ActivityType enum, description, metadata object
         await createClientActivity(
           clientId,
           ActivityType.DOCUMENT_ADDED,

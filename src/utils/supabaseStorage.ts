@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-// Define the document bucket name constant
+// Define the document bucket name constant - ensure consistency across the app
 export const DOCUMENTS_BUCKET = 'document-storage';
 
 /**
@@ -70,5 +70,50 @@ export const parseStorageUrl = (url: string) => {
       path: null,
       filename: null
     };
+  }
+};
+
+/**
+ * Creates the document-storage bucket if it doesn't exist
+ */
+export const ensureDocumentStorageBucket = async (): Promise<boolean> => {
+  try {
+    const { data: buckets } = await supabase.storage.listBuckets();
+    
+    // Check if the document-storage bucket exists
+    const bucketExists = buckets?.some(bucket => bucket.name === DOCUMENTS_BUCKET);
+    
+    if (!bucketExists) {
+      console.log(`Creating ${DOCUMENTS_BUCKET} bucket...`);
+      const { data, error } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
+        public: true,
+        fileSizeLimit: 20971520, // 20MB
+        allowedMimeTypes: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'text/csv'
+        ]
+      });
+      
+      if (error && !error.message.includes('already exists')) {
+        console.error(`Error creating ${DOCUMENTS_BUCKET} bucket:`, error);
+        return false;
+      }
+      
+      console.log(`Created ${DOCUMENTS_BUCKET} bucket:`, data);
+    } else {
+      console.log(`${DOCUMENTS_BUCKET} bucket already exists`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`Error ensuring ${DOCUMENTS_BUCKET} bucket:`, error);
+    return false;
   }
 };

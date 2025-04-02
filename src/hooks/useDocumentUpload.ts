@@ -46,7 +46,7 @@ export function useDocumentUpload(clientId: string) {
         });
       }, 500);
       
-      // Process the document - this now expects a single argument
+      // Process the document - pass just the file and clientId
       const result = await DocumentProcessingService.processDocument(
         file,
         clientId
@@ -57,7 +57,7 @@ export function useDocumentUpload(clientId: string) {
       setUploadProgress(100);
       
       if (result.success) {
-        // Fix: Pass parameters in the correct order (clientId, type, description, metadata)
+        // Fix parameter order: clientId, ActivityType enum, description, metadata object
         await createClientActivity(
           clientId,
           ActivityType.DOCUMENT_ADDED,
