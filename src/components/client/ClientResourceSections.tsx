@@ -1,8 +1,8 @@
 
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useEffect } from 'react';
 import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
 import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { toast } from 'sonner';
@@ -10,13 +10,10 @@ import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { supabase } from '@/integrations/supabase/client';
 
-// Constants
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
-
 interface ClientResourceSectionsProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: (action: string, details: Record<string, any>) => Promise<void>;
+  logClientActivity: () => Promise<void>; // Required callback
 }
 
 export const ClientResourceSections = ({
@@ -24,7 +21,6 @@ export const ClientResourceSections = ({
   onResourceChange,
   logClientActivity
 }: ClientResourceSectionsProps) => {
-  const [initializing, setInitializing] = useState(true);
   const { uploadDocument, isUploading } = useDocumentUpload(clientId);
 
   // Debug client ID with less frequent logging
@@ -85,36 +81,27 @@ export const ClientResourceSections = ({
     ensureAgentConfig();
   }, [clientId]);
 
-  // Create wrapper functions with proper signatures for the component props
-  const handleWebsiteUpdate = () => {
-    return logClientActivity('WEBSITE_UPDATE', { client_id: clientId });
-  };
-
-  const handleDocumentUpdate = () => {
-    return logClientActivity('DOCUMENT_UPDATE', { client_id: clientId });
-  };
-
+  // Create wrapper functions to fix TypeScript errors with logClientActivity
   const handleLogClientActivity = async () => {
-    await logClientActivity('DOCUMENT_UPLOAD', {
-      client_id: clientId,
-      timestamp: new Date().toISOString()
-    });
+    await logClientActivity();
   };
 
   const handleUploadDocument = async (file: File) => {
+    // Add size check to prevent large file uploads that would slow down the system
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error('File size exceeds 10MB limit. Please upload a smaller file.');
+      return;
+    }
+    
     try {
-      // Add size check to prevent large file uploads
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error('File size exceeds 50MB limit. Please upload a smaller file.');
-        return;
-      }
-
+      console.log("Uploading document for client:", clientId);
       await uploadDocument(file);
+      toast.success('Document uploaded successfully');
       
-      // Log the activity with wrapper function
+      // Log client activity
       await handleLogClientActivity();
-
-      // Also log specific activity with details
+      
+      // Also log specific document activity with client_id
       await createClientActivity(
         clientId,
         undefined,
@@ -127,16 +114,16 @@ export const ClientResourceSections = ({
           client_id: clientId
         }
       );
-
+      
       // Notify parent component about the change
       if (onResourceChange) {
-        await onResourceChange();
+        onResourceChange();
       }
-      
-      toast.success('Document uploaded successfully');
     } catch (error) {
       console.error('Error uploading document:', error);
-      toast.error(`Failed to upload document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to upload document: ${errorMessage}`);
     }
   };
   
@@ -145,20 +132,20 @@ export const ClientResourceSections = ({
       <WebsiteResourcesSection 
         clientId={clientId}
         onResourceChange={onResourceChange}
-        logClientActivity={handleWebsiteUpdate}
+        logClientActivity={handleLogClientActivity}
       />
       
       <DocumentResourcesSection 
         clientId={clientId}
         onResourceChange={onResourceChange}
-        logClientActivity={handleDocumentUpdate}
+        logClientActivity={handleLogClientActivity}
       />
       
       <Card>
         <CardHeader>
           <CardTitle>Upload Documents</CardTitle>
           <CardDescription>
-            Upload PDF, Word, or text documents to enhance your AI assistant's knowledge. Maximum file size: 50MB.
+            Upload PDF, Word, or text documents to enhance your AI assistant's knowledge
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -172,4 +159,4 @@ export const ClientResourceSections = ({
   );
 }
 
-export default ClientResourcesSection;
+export default ClientResourceSections;

@@ -120,4 +120,87 @@ export const processExistingDocuments = async (
   }
 };
 
+// Simplify document type checking to avoid deep type instantiation
+type DocumentMetadata = Record<string, any>;
+
+// Extract document using Llama API
+export const extractDocumentUsingLlama = async (
+  documentId: string,
+  clientId: string
+): Promise<boolean> => {
+  try {
+    // Get document processing job details
+    const { data: document, error } = await supabase
+      .from('document_processing_jobs')
+      .select('*')
+      .eq('id', documentId)
+      .single();
+    
+    if (error || !document) {
+      console.error('Error fetching document for extraction:', error);
+      return false;
+    }
+    
+    // Update status to processing
+    await supabase
+      .from('document_processing_jobs')
+      .update({ status: 'processing' })
+      .eq('id', documentId);
+    
+    // Call RPC function to extract document
+    const result = await callRpcFunctionSafe('extract_document_content', {
+      document_url: document.document_url,
+      document_type: document.document_type || 'pdf',
+      client_id: clientId,
+      job_id: documentId
+    });
+    
+    if (!result.success) {
+      console.error('Error extracting document content:', result.error);
+      
+      // Update status to failed
+      await supabase
+        .from('document_processing_jobs')
+        .update({ 
+          status: 'failed',
+          error_message: result.error || 'Unknown error during extraction'
+        })
+        .eq('id', documentId);
+      
+      return false;
+    }
+    
+    // Update status to completed
+    await supabase
+      .from('document_processing_jobs')
+      .update({ 
+        status: 'completed',
+        metadata: {
+          processed_at: new Date().toISOString(),
+          method: 'llama_extract'
+        }
+      })
+      .eq('id', documentId);
+    
+    return true;
+  } catch (error) {
+    console.error('Error in extraction process:', error);
+    
+    // Try to update status to failed
+    try {
+      await supabase
+        .from('document_processing_jobs')
+        .update({ 
+          status: 'failed',
+          error_message: error instanceof Error ? error.message : 'Unknown error'
+        })
+        .eq('id', documentId);
+    } catch (updateError) {
+      console.error('Error updating job status:', updateError);
+    }
+    
+    return false;
+  }
+};
+
 export default reprocessDocument;

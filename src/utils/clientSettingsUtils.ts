@@ -1,41 +1,32 @@
 
 /**
- * Safely parses JSON settings, returning an empty object if parsing fails
- * This is useful for handling widget_settings or other JSON fields
+ * Safely parse client settings from various formats to ensure we have a valid object
+ * @param settings The settings to parse, which could be a string, object, or null
+ * @returns A valid object containing the settings
  */
 export const safeParseSettings = (settings: any): Record<string, any> => {
   if (!settings) {
     return {};
   }
-  
-  if (typeof settings === 'object') {
+
+  // If settings is already an object, return it
+  if (typeof settings === 'object' && !Array.isArray(settings)) {
     return settings;
   }
-  
+
+  // If settings is a string, try to parse it as JSON
   if (typeof settings === 'string') {
     try {
-      return JSON.parse(settings);
-    } catch (e) {
-      console.error('Failed to parse settings string:', e);
-      return {};
+      const parsed = JSON.parse(settings);
+      if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error parsing settings JSON:', error);
     }
   }
-  
-  return {};
-};
 
-/**
- * Extract a value from settings with type safety
- */
-export const getSettingValue = <T>(
-  settings: Record<string, any> | null | undefined,
-  key: string,
-  defaultValue: T
-): T => {
-  if (!settings) {
-    return defaultValue;
-  }
-  
-  const value = settings[key];
-  return value !== undefined ? value as T : defaultValue;
+  // If we've reached here, settings is not in a valid format
+  console.warn('Settings is not in a valid format, returning empty object');
+  return {};
 };
