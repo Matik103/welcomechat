@@ -6,6 +6,10 @@ export const env = {
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
   
+  // API Keys
+  LLAMA_CLOUD_API_KEY: import.meta.env.VITE_LLAMA_CLOUD_API_KEY,
+  OPENAI_API_KEY: import.meta.env.VITE_OPENAI_API_KEY,
+  
   // Feature flags
   ENABLE_AI_PROCESSING: import.meta.env.VITE_ENABLE_AI_PROCESSING === 'true',
   ENABLE_DEBUG_LOGS: import.meta.env.VITE_ENABLE_DEBUG_LOGS === 'true',
@@ -18,3 +22,7 @@ export const env = {
   isDevelopment: () => import.meta.env.DEV === true,
   isProduction: () => import.meta.env.PROD === true
 };
+
+// Export individual variables for backward compatibility
+export const LLAMA_CLOUD_API_KEY = env.LLAMA_CLOUD_API_KEY;
+export const OPENAI_API_KEY = env.OPENAI_API_KEY;

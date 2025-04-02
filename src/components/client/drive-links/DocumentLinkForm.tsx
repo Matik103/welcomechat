@@ -11,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { validateDocumentLink } from '@/utils/documentProcessing';
-import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
+import { env, LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 
 const formSchema = z.object({
   link: z.string().url({ message: 'Please enter a valid URL' }),
