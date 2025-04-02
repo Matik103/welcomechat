@@ -1,6 +1,7 @@
 
 import { supabase } from '../integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { LLAMA_CLOUD_API_KEY, LLAMA_EXTRACTION_AGENT_ID } from '@/config/env';
 
 // Constant for the storage bucket name
 const DOCUMENT_STORAGE_BUCKET = 'document-storage';
@@ -76,11 +77,73 @@ export class DocumentProcessingService {
       // Generate a document ID
       const documentId = uuidv4();
       
-      console.log("IMPORTANT: This appears to be using a simulated document processing flow, NOT actually calling LlamaIndex");
-      console.log("No actual text extraction is happening here - we need to implement real LlamaIndex processing");
+      // Check if we have a LlamaIndex API key
+      let llamaApiKey = LLAMA_CLOUD_API_KEY;
+      if (!llamaApiKey) {
+        console.log("No LLAMA_CLOUD_API_KEY found in env vars, attempting to get from Supabase secrets");
+        try {
+          const { data: secretData, error: secretError } = await supabase.functions.invoke('get-secrets', {
+            body: { keys: ['LLAMA_CLOUD_API_KEY'] }
+          });
+          
+          if (secretError) {
+            console.error("Error fetching LLAMA_CLOUD_API_KEY from Supabase:", secretError);
+          } else if (secretData && secretData.LLAMA_CLOUD_API_KEY) {
+            llamaApiKey = secretData.LLAMA_CLOUD_API_KEY;
+            console.log("Successfully retrieved LLAMA_CLOUD_API_KEY from Supabase secrets");
+          }
+        } catch (err) {
+          console.error("Error invoking get-secrets function:", err);
+        }
+      }
       
-      // This is just a simulation - we need to actually call LlamaIndex here
-      const extractedText = "This is placeholder text. No real text extraction was performed.";
+      if (!llamaApiKey) {
+        console.error("No LlamaIndex API key available - cannot process document");
+        throw new Error("LlamaIndex API key is required but not found");
+      }
+      
+      console.log("Preparing to call LlamaIndex API for text extraction...");
+      
+      // Call LlamaIndex API to extract text from the document
+      // First convert file to base64
+      const fileBuffer = await file.arrayBuffer();
+      const base64File = btoa(
+        new Uint8Array(fileBuffer).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ''
+        )
+      );
+      
+      // Call the LlamaIndex API
+      const llamaEndpoint = 'https://api.cloud.llamaindex.ai/api/parsing';
+      console.log(`Calling LlamaIndex API at: ${llamaEndpoint}`);
+      
+      const llamaResponse = await fetch(llamaEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${llamaApiKey}`
+        },
+        body: JSON.stringify({
+          file_name: file.name,
+          file_content: base64File,
+          extract_all: true
+        })
+      });
+      
+      if (!llamaResponse.ok) {
+        const errorText = await llamaResponse.text();
+        console.error("LlamaIndex API error:", errorText);
+        throw new Error(`LlamaIndex API error: ${llamaResponse.status} - ${errorText}`);
+      }
+      
+      const extractionResult = await llamaResponse.json();
+      console.log("LlamaIndex extraction completed successfully:", extractionResult);
+      
+      // Extract the text from the response
+      const extractedText = extractionResult.text || "No text was extracted";
+      
+      console.log(`Extracted text (first 100 chars): ${extractedText.substring(0, 100)}...`);
       
       // Track processing success in the database
       await this.trackDocumentProcessing(
@@ -93,7 +156,7 @@ export class DocumentProcessingService {
         null, 
         agentName,
         documentId,
-        extractedText // Add the extracted text
+        extractedText
       );
       
       return {

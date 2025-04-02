@@ -40,15 +40,23 @@ export function useLlamaIndexProcessing(clientId: string) {
       }, 500);
       
       // Process document with LlamaIndex
+      console.log("Calling DocumentProcessingService.processDocument...");
       const result = await DocumentProcessingService.processDocument(file, clientId);
+      console.log("Document processing completed with result:", result);
       
       // Clear the interval and set final progress
       clearInterval(progressInterval);
       setProgress(100);
       
-      console.log("LlamaIndex processing completed with result:", result);
-      
       if (result.success) {
+        console.log("Document processing successful!");
+        if (result.extractedText) {
+          console.log(`Extracted text length: ${result.extractedText.length} characters`);
+          console.log(`First 100 chars of extracted text: ${result.extractedText.substring(0, 100)}...`);
+        } else {
+          console.warn("Document processed successfully but no extracted text was returned");
+        }
+        
         setResult(result);
         toast.success('Document processed successfully');
       } else {
@@ -66,7 +74,8 @@ export function useLlamaIndexProcessing(clientId: string) {
         success: false,
         error: errorMessage,
         processed: 0,
-        failed: 1
+        failed: 1,
+        documentId: undefined
       };
       
       setResult(failResult);
