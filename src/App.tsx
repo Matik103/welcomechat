@@ -153,19 +153,8 @@ function App() {
     return <UnauthenticatedRoutes />;
   }
 
-  // User authenticated - determine route based on role
-  if (user) {
-    // If user is an admin, render AdminRoutes immediately
-    if (userRole === 'admin' || user.user_metadata?.role === 'admin') {
-      return <AdminRoutes />;
-    }
-    
-    // If user is a client, render ClientRoutes
-    if (userRole === 'client' || user.user_metadata?.role === 'client') {
-      return <ClientRoutes />;
-    }
-    
-    // If role is not determined, check user metadata
+  // User authenticated but role not determined - use metadata as fallback
+  if (!userRole && user) {
     const roleFromMetadata = user.user_metadata?.role;
     
     if (roleFromMetadata === 'admin') {
@@ -174,12 +163,17 @@ function App() {
       return <ClientRoutes />;
     }
     
-    // Default to admin view for users without a defined role
-    console.log('User is authenticated but role is not determined, defaulting to admin view');
+    // Default to client view if we can't determine role
+    console.log('User is authenticated but role is not determined, defaulting to client view');
+    return <ClientRoutes />;
+  }
+
+  // Admin routes
+  if (userRole === 'admin') {
     return <AdminRoutes />;
   }
 
-  // This should never be reached, but as a fallback
+  // Client routes (default)
   return <ClientRoutes />;
 }
 
