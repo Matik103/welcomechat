@@ -1,13 +1,15 @@
 
 import { useState } from 'react';
-import { Upload } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { useDocumentUpload } from '@/hooks/useDocumentUpload';
+import { DocumentUploadForm } from '@/components/client/DocumentUploadForm';
+import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface DocumentsTabProps {
   clientId: string;
@@ -16,55 +18,32 @@ interface DocumentsTabProps {
 }
 
 export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabProps) {
-  const [files, setFiles] = useState<FileList | null>(null);
-  const { uploadDocument, isUploading } = useDocumentUpload(clientId);
+  const { uploadDocument, isUploading, uploadProgress, uploadResult } = useUnifiedDocumentUpload(clientId);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFiles(e.target.files);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!files || files.length === 0) {
-      toast.error('Please select a file to upload');
-      return;
-    }
-
+  const handleSubmitDocument = async (file: File) => {
     try {
-      // Upload each selected file
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        // Only pass the file parameter
-        await uploadDocument(file);
-        
-        // Create client activity with correct parameter order and using enum type
-        await createClientActivity(
-          clientId,
-          agentName,
-          ActivityType.DOCUMENT_ADDED,  // Using enum instead of string description
-          `Document uploaded for agent ${agentName}: ${file.name}`,
-          {
-            file_name: file.name,
-            file_size: file.size,
-            file_type: file.type,
-            agent_name: agentName
-          }
-        );
-      }
+      // Use the unified document upload with all sync options enabled
+      await uploadDocument(file, {
+        syncToAgent: true,
+        syncToProfile: true,
+        syncToWidgetSettings: true
+      });
       
-      toast.success(`${files.length > 1 ? 'Documents' : 'Document'} uploaded successfully`);
-      setFiles(null);
+      // Create client activity
+      await createClientActivity(
+        clientId,
+        agentName,
+        ActivityType.DOCUMENT_ADDED,
+        `Document uploaded for agent ${agentName}: ${file.name}`,
+        {
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type,
+          agent_name: agentName
+        }
+      );
       
-      // Reset the file input
-      const fileInput = document.getElementById('document-upload') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
-      }
-      
+      toast.success(`Document uploaded successfully`);
       onSuccess();
     } catch (error) {
       console.error('Error uploading document:', error);
@@ -75,59 +54,62 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
   return (
     <div className="space-y-6">
       <Card className="p-6 border-dashed">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="document-upload">Upload Documents</Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center hover:border-gray-400 transition-colors">
-              <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-              <p className="text-sm text-gray-600 mb-2">
-                Drag and drop your files here, or click to select files
-              </p>
-              <input
-                id="document-upload"
-                type="file"
-                className="hidden"
-                accept=".pdf,.doc,.docx,.txt,.md,.csv,.xlsx,.xls,.ppt,.pptx"
-                multiple
-                onChange={handleFileChange}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => document.getElementById('document-upload')?.click()}
-              >
-                Select Files
-              </Button>
-              <p className="text-xs text-gray-500 mt-2">
-                Supported formats: PDF, Word, TXT, Markdown, CSV, Excel, PowerPoint
-              </p>
-            </div>
-            {files && files.length > 0 && (
-              <div className="mt-2">
-                <p className="text-sm font-medium">Selected files:</p>
-                <ul className="text-xs text-gray-600 list-disc pl-5 mt-1">
-                  {Array.from(files).map((file, index) => (
-                    <li key={index}>{file.name} ({(file.size / 1024).toFixed(2)} KB)</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <DocumentUploadForm
+              onSubmitDocument={handleSubmitDocument}
+              isUploading={isUploading}
+            />
           </div>
           
-          <Button
-            type="submit"
-            disabled={isUploading || !files || files.length === 0}
-            className="w-full"
-          >
-            {isUploading ? 'Uploading...' : 'Upload Documents'}
-          </Button>
-        </form>
+          {isUploading && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium flex items-center">
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {uploadProgress < 90 ? 'Uploading document...' : 'Processing document...'}
+                </span>
+                <span className="text-sm text-gray-500">{uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} />
+              <p className="text-xs text-gray-500 mt-1">
+                {uploadProgress < 50 ? 'Uploading your document...' : 'Your document is being processed. This may take a few moments...'}
+              </p>
+            </div>
+          )}
+          
+          {uploadResult && uploadResult.success && (
+            <Alert className="bg-green-50 border-green-200">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertTitle className="text-green-800">Document processed successfully</AlertTitle>
+              <AlertDescription className="text-green-700">
+                Your document has been uploaded and processed.
+                {uploadResult.processed > 0 && (
+                  <span> Successfully processed {uploadResult.processed} sections.</span>
+                )}
+                {uploadResult.failed > 0 && (
+                  <span className="text-amber-600"> Failed to process {uploadResult.failed} sections.</span>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {uploadResult && !uploadResult.success && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Upload failed</AlertTitle>
+              <AlertDescription>
+                {uploadResult.error || 'There was an error processing your document. Please try again.'}
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
       </Card>
       
       <div className="text-sm text-muted-foreground">
-        <p>Basic document upload is available, but advanced document processing is being rebuilt.</p>
-        <p className="mt-2">Your files will be stored but advanced extraction features will be available in a future update.</p>
+        <p>Documents uploaded here will be used to train your AI assistant.</p>
+        <p className="mt-2">The content will be added to the agent's knowledge base and synchronized with other systems automatically.</p>
       </div>
     </div>
   );
