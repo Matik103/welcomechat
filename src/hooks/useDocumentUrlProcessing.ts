@@ -3,7 +3,6 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DocumentProcessingResult, DocumentProcessingStatus } from "@/types/document-processing";
 import { v4 as uuidv4 } from "uuid";
-import { uploadDocumentToLlamaIndex, processLlamaIndexJob, convertToPdfIfNeeded } from "@/services/llamaIndexService";
 
 export const useDocumentUrlProcessing = (clientId: string) => {
   const [processingStatus, setProcessingStatus] = useState<DocumentProcessingStatus>({
@@ -13,7 +12,7 @@ export const useDocumentUrlProcessing = (clientId: string) => {
   const [processingResult, setProcessingResult] = useState<DocumentProcessingResult | null>(null);
 
   const processDocumentUrl = async (url: string, options?: {
-    useAI?: boolean,
+    shouldUseAI?: boolean,
     syncToAgent?: boolean,
     description?: string
   }): Promise<DocumentProcessingResult> => {
@@ -29,13 +28,13 @@ export const useDocumentUrlProcessing = (clientId: string) => {
       // Generate a unique ID for this document
       const documentId = uuidv4();
       const now = new Date().toISOString();
-      const useAI = options?.useAI ?? true;
+      const shouldUseAI = options?.shouldUseAI ?? true;
       
       // Initialize result
       let result: DocumentProcessingResult = {
         success: false,
         documentId,
-        url,
+        documentUrl: url,
         processed: 0,
         failed: 0
       };
@@ -77,17 +76,16 @@ export const useDocumentUrlProcessing = (clientId: string) => {
         const { data: documentData, error: documentError } = await supabase
           .from('documents')
           .insert({
-            id: documentId,
-            client_id: clientId,
-            link: url,
-            document_type: 'url',
-            file_name: fetchResult.title || url,
-            file_size: fetchResult.content?.length || 0,
-            mime_type: 'text/html',
-            storage_path: '',
-            refresh_rate: 0,
-            extracted_text: fetchResult.content || '',
-            description: options?.description || fetchResult.title || 'URL document',
+            ai_agent_id: clientId,
+            filename: fetchResult.title || url,
+            type: 'url',
+            status: 'completed',
+            content: fetchResult.content || '',
+            metadata: {
+              url: url,
+              title: fetchResult.title || '',
+              description: options?.description || fetchResult.title || 'URL document'
+            },
             created_at: now,
             updated_at: now,
           })
@@ -98,14 +96,14 @@ export const useDocumentUrlProcessing = (clientId: string) => {
           throw new Error(`Failed to insert document record: ${documentError.message}`);
         }
         
-        if (useAI) {
+        if (shouldUseAI) {
           result.aiProcessed = true;
         }
         
         result = {
           ...result,
           success: true,
-          documentId,
+          documentId: documentData.id,
           fileName: fetchResult.title || url,
           fileType: 'text/html',
           fileSize: fetchResult.content?.length || 0,

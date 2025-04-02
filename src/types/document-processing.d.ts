@@ -17,10 +17,12 @@ export interface DocumentProcessingOptions {
 }
 
 export interface DocumentProcessingStatus {
+  status?: 'pending' | 'processing' | 'completed' | 'failed';
+  id?: string;
+  error?: string | Error;
   stage: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed';
   progress: number;
   message?: string;
-  error?: Error | string;
 }
 
 export interface DocumentProcessingResult {

@@ -1,6 +1,10 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { LlamaIndexJobResponse, LlamaIndexParsingResult, LlamaIndexProcessingOptions } from '@/types/document-processing';
+import { 
+  LlamaIndexJobResponse, 
+  LlamaIndexParsingResult, 
+  LlamaIndexProcessingOptions 
+} from '@/types/document-processing';
 
 export const uploadDocumentToLlamaIndex = async (
   file: File,

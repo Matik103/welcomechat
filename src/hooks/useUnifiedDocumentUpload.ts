@@ -4,8 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
-import { convertToPdfIfNeeded, uploadDocumentToLlamaIndex, processLlamaIndexJob } from '@/services/llamaIndexService';
-import { DocumentProcessingResult, DocumentProcessingStatus, DocumentProcessingOptions, DocumentMetadata } from '@/types/document-processing';
+import { 
+  DocumentProcessingResult, 
+  DocumentProcessingStatus, 
+  DocumentProcessingOptions 
+} from '@/types/document-processing';
+import { 
+  uploadDocumentToLlamaIndex, 
+  processLlamaIndexJob, 
+  convertToPdfIfNeeded 
+} from '@/services/llamaIndexService';
 
 export const useUnifiedDocumentUpload = (clientId: string) => {
   const [uploadStatus, setUploadStatus] = useState<DocumentProcessingStatus>({
@@ -120,7 +128,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       let aiProcessed = false;
       
       // Process with LlamaIndex and OpenAI if requested
-      if (options.useAI || options.shouldUseAI) {
+      if (options.shouldUseAI) {
         try {
           setUploadStatus({
             stage: 'analyzing',
@@ -167,20 +175,20 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       const { data: documentData, error: documentError } = await supabase
         .from('documents')
         .insert({
-          id: parseInt(documentId.replace(/-/g, '').substring(0, 9), 16) % 2147483647, // Convert UUID to int for PostgreSQL
-          client_id: clientId,
-          link: publicUrl,
-          document_type: documentType,
-          file_name: file.name,
-          file_size: file.size,
-          mime_type: mimeType,
-          storage_path: storagePath,
-          refresh_rate: 0, // Not applicable for uploaded documents
-          description: options.description || file.name,
-          extracted_text: extractedText,
-          ai_processed: aiProcessed,
+          ai_agent_id: clientId,
+          filename: file.name,
+          type: documentType as any,
+          status: 'completed',
           created_at: now,
-          updated_at: now
+          updated_at: now,
+          metadata: {
+            file_size: file.size,
+            mime_type: mimeType,
+            storage_path: storagePath,
+            url: publicUrl,
+            ai_processed: aiProcessed
+          },
+          content: extractedText
         })
         .select()
         .single();
@@ -212,13 +220,13 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       // Log activity
       await createClientActivity(
         clientId,
-        documentData.file_name,
+        documentData.filename,
         ActivityType.DOCUMENT_ADDED,
-        `Document uploaded: ${documentData.file_name}`,
+        `Document uploaded: ${documentData.filename}`,
         {
-          file_name: documentData.file_name,
-          file_size: documentData.file_size,
-          file_type: documentData.mime_type,
+          file_name: documentData.filename,
+          file_size: file.size,
+          file_type: mimeType,
           document_id: documentData.id
         }
       );
@@ -237,7 +245,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       
       const result: DocumentProcessingResult = {
         success: true,
-        documentId: documentData.id.toString(),
+        documentId: documentData.id,
         documentUrl: publicUrl,
         fileName: file.name,
         fileSize: file.size,
@@ -333,8 +341,8 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       // Find the document first
       const { data: documentData, error: fetchError } = await supabase
         .from('documents')
-        .select('storage_path, file_name')
-        .eq('id', parseInt(documentId))
+        .select('metadata')
+        .eq('id', documentId)
         .single();
       
       if (fetchError) {
@@ -346,9 +354,10 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       const { error: updateError } = await supabase
         .from('documents')
         .update({
-          deleted_at: new Date().toISOString()
+          status: 'failed',
+          updated_at: new Date().toISOString()
         })
-        .eq('id', parseInt(documentId));
+        .eq('id', documentId);
       
       if (updateError) {
         console.error('Error marking document as deleted:', updateError);
@@ -358,11 +367,10 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       // Log activity
       await createClientActivity(
         clientId,
-        documentData.file_name,
+        'Document',
         ActivityType.DOCUMENT_REMOVED,
-        `Document removed: ${documentData.file_name}`,
+        `Document removed`,
         {
-          file_name: documentData.file_name,
           document_id: documentId
         }
       );
@@ -382,8 +390,8 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       const { data, error } = await supabase
         .from('documents')
         .select('*')
-        .eq('client_id', clientId)
-        .is('deleted_at', null)
+        .eq('ai_agent_id', clientId)
+        .neq('status', 'failed')
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -403,14 +411,13 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
   }, [clientId]);
 
   return {
-    uploadFile: uploadDocument,
+    uploadDocument,
     processDocumentUrl: async () => ({ success: false, processed: 0, failed: 1 }),
     deleteDocument,
     uploadStatus,
     existingDocuments,
     fetchDocuments,
     fetchData,
-    uploadDocument,
     isUploading,
     uploadProgress,
     uploadResult
