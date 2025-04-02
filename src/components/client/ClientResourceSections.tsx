@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { toast } from 'sonner';
-import { fixDocumentLinksRLS, ensureDocumentStorageBucket } from '@/utils/applyDocumentLinksRLS';
+import { fixAllDocumentPermissions, ensureDocumentStorageBucket } from '@/utils/applyDocumentLinksRLS';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ export const ClientResourceSections = ({
   const { uploadDocument, isUploading } = useDocumentUpload(clientId);
   const [isFixingRls, setIsFixingRls] = useState(false);
   const [hasRlsError, setHasRlsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Debug client ID with less frequent logging
   useEffect(() => {
@@ -84,27 +85,39 @@ export const ClientResourceSections = ({
     };
     
     ensureAgentConfig();
+    
+    // Also check document permissions on load
+    ensureDocumentStorageBucket()
+      .then(result => {
+        if (!result.success) {
+          setHasRlsError(true);
+          setErrorMessage(result.message || "Error ensuring document storage bucket");
+        }
+      })
+      .catch(err => {
+        console.error("Error checking bucket:", err);
+      });
   }, [clientId]);
 
   const handleFixPermissions = async () => {
     setIsFixingRls(true);
+    setErrorMessage(null);
+    
     try {
-      // First ensure the bucket exists
-      const bucketResult = await ensureDocumentStorageBucket();
-      console.log("Bucket creation result:", bucketResult);
-      
-      // Then fix the RLS policies
-      const result = await fixDocumentLinksRLS();
+      const result = await fixAllDocumentPermissions();
       
       if (result.success) {
         toast.success("Security policies updated successfully");
         setHasRlsError(false);
       } else {
-        toast.error("Failed to update security policies. Please contact support.");
+        toast.error(result.message || "Failed to update security policies. Please contact support.");
+        setErrorMessage(result.message || "Unknown error occurred");
       }
     } catch (error) {
-      console.error("Failed to fix RLS policies:", error);
-      toast.error("Failed to update security policies. Please contact support.");
+      console.error("Failed to fix permissions:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to update security policies: ${errorMessage}`);
+      setErrorMessage(errorMessage);
     } finally {
       setIsFixingRls(false);
     }
@@ -145,16 +158,22 @@ export const ClientResourceSections = ({
       }
     } catch (error) {
       console.error('Error uploading document:', error);
-      setHasRlsError(true);
       
-      // If we get an RLS error, try to fix it
-      if (error instanceof Error && (
-          error.message.includes('violates row-level security policy') ||
-          error.message.includes('permission denied')
-        )) {
-        toast.error("Permission error. Use the 'Fix Security Permissions' button below.");
+      // Set RLS error flag if this looks like a permission problem
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isPossiblePermissionError = 
+        errorMessage.includes('permission denied') || 
+        errorMessage.includes('not authorized') || 
+        errorMessage.includes('violates row-level security') ||
+        errorMessage.includes('NetworkError') ||
+        errorMessage.includes('Failed to get agent name');
+      
+      if (isPossiblePermissionError) {
+        setHasRlsError(true);
+        setErrorMessage(errorMessage);
+        toast.error("Permission error detected. Try using the 'Fix Security Permissions' button below.");
       } else {
-        toast.error(`Failed to upload document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        toast.error(`Failed to upload document: ${errorMessage}`);
       }
     }
   };
@@ -171,6 +190,11 @@ export const ClientResourceSections = ({
                 <p className="text-yellow-700 text-sm">
                   There appears to be a problem with database permissions. Click the button below to fix it.
                 </p>
+                {errorMessage && (
+                  <p className="text-xs text-yellow-600 bg-yellow-100 p-2 rounded">
+                    Error details: {errorMessage}
+                  </p>
+                )}
                 <Button 
                   variant="outline" 
                   onClick={handleFixPermissions}

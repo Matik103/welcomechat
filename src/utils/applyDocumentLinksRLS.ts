@@ -2,8 +2,10 @@
 import { supabase } from '@/integrations/supabase/client';
 
 // Function to fix document links RLS
-export const fixDocumentLinksRLS = async (): Promise<{ success: boolean }> => {
+export const fixDocumentLinksRLS = async (): Promise<{ success: boolean; message?: string }> => {
   try {
+    console.log("Starting to apply document links RLS policies...");
+    
     // First fix the document_links table RLS
     const { data: linkData, error: linkError } = await supabase.rpc('exec_sql', {
       sql_query: `
@@ -16,6 +18,8 @@ export const fixDocumentLinksRLS = async (): Promise<{ success: boolean }> => {
         DROP POLICY IF EXISTS "Users can delete their own document links" ON public.document_links;
         DROP POLICY IF EXISTS "Service role has full access to document links" ON public.document_links;
         DROP POLICY IF EXISTS "authenticated_can_do_anything" ON public.document_links;
+        DROP POLICY IF EXISTS "Enable document_links access for authenticated users" ON public.document_links;
+        DROP POLICY IF EXISTS "Enable document_links access for service role" ON public.document_links;
 
         -- Create simple permissive policy for development
         CREATE POLICY "authenticated_can_do_anything" 
@@ -33,12 +37,20 @@ export const fixDocumentLinksRLS = async (): Promise<{ success: boolean }> => {
           USING (true)
           WITH CHECK (true);
 
+        -- Ensure RLS is enabled
+        ALTER TABLE public.document_links ENABLE ROW LEVEL SECURITY;
+
+        -- Grant necessary permissions
+        GRANT ALL ON public.document_links TO authenticated;
+        GRANT ALL ON public.document_links TO service_role;
+        
         COMMIT;
       `
     });
 
     if (linkError) {
       console.error('Error fixing document links RLS:', linkError);
+      return { success: false, message: `Document links error: ${linkError.message}` };
     }
 
     // Now fix the storage bucket RLS policies
@@ -61,25 +73,76 @@ export const fixDocumentLinksRLS = async (): Promise<{ success: boolean }> => {
         -- Ensure RLS is enabled
         ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
         
+        -- Grant necessary permissions
+        GRANT ALL ON storage.objects TO authenticated;
+        GRANT ALL ON storage.objects TO service_role;
+        
         COMMIT;
       `
     });
 
     if (storageError) {
       console.error('Error fixing storage RLS:', storageError);
-      return { success: false };
+      return { success: false, message: `Storage error: ${storageError.message}` };
     }
 
-    return { success: true };
+    console.log("Successfully applied RLS policies");
+    return { success: true, message: "Security policies updated successfully" };
   } catch (error) {
     console.error('Error in fixDocumentLinksRLS:', error);
-    return { success: false };
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "Unknown error occurred" 
+    };
   }
 };
 
 // Function to ensure the document-storage bucket exists
-export const ensureDocumentStorageBucket = async (): Promise<boolean> => {
+export const ensureDocumentStorageBucket = async (): Promise<{ success: boolean; message?: string }> => {
   try {
+    console.log("Checking if document-storage bucket exists...");
+    
+    // First check if the bucket exists
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+    
+    if (listError) {
+      console.error("Error listing buckets:", listError);
+      return { success: false, message: `Bucket listing error: ${listError.message}` };
+    }
+    
+    // Check if bucket exists
+    const bucketExists = buckets?.some(bucket => bucket.name === 'document-storage');
+    
+    if (!bucketExists) {
+      console.log("document-storage bucket doesn't exist, attempting to create it...");
+      
+      // Try to create the bucket
+      const { data, error } = await supabase.storage.createBucket('document-storage', {
+        public: true,
+        fileSizeLimit: 20971520, // 20MB
+        allowedMimeTypes: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+          'text/csv'
+        ]
+      });
+      
+      if (error) {
+        // If error is not just that the bucket already exists, report it
+        if (!error.message.includes('already exists')) {
+          console.error('Error creating document-storage bucket:', error);
+          return { success: false, message: `Bucket creation error: ${error.message}` };
+        }
+      }
+      
+      console.log("document-storage bucket created successfully");
+    } else {
+      console.log("document-storage bucket already exists");
+    }
+    
+    // Also add SQL-based bucket creation as a fallback
     const { data, error } = await supabase.rpc('exec_sql', {
       sql_query: `
         BEGIN;
@@ -94,13 +157,37 @@ export const ensureDocumentStorageBucket = async (): Promise<boolean> => {
     });
 
     if (error) {
-      console.error('Error ensuring document-storage bucket exists:', error);
-      return false;
+      console.error('Error ensuring document-storage bucket using SQL:', error);
+      // Don't return an error here, since we might have already created the bucket above
     }
 
-    return true;
+    return { success: true };
   } catch (error) {
     console.error('Error in ensureDocumentStorageBucket:', error);
-    return false;
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "Unknown error occurred" 
+    };
+  }
+};
+
+// Comprehensive function to fix all document permissions issues
+export const fixAllDocumentPermissions = async (): Promise<{ success: boolean; message?: string }> => {
+  try {
+    // First ensure the bucket exists
+    const bucketResult = await ensureDocumentStorageBucket();
+    if (!bucketResult.success) {
+      return bucketResult;
+    }
+    
+    // Then fix the RLS policies
+    const rlsResult = await fixDocumentLinksRLS();
+    return rlsResult;
+  } catch (error) {
+    console.error("Failed to fix document permissions:", error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "Unknown error occurred" 
+    };
   }
 };

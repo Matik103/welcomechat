@@ -57,6 +57,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
     }
     
     setSelectedFile(file);
+    setUploadError(null); // Clear any previous errors
   };
 
   const handleUpload = async () => {
@@ -78,7 +79,8 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
         errorMessage.includes('permission denied') || 
         errorMessage.includes('not authorized') || 
         errorMessage.includes('violates row-level security') ||
-        errorMessage.includes('NetworkError');
+        errorMessage.includes('NetworkError') ||
+        errorMessage.includes('Failed to get agent name');
       
       if (isPossiblePermissionError) {
         setUploadError('Permission error detected. Try using the "Fix Security Permissions" button above.');
@@ -90,6 +92,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
 
   const handleClearFile = () => {
     setSelectedFile(null);
+    setUploadError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
