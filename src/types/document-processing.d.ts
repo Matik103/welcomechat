@@ -71,6 +71,7 @@ export interface DocumentProcessingResult {
   contentStored?: number;
   message?: string;
   extractedText?: string;
+  llamaJobId?: string;
 }
 
 export interface DocumentProcessingRequest {
@@ -108,4 +109,15 @@ export interface ParseResponse {
   text?: string;
   chunks?: DocumentChunk[];
   error?: string;
+}
+
+export interface LlamaIndexJobStatus {
+  job_id: string;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
+  error?: string;
+}
+
+export interface LlamaIndexProcessingOptions {
+  maxAttempts?: number;
+  delayMs?: number;
 }
