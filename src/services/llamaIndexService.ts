@@ -5,13 +5,13 @@ import {
   DocumentProcessingOptions,
   DocumentProcessingResult,
   DocumentProcessingStatus,
-  LlamaIndexParsingResult,
-  LlamaIndexJobResponse
+  LlamaIndexJobResponse,
+  LlamaIndexParsingResult
 } from '@/types/document-processing';
 import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 
-// Base URL for the LlamaIndex Cloud API
-const API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
+// Use the Supabase Edge Function as a proxy to avoid CORS issues
+const EDGE_FUNCTION_URL = 'https://mgjodiqecnnltsgorife.supabase.co/functions/v1/llama-index-proxy';
 
 // Check if API key is available
 if (!LLAMA_CLOUD_API_KEY) {
@@ -23,10 +23,10 @@ if (!LLAMA_CLOUD_API_KEY) {
  */
 export const uploadDocumentToLlamaIndex = async (
   file: File,
-  options: DocumentProcessingOptions = {}
+  options: DocumentProcessingOptions = { clientId: '' }
 ): Promise<LlamaIndexJobResponse> => {
   try {
-    console.log('Uploading document to LlamaIndex Cloud:', file.name);
+    console.log('Uploading document to LlamaIndex Cloud via Edge Function:', file.name);
     
     // Create a FormData object to send the file
     const formData = new FormData();
@@ -49,8 +49,8 @@ export const uploadDocumentToLlamaIndex = async (
     
     console.log('Using authorization header:', headers['Authorization'] ? 'Yes (present)' : 'No');
     
-    // Make direct API request to LlamaIndex Cloud
-    const response = await fetch(`${API_URL}/upload`, {
+    // Make request to Edge Function which will proxy to LlamaIndex Cloud
+    const response = await fetch(`${EDGE_FUNCTION_URL}/process_file`, {
       method: 'POST',
       headers,
       body: formData,
@@ -100,8 +100,8 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
       headers['Authorization'] = `Bearer ${OPENAI_API_KEY}`;
     }
     
-    // Check job status
-    const response = await fetch(`${API_URL}/job/${jobId}`, {
+    // Check job status via Edge Function
+    const response = await fetch(`${EDGE_FUNCTION_URL}/jobs/${jobId}?includeContent=true`, {
       method: 'GET',
       headers
     });
@@ -122,9 +122,20 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
       return processLlamaIndexJob(jobId);
     }
     
-    // If job completed, fetch the content
+    // If job completed, check if content was included in the response
     if (result.status === 'completed') {
-      const contentResponse = await fetch(`${API_URL}/job/${jobId}/result/markdown`, {
+      if (result.parsed_content) {
+        console.log(`Retrieved content for job ${jobId}, length: ${result.parsed_content.length} characters`);
+        
+        return {
+          job_id: jobId,
+          status: 'SUCCEEDED',
+          parsed_content: result.parsed_content
+        };
+      }
+      
+      // If content wasn't included, make another request to get it
+      const contentResponse = await fetch(`${EDGE_FUNCTION_URL}/jobs/${jobId}/content`, {
         method: 'GET',
         headers
       });

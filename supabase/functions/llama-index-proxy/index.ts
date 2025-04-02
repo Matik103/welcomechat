@@ -3,7 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '../_shared/config.ts';
 
 // Updated API endpoint for LlamaIndex Cloud
-const LLAMA_CLOUD_API_URL = 'https://api.cloud.llamaindex.ai';
+const LLAMA_CLOUD_API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -32,13 +32,22 @@ Deno.serve(async (req) => {
     const authorization = req.headers.get('authorization');
     console.log(`Authorization header: ${authorization ? 'Present' : 'Not present'}`);
     
+    // Get x-api-key header for LlamaIndex API
+    const apiKey = req.headers.get('x-api-key') || LLAMA_CLOUD_API_KEY;
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'LlamaIndex API key is required' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+    
     if (endpoint === 'process_file') {
       // Handle file upload to LlamaIndex Cloud
       const formData = await req.formData();
       
       // Set up headers with required API keys and authorization
       const headers: Record<string, string> = {
-        'x-api-key': LLAMA_CLOUD_API_KEY,
+        'x-api-key': apiKey,
       };
       
       // Add authorization from client request or use OPENAI_API_KEY as fallback
@@ -54,7 +63,7 @@ Deno.serve(async (req) => {
       
       // Forward to LlamaIndex Cloud API using the correct parsing endpoint
       console.log('Sending request to LlamaIndex with headers:', JSON.stringify(headers));
-      const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/api/parsing/upload`, {
+      const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/upload`, {
         method: 'POST',
         headers,
         body: formData,
@@ -72,12 +81,22 @@ Deno.serve(async (req) => {
         status: llamaResponse.status,
       });
     } else if (url.pathname.includes('/jobs/')) {
-      // Handle job status check
-      const jobId = url.pathname.split('/jobs/')[1];
+      // Extract job ID from the URL path
+      const parts = url.pathname.split('/jobs/');
+      if (parts.length < 2) {
+        return new Response(JSON.stringify({ error: 'Invalid job ID' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        });
+      }
+      
+      // Handle different job-related endpoints
+      const jobPath = parts[1];
+      const jobId = jobPath.split('/')[0]; // Get job ID before any additional segments
       
       // Set up headers with required API key
       const headers: Record<string, string> = {
-        'x-api-key': LLAMA_CLOUD_API_KEY,
+        'x-api-key': apiKey,
         'Content-Type': 'application/json',
       };
       
@@ -92,40 +111,78 @@ Deno.serve(async (req) => {
         console.log('No authorization header available');
       }
       
-      const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/api/parsing/job/${jobId}`, {
-        method: 'GET',
-        headers,
-      });
-      
-      const responseStatus = llamaResponse.status;
-      const data = await llamaResponse.json();
-      console.log(`LlamaIndex job status response [${responseStatus}] for ${jobId}:`, JSON.stringify(data));
-      
-      // If job is completed, also check if we need to get the content
-      if (data.status === 'completed' && url.searchParams.has('includeContent')) {
-        try {
-          const contentResponse = await fetch(`${LLAMA_CLOUD_API_URL}/api/parsing/job/${jobId}/result/markdown`, {
-            method: 'GET',
-            headers,
+      // Check if this is a job status request or content request
+      if (jobPath.includes('/content')) {
+        // Get job content (markdown results)
+        const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/job/${jobId}/result/markdown`, {
+          method: 'GET',
+          headers,
+        });
+        
+        if (!llamaResponse.ok) {
+          console.error(`Error getting content for job ${jobId}:`, llamaResponse.status);
+          return new Response(JSON.stringify({ 
+            error: `Failed to get content: ${llamaResponse.statusText}` 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: llamaResponse.status,
           });
-          
-          if (contentResponse.ok) {
-            const content = await contentResponse.text();
-            data.parsed_content = content;
-            console.log(`Retrieved content for job ${jobId}, length: ${content.length} characters`);
-          }
-        } catch (contentError) {
-          console.error(`Error retrieving content for job ${jobId}:`, contentError);
         }
+        
+        const textContent = await llamaResponse.text();
+        console.log(`Retrieved content for job ${jobId}, length: ${textContent.length} characters`);
+        
+        return new Response(textContent, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/markdown',
+          },
+        });
+      } else {
+        // Get job status
+        const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/job/${jobId}`, {
+          method: 'GET',
+          headers,
+        });
+        
+        if (!llamaResponse.ok) {
+          console.error(`Error getting job status for ${jobId}:`, llamaResponse.status);
+          return new Response(JSON.stringify({ 
+            error: `Failed to get job status: ${llamaResponse.statusText}` 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: llamaResponse.status,
+          });
+        }
+        
+        const data = await llamaResponse.json();
+        console.log(`Job status for ${jobId}:`, JSON.stringify(data));
+        
+        // If includeContent parameter is present and job is completed, also fetch content
+        if (url.searchParams.has('includeContent') && data.status === 'completed') {
+          try {
+            const contentResponse = await fetch(`${LLAMA_CLOUD_API_URL}/job/${jobId}/result/markdown`, {
+              method: 'GET',
+              headers,
+            });
+            
+            if (contentResponse.ok) {
+              const content = await contentResponse.text();
+              data.parsed_content = content;
+              console.log(`Retrieved content for job ${jobId}, length: ${content.length} characters`);
+            }
+          } catch (contentError) {
+            console.error(`Error retrieving content for job ${jobId}:`, contentError);
+          }
+        }
+        
+        return new Response(JSON.stringify(data), {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        });
       }
-      
-      return new Response(JSON.stringify(data), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
-        status: llamaResponse.status,
-      });
     }
     
     // Default error for unsupported endpoints
