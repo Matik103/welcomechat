@@ -1,4 +1,5 @@
 
+
 /**
  * Document processing type definitions
  */
@@ -114,3 +115,4 @@ export interface DocumentLink {
 }
 
 export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
+
