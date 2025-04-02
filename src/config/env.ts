@@ -7,8 +7,8 @@ export const env = {
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
   
   // API Keys
-  LLAMA_CLOUD_API_KEY: import.meta.env.VITE_LLAMA_CLOUD_API_KEY,
-  OPENAI_API_KEY: import.meta.env.VITE_OPENAI_API_KEY,
+  LLAMA_CLOUD_API_KEY: import.meta.env.VITE_LLAMA_CLOUD_API_KEY || 'llx-Qy4NvsmC9BhtGwMtthOL5QNKhxmj0diiokWvAEkPJi4RxF8Z',
+  OPENAI_API_KEY: import.meta.env.VITE_OPENAI_API_KEY || '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',
   
   // Feature flags
   ENABLE_AI_PROCESSING: import.meta.env.VITE_ENABLE_AI_PROCESSING === 'true',
