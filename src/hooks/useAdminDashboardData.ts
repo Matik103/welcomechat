@@ -124,7 +124,11 @@ export function useAdminDashboardData() {
     }
     
     try {
+      console.log('Fetching dashboard data...');
+      
+      // Get all agents
       const agents = await getAllAgents();
+      console.log('Fetched agents:', agents.length);
       const totalAgents = agents.length;
       
       // Get last 24 hours timestamp
@@ -137,31 +141,41 @@ export function useAdminDashboardData() {
         agent.last_active && new Date(agent.last_active) > last24Hours
       ).length;
       
-      // Get clients with their last_active status
-      const { data: clientsData, error: clientsError } = await supabase
-        .from('ai_agents')  // Changed from 'clients' to 'ai_agents' to match the actual table structure
-        .select('id, client_id, last_active, status, deleted_at')
-        .eq('interaction_type', 'config')  // Only get config records which represent clients
+      // Get client config entries from ai_agents table
+      const { data: clientConfigData, error: clientConfigError } = await supabase
+        .from('ai_agents')
+        .select('id, client_id, name, last_active, status, deleted_at')
+        .eq('interaction_type', 'config')
         .eq('status', 'active')
         .is('deleted_at', null);
       
-      if (clientsError) throw clientsError;
+      if (clientConfigError) {
+        console.error('Error fetching client configs:', clientConfigError);
+        throw clientConfigError;
+      }
+      
+      console.log('Fetched client configs:', clientConfigData?.length);
       
       // Use a Set to count unique client_ids
       const uniqueClientIds = new Set();
-      clientsData.forEach(client => {
-        if (client.client_id) uniqueClientIds.add(client.client_id);
-      });
+      if (clientConfigData) {
+        clientConfigData.forEach(client => {
+          if (client.client_id) uniqueClientIds.add(client.client_id);
+        });
+      }
       const totalClients = uniqueClientIds.size;
       
       // Count clients active in the last 24 hours
-      const activeClients = clientsData.filter(client => 
+      const activeClients = clientConfigData ? clientConfigData.filter(client => 
         client.last_active && new Date(client.last_active) > last24Hours
-      ).length;
+      ).length : 0;
       
-      // Calculate growth percentages
+      // Calculate growth percentages (avoid divide by zero)
       const clientGrowthRate = totalClients > 0 ? Math.round((activeClients / totalClients) * 100) : 0;
       const agentGrowthRate = totalAgents > 0 ? Math.round((activeAgents / totalAgents) * 100) : 0;
+      
+      console.log('Client stats:', { totalClients, activeClients, clientGrowthRate });
+      console.log('Agent stats:', { totalAgents, activeAgents, agentGrowthRate });
       
       // Get total interactions count
       const { count: interactionsCount, error: interactionsError } = await supabase
@@ -169,7 +183,10 @@ export function useAdminDashboardData() {
         .select('id', { count: 'exact', head: true })
         .eq('interaction_type', 'chat_interaction');
       
-      if (interactionsError) throw interactionsError;
+      if (interactionsError) {
+        console.error('Error fetching interactions count:', interactionsError);
+        throw interactionsError;
+      }
       
       // Get recent interactions (last 24 hours)
       const { count: recentInteractionsCount, error: recentInteractionsError } = await supabase
@@ -178,57 +195,90 @@ export function useAdminDashboardData() {
         .eq('interaction_type', 'chat_interaction')
         .gt('created_at', last24HoursStr);
       
-      if (recentInteractionsError) throw recentInteractionsError;
+      if (recentInteractionsError) {
+        console.error('Error fetching recent interactions count:', recentInteractionsError);
+        throw recentInteractionsError;
+      }
+      
+      console.log('Interaction stats:', { total: interactionsCount, recent: recentInteractionsCount });
       
       // Count training resources
       const { count: websiteUrlsCount, error: websiteUrlsError } = await supabase
         .from('website_urls')
         .select('id', { count: 'exact', head: true });
       
-      if (websiteUrlsError) throw websiteUrlsError;
+      if (websiteUrlsError) {
+        console.error('Error fetching website URLs count:', websiteUrlsError);
+        throw websiteUrlsError;
+      }
       
       const { count: documentLinksCount, error: documentLinksError } = await supabase
         .from('document_links')
         .select('id', { count: 'exact', head: true });
       
-      if (documentLinksError) throw documentLinksError;
+      if (documentLinksError) {
+        console.error('Error fetching document links count:', documentLinksError);
+        throw documentLinksError;
+      }
       
       const { count: driveLinksCount, error: driveLinksError } = await supabase
         .from('google_drive_links')
         .select('id', { count: 'exact', head: true });
       
-      if (driveLinksError) throw driveLinksError;
+      if (driveLinksError) {
+        console.error('Error fetching drive links count:', driveLinksError);
+        throw driveLinksError;
+      }
       
       const trainingsTotal = (websiteUrlsCount || 0) + (documentLinksCount || 0) + (driveLinksCount || 0);
+      console.log('Training resources:', { websiteUrlsCount, documentLinksCount, driveLinksCount, total: trainingsTotal });
       
       // Get administration activities
       const { count: adminActivitiesCount, error: adminActivitiesError } = await supabase
-        .from('activities')
+        .from('client_activities')
         .select('id', { count: 'exact', head: true })
-        .in('type', ['client_created', 'client_updated', 'client_deleted']);
+        .in('activity_type', ['client_created', 'client_updated', 'client_deleted']);
       
-      if (adminActivitiesError) throw adminActivitiesError;
+      if (adminActivitiesError) {
+        console.error('Error fetching admin activities count:', adminActivitiesError);
+        throw adminActivitiesError;
+      }
       
       // Get chart data from the function
       const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
       
-      if (chartError) throw chartError;
+      if (chartError) {
+        console.error('Error fetching chart data:', chartError);
+        throw chartError;
+      }
       
-      const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
-
+      let parsedChartData;
+      try {
+        parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
+      } catch (e) {
+        console.error('Error parsing chart data:', e);
+        parsedChartData = {
+          database: { value: "0", title: "Database", subtitle: "REST Requests", data: [] },
+          auth: { value: "0", title: "Auth", subtitle: "Auth Requests", data: [] },
+          storage: { value: "0", title: "Storage", subtitle: "Storage Requests", data: [] },
+          realtime: { value: "0", title: "Realtime", subtitle: "Realtime Requests", data: [] }
+        };
+      }
+      
       // For administration card, count recent clients who logged in the last 24 hours
       // This is similar to activeClients but we're tracking it separately for the administration card
       const recentAdminLogins = activeClients;
       
       // Calculate growth metrics
       const interactionsChangePercentage = 
-        recentInteractionsCount && interactionsCount ? 
+        (recentInteractionsCount && interactionsCount && interactionsCount > recentInteractionsCount) ? 
         Math.round((recentInteractionsCount / (interactionsCount - recentInteractionsCount)) * 100) : 0;
       
       const adminChangePercentage = 
-        recentAdminLogins && totalClients ? 
+        (recentAdminLogins && totalClients && totalClients > 0) ? 
         Math.round((recentAdminLogins / totalClients) * 100) : 0;
       
+      console.log('Setting dashboard data with actual values');
       setDashboardData({
         clients: {
           total: totalClients,
@@ -250,7 +300,7 @@ export function useAdminDashboardData() {
         },
         trainings: {
           total: trainingsTotal,
-          changePercentage: 15,
+          changePercentage: 15, // Placeholder value
           chartData: generateChartData()
         },
         administration: {
@@ -272,6 +322,7 @@ export function useAdminDashboardData() {
   }, []);
 
   useEffect(() => {
+    console.log('Initial dashboard data fetch');
     fetchDashboardData(true);
     
     const pollingInterval = setInterval(() => {

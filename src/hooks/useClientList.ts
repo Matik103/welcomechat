@@ -30,59 +30,119 @@ export const useClientList = () => {
     setError(null);
     
     try {
-      console.log('Fetching clients data...');
+      console.log('Fetching clients data with searchQuery:', searchQuery);
+      
+      // First try to get from ai_agents table for config entries
       let query = supabase
         .from('ai_agents')
         .select('*')
         .eq('interaction_type', 'config');
       
       if (searchQuery) {
-        query = query.or(`client_name.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+        // We need to use ilike for case-insensitive search and handle multiple fields
+        query = query.or(`name.ilike.%${searchQuery}%,client_id.ilike.%${searchQuery}%,client_name.ilike.%${searchQuery}%`);
       }
       
-      const { data, error } = await query;
+      const { data: agentData, error: agentError } = await query;
       
-      if (error) {
-        throw error;
+      if (agentError) {
+        console.error('Error fetching from ai_agents:', agentError);
+        throw agentError;
       }
       
-      // Convert to Client type
-      const formattedClients: Client[] = data.map(agent => {
-        // Use the safeParseSettings utility to ensure widget_settings is always an object
-        const parsedSettings = safeParseSettings(agent.settings);
+      console.log(`Fetched ${agentData?.length || 0} records from ai_agents`);
+      
+      // If we don't have any data from ai_agents, try the clients table as fallback
+      if (!agentData || agentData.length === 0) {
+        console.log('No data in ai_agents, checking clients table');
+        let clientsQuery = supabase.from('clients').select('*');
         
-        return {
-          id: agent.id,
-          client_id: agent.client_id || '',
-          client_name: agent.client_name || '',
-          email: agent.email || '',
-          status: agent.status as 'active' | 'inactive' | 'deleted' || 'active',
-          created_at: agent.created_at || '',
-          updated_at: agent.updated_at || '',
-          agent_name: agent.name || '',
-          agent_description: agent.agent_description || '',
-          logo_url: agent.logo_url || '',
-          widget_settings: parsedSettings,
-          user_id: '',
-          company: agent.company || '',
-          description: agent.description || '',
-          logo_storage_path: agent.logo_storage_path || '',
-          deletion_scheduled_at: agent.deletion_scheduled_at || null,
-          deleted_at: agent.deleted_at || null,
-          last_active: agent.last_active || null,
-          name: agent.name || '',
-          is_error: agent.is_error || false
-        };
-      });
+        if (searchQuery) {
+          clientsQuery = clientsQuery.or(`client_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+        }
+        
+        const { data: clientsData, error: clientsError } = await clientsQuery;
+        
+        if (clientsError) {
+          console.error('Error fetching from clients:', clientsError);
+          throw clientsError;
+        }
+        
+        console.log(`Fetched ${clientsData?.length || 0} records from clients table`);
+        
+        // Convert clients data to Client type
+        const formattedClients: Client[] = (clientsData || []).map(client => ({
+          id: client.id,
+          client_id: client.id,
+          client_name: client.client_name || client.name || 'Unnamed Client',
+          email: client.email || '',
+          company: client.company || '',
+          description: client.description || '',
+          status: client.status || 'active',
+          created_at: client.created_at || '',
+          updated_at: client.updated_at || '',
+          deleted_at: client.deleted_at,
+          deletion_scheduled_at: client.deletion_scheduled_at,
+          last_active: client.last_active,
+          logo_url: client.logo_url || '',
+          logo_storage_path: client.logo_storage_path || '',
+          agent_name: client.agent_name || 'AI Assistant',
+          agent_description: '',
+          widget_settings: client.widget_settings || {},
+          name: client.name || client.client_name || 'Unnamed Client',
+          is_error: false,
+          user_id: client.user_id || ''
+        }));
+        
+        // Filter out deleted clients
+        const filteredClients = formattedClients.filter(client => 
+          client.status !== 'scheduled_deletion' && 
+          !client.deletion_scheduled_at &&
+          client.status !== 'deleted'
+        );
+        
+        setClients(filteredClients);
+      } else {
+        // Convert agent data to Client type
+        const formattedClients: Client[] = agentData.map(agent => {
+          // Use the safeParseSettings utility to ensure settings is always an object
+          const parsedSettings = safeParseSettings(agent.settings);
+          
+          return {
+            id: agent.id,
+            client_id: agent.client_id || '',
+            client_name: agent.client_name || agent.name || 'Unnamed Client',
+            email: agent.email || parsedSettings.email || '',
+            status: agent.status || 'active',
+            created_at: agent.created_at || '',
+            updated_at: agent.updated_at || '',
+            agent_name: agent.name || 'AI Assistant',
+            agent_description: agent.agent_description || '',
+            logo_url: agent.logo_url || '',
+            widget_settings: parsedSettings,
+            user_id: '',
+            company: agent.company || parsedSettings.company || '',
+            description: agent.description || '',
+            logo_storage_path: agent.logo_storage_path || '',
+            deletion_scheduled_at: agent.deletion_scheduled_at || null,
+            deleted_at: agent.deleted_at || null,
+            last_active: agent.last_active || null,
+            name: agent.name || agent.client_name || 'Unnamed Client',
+            is_error: agent.is_error || false
+          };
+        });
+        
+        // Filter out clients with "Deletion Scheduled" status or those that have deletion_scheduled_at set
+        const filteredClients = formattedClients.filter(client => 
+          client.status !== 'scheduled_deletion' && 
+          !client.deletion_scheduled_at &&
+          client.status !== 'deleted'
+        );
+        
+        console.log(`Processed ${filteredClients.length} clients`);
+        setClients(filteredClients);
+      }
       
-      // Filter out clients with "Deletion Scheduled" status or those that have deletion_scheduled_at set
-      const filteredClients = formattedClients.filter(client => 
-        client.status !== 'scheduled_deletion' && 
-        !client.deletion_scheduled_at
-      );
-      
-      console.log(`Fetched ${filteredClients.length} clients successfully`);
-      setClients(filteredClients);
       initialLoadDone.current = true;
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -94,6 +154,7 @@ export const useClientList = () => {
   
   // Initial fetch on component mount
   useEffect(() => {
+    console.log('Initial client list fetch');
     fetchClients(true);
   }, [fetchClients]);
   

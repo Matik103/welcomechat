@@ -3772,13 +3772,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      exec_sql: {
-        Args: {
-          sql_query: string
-          query_params?: Json
-        }
-        Returns: Json
-      }
+      exec_sql:
+        | {
+            Args: {
+              query: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              sql_query: string
+              query_params?: Json
+            }
+            Returns: Json
+          }
       extract_google_drive_links: {
         Args: {
           content: string
