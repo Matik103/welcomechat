@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,6 +138,9 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
               )}
               {uploadResult.failed > 0 && (
                 <span className="text-amber-600"> Failed to process {uploadResult.failed} sections.</span>
+              )}
+              {uploadResult.extractedText && (
+                <span> The document text has been extracted successfully.</span>
               )}
             </AlertDescription>
           </Alert>

@@ -110,15 +110,14 @@ export class DocumentProcessingService {
   ) {
     try {
       const { error } = await supabase
-        .from('document_processing')
+        .from('document_processing_jobs')  // Changed from 'document_processing' to 'document_processing_jobs'
         .insert({
           client_id: clientId,
-          file_path: filePath,
-          public_url: publicUrl,
+          document_url: publicUrl,
           file_name: fileName,
           file_size: fileSize,
           status,
-          error_message: errorMessage,
+          error: errorMessage,
           created_at: new Date().toISOString()
         });
       

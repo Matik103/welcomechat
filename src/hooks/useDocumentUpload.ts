@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { DocumentProcessingResult } from '@/types/document-processing';
 import { supabase } from '@/integrations/supabase/client';
