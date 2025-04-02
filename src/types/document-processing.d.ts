@@ -13,7 +13,7 @@ export interface DocumentProcessingOptions {
   syncToWidgetSettings?: boolean;
   folder?: string;
   description?: string;
-  clientId?: string;
+  clientId: string;
 }
 
 export interface DocumentProcessingStatus {
@@ -95,3 +95,20 @@ export interface DocumentMetadata {
   pageCount?: number;
   [key: string]: any;
 }
+
+export interface DocumentLink {
+  id: number;
+  client_id: string;
+  link: string;
+  document_type: string;
+  created_at: string;
+  refresh_rate: number;
+  notified_at?: string;
+  access_status?: AccessStatus;
+  file_name?: string;
+  file_size?: number;
+  mime_type?: string;
+  storage_path?: string;
+}
+
+export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';

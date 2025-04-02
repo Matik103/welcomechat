@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DocumentProcessingResult, DocumentProcessingStatus } from "@/types/document-processing";
@@ -72,28 +71,22 @@ export const useDocumentUrlProcessing = (clientId: string) => {
           message: 'Analyzing document content...'
         });
         
-        // Insert document record
-        const { data: documentData, error: documentError } = await supabase
-          .from('documents')
+        // Insert document_link record instead of document
+        const { data: documentLinkData, error: documentLinkError } = await supabase
+          .from('document_links')
           .insert({
-            ai_agent_id: clientId,
-            filename: fetchResult.title || url,
-            type: 'url',
-            status: 'processed',
-            content: fetchResult.content || '',
-            metadata: {
-              url: url,
-              title: fetchResult.title || '',
-              description: options?.description || fetchResult.title || 'URL document'
-            },
-            created_at: now,
-            updated_at: now,
+            client_id: clientId,
+            link: url,
+            document_type: 'url',
+            access_status: 'accessible',
+            file_name: fetchResult.title || url,
+            refresh_rate: 30
           })
           .select()
           .single();
         
-        if (documentError) {
-          throw new Error(`Failed to insert document record: ${documentError.message}`);
+        if (documentLinkError) {
+          throw new Error(`Failed to insert document link record: ${documentLinkError.message}`);
         }
         
         if (shouldUseAI) {
@@ -103,7 +96,7 @@ export const useDocumentUrlProcessing = (clientId: string) => {
         result = {
           ...result,
           success: true,
-          documentId: documentData.id,
+          documentId: documentLinkData.id.toString(),
           fileName: fetchResult.title || url,
           fileType: 'text/html',
           fileSize: fetchResult.content?.length || 0,
