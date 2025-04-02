@@ -123,6 +123,13 @@ export const processExistingDocuments = async (
 // Simplify document type checking to avoid deep type instantiation
 type DocumentMetadata = Record<string, any>;
 
+// Define the type for RPC function response
+interface RpcFunctionResponse {
+  success: boolean;
+  error?: string;
+  [key: string]: any;
+}
+
 // Extract document using Llama API
 export const extractDocumentUsingLlama = async (
   documentId: string,
@@ -155,15 +162,18 @@ export const extractDocumentUsingLlama = async (
       job_id: documentId
     });
     
-    if (!result.success) {
-      console.error('Error extracting document content:', result.error);
+    // Type cast the result to our defined interface
+    const typedResult = result as RpcFunctionResponse;
+    
+    if (!typedResult.success) {
+      console.error('Error extracting document content:', typedResult.error);
       
       // Update status to failed
       await supabase
         .from('document_processing_jobs')
         .update({ 
           status: 'failed',
-          error_message: result.error || 'Unknown error during extraction'
+          error_message: typedResult.error || 'Unknown error during extraction'
         })
         .eq('id', documentId);
       
