@@ -163,13 +163,23 @@ function App() {
       return <ClientRoutes />;
     }
     
-    // Default to client view if we can't determine role
-    console.log('User is authenticated but role is not determined, defaulting to client view');
-    return <ClientRoutes />;
+    // If a user is authenticated but we don't know their role yet,
+    // show a loading spinner instead of defaulting to client view
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+          <p className="text-sm text-muted-foreground">
+            Determining your access level...
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // Admin routes
   if (userRole === 'admin') {
+    // Important change: Direct admins straight to admin routes without any intermediate state
     return <AdminRoutes />;
   }
 
