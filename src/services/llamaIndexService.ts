@@ -1,102 +1,112 @@
-import axios from 'axios';
+
+import { supabase } from '@/integrations/supabase/client';
+import { env } from '@/config/env';
 import { 
   LlamaIndexJobResponse, 
   LlamaIndexParsingResult, 
-  LlamaIndexProcessingOptions,
-  DocumentChunk
+  LlamaIndexProcessingOptions 
 } from '@/types/document-processing';
-import { env } from '@/config/env';
 
-const API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
-const API_KEY = env.LLAMA_CLOUD_API_KEY;
+const LLAMA_INDEX_API_URL = env.LLAMA_INDEX_API_URL;
 
-/**
- * Upload a file to LlamaParse for processing
- */
-export const uploadFileToLlamaParse = async (
-  file: File
+// Upload a document to LlamaIndex for processing
+export const uploadDocumentToLlamaIndex = async (
+  file: File,
+  options: LlamaIndexProcessingOptions = {}
 ): Promise<LlamaIndexJobResponse> => {
   try {
-    console.log(`Uploading file to LlamaParse: ${file.name}`);
-    
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('use_ai', String(options.shouldUseAI ?? true));
     
-    const response = await axios.post(`${API_URL}/upload`, formData, {
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'accept': 'application/json',
-        'Content-Type': 'multipart/form-data'
-      }
+    if (options.maxTokens) {
+      formData.append('max_tokens', String(options.maxTokens));
+    }
+    if (options.temperature) {
+      formData.append('temperature', String(options.temperature));
+    }
+    
+    const response = await fetch(`${LLAMA_INDEX_API_URL}/upload`, {
+      method: 'POST',
+      body: formData,
     });
     
-    console.log("LlamaParse upload initiated:", response.data);
-    return {
-      job_id: response.data.job_id,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  } catch (error: any) {
-    console.error("Error uploading file to LlamaParse:", error.response ? error.response.data : error.message);
-    throw new Error(error.response ? error.response.data.message : error.message);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error uploading to LlamaIndex:', errorText);
+      throw new Error(`Failed to upload document to LlamaIndex: ${errorText}`);
+    }
+    
+    const result: LlamaIndexJobResponse = await response.json();
+    console.log('LlamaIndex upload result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in uploadDocumentToLlamaIndex:', error);
+    throw error;
   }
 };
 
-/**
- * Check the status of a LlamaParse parsing job
- */
-export const checkParsingStatus = async (jobId: string): Promise<LlamaIndexJobResponse> => {
+// Poll LlamaIndex for the processing status of a job
+export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexParsingResult> => {
   try {
-    const response = await axios.get(`${API_URL}/job/${jobId}`, {
+    const response = await fetch(`${LLAMA_INDEX_API_URL}/parsing_result/${jobId}`, {
+      method: 'GET',
       headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'accept': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     });
     
-    console.log(`Job status for ${jobId}:`, response.data);
-    return {
-      job_id: jobId,
-      status: response.data.status,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  } catch (error: any) {
-    console.error(`Error checking parsing status for ${jobId}:`, error.response ? error.response.data : error.message);
-    throw new Error(error.response ? error.response.data.message : error.message);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Error getting LlamaIndex parsing result for job ${jobId}:`, errorText);
+      throw new Error(`Failed to get LlamaIndex parsing result: ${errorText}`);
+    }
+    
+    const result: LlamaIndexParsingResult = await response.json();
+    console.log(`LlamaIndex parsing result for job ${jobId}:`, result);
+    return result;
+  } catch (error) {
+    console.error(`Error in processLlamaIndexJob for job ${jobId}:`, error);
+    throw error;
   }
 };
 
-/**
- * Get the parsing results in Markdown format
- */
-export const getMarkdownResults = async (jobId: string): Promise<LlamaIndexParsingResult> => {
+// Convert a file to PDF if it's not already a PDF
+export const convertToPdfIfNeeded = async (file: File): Promise<File> => {
+  if (file.type === 'application/pdf') {
+    return file;
+  }
+  
   try {
-    const response = await axios.get(`${API_URL}/job/${jobId}/result/markdown`, {
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'accept': 'application/json'
+    // Use Supabase Edge Function to convert the document
+    const convertResponse = await supabase.functions.invoke('convert-document', {
+      body: {
+        file_url: URL.createObjectURL(file),
+        filename: file.name
       }
     });
     
-    console.log("Retrieved markdown results from LlamaParse");
+    if (convertResponse.error) {
+      console.error('Error converting document to PDF:', convertResponse.error);
+      throw new Error(`Failed to convert document to PDF: ${convertResponse.error.message}`);
+    }
     
-    // Create a single chunk with the markdown content
-    const chunk: DocumentChunk = {
-      content: response.data,
-      metadata: {
-        format: 'markdown',
-        job_id: jobId
-      }
-    };
+    const { data: convertedData } = convertResponse;
     
-    return {
-      chunks: [chunk],
-      length: response.data.length
-    };
-  } catch (error: any) {
-    console.error("Error getting markdown results from LlamaParse:", error.response ? error.response.data : error.message);
-    throw new Error(error.response ? error.response.data.message : error.message);
+    if (!convertedData || !convertedData.file) {
+      throw new Error('Conversion to PDF failed: No file returned');
+    }
+    
+    // Convert the base64 string to a Blob
+    const base64Response = await fetch(`data:${convertedData.mime_type};base64,${convertedData.file}`);
+    const pdfBlob = await base64Response.blob();
+    
+    // Create a new File object from the Blob
+    const pdfFile = new File([pdfBlob], `${file.name.split('.')[0]}.pdf`, { type: 'application/pdf' });
+    
+    return pdfFile;
+  } catch (error) {
+    console.error('Error in convertToPdfIfNeeded:', error);
+    throw error;
   }
 };

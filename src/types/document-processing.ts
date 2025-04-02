@@ -1,3 +1,4 @@
+
 /**
  * Types for document processing functionality
  */
@@ -9,8 +10,6 @@ export interface DocumentProcessingStatus {
   created_at: string;
   updated_at: string;
   completed_at?: string;
-  stage?: 'init' | 'uploading' | 'processing' | 'parsing' | 'storing' | 'syncing' | 'completed' | 'failed';
-  progress?: number;
 }
 
 export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
@@ -72,8 +71,6 @@ export interface DocumentProcessingResult {
   contentStored?: number;
   message?: string;
   extractedText?: string;
-  fileName?: string;
-  aiProcessed?: boolean;
 }
 
 export interface DocumentProcessingRequest {
@@ -86,17 +83,12 @@ export interface DocumentProcessingOptions {
   clientId: string;
   documentType?: string;
   agentName?: string;
-  shouldUseAI?: boolean;
-  syncToAgent?: boolean;
 }
 
 export interface DocumentChunk {
   content: string;
-  metadata: {
-    format: string;
-    job_id: string;
-    [key: string]: any;
-  };
+  metadata?: Record<string, any>;
+  id?: string;
 }
 
 export interface ValidationResult {
@@ -116,30 +108,4 @@ export interface ParseResponse {
   text?: string;
   chunks?: DocumentChunk[];
   error?: string;
-}
-
-export interface DocumentMetadata {
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-  uploadedAt: string;
-  processedAt?: string;
-  status: string;
-}
-
-export interface LlamaIndexJobResponse {
-  job_id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  created_at: string;
-  updated_at: string;
-  error?: string;
-}
-
-export interface LlamaIndexParsingResult {
-  chunks: DocumentChunk[];
-  length: number;
-}
-
-export interface LlamaIndexProcessingOptions {
-  // No options needed for basic file upload
 }

@@ -1,12 +1,7 @@
+
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useState } from 'react';
-import { 
-  DocumentProcessingStatus, 
-  DocumentProcessingResult, 
-  LlamaIndexJobResponse, 
-  LlamaIndexParsingResult 
-} from '@/types/document-processing';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { v4 as uuidv4 } from 'uuid';
 import { convertToPdfIfNeeded } from '@/utils/documentConverter';
@@ -98,10 +93,10 @@ export function useDocumentUpload(clientId: string) {
           document_id: documentId,
           status: 'processing',
           metadata: {
-            file_name: fileName,
+            file_name: file.name,
             file_size: file.size,
             storage_path: filePath,
-            llama_job_id: JSON.stringify(jobId)
+            llama_job_id: jobId
           }
         });
       
@@ -140,10 +135,10 @@ export function useDocumentUpload(clientId: string) {
           status: 'completed',
           content: extractedText,
           metadata: {
-            file_name: fileName,
+            file_name: file.name,
             file_size: file.size,
             storage_path: filePath,
-            llama_job_id: JSON.stringify(jobId),
+            llama_job_id: jobId,
             processing_completed: new Date().toISOString()
           }
         })

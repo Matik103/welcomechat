@@ -1,7 +1,5 @@
 import { useState, useCallback } from 'react';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { v4 as uuidv4 } from 'uuid';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
@@ -72,7 +70,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       
       const { data: storageData, error: storageError } = await supabase
         .storage
-        .from(DOCUMENTS_BUCKET) // Using the correct bucket
+        .from('document-storage') // Using the correct bucket
         .upload(storagePath, processedFile, {
           cacheControl: '3600',
           upsert: true
@@ -103,7 +101,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       // Get a public URL for the uploaded file
       const { data: publicUrlData } = supabase
         .storage
-        .from(DOCUMENTS_BUCKET)
+        .from('document-storage')
         .getPublicUrl(storagePath);
       
       const publicUrl = publicUrlData.publicUrl;
@@ -236,7 +234,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       
       // Complete successfully
       setUploadStatus({
-        stage: 'completed',
+        stage: 'complete',
         progress: 100,
         message: 'Document processed successfully'
       });

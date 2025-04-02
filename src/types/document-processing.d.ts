@@ -127,4 +127,3 @@ export interface DocumentChunk {
   metadata?: Record<string, any>;
   id?: string;
 }
-
