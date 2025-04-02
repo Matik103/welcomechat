@@ -4,7 +4,7 @@ import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { useDocumentUpload } from '@/hooks/useDocumentUpload';
+import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
@@ -17,7 +17,7 @@ interface DocumentsTabProps {
 
 export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabProps) {
   const [files, setFiles] = useState<FileList | null>(null);
-  const { uploadDocument, isUploading } = useDocumentUpload(clientId);
+  const { uploadDocument, isUploading } = useUnifiedDocumentUpload(clientId, agentName);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -38,22 +38,13 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
-        // Only pass the file parameter
-        await uploadDocument(file);
-        
-        // Create client activity with correct parameter order and using enum type
-        await createClientActivity(
-          clientId,
-          agentName,
-          ActivityType.DOCUMENT_ADDED,  // Using enum instead of string description
-          `Document uploaded for agent ${agentName}: ${file.name}`,
-          {
-            file_name: file.name,
-            file_size: file.size,
-            file_type: file.type,
-            agent_name: agentName
-          }
-        );
+        // Use the unified upload with agent name
+        await uploadDocument(file, {
+          syncToAgent: true,
+          syncToProfile: true,
+          syncToWidgetSettings: true,
+          activityMessage: `Document uploaded for agent ${agentName}: ${file.name}`
+        });
       }
       
       toast.success(`${files.length > 1 ? 'Documents' : 'Document'} uploaded successfully`);
@@ -126,8 +117,8 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
       </Card>
       
       <div className="text-sm text-muted-foreground">
-        <p>Basic document upload is available, but advanced document processing is being rebuilt.</p>
-        <p className="mt-2">Your files will be stored but advanced extraction features will be available in a future update.</p>
+        <p>Documents will be synchronized with client profile and widget settings.</p>
+        <p className="mt-2">Uploaded documents will be available in all areas of the application.</p>
       </div>
     </div>
   );

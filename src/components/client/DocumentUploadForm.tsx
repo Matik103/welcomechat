@@ -7,7 +7,8 @@ import { toast } from 'sonner';
 
 export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
   onSubmitDocument,
-  isUploading
+  isUploading,
+  syncOptions
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -62,7 +63,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
     if (!selectedFile) return;
     
     try {
-      await onSubmitDocument(selectedFile);
+      await onSubmitDocument(selectedFile, syncOptions);
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';

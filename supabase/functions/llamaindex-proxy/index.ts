@@ -37,8 +37,17 @@ serve(async (req) => {
     // Parse the request body
     const requestData = await req.json();
     
+    // Add additional metadata if provided (for client/agent syncing)
+    const metadata = requestData.metadata || {};
+    if (requestData.clientId) {
+      metadata.client_id = requestData.clientId;
+    }
+    if (requestData.agentName) {
+      metadata.agent_name = requestData.agentName;
+    }
+    
     // Make the request to LlamaIndex API
-    console.log("Calling LlamaIndex API for document parsing");
+    console.log("Calling LlamaIndex API for document parsing", metadata);
     const response = await fetch('https://api.cloud.llamaindex.ai/api/parsing', {
       method: 'POST',
       headers: {
@@ -46,7 +55,10 @@ serve(async (req) => {
         'Authorization': `Bearer ${llamaApiKey}`,
         'x-openai-api-key': openaiApiKey
       },
-      body: JSON.stringify(requestData)
+      body: JSON.stringify({
+        ...requestData,
+        metadata
+      })
     });
 
     // Get the response as text first to properly debug
@@ -58,6 +70,12 @@ serve(async (req) => {
     try {
       jsonResponse = JSON.parse(responseText);
       console.log("Successfully parsed LlamaIndex response as JSON");
+      
+      // If we have client and agent info, update the document metadata
+      if (requestData.clientId && requestData.agentName) {
+        // We would ideally update database here but we'll leave that to the client
+        console.log(`Document processed for client ${requestData.clientId} and agent ${requestData.agentName}`);
+      }
     } catch (e) {
       console.error("Failed to parse LlamaIndex response as JSON:", e);
       console.log("Raw response:", responseText);
