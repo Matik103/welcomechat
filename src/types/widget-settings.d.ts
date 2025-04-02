@@ -19,6 +19,14 @@ export interface WidgetSettings {
   initial_messages?: string[];
   display_mode?: 'floating' | 'inline' | 'sidebar';
   chat_color?: string;
+  documents?: Array<{
+    documentId: string;
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    uploadDate: string;
+    url: string;
+  }>;
   [key: string]: any;
 }
 
@@ -41,5 +49,6 @@ export const defaultSettings: WidgetSettings = {
   logo_storage_path: '',
   initial_messages: [],
   display_mode: 'floating',
-  chat_color: '#7c3aed'
+  chat_color: '#7c3aed',
+  documents: []
 };
