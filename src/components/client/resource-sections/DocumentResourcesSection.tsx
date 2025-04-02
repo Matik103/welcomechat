@@ -11,7 +11,6 @@ import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 interface DocumentResourcesSectionProps {
@@ -25,9 +24,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
   onResourceChange,
   logClientActivity
 }) => {
-  const [initializing, setInitializing] = useState(true);
   const [isFixingRls, setIsFixingRls] = useState(false);
-  const [bucketExists, setBucketExists] = useState(true);
   
   const {
     documentLinks,
@@ -42,35 +39,6 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
     // Debug info
     console.log("DocumentResourcesSection rendered with clientId:", clientId);
     
-    // Check if the document-storage bucket exists
-    const checkBucket = async () => {
-      try {
-        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-        
-        if (bucketsError) {
-          console.error("Error checking buckets:", bucketsError);
-          setBucketExists(false);
-          return;
-        }
-        
-        const docStorageBucket = buckets?.find(b => b.name === DOCUMENTS_BUCKET);
-        setBucketExists(!!docStorageBucket);
-        
-        if (!docStorageBucket) {
-          console.warn(`${DOCUMENTS_BUCKET} bucket not found`);
-        } else {
-          console.log(`${DOCUMENTS_BUCKET} bucket exists`);
-        }
-      } catch (err) {
-        console.error("Error checking bucket existence:", err);
-        setBucketExists(false);
-      } finally {
-        setInitializing(false);
-      }
-    };
-    
-    checkBucket();
-    
     if (error) {
       console.error("Error loading document links:", error);
     }
@@ -83,10 +51,6 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       
       if (result.success) {
         toast.success("Security permissions fixed successfully");
-        // Check bucket again after fixing permissions
-        const { data: buckets } = await supabase.storage.listBuckets();
-        const docStorageBucket = buckets?.find(b => b.name === DOCUMENTS_BUCKET);
-        setBucketExists(!!docStorageBucket);
       } else {
         toast.error(`Failed to fix permissions: ${result.message}`);
       }
@@ -229,12 +193,10 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
           agentName="AI Assistant"
         />
         
-        {(error || !bucketExists) && (
+        {error && (
           <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200 my-4">
             <p className="text-yellow-800 font-medium mb-2">
-              {!bucketExists 
-                ? `The ${DOCUMENTS_BUCKET} bucket does not exist. Click the button below to fix this issue.`
-                : "Error loading document links. Click the button below to fix permissions."}
+              Error loading document links. Click the button below to fix permissions.
             </p>
             <Button 
               variant="outline" 
@@ -257,15 +219,13 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
           </div>
         )}
         
-        {!initializing && (
-          <DocumentLinksList
-            links={documentLinks}
-            isLoading={isLoading}
-            onDelete={handleDeleteDocumentLink}
-            isDeleting={deleteDocumentLinkMutation.isPending}
-            deletingId={deleteDocumentLinkMutation.variables}
-          />
-        )}
+        <DocumentLinksList
+          links={documentLinks}
+          isLoading={isLoading}
+          onDelete={handleDeleteDocumentLink}
+          isDeleting={deleteDocumentLinkMutation.isPending}
+          deletingId={deleteDocumentLinkMutation.variables}
+        />
       </CardContent>
     </Card>
   );
