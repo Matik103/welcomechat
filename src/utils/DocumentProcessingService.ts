@@ -255,7 +255,7 @@ export class DocumentProcessingService {
       return new Uint8Array(await file.arrayBuffer());
     }
     
-    // Convert Word document to PDF
+    // Check other file types and convert accordingly
     if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
         fileType === 'application/msword' ||
         fileName.endsWith('.docx') || 
@@ -264,36 +264,28 @@ export class DocumentProcessingService {
       return await convertWordToPdf(file);
     }
     
-    // Convert text file to PDF (simple text extraction)
     if (fileType === 'text/plain' || fileName.endsWith('.txt')) {
       console.log('Converting text file to PDF');
       const text = await file.text();
       return await this.textToPdf(text);
     }
     
-    // Convert CSV to PDF
     if (fileType === 'text/csv' || fileName.endsWith('.csv')) {
       console.log('Converting CSV file to PDF');
       const text = await file.text();
       return await this.textToPdf(text);
     }
     
-    // Convert Excel to PDF (simplified approach - extract as text)
     if (fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
         fileType === 'application/vnd.ms-excel' ||
         fileName.endsWith('.xlsx') || 
         fileName.endsWith('.xls')) {
       console.log('Converting Excel file to PDF (text extraction)');
-      // For Excel, we'd need a specialized library like xlsx
-      // For simplicity, we'll convert to text-based PDF
       const arrayBuffer = await file.arrayBuffer();
-      // This is a placeholder - in a real implementation, 
-      // use xlsx or similar library to extract text
       const text = `Content of Excel file: ${fileName}`;
       return await this.textToPdf(text);
     }
     
-    // For unsupported types, throw an error
     throw new Error(`Unsupported file type: ${fileType}`);
   }
   
@@ -303,10 +295,8 @@ export class DocumentProcessingService {
    * @returns PDF data as Uint8Array
    */
   private static async textToPdf(text: string): Promise<Uint8Array> {
-    // Use HTML as an intermediate format
     const html = `<html><body><pre>${text}</pre></body></html>`;
     
-    // Use the HTML to PDF converter
     const { convertHtmlToPdf } = await import('./documentConverters');
     return await convertHtmlToPdf(html);
   }
@@ -334,12 +324,16 @@ export class DocumentProcessingService {
       if (!llamaCloudApiKey) {
         // Try to get API keys from Supabase Edge Function
         try {
+          console.log('No LLAMA_CLOUD_API_KEY found in environment, attempting to fetch from Supabase secrets');
           const { data: secretsData, error: secretsError } = await supabase.functions.invoke('get-secrets', {
             body: { keys: ['LLAMA_CLOUD_API_KEY'] }
           });
           
           if (!secretsError && secretsData && secretsData.LLAMA_CLOUD_API_KEY) {
             llamaCloudApiKey = secretsData.LLAMA_CLOUD_API_KEY;
+            console.log('Successfully retrieved LLAMA_CLOUD_API_KEY from Supabase secrets');
+          } else {
+            console.error('Error fetching LLAMA_CLOUD_API_KEY from Supabase:', secretsError || 'No data returned');
           }
         } catch (error) {
           console.error('Error getting secrets from Supabase:', error);
@@ -347,8 +341,32 @@ export class DocumentProcessingService {
       }
       
       if (!llamaCloudApiKey) {
-        console.warn('No LLAMA_CLOUD_API_KEY found, document processing may fail');
+        console.error('No LLAMA_CLOUD_API_KEY found, document processing will fail');
+        throw new Error('LlamaIndex API key is required but not found');
+      } else {
+        console.log('LlamaIndex API key is available and will be used for processing');
       }
+      
+      // Get agent name for the client
+      const { data: agentData, error: agentError } = await supabase
+        .from('ai_agents')
+        .select('name')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .limit(1)
+        .maybeSingle();
+      
+      if (agentError) {
+        console.error('Error fetching agent name:', agentError);
+        throw new Error(`Failed to get agent name: ${agentError.message}`);
+      }
+      
+      if (!agentData || !agentData.name) {
+        throw new Error('Agent name not found for this client');
+      }
+      
+      const agentName = agentData.name;
+      console.log(`Using agent name: ${agentName} for document processing`);
       
       // 2. Set up LlamaIndex reader with API key
       const reader = new LlamaParseReader({ 
@@ -378,6 +396,7 @@ export class DocumentProcessingService {
           // Create a temporary URL for the file
           const tempFilePath = URL.createObjectURL(file);
           
+          console.log(`Calling LlamaIndex API to process chunk ${i + 1}`);
           // Use loadData to process the file
           const chunkDocuments = await reader.loadData(tempFilePath);
           
@@ -398,7 +417,16 @@ export class DocumentProcessingService {
         }
       }
       
-      // 5. Save extracted data to database - both ai_agents and document_processing_jobs tables
+      console.log(`LlamaIndex processing complete. Processed ${documents.length} sections with ${failedChunks} failures`);
+      
+      if (documents.length === 0 && failedChunks > 0) {
+        throw new Error('Failed to extract any text from the document');
+      }
+      
+      // 5. Save extracted data to database
+      
+      // Generate a document ID
+      const documentId = fileName.replace(/[^a-zA-Z0-9]/g, '-') + '-' + Date.now();
       
       // Save to document_links table
       const { data: documentLinkData, error: documentLinkError } = await supabase
@@ -441,17 +469,17 @@ export class DocumentProcessingService {
         console.error('Error saving to ai_agents:', aiAgentError);
       }
       
-      // Save to document_processing_jobs table instead of document_processing
+      // Save to document_processing_jobs table
       const { data: processingJobData, error: processingJobError } = await supabase
         .from('document_processing_jobs')
         .insert({
           client_id: clientId,
           document_url: documentUrl,
           document_type: 'pdf',
-          agent_name: `Document: ${fileName}`,
+          agent_name: agentName,
           status: 'completed',
           content: extractedText,
-          document_id: documentLinkData?.id?.toString() || 'unknown',
+          document_id: documentId,
           metadata: {
             file_name: fileName,
             processed_sections: documents.length,
@@ -465,13 +493,11 @@ export class DocumentProcessingService {
         console.error('Error saving to document_processing_jobs:', processingJobError);
       }
       
-      console.log(`Document processing complete. Processed ${documents.length} sections with ${failedChunks} failures`);
-      
       return {
         success: true,
         processed: documents.length,
         failed: failedChunks,
-        documentId: documentLinkData?.id?.toString(),
+        documentId: documentId,
         documentUrl: documentUrl,
         extractedText: extractedText
       };

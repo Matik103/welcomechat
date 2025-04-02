@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { DocumentProcessingService } from '@/utils/DocumentProcessingService';
 import { DocumentProcessingResult } from '@/types/document-processing';
 import { toast } from 'sonner';
+import { LLAMA_CLOUD_API_KEY } from '@/config/env'; // Import to check if we have the API key
 
 export function useLlamaIndexProcessing(clientId: string) {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -19,6 +20,13 @@ export function useLlamaIndexProcessing(clientId: string) {
     
     try {
       console.log(`Starting LlamaIndex processing for ${file.name} (${file.type}, ${file.size} bytes)`);
+      
+      // Log if we have an API key configured
+      if (LLAMA_CLOUD_API_KEY) {
+        console.log('LlamaIndex API key is configured via environment variables');
+      } else {
+        console.warn('No LlamaIndex API key found in environment variables - will try to fetch from Supabase secrets');
+      }
       
       // Simulate progress updates
       const progressInterval = setInterval(() => {

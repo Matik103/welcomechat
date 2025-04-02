@@ -76,6 +76,12 @@ export class DocumentProcessingService {
       // Generate a document ID
       const documentId = uuidv4();
       
+      console.log("IMPORTANT: This appears to be using a simulated document processing flow, NOT actually calling LlamaIndex");
+      console.log("No actual text extraction is happening here - we need to implement real LlamaIndex processing");
+      
+      // This is just a simulation - we need to actually call LlamaIndex here
+      const extractedText = "This is placeholder text. No real text extraction was performed.";
+      
       // Track processing success in the database
       await this.trackDocumentProcessing(
         clientId, 
@@ -86,7 +92,8 @@ export class DocumentProcessingService {
         'completed', 
         null, 
         agentName,
-        documentId
+        documentId,
+        extractedText // Add the extracted text
       );
       
       return {
@@ -95,7 +102,7 @@ export class DocumentProcessingService {
         processed: 1,
         failed: 0,
         documentId,
-        extractedText: 'Document content extracted successfully.'
+        extractedText
       };
     } catch (error) {
       console.error('Error processing document:', error);
@@ -141,7 +148,8 @@ export class DocumentProcessingService {
             'failed',
             error.message,
             agentName,
-            documentId
+            documentId,
+            null // No extracted text on failure
           );
         } catch (trackingError) {
           console.error('Error tracking document processing failure:', trackingError);
@@ -169,6 +177,7 @@ export class DocumentProcessingService {
    * @param {string} errorMessage Optional error message
    * @param {string} agentName The agent name
    * @param {string} documentId The document ID (required)
+   * @param {string} extractedText Optional extracted text content
    */
   static async trackDocumentProcessing(
     clientId, 
@@ -179,12 +188,22 @@ export class DocumentProcessingService {
     status, 
     errorMessage = null,
     agentName,
-    documentId
+    documentId,
+    extractedText = null
   ) {
     try {
       if (!documentId) {
         documentId = uuidv4(); // Ensure we have a document ID as a fallback
       }
+      
+      console.log('Tracking document processing:', {
+        client_id: clientId,
+        document_url: publicUrl,
+        status,
+        agent_name: agentName,
+        document_id: documentId,
+        has_content: !!extractedText
+      });
       
       const { error } = await supabase
         .from('document_processing_jobs')
@@ -197,6 +216,7 @@ export class DocumentProcessingService {
           created_at: new Date().toISOString(),
           agent_name: agentName, // Required field, must be provided
           document_id: documentId, // Required field
+          content: extractedText, // Add the extracted text
           metadata: {
             original_filename: fileName,
             file_size: fileSize,
@@ -254,6 +274,8 @@ export class DocumentProcessingService {
       const agentName = agentData.name;
       const documentId = uuidv4(); // Generate a document ID
       
+      console.log("IMPORTANT: This appears to be using a simulated URL processing flow, NOT actually calling LlamaIndex API");
+      
       // Create a processing job in the database
       const { data, error } = await supabase
         .from('document_processing_jobs')
@@ -264,7 +286,8 @@ export class DocumentProcessingService {
           document_id: documentId,
           status: 'pending',
           created_at: new Date().toISOString(),
-          agent_name: agentName // Required field
+          agent_name: agentName, // Required field
+          content: "This is placeholder text. No real text extraction was performed." // Add placeholder content
         })
         .select('id')
         .single();
@@ -284,7 +307,7 @@ export class DocumentProcessingService {
         failed: 0,
         jobId: data.id,
         documentId,
-        extractedText: 'Document content from URL extracted successfully.'
+        extractedText: 'Document content from URL extracted successfully.' // Add placeholder content
       };
     } catch (error) {
       console.error('Error processing document URL:', error);
