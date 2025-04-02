@@ -233,7 +233,8 @@ export const checkDocumentProcessingStatus = async (jobId: string): Promise<Docu
       status: data.status,
       documentId: data.document_id,
       documentUrl: data.document_url,
-      jobId: data.id
+      jobId: data.id,
+      extractedText: data.content
     };
   } catch (error) {
     console.error("Error checking document processing status:", error);
