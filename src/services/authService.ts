@@ -22,7 +22,24 @@ export const getUserRole = async (): Promise<UserRole> => {
     // Check if this is a Google SSO user
     const isGoogleUser = user.app_metadata?.provider === 'google';
     
-    // Option 1: Check user_roles table
+    // First: Check user metadata (fastest method)
+    if (user.user_metadata && typeof user.user_metadata === 'object') {
+      const role = user.user_metadata.role;
+      
+      if (role === 'admin' || role === 'client') {
+        console.log("Role found in user metadata:", role);
+        
+        // If user is a Google user and role is client, prevent access
+        if (isGoogleUser && role === 'client') {
+          console.warn("Google user attempting to access client role");
+          return null;
+        }
+        
+        return role as UserRole;
+      }
+    }
+    
+    // Second: Check user_roles table
     try {
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
@@ -43,21 +60,7 @@ export const getUserRole = async (): Promise<UserRole> => {
       console.error("Error checking user_roles table:", roleErr);
     }
     
-    // Option 2: Check user metadata
-    if (user.user_metadata && typeof user.user_metadata === 'object') {
-      const role = user.user_metadata.role;
-      // If user is a Google user and role is client, prevent access
-      if (isGoogleUser && role === 'client') {
-        console.warn("Google user attempting to access client role");
-        return null;
-      }
-      if (role === 'admin' || role === 'client') {
-        console.log("Role found in user metadata:", role);
-        return role as UserRole;
-      }
-    }
-    
-    // Option 3: Check if user has a corresponding client in ai_agents
+    // Third: Check if user has a corresponding client in ai_agents
     try {
       const { data: clientData, error: clientError } = await supabase
         .from('ai_agents')
@@ -79,7 +82,7 @@ export const getUserRole = async (): Promise<UserRole> => {
       console.error("Error checking ai_agents table:", clientErr);
     }
     
-    // For admin users, we should default to admin role to prevent infinite loading
+    // For admin users, we should default to admin role
     if (isGoogleUser) {
       console.log("Google user with no explicit role, defaulting to admin");
       return 'admin';

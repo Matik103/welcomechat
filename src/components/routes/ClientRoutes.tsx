@@ -12,6 +12,7 @@ import NotFound from "@/pages/NotFound";
 import { Toaster } from "sonner";
 import { LoadingFallback } from "./LoadingFallback";
 import { ClientLayout } from "@/components/layout/ClientLayout";
+import { RoleRoute } from "@/components/auth/RoleRoute";
 
 export const ClientRoutes = () => {
   return (
@@ -20,13 +21,41 @@ export const ClientRoutes = () => {
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
-            <Route path="/client/dashboard" element={<ClientDashboard />} />
-            <Route path="/client/agents" element={<ClientAgents />} />
-            <Route path="/client/settings" element={<ClientSettings />} />
-            <Route path="/client/account-settings" element={<AccountSettings />} />
-            <Route path="/client/resource-settings" element={<ResourceSettings />} />
-            <Route path="/client/profile" element={<ClientProfile />} />
-            <Route path="/client/widget-settings" element={<WidgetSettings />} />
+            <Route path="/client/dashboard" element={
+              <RoleRoute allowedRoles={['client']}>
+                <ClientDashboard />
+              </RoleRoute>
+            } />
+            <Route path="/client/agents" element={
+              <RoleRoute allowedRoles={['client']}>
+                <ClientAgents />
+              </RoleRoute>
+            } />
+            <Route path="/client/settings" element={
+              <RoleRoute allowedRoles={['client']}>
+                <ClientSettings />
+              </RoleRoute>
+            } />
+            <Route path="/client/account-settings" element={
+              <RoleRoute allowedRoles={['client']}>
+                <AccountSettings />
+              </RoleRoute>
+            } />
+            <Route path="/client/resource-settings" element={
+              <RoleRoute allowedRoles={['client']}>
+                <ResourceSettings />
+              </RoleRoute>
+            } />
+            <Route path="/client/profile" element={
+              <RoleRoute allowedRoles={['client']}>
+                <ClientProfile />
+              </RoleRoute>
+            } />
+            <Route path="/client/widget-settings" element={
+              <RoleRoute allowedRoles={['client']}>
+                <WidgetSettings />
+              </RoleRoute>
+            } />
             <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
             <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
             <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
