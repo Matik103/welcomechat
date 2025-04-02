@@ -114,16 +114,3 @@ export interface DocumentLink {
 }
 
 export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
-
-export interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
-  message?: string;
-  status?: 'success' | 'error' | 'warning' | 'info';
-}
-
-export interface DocumentChunk {
-  content: string;
-  metadata?: Record<string, any>;
-  id?: string;
-}
