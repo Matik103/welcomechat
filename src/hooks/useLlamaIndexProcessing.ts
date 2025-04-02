@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { DocumentProcessingService } from '@/utils/DocumentProcessingService';
 import { DocumentProcessingResult } from '@/types/document-processing';
@@ -12,23 +13,6 @@ export function useLlamaIndexProcessing(clientId: string) {
   const processDocument = async (file: File): Promise<DocumentProcessingResult> => {
     if (!clientId) {
       throw new Error('Client ID is required');
-    }
-
-    // Check if we have the API key configured
-    if (!LLAMA_CLOUD_API_KEY) {
-      console.warn('No LLAMA_CLOUD_API_KEY found in environment variables');
-      toast.error('LlamaIndex API key is not configured. Please add it to your environment variables.');
-      
-      const errorResult: DocumentProcessingResult = {
-        success: false,
-        error: 'Missing LlamaIndex API key. Please configure it in your environment variables.',
-        processed: 0,
-        failed: 1,
-        documentId: undefined
-      };
-      
-      setResult(errorResult);
-      return errorResult;
     }
 
     setIsProcessing(true);
@@ -79,13 +63,7 @@ export function useLlamaIndexProcessing(clientId: string) {
         } else {
           setResult(result);
           console.error("Document processing failed:", result.error);
-          
-          // Check if the error is related to the API key
-          if (result.error?.includes('API key') || result.error?.includes('Edge function')) {
-            toast.error('API key error: Please ensure your LlamaIndex API key is correctly configured in Supabase');
-          } else {
-            toast.error(result.error || 'Failed to process document');
-          }
+          toast.error(result.error || 'Failed to process document');
         }
         
         return result;
@@ -106,13 +84,7 @@ export function useLlamaIndexProcessing(clientId: string) {
         
         setResult(failResult);
         setProgress(100); // Set to 100 to indicate processing is complete, even if failed
-        
-        // Check if the error is related to the API key
-        if (errorMessage.includes('API key') || errorMessage.includes('Edge function')) {
-          toast.error('API key error: Please ensure your LlamaIndex API key is correctly configured in Supabase');
-        } else {
-          toast.error(`Error processing document: ${errorMessage}`);
-        }
+        toast.error(`Error processing document: ${errorMessage}`);
         
         return failResult;
       }
@@ -129,13 +101,7 @@ export function useLlamaIndexProcessing(clientId: string) {
       };
       
       setResult(failResult);
-      
-      // Check if the error is related to the API key
-      if (errorMessage.includes('API key') || errorMessage.includes('Edge function')) {
-        toast.error('API key error: Please ensure your LlamaIndex API key is correctly configured in Supabase');
-      } else {
-        toast.error(`Error processing document: ${errorMessage}`);
-      }
+      toast.error(`Error processing document: ${errorMessage}`);
       
       return failResult;
     } finally {
