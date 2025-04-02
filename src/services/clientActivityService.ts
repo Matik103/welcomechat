@@ -1,62 +1,71 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { ActivityType, ActivityTypeString } from "@/types/activity";
-import { getSafeActivityType } from "@/utils/activityTypeUtils";
+import { supabase } from '@/integrations/supabase/client';
+import { ActivityType } from '@/types/activity';
 
-/**
- * Create a client activity record for tracking actions
- */
-export const createClientActivity = async (
+export async function createClientActivity(
   clientId: string,
-  clientName: string | undefined,
-  type: ActivityType | ActivityTypeString,
-  description: string,
-  metadata: any = {}
-): Promise<{ success: boolean; error: any | null }> => {
-  try {
-    // Convert the ActivityType enum to a string value acceptable by the database
-    const safeActivityType = getSafeActivityType(typeof type === 'string' ? type : String(type));
-    
-    // Ensure we have a client name, even if it's a placeholder
-    const safeClientName = clientName || "Unknown Client";
-    
-    // Ensure client_id and client_name are always in metadata
-    const enhancedMetadata = {
-      ...metadata,
-      client_id: clientId, // Always include client_id in metadata
-      client_name: metadata.client_name || safeClientName
-    };
-    
-    // Insert activity record into the activities table without type assertion
-    const { error } = await supabase
-      .from('activities')
-      .insert({
-        ai_agent_id: clientId,
-        type: safeActivityType, // Using string directly without type assertion
-        description,
-        metadata: enhancedMetadata,
-        created_at: new Date().toISOString()
-      } as any); // Use 'as any' to bypass TypeScript's type checking for this insert
-      
-    if (error) {
-      console.error("Error creating client activity:", error);
-      
-      // Log to console as fallback
-      console.log(`[Activity Log] ${type}:`, {
-        client_id: clientId,
-        client_name: safeClientName,
-        description,
-        metadata: enhancedMetadata,
-        created_at: new Date().toISOString(),
-        type: safeActivityType
-      });
-      
-      return { success: false, error };
-    }
-    
-    return { success: true, error: null };
-  } catch (error) {
-    console.error("Error creating client activity:", error);
-    return { success: false, error };
+  agentName?: string,
+  activityType: string = ActivityType.PAGE_VIEW,
+  description: string = 'User viewed page',
+  activityData: Record<string, any> = {}
+): Promise<void> {
+  if (!clientId) {
+    console.error('Client ID is required for activity logging');
+    throw new Error('Client ID is required');
   }
-};
+
+  try {
+    console.log(`Logging activity for client ${clientId}:`, {
+      type: activityType,
+      description: description,
+      data: activityData
+    });
+
+    const { data, error } = await supabase
+      .from('client_activities')
+      .insert({
+        client_id: clientId,
+        activity_type: activityType,
+        description: description,
+        activity_data: {
+          ...activityData,
+          agent_name: agentName,
+          date: new Date().toISOString()
+        }
+      });
+
+    if (error) {
+      console.error('Error creating client activity:', error);
+      throw error;
+    }
+
+    return;
+  } catch (error) {
+    console.error('Failed to log client activity:', error);
+    throw error;
+  }
+}
+
+export async function getRecentClientActivities(
+  clientId: string,
+  limit: number = 10
+) {
+  try {
+    const { data, error } = await supabase
+      .from('client_activities')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching client activities:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Failed to fetch client activities:', error);
+    throw error;
+  }
+}

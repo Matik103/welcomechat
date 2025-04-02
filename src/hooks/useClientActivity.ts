@@ -1,68 +1,57 @@
 
-import { useMutation } from '@tanstack/react-query';
-import { ActivityType } from '@/types/client-form';
+import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { createClientActivity } from '@/services/clientActivityService';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
-export const useClientActivity = (clientId: string | undefined) => {
-  const logActivity = useMutation({
-    mutationFn: async (params: {
-      activity_type: ActivityType; 
-      description: string;
-      metadata?: Record<string, any>;
-    }) => {
-      if (!clientId) {
-        console.error("Cannot log activity: No client ID available");
-        return null;
-      }
-      
-      const { data, error } = await supabase
-        .from('client_activities')
-        .insert({
-          client_id: clientId,
-          activity_type: params.activity_type,
-          description: params.description,
-          activity_data: params.metadata || {}
-        })
-        .select()
-        .single();
-        
-      if (error) {
-        console.error("Error logging client activity:", error);
-        throw error;
-      }
-      
-      return data;
-    }
-  });
+export function useClientActivity(clientId?: string) {
+  const { user } = useAuth();
+  const [isLogging, setIsLogging] = useState(false);
+
+  console.log("useClientActivity initialized with clientId:", clientId);
+  console.log("Current user metadata:", user?.user_metadata);
 
   const logClientActivity = async (
-    activity_type: ActivityType,
-    description: string,
-    metadata?: Record<string, any>
+    activityType: string = 'page_view',
+    description: string = 'Client viewed page',
+    activityData: Record<string, any> = {}
   ): Promise<void> => {
+    // If we don't have a clientId, try to get it from the user's metadata
+    const effectiveClientId = clientId || user?.user_metadata?.client_id;
+    
+    console.log("Logging client activity:", { 
+      effectiveClientId, 
+      activityType, 
+      description 
+    });
+    
+    if (!effectiveClientId) {
+      console.error("Cannot log activity: No client ID available");
+      return;
+    }
+
+    setIsLogging(true);
+    
     try {
-      if (!clientId) {
-        console.warn("Cannot log activity: No client ID provided");
-        return;
-      }
-      
-      await logActivity.mutateAsync({
-        activity_type,
+      await createClientActivity(
+        effectiveClientId,
+        undefined, // Agent name is optional
+        activityType,
         description,
-        metadata
-      });
+        activityData
+      );
       
-      console.log(`Activity logged: ${activity_type} - ${description}`);
+      console.log("Activity logged successfully");
     } catch (error) {
       console.error("Failed to log client activity:", error);
-      // Don't show toast for logging errors - this is a background operation
+      // Don't show toast for every activity log failure
+      if (activityType !== 'page_view') {
+        toast.error("Failed to log activity");
+      }
+    } finally {
+      setIsLogging(false);
     }
   };
 
-  return {
-    logClientActivity,
-    isLoggingActivity: logActivity.isPending,
-    loggingError: logActivity.error
-  };
-};
+  return { logClientActivity, isLogging };
+}
