@@ -16,8 +16,14 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState<Error | null>(null);
   const [isManuallyRefreshing, setIsManuallyRefreshing] = useState(false);
   
+  // Add debug log to track component mounting
+  useEffect(() => {
+    console.log('AdminDashboardPage mounted');
+  }, []);
+  
   const handleManualRefresh = useCallback(async () => {
     try {
+      console.log('Manually refreshing dashboard data');
       setIsManuallyRefreshing(true);
       await fetchDashboardData(true);
     } finally {
@@ -37,6 +43,7 @@ export default function AdminDashboardPage() {
       initialSetupComplete = true;
       
       try {
+        console.log('Initializing admin dashboard');
         // Setup realtime channels for activities
         const success = await setupRealtimeActivities();
         if (!success) {
@@ -81,6 +88,7 @@ export default function AdminDashboardPage() {
     
     // Cleanup function
     return () => {
+      console.log('AdminDashboardPage unmounting, cleaning up subscriptions');
       if (activitiesChannel) supabase.removeChannel(activitiesChannel);
       if (agentsChannel) supabase.removeChannel(agentsChannel);
     };

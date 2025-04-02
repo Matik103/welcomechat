@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Toaster } from "sonner";
-import Index from "@/pages/Index";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
 import ClientList from "@/pages/ClientList";
 import Agents from "@/pages/Agents";
 import Settings from "@/pages/Settings";
@@ -20,7 +20,7 @@ export const AdminRoutes = () => {
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/admin/dashboard" element={<Index />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/clients" element={<ClientList />} />
           <Route path="/admin/agents" element={<Agents />} />
           <Route path="/admin/agents/:agentId" element={<Agents />} />
