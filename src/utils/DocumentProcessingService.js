@@ -78,9 +78,35 @@ export class DocumentProcessingService {
       const agentName = agentData.name;
       console.log(`Using agent name: ${agentName} for client: ${clientId}`);
       
-      console.log("Preparing to convert file to base64 for document processing...");
+      // Check if we have a LlamaIndex API key
+      let llamaApiKey = LLAMA_CLOUD_API_KEY;
+      if (!llamaApiKey) {
+        console.log("No LLAMA_CLOUD_API_KEY found in env vars, attempting to get from Supabase secrets");
+        try {
+          const { data: secretData, error: secretError } = await supabase.functions.invoke('get-secrets', {
+            body: { keys: ['LLAMA_CLOUD_API_KEY'] }
+          });
+          
+          if (secretError) {
+            console.error("Error fetching LLAMA_CLOUD_API_KEY from Supabase:", secretError);
+          } else if (secretData && secretData.LLAMA_CLOUD_API_KEY) {
+            llamaApiKey = secretData.LLAMA_CLOUD_API_KEY;
+            console.log("Successfully retrieved LLAMA_CLOUD_API_KEY from Supabase secrets");
+          }
+        } catch (err) {
+          console.error("Error invoking get-secrets function:", err);
+        }
+      }
       
-      // Convert file to base64
+      if (!llamaApiKey) {
+        console.error("No LlamaIndex API key available - cannot process document");
+        throw new Error("LlamaIndex API key is required but not found");
+      }
+      
+      console.log("Preparing to call LlamaIndex API for text extraction...");
+      
+      // Call LlamaIndex API to extract text from the document
+      // First convert file to base64
       const fileBuffer = await file.arrayBuffer();
       const base64File = btoa(
         new Uint8Array(fileBuffer).reduce(
@@ -89,39 +115,35 @@ export class DocumentProcessingService {
         )
       );
       
-      // Call the Supabase Edge Function instead of directly calling LlamaIndex API
-      console.log("Calling Supabase Edge Function for document processing...");
+      // Call the LlamaIndex API
+      const llamaEndpoint = 'https://api.cloud.llamaindex.ai/api/parsing';
+      console.log(`Calling LlamaIndex API at: ${llamaEndpoint}`);
       
       try {
-        const { data: processingResult, error: processingError } = await supabase.functions.invoke(
-          'process-document',
-          {
-            body: {
-              fileContent: base64File,
-              fileName: file.name,
-              clientId: clientId,
-              agentName: agentName
-            }
-          }
-        );
+        const llamaResponse = await fetch(llamaEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${llamaApiKey}`
+          },
+          body: JSON.stringify({
+            file_name: file.name,
+            file_content: base64File,
+            extract_all: true
+          })
+        });
         
-        if (processingError) {
-          console.error("Error calling edge function:", processingError);
-          throw new Error(`Edge function error: ${processingError.message}`);
+        if (!llamaResponse.ok) {
+          const errorText = await llamaResponse.text();
+          console.error("LlamaIndex API error:", errorText);
+          throw new Error(`LlamaIndex API error: ${llamaResponse.status} - ${errorText}`);
         }
         
-        if (!processingResult) {
-          console.error("Edge function returned no data");
-          throw new Error("Failed to process document: No response from edge function");
-        }
-        
-        if (!processingResult.success) {
-          console.error("Edge function didn't return a success:", processingResult?.error || "Unknown error");
-          throw new Error(processingResult?.error || "Failed to process document");
-        }
+        const extractionResult = await llamaResponse.json();
+        console.log("LlamaIndex extraction completed successfully:", extractionResult);
         
         // Extract the text from the response
-        const extractedText = processingResult.extractedText || "No text was extracted";
+        const extractedText = extractionResult.text || "No text was extracted";
         
         console.log(`Extracted text (first 100 chars): ${extractedText.substring(0, 100)}...`);
         
@@ -147,8 +169,8 @@ export class DocumentProcessingService {
           documentId,
           extractedText
         };
-      } catch (edgeFunctionError) {
-        console.error('Error calling edge function for document processing:', edgeFunctionError);
+      } catch (fetchError) {
+        console.error('Error calling LlamaIndex API:', fetchError);
         
         // Track processing failure in the database
         try {
@@ -159,7 +181,7 @@ export class DocumentProcessingService {
             file.name, 
             file.size, 
             'failed',
-            edgeFunctionError.message || 'Error processing document with edge function',
+            fetchError.message || 'Error calling LlamaIndex API',
             agentName,
             documentId,
             null // No extracted text on failure
@@ -168,7 +190,7 @@ export class DocumentProcessingService {
           console.error('Error tracking document processing failure:', trackingError);
         }
         
-        throw new Error(edgeFunctionError.message || 'Error processing document with edge function');
+        throw new Error(fetchError.message || 'Error calling LlamaIndex API');
       }
     } catch (error) {
       console.error('Error processing document:', error);
