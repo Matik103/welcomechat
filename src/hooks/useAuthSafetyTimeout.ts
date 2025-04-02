@@ -25,12 +25,8 @@ export const useAuthSafetyTimeout = ({
     
     console.log("Setting up safety timeout for loading state");
     
-    // Check if we're in the callback process
-    const inCallbackProcess = sessionStorage.getItem('auth_callback_processing') === 'true';
-    
-    // Use different timeouts based on context
-    // Shorter timeout for dashboard pages
-    const timeoutDuration = 3000;
+    // Use shorter timeout - 1.5 seconds is plenty for most auth operations
+    const timeoutDuration = 1500;
     
     const safetyTimeout = setTimeout(() => {
       // Double-check we're still loading before forcing completion
@@ -49,19 +45,12 @@ export const useAuthSafetyTimeout = ({
           console.log("Redirecting to auth page due to timeout");
           navigate('/auth', { replace: true });
         } else if (session) {
-          // If we have a session, check role in session storage
-          const userRole = sessionStorage.getItem('user_role_set');
-          
-          // First check user_metadata from session
+          // If we have a session, check role in session storage and metadata
           const roleFromMetadata = session.user?.user_metadata?.role;
           
           if (roleFromMetadata === 'admin') {
             navigate('/admin/dashboard', { replace: true });
           } else if (roleFromMetadata === 'client') {
-            navigate('/client/dashboard', { replace: true });
-          } else if (userRole === 'admin') {
-            navigate('/admin/dashboard', { replace: true });
-          } else if (userRole === 'client') {
             navigate('/client/dashboard', { replace: true });
           } else {
             // Default to client dashboard if we have a session but no role

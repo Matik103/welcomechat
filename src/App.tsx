@@ -10,6 +10,7 @@ import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
 import { ConfigError } from "./components/routes/ErrorDisplay";
+import { toast } from "sonner";
 
 function App() {
   const { user, userRole, isLoading, setIsLoading, session } = useAuth();
@@ -34,6 +35,19 @@ function App() {
     console.log('Auth state:', { user, userRole, isLoading });
   }, [location.pathname, isPublicRoute, user, userRole, isLoading]);
 
+  // Super aggressive loading timeout - guarantee we don't get stuck
+  useEffect(() => {
+    const hardTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn("Hard timeout triggered after 2.5 seconds");
+        setIsLoading(false);
+        toast.error("Loading timed out. Please refresh if you experience issues.");
+      }
+    }, 2500);
+    
+    return () => clearTimeout(hardTimeout);
+  }, [isLoading, setIsLoading]);
+
   // Force complete initial render after a short timeout
   useEffect(() => {
     if (initialRender) {
@@ -45,28 +59,17 @@ function App() {
     }
   }, [initialRender, setIsLoading]);
   
-  // Enhanced loading state handling with shorter timeout
+  // Enhanced loading state handling with shorter timeout for client routes
   useEffect(() => {
-    // Shorter timeout for client routes
     if (isLoading && location.pathname.includes('/client/')) {
       const clientRouteTimeout = setTimeout(() => {
         console.log("Client route detected - using shorter loading timeout");
         setIsLoading(false);
-      }, 1000);
+      }, 800); // Even shorter timeout for client routes
       
       return () => clearTimeout(clientRouteTimeout);
     }
-    
-    // General loading timeout as a fallback
-    if (isLoading && !isAuthCallback) {
-      const generalTimeout = setTimeout(() => {
-        console.log("General timeout triggered to prevent infinite loading");
-        setIsLoading(false);
-      }, 2000);
-      
-      return () => clearTimeout(generalTimeout);
-    }
-  }, [isLoading, location.pathname, isAuthCallback, setIsLoading]);
+  }, [isLoading, location.pathname, setIsLoading]);
   
   // Initialize timeout for auth loading
   useAuthSafetyTimeout({
@@ -94,18 +97,29 @@ function App() {
     );
   }
   
-  // Force complete loading state after initialization
+  // Force complete loading state after initialization - more aggressive timeout
   useEffect(() => {
     if (isInitializing) {
       const timer = setTimeout(() => {
         setIsLoading(false);
-      }, 1500);
+      }, 1000); // Reduced from 1500ms
       return () => clearTimeout(timer);
     }
   }, [isInitializing, setIsLoading]);
   
-  // Only show loading state if we're initializing or in an auth callback
+  // Only show loading state if we're initializing or in an auth callback - with time limit
   const shouldShowLoading = (isLoading && isAuthCallback) || (isInitializing && initialRender);
+  
+  // If loading takes more than 3 seconds, force render the app anyway
+  useEffect(() => {
+    if (shouldShowLoading) {
+      const forceRenderTimeout = setTimeout(() => {
+        setIsLoading(false);
+        setInitialRender(false);
+      }, 3000);
+      return () => clearTimeout(forceRenderTimeout);
+    }
+  }, [shouldShowLoading, setIsLoading]);
   
   if (shouldShowLoading) {
     return (
@@ -115,6 +129,15 @@ function App() {
           <p className="text-sm text-muted-foreground">
             {isAuthCallback ? "Completing authentication..." : "Loading your dashboard..."}
           </p>
+          <button 
+            className="mt-4 text-sm text-primary underline cursor-pointer"
+            onClick={() => {
+              setIsLoading(false);
+              window.location.reload();
+            }}
+          >
+            Taking too long? Click to reload
+          </button>
         </div>
       </div>
     );
@@ -130,7 +153,7 @@ function App() {
     return <UnauthenticatedRoutes />;
   }
 
-  // User authenticated but role not determined
+  // User authenticated but role not determined - use metadata as fallback
   if (!userRole && user) {
     const roleFromMetadata = user.user_metadata?.role;
     
@@ -140,8 +163,9 @@ function App() {
       return <ClientRoutes />;
     }
     
+    // Default to client view if we can't determine role
     console.log('User is authenticated but role is not determined, defaulting to client view');
-    return <Navigate to="/client/dashboard" replace />;
+    return <ClientRoutes />;
   }
 
   // Admin routes

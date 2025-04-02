@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -16,78 +17,63 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { user, userRole, isLoading } = useAuth();
   const navigate = useNavigate();
   const [isRehydrating, setIsRehydrating] = useState(true);
-  const [rehydrationFailed, setRehydrationFailed] = useState(false);
-  const [rehydrationAttempted, setRehydrationAttempted] = useState(false);
-
+  const [rehydrationStartTime] = useState<number>(Date.now());
+  
   useEffect(() => {
-    // Only run rehydration logic once to prevent loops
-    if (rehydrationAttempted) return;
+    // Give a short time for auth state to rehydrate, but not too long
+    const timer = setTimeout(() => {
+      setIsRehydrating(false);
+    }, 800);
     
-    // Check for stored auth state to determine if we're rehydrating
-    const storedState = sessionStorage.getItem('auth_state');
-    if (storedState) {
-      try {
-        const { timestamp } = JSON.parse(storedState);
-        // If stored state is less than 1 hour old, we're likely rehydrating
-        if (Date.now() - timestamp < 60 * 60 * 1000) {
-          setIsRehydrating(true);
-          // Give a short delay to allow auth state to rehydrate
-          const timer = setTimeout(() => {
-            if (!user) {
-              console.log("Rehydration failed to restore user");
-              setRehydrationFailed(true);
-            }
-            setIsRehydrating(false);
-            setRehydrationAttempted(true);
-          }, 2000); // Increased timeout to 2 seconds
-          return () => clearTimeout(timer);
-        } else {
-          console.log("Stored auth state expired");
-          sessionStorage.removeItem('auth_state');
-          setRehydrationAttempted(true);
-        }
-      } catch (error) {
-        console.error('Error checking stored auth state:', error);
-        sessionStorage.removeItem('auth_state');
-        setRehydrationAttempted(true);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Safety timeout to prevent infinite rehydration
+  useEffect(() => {
+    const safetyTimeout = setTimeout(() => {
+      if (isRehydrating) {
+        console.warn("Rehydration taking too long, forcing completion");
+        setIsRehydrating(false);
+        toast.error("Session restoration timed out");
+      }
+    }, 2000);
+    
+    return () => clearTimeout(safetyTimeout);
+  }, [isRehydrating]);
+  
+  // Monitor time spent in loading state
+  useEffect(() => {
+    if (isLoading || isRehydrating) {
+      const timeSinceStart = Date.now() - rehydrationStartTime;
+      
+      // If we've been loading for over 3 seconds, log warning
+      if (timeSinceStart > 3000) {
+        console.warn(`Protected route has been loading for ${Math.round(timeSinceStart / 1000)}s`);
       }
     }
-    setIsRehydrating(false);
-    setRehydrationAttempted(true);
-  }, [user, rehydrationAttempted]);
+  }, [isLoading, isRehydrating, rehydrationStartTime]);
 
-  // If rehydration failed, redirect to auth
-  if (rehydrationFailed) {
-    console.log("Rehydration failed, redirecting to auth");
-    sessionStorage.removeItem('auth_state');
-    return <Navigate to="/auth" replace />;
-  }
-
-  // Don't redirect while rehydrating
-  if (isRehydrating) {
+  // Don't redirect while rehydrating or loading
+  if (isRehydrating || isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="flex flex-col items-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="mt-2 text-sm text-muted-foreground">Restoring your session...</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {isRehydrating ? "Restoring your session..." : "Loading..."}
+          </p>
+          <button 
+            className="mt-4 text-sm text-primary underline cursor-pointer"
+            onClick={() => window.location.reload()}
+          >
+            Taking too long? Click to reload
+          </button>
         </div>
       </div>
     );
   }
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="flex flex-col items-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Handle no user case (could happen during auth issues or session timeouts)
+  // Handle no user case
   if (!user) {
     console.log("No user in protected route, redirecting to /auth");
     return <Navigate to="/auth" replace />;
