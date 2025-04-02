@@ -37,6 +37,14 @@ serve(async (req) => {
     
     const { fileContent, fileName, clientId, agentName } = requestData;
     
+    // Debug log request data
+    console.log("Received request with data:", {
+      fileName: fileName,
+      clientId: clientId,
+      agentName: agentName,
+      fileContentLength: fileContent ? fileContent.length : 0
+    });
+    
     // Validate required fields
     if (!fileContent) {
       console.error("Missing file content in request");
@@ -97,6 +105,12 @@ serve(async (req) => {
     console.log(`Calling LlamaIndex API at: ${llamaEndpoint}`);
     
     try {
+      console.log("Making API request to LlamaIndex with:", {
+        fileName,
+        apiKeyPresent: !!LLAMA_CLOUD_API_KEY,
+        contentLength: base64Content.length
+      });
+      
       const llamaResponse = await fetch(llamaEndpoint, {
         method: 'POST',
         headers: {
@@ -109,6 +123,8 @@ serve(async (req) => {
           extract_all: true
         })
       });
+      
+      console.log("LlamaIndex API response status:", llamaResponse.status);
       
       if (!llamaResponse.ok) {
         const errorText = await llamaResponse.text();
