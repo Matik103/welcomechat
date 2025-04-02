@@ -68,7 +68,7 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
       <CardHeader>
         <CardTitle>LlamaIndex API Configuration</CardTitle>
         <CardDescription>
-          Enter your LlamaIndex and OpenAI API keys to enable document parsing functionality
+          API keys are preconfigured for document parsing functionality
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -82,7 +82,7 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
             onChange={(e) => setLlamaApiKey(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            Your LlamaIndex API key starts with "llx-". You can find it in your LlamaIndex Cloud dashboard.
+            Your LlamaIndex API key starts with "llx-". It's already configured for this application.
           </p>
         </div>
         
@@ -112,7 +112,7 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
             onChange={(e) => setOpenaiApiKey(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            OpenAI API key starts with "sk-". This is required for LlamaIndex to process documents.
+            OpenAI API key starts with "sk-". It's already configured for this application.
           </p>
         </div>
         
@@ -127,7 +127,7 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
           <Alert className="bg-green-50 border-green-100">
             <Check className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-700">
-              LlamaIndex and OpenAI API keys are already configured in environment variables.
+              LlamaIndex and OpenAI API keys are already configured.
             </AlertDescription>
           </Alert>
         )}
@@ -142,7 +142,7 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
             Visit LlamaIndex Cloud
             <ArrowRight className="h-4 w-4 ml-1" />
           </a>
-          <Button onClick={handleSaveApiKey} disabled={isSaving}>
+          <Button onClick={handleSaveApiKey} disabled={isSaving || (LLAMA_CLOUD_API_KEY && OPENAI_API_KEY)}>
             {isSaving ? 'Saving...' : 'Validate API Keys'}
           </Button>
         </div>

@@ -5,8 +5,9 @@ import {
   LlamaIndexParsingResult, 
   LlamaIndexProcessingOptions 
 } from '@/types/document-processing';
+import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 
-const LLAMA_INDEX_API_URL = import.meta.env.VITE_LLAMA_INDEX_API_URL || 'http://localhost:8000';
+const LLAMA_CLOUD_API_URL = 'https://cloud.llamaindex.ai/api/v1';
 
 // Upload a document to LlamaIndex for processing
 export const uploadDocumentToLlamaIndex = async (
@@ -14,30 +15,30 @@ export const uploadDocumentToLlamaIndex = async (
   options: LlamaIndexProcessingOptions = {}
 ): Promise<LlamaIndexJobResponse> => {
   try {
+    console.log('Uploading document to LlamaIndex Cloud:', file.name);
+    
+    // Create a FormData object to send the file
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('use_ai', String(options.shouldUseAI ?? true));
     
-    if (options.maxTokens) {
-      formData.append('max_tokens', String(options.maxTokens));
-    }
-    if (options.temperature) {
-      formData.append('temperature', String(options.temperature));
-    }
-    
-    const response = await fetch(`${LLAMA_INDEX_API_URL}/upload`, {
+    // Make the API request to LlamaIndex Cloud
+    const response = await fetch(`${LLAMA_CLOUD_API_URL}/process_file`, {
       method: 'POST',
+      headers: {
+        'x-api-key': LLAMA_CLOUD_API_KEY,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
+      },
       body: formData,
     });
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Error uploading to LlamaIndex:', errorText);
+      console.error('Error uploading to LlamaIndex Cloud:', errorText);
       throw new Error(`Failed to upload document to LlamaIndex: ${errorText}`);
     }
     
     const result: LlamaIndexJobResponse = await response.json();
-    console.log('LlamaIndex upload result:', result);
+    console.log('LlamaIndex Cloud upload result:', result);
     return result;
   } catch (error) {
     console.error('Error in uploadDocumentToLlamaIndex:', error);
@@ -48,9 +49,12 @@ export const uploadDocumentToLlamaIndex = async (
 // Poll LlamaIndex for the processing status of a job
 export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexParsingResult> => {
   try {
-    const response = await fetch(`${LLAMA_INDEX_API_URL}/parsing_result/${jobId}`, {
+    console.log(`Checking status of LlamaIndex job ${jobId}`);
+    
+    const response = await fetch(`${LLAMA_CLOUD_API_URL}/jobs/${jobId}`, {
       method: 'GET',
       headers: {
+        'x-api-key': LLAMA_CLOUD_API_KEY,
         'Content-Type': 'application/json',
       },
     });
@@ -63,6 +67,14 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
     
     const result: LlamaIndexParsingResult = await response.json();
     console.log(`LlamaIndex parsing result for job ${jobId}:`, result);
+    
+    // If the job is still processing, wait and then retry
+    if (result.status !== 'SUCCEEDED' && result.status !== 'FAILED') {
+      console.log(`Job ${jobId} is still processing. Waiting 2 seconds before retrying...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return processLlamaIndexJob(jobId);
+    }
+    
     return result;
   } catch (error) {
     console.error(`Error in processLlamaIndexJob for job ${jobId}:`, error);
@@ -77,33 +89,9 @@ export const convertToPdfIfNeeded = async (file: File): Promise<File> => {
   }
   
   try {
-    // Use Supabase Edge Function to convert the document
-    const convertResponse = await supabase.functions.invoke('convert-document', {
-      body: {
-        file_url: URL.createObjectURL(file),
-        filename: file.name
-      }
-    });
-    
-    if (convertResponse.error) {
-      console.error('Error converting document to PDF:', convertResponse.error);
-      throw new Error(`Failed to convert document to PDF: ${convertResponse.error.message}`);
-    }
-    
-    const { data: convertedData } = convertResponse;
-    
-    if (!convertedData || !convertedData.file) {
-      throw new Error('Conversion to PDF failed: No file returned');
-    }
-    
-    // Convert the base64 string to a Blob
-    const base64Response = await fetch(`data:${convertedData.mime_type};base64,${convertedData.file}`);
-    const pdfBlob = await base64Response.blob();
-    
-    // Create a new File object from the Blob
-    const pdfFile = new File([pdfBlob], `${file.name.split('.')[0]}.pdf`, { type: 'application/pdf' });
-    
-    return pdfFile;
+    // For non-PDF files, we won't convert it as LlamaIndex Cloud can handle various file types
+    console.log('No conversion needed for LlamaIndex Cloud, supporting multiple file types');
+    return file;
   } catch (error) {
     console.error('Error in convertToPdfIfNeeded:', error);
     throw error;

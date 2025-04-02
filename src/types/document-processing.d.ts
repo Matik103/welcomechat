@@ -25,6 +25,8 @@ export interface DocumentProcessingStatus {
   stage: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed';
   progress: number;
   message?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface DocumentProcessingResult {
