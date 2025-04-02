@@ -1,7 +1,6 @@
 
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
 
 // Define UserRole type directly as string literals
 type UserRole = 'admin' | 'client';
@@ -15,14 +14,7 @@ export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
   const { user, isLoading, userRole } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
+  // Don't show loading state - immediately render based on current auth state
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }

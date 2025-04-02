@@ -13,18 +13,13 @@ interface WidgetPreviewCardProps {
 
 export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps) {
   const [error, setError] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     if (!clientId) {
       setError('No client ID available for preview');
-      return;
     } else {
       setError(null);
-      setIsLoaded(true);
     }
-    
-    console.log("WidgetPreviewCard - Rendering with client ID:", clientId);
   }, [clientId]);
 
   return (
@@ -43,7 +38,7 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
             <WidgetPreview 
               settings={settings} 
               clientId={clientId} 
-              key={`widget-preview-${clientId}-${isLoaded}-${settings.display_mode}`}
+              key={`widget-preview-${clientId}-${settings.display_mode}`}
             />
           </div>
         )}
