@@ -6,9 +6,8 @@ import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { v4 as uuidv4 } from 'uuid';
-
-// Constant for the storage bucket name
-const DOCUMENTS_BUCKET = 'document-storage';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
+import { getWidgetSettings, updateWidgetSettings } from '@/services/widgetSettingsService';
 
 interface SyncOptions {
   syncToAgent: boolean;
@@ -222,8 +221,29 @@ export function useUnifiedDocumentUpload(clientId: string) {
         // 6. Update widget settings if requested
         if (options.syncToWidgetSettings) {
           try {
-            // We'll skip this part since the RPC function isn't available
-            console.log('Widget settings synchronization is not available');
+            // Use the imported service functions instead of RPC calls
+            const currentSettings = await getWidgetSettings(clientId);
+            
+            // Create document summary for widget settings
+            const docSummary = {
+              documentId: result.documentId,
+              fileName: file.name,
+              fileSize: file.size,
+              fileType: file.type,
+              uploadDate: new Date().toISOString(),
+              url: publicUrl
+            };
+            
+            // Add document to widget settings
+            const updatedSettings = {
+              ...currentSettings,
+              documents: [...(currentSettings.documents || []), docSummary]
+            };
+            
+            // Update settings
+            await updateWidgetSettings(clientId, updatedSettings);
+            console.log('Widget settings updated with document information');
+            
           } catch (widgetError) {
             console.error('Error updating widget settings with document data:', widgetError);
           }
