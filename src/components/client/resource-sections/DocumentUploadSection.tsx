@@ -36,6 +36,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     }
     
     try {
+      console.log("Starting document upload process for:", selectedFile.name);
       await uploadDocument(selectedFile);
       setSelectedFile(null);
       
@@ -44,6 +45,8 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       if (fileInput) {
         fileInput.value = '';
       }
+      
+      await logClientActivity(); // Log the activity after successful upload
       
       if (onUploadComplete) {
         onUploadComplete();
@@ -112,12 +115,15 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         {isUploading && (
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Uploading document...</span>
+              <span className="text-sm font-medium flex items-center">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {uploadProgress < 90 ? 'Uploading document...' : 'Processing with LlamaIndex...'}
+              </span>
               <span className="text-sm text-gray-500">{uploadProgress}%</span>
             </div>
             <Progress value={uploadProgress} />
             <p className="text-xs text-gray-500 mt-1">
-              Your document is being processed. This may take a few moments...
+              {uploadProgress < 50 ? 'Uploading your document...' : 'Your document is being processed with LlamaIndex. This may take a few moments...'}
             </p>
           </div>
         )}
@@ -127,7 +133,13 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             <AlertTitle className="text-green-800">Document processed successfully</AlertTitle>
             <AlertDescription className="text-green-700">
-              Your document has been uploaded and processed. It will now be available for your AI assistant.
+              Your document has been uploaded and processed with LlamaIndex. 
+              {uploadResult.processed > 0 && (
+                <span> Successfully processed {uploadResult.processed} sections.</span>
+              )}
+              {uploadResult.failed > 0 && (
+                <span className="text-amber-600"> Failed to process {uploadResult.failed} sections.</span>
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -137,7 +149,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Upload failed</AlertTitle>
             <AlertDescription>
-              {uploadResult.error || 'There was an error processing your document. Please try again.'}
+              {uploadResult.error || 'There was an error processing your document with LlamaIndex. Please try again.'}
             </AlertDescription>
           </Alert>
         )}

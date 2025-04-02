@@ -45,8 +45,12 @@ export function useDocumentUpload(clientId: string) {
         setUploadProgress(progress);
       }, 200);
       
+      console.log("Starting LlamaIndex document processing for file:", file.name);
+      
       // Process the document with LlamaIndex
       const result = await processDocument(file);
+      
+      console.log("LlamaIndex processing result:", result);
       
       // Clear the interval and set final progress
       clearInterval(progressInterval);
@@ -64,13 +68,15 @@ export function useDocumentUpload(clientId: string) {
             file_size: file.size,
             file_type: file.type,
             processed_sections: result.processed,
-            failed_sections: result.failed
+            failed_sections: result.failed,
+            processed_with: 'llamaindex'
           }
         );
         
         setUploadResult(result);
         toast.success('Document uploaded and processed successfully');
       } else {
+        console.error("Document processing failed:", result.error);
         setUploadResult({
           success: false,
           error: result.error,

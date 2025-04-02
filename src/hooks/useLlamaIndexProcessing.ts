@@ -18,6 +18,8 @@ export function useLlamaIndexProcessing(clientId: string) {
     setProgress(0);
     
     try {
+      console.log(`Starting LlamaIndex processing for ${file.name} (${file.type}, ${file.size} bytes)`);
+      
       // Simulate progress updates
       const progressInterval = setInterval(() => {
         setProgress(prev => {
@@ -36,17 +38,20 @@ export function useLlamaIndexProcessing(clientId: string) {
       clearInterval(progressInterval);
       setProgress(100);
       
+      console.log("LlamaIndex processing completed with result:", result);
+      
       if (result.success) {
         setResult(result);
         toast.success('Document processed successfully');
       } else {
         setResult(result);
+        console.error("Document processing failed:", result.error);
         toast.error(result.error || 'Failed to process document');
       }
       
       return result;
     } catch (error) {
-      console.error('Error processing document:', error);
+      console.error('Error processing document with LlamaIndex:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       const failResult: DocumentProcessingResult = {
@@ -74,6 +79,8 @@ export function useLlamaIndexProcessing(clientId: string) {
     setProgress(0);
     
     try {
+      console.log(`Starting LlamaIndex processing for URL: ${url}`);
+      
       // Simulate progress updates
       const progressInterval = setInterval(() => {
         setProgress(prev => {
@@ -92,17 +99,20 @@ export function useLlamaIndexProcessing(clientId: string) {
       clearInterval(progressInterval);
       setProgress(100);
       
+      console.log("LlamaIndex URL processing completed with result:", result);
+      
       if (result.success) {
         setResult(result);
         toast.success('Document URL processed successfully');
       } else {
         setResult(result);
+        console.error("Document URL processing failed:", result.error);
         toast.error(result.error || 'Failed to process document URL');
       }
       
       return result;
     } catch (error) {
-      console.error('Error processing document URL:', error);
+      console.error('Error processing document URL with LlamaIndex:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       const failResult: DocumentProcessingResult = {
