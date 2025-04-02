@@ -85,7 +85,15 @@ export const ClientResourceSections = ({
     ensureAgentConfig();
   }, [clientId]);
 
-  // Create wrapper functions with the correct signatures to adapt the existing function
+  // Create wrapper functions with proper signatures for the component props
+  const handleWebsiteUpdate = () => {
+    return logClientActivity('WEBSITE_UPDATE', { client_id: clientId });
+  };
+
+  const handleDocumentUpdate = () => {
+    return logClientActivity('DOCUMENT_UPDATE', { client_id: clientId });
+  };
+
   const handleLogClientActivity = async () => {
     await logClientActivity('DOCUMENT_UPLOAD', {
       client_id: clientId,
@@ -137,13 +145,13 @@ export const ClientResourceSections = ({
       <WebsiteResourcesSection 
         clientId={clientId}
         onResourceChange={onResourceChange}
-        logClientActivity={() => logClientActivity('WEBSITE_UPDATE', { client_id: clientId })}
+        logClientActivity={handleWebsiteUpdate}
       />
       
       <DocumentResourcesSection 
         clientId={clientId}
         onResourceChange={onResourceChange}
-        logClientActivity={() => logClientActivity('DOCUMENT_UPDATE', { client_id: clientId })}
+        logClientActivity={handleDocumentUpdate}
       />
       
       <Card>
@@ -164,4 +172,4 @@ export const ClientResourceSections = ({
   );
 }
 
-export default ClientResourceSections;
+export default ClientResourcesSection;

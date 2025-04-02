@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
-import { safeParseSettings } from '@/utils/clientSettingsUtils';
+import { safeParseSettings, getSettingValue } from '@/utils/clientSettingsUtils';
 
 export const useClientList = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -88,15 +88,15 @@ export const useClientList = () => {
             deleted_at: client.deleted_at || null,
             deletion_scheduled_at: client.deletion_scheduled_at || null,
             last_active: client.last_active || null,
-            logo_url: client.logo_url || '',
-            logo_storage_path: client.logo_storage_path || '',
+            logo_url: client.logo_url || getSettingValue(widgetSettings, 'logo_url', ''),
+            logo_storage_path: client.logo_storage_path || getSettingValue(widgetSettings, 'logo_storage_path', ''),
             agent_name: client.agent_name || 'AI Assistant',
             agent_description: '',
             widget_settings: widgetSettings,
             name: client.client_name || 'Unnamed Client',
             is_error: false,
-            user_id: client.user_id || '',
-            openai_assistant_id: client.openai_assistant_id || undefined
+            user_id: client.user_id || getSettingValue(widgetSettings, 'user_id', ''),
+            openai_assistant_id: client.openai_assistant_id || getSettingValue(widgetSettings, 'openai_assistant_id', undefined)
           };
         });
         
@@ -117,25 +117,25 @@ export const useClientList = () => {
           return {
             id: agent.id,
             client_id: agent.client_id || '',
-            client_name: agent.client_name || parsedSettings.client_name || agent.name || 'Unnamed Client',
-            email: agent.email || parsedSettings.email || '',
+            client_name: agent.client_name || getSettingValue(parsedSettings, 'client_name', agent.name || 'Unnamed Client'),
+            email: agent.email || getSettingValue(parsedSettings, 'email', ''),
             status: agent.status || 'active',
             created_at: agent.created_at || '',
             updated_at: agent.updated_at || '',
             agent_name: agent.name || 'AI Assistant',
             agent_description: agent.agent_description || '',
-            logo_url: agent.logo_url || parsedSettings.logo_url || '',
+            logo_url: agent.logo_url || getSettingValue(parsedSettings, 'logo_url', ''),
             widget_settings: parsedSettings,
-            user_id: agent.user_id || parsedSettings.user_id || '',
-            company: agent.company || parsedSettings.company || '',
-            description: agent.description || parsedSettings.description || '',
-            logo_storage_path: agent.logo_storage_path || parsedSettings.logo_storage_path || '',
+            user_id: agent.user_id || getSettingValue(parsedSettings, 'user_id', ''),
+            company: agent.company || getSettingValue(parsedSettings, 'company', ''),
+            description: agent.description || getSettingValue(parsedSettings, 'description', ''),
+            logo_storage_path: agent.logo_storage_path || getSettingValue(parsedSettings, 'logo_storage_path', ''),
             deletion_scheduled_at: agent.deletion_scheduled_at || null,
             deleted_at: agent.deleted_at || null,
             last_active: agent.last_active || null,
             name: agent.name || agent.client_name || 'Unnamed Client',
             is_error: agent.is_error || false,
-            openai_assistant_id: agent.openai_assistant_id || parsedSettings.openai_assistant_id || undefined
+            openai_assistant_id: agent.openai_assistant_id || getSettingValue(parsedSettings, 'openai_assistant_id', undefined)
           };
         });
         
