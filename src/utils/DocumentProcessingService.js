@@ -51,8 +51,19 @@ export class DocumentProcessingService {
       
       console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
       
+      // Get agent name for the client
+      const { data: agentData, error: agentError } = await supabase
+        .from('ai_agents')
+        .select('name')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .limit(1)
+        .maybeSingle();
+        
+      const agentName = agentData?.name || 'AI Assistant';
+      
       // Track processing success in the database
-      await this.trackDocumentProcessing(clientId, filePath, publicUrl, file.name, file.size, 'completed');
+      await this.trackDocumentProcessing(clientId, filePath, publicUrl, file.name, file.size, 'completed', null, agentName);
       
       return {
         success: true,
@@ -64,6 +75,24 @@ export class DocumentProcessingService {
     } catch (error) {
       console.error('Error processing document:', error);
       
+      // Get agent name for the client for tracking failure
+      let agentName = 'AI Assistant';
+      try {
+        const { data: agentData } = await supabase
+          .from('ai_agents')
+          .select('name')
+          .eq('client_id', clientId)
+          .eq('interaction_type', 'config')
+          .limit(1)
+          .maybeSingle();
+          
+        if (agentData?.name) {
+          agentName = agentData.name;
+        }
+      } catch (nameError) {
+        console.error('Error fetching agent name:', nameError);
+      }
+      
       // Track processing failure in the database
       if (clientId) {
         try {
@@ -74,7 +103,8 @@ export class DocumentProcessingService {
             file?.name || 'unknown', 
             file?.size || 0, 
             'failed',
-            error.message
+            error.message,
+            agentName
           );
         } catch (trackingError) {
           console.error('Error tracking document processing failure:', trackingError);
@@ -99,6 +129,7 @@ export class DocumentProcessingService {
    * @param {number} fileSize The file size in bytes
    * @param {string} status The processing status
    * @param {string} errorMessage Optional error message
+   * @param {string} agentName The agent name
    */
   static async trackDocumentProcessing(
     clientId, 
@@ -107,7 +138,8 @@ export class DocumentProcessingService {
     fileName, 
     fileSize, 
     status, 
-    errorMessage = null
+    errorMessage = null,
+    agentName = 'AI Assistant'
   ) {
     try {
       const { error } = await supabase
@@ -119,8 +151,7 @@ export class DocumentProcessingService {
           error: errorMessage,
           document_type: 'pdf', // Default to PDF for now
           created_at: new Date().toISOString(),
-          // Remove file_name field as it doesn't exist in the schema
-          // Only use fields that exist in the actual database table
+          agent_name: agentName, // Add agent_name field
           metadata: {
             original_filename: fileName,
             file_size: fileSize,
@@ -155,6 +186,17 @@ export class DocumentProcessingService {
         throw new Error('Client ID is required');
       }
       
+      // Get agent name for the client
+      const { data: agentData, error: agentError } = await supabase
+        .from('ai_agents')
+        .select('name')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .limit(1)
+        .maybeSingle();
+        
+      const agentName = agentData?.name || 'AI Assistant';
+      
       // Create a processing job in the database
       const { data, error } = await supabase
         .from('document_processing_jobs')
@@ -163,7 +205,8 @@ export class DocumentProcessingService {
           document_url: url,
           document_type: 'url',
           status: 'pending',
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          agent_name: agentName // Add agent_name field
         })
         .select('id')
         .single();
