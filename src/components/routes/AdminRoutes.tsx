@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Toaster } from "sonner";
 import Index from "@/pages/Index";
+import NewIndex from "@/pages/NewIndex";
 import ClientList from "@/pages/ClientList";
 import Agents from "@/pages/Agents";
 import Settings from "@/pages/Settings";
@@ -17,7 +18,7 @@ export const AdminRoutes = () => {
       <Header />
       <Routes>
         <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="/admin/dashboard" element={<Index />} />
+        <Route path="/admin/dashboard" element={<NewIndex />} />
         <Route path="/admin/clients" element={<ClientList />} />
         <Route path="/admin/agents" element={<Agents />} />
         <Route path="/admin/agents/:agentId" element={<Agents />} />

@@ -1,41 +1,30 @@
 
-import React from "react";
-import { ArrowRight, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { Plus, Users, Settings } from "lucide-react";
 
-interface ActionButtonProps {
-  children: React.ReactNode;
-  primary?: boolean;
-  onClick?: () => void;
-  blue?: boolean;
-}
-
-const ActionButton = ({ children, primary = false, blue = false, onClick }: ActionButtonProps) => (
-  <button
-    onClick={onClick}
-    className={`${
-      primary
-        ? "bg-primary text-white hover:bg-primary/90"
-        : blue
-          ? "bg-blue-600 text-white hover:bg-blue-700"
-          : "bg-white text-gray-900 border border-gray-200 hover:bg-gray-50"
-    } px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors duration-200`}
-  >
-    {children}
-  </button>
-);
-
-export const NewActionButtons = () => {
+export function NewActionButtons() {
   const navigate = useNavigate();
   
   return (
-    <div className="flex flex-wrap gap-4">
-      <ActionButton onClick={() => navigate("/admin/clients")}>
-        View Client List <ArrowRight className="w-4 h-4" />
-      </ActionButton>
-      <ActionButton blue onClick={() => navigate('/admin/clients/add')}>
-        <Plus className="w-4 h-4" /> Add Client
-      </ActionButton>
+    <div className="flex flex-wrap gap-4 mb-6">
+      <Button 
+        onClick={() => navigate("/admin/clients")}
+        variant="outline"
+        className="flex items-center gap-2"
+      >
+        <Users className="h-4 w-4" />
+        Manage Clients
+      </Button>
+      
+      <Button 
+        onClick={() => navigate("/admin/settings")}
+        variant="outline"
+        className="flex items-center gap-2"
+      >
+        <Settings className="h-4 w-4" />
+        Platform Settings
+      </Button>
     </div>
   );
-};
+}

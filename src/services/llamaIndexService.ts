@@ -1,11 +1,10 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { env } from '@/config/env';
 import { 
   LlamaIndexJobResponse, 
   LlamaIndexParsingResult, 
   LlamaIndexProcessingOptions 
-} from '@/types/document-processing';
+} from '@/types/document-processing.d';
 
 const LLAMA_INDEX_API_URL = env.LLAMA_INDEX_API_URL;
 

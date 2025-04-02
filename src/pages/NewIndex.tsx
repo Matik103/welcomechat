@@ -7,6 +7,9 @@ import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ClientActivity } from "@/types/activity";
 import { NewActionButtons } from "@/components/dashboard/NewActionButtons";
+import { StatsCardsSection } from "@/components/admin/dashboard/StatsCardsSection";
+import { useAdminDashboardData } from "@/hooks/useAdminDashboardData";
+import { ActivityChartsSection } from "@/components/admin/dashboard/ActivityChartsSection";
 
 export default function NewIndex() {
   const navigate = useNavigate();
@@ -17,6 +20,8 @@ export default function NewIndex() {
     error: dashboardError,
     refetch: refetchDashboard
   } = useAdminDashboard();
+
+  const { isLoading: isDashboardDataLoading, dashboardData } = useAdminDashboardData();
   
   const {
     activities,
@@ -38,6 +43,8 @@ export default function NewIndex() {
     return () => clearInterval(interval);
   }, [refetchDashboard, refetchActivities]);
 
+  const isLoading = isDashboardLoading || isDashboardDataLoading || isActivitiesLoading;
+
   if (dashboardError || activitiesError) {
     return (
       <div className="container mx-auto p-6">
@@ -52,20 +59,38 @@ export default function NewIndex() {
 
   return (
     <div className="container mx-auto p-6">
-      {isDashboardLoading ? (
+      {isLoading ? (
         <DashboardSkeleton />
       ) : (
         <>
-          {/* Dashboard content from the original Dashboard component */}
+          {/* Dashboard content */}
           <div className="mb-8">
             <NewActionButtons />
           </div>
           
-          <Card>
+          {/* Stats Cards */}
+          {dashboardData && <StatsCardsSection dashboardData={dashboardData} />}
+          
+          {/* Activity Charts */}
+          {dashboardData && <ActivityChartsSection activityCharts={dashboardData.activityCharts} />}
+          
+          <Card className="mt-8">
             <CardContent className="pt-6">
-              {/* Content for your activity list */}
               <h2 className="text-xl font-bold mb-4">Recent Activities</h2>
-              {/* Add your activity list component here */}
+              {activities && activities.length > 0 ? (
+                <div className="space-y-4">
+                  {activities.slice(0, 5).map((activity) => (
+                    <div key={activity.id} className="border-b pb-3">
+                      <p className="font-medium">{activity.description || "No description"}</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {new Date(activity.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 py-4">No recent activities found</p>
+              )}
             </CardContent>
           </Card>
         </>

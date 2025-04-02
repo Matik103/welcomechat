@@ -1,78 +1,27 @@
 
-import { useState, useEffect } from 'react';
-import { ClientActivity } from '@/types/activity';
-import { getRecentActivities } from '@/services/activitiesService';
-import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { ClientActivity } from "@/types/activity";
 
-export const useRecentActivities = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [activities, setActivities] = useState<ClientActivity[]>([]);
-
-  const fetchActivities = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Get recent activities from the service
-      const { success, data, error: serviceError } = await getRecentActivities(20);
-      
-      if (!success || serviceError) {
-        throw new Error(serviceError?.message || 'Failed to fetch activities');
-      }
-      
-      // Transform data if needed
-      const formattedActivities = data?.map(activity => ({
-        id: activity.id,
-        client_id: activity.ai_agent_id || activity.metadata?.client_id, // Get client_id from ai_agent_id field or metadata
-        client_name: activity.metadata?.client_name,
-        description: activity.description,
-        created_at: activity.created_at,
-        metadata: activity.metadata,
-        type: activity.type
-      })) || [];
-      
-      // If successful but empty, just set empty array
-      setActivities(formattedActivities);
-      return formattedActivities;
-    } catch (err) {
-      console.error("Error fetching recent activities:", err);
-      setError(err instanceof Error ? err : new Error('Failed to fetch activities'));
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Set up real-time subscription for new activities
-  useEffect(() => {
-    fetchActivities();
-
-    // Subscribe to changes on the activities table
-    const channel = supabase.channel('activities-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'activities'
-        },
-        (payload) => {
-          console.log('New activity:', payload);
-          fetchActivities(); // Refetch when new activity is added
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+export function useRecentActivities() {
+  const { data: activities, isLoading, error, refetch } = useQuery({
+    queryKey: ["recent-activities"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_activities")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20);
+        
+      if (error) throw error;
+      return data as ClientActivity[];
+    },
+  });
 
   return {
-    activities,
+    activities: activities || [],
     isLoading,
     error,
-    refetch: fetchActivities
+    refetch,
   };
-};
+}
