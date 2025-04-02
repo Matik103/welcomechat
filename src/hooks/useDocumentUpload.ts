@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { DocumentProcessingResult } from '@/types/document-processing';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,7 +23,7 @@ export function useDocumentUpload(clientId: string) {
     setUploadProgress(0);
     
     try {
-      // First, get the agent name
+      // First, get the agent name - ensure it's fetched properly
       const { data: agentData, error: agentError } = await supabase
         .from('ai_agents')
         .select('name')
@@ -36,8 +37,12 @@ export function useDocumentUpload(clientId: string) {
         throw new Error(`Failed to get agent name: ${agentError.message}`);
       }
       
-      // Use a default agent name if none is found
-      const agentName = agentData?.name || 'AI Assistant';
+      if (!agentData || !agentData.name) {
+        throw new Error('Agent name not found for this client');
+      }
+      
+      const agentName = agentData.name;
+      console.log("Using agent name for document upload:", agentName);
       
       // Update progress based on LlamaIndex processing progress
       const progressInterval = setInterval(() => {

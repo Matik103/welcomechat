@@ -51,7 +51,7 @@ export class DocumentProcessingService {
       
       console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
       
-      // Get agent name for the client
+      // Get agent name for the client - make sure to fetch it properly
       const { data: agentData, error: agentError } = await supabase
         .from('ai_agents')
         .select('name')
@@ -60,10 +60,29 @@ export class DocumentProcessingService {
         .limit(1)
         .maybeSingle();
         
-      const agentName = agentData?.name || 'AI Assistant';
+      if (agentError) {
+        console.error('Error fetching agent name:', agentError);
+        throw new Error(`Failed to get agent name: ${agentError.message}`);
+      }
+      
+      if (!agentData || !agentData.name) {
+        throw new Error('Agent name not found for this client');
+      }
+      
+      const agentName = agentData.name;
+      console.log(`Using agent name: ${agentName} for client: ${clientId}`);
       
       // Track processing success in the database
-      await this.trackDocumentProcessing(clientId, filePath, publicUrl, file.name, file.size, 'completed', null, agentName);
+      await this.trackDocumentProcessing(
+        clientId, 
+        filePath, 
+        publicUrl, 
+        file.name, 
+        file.size, 
+        'completed', 
+        null, 
+        agentName
+      );
       
       return {
         success: true,
@@ -76,9 +95,9 @@ export class DocumentProcessingService {
       console.error('Error processing document:', error);
       
       // Get agent name for the client for tracking failure
-      let agentName = 'AI Assistant';
+      let agentName;
       try {
-        const { data: agentData } = await supabase
+        const { data: agentData, error: agentError } = await supabase
           .from('ai_agents')
           .select('name')
           .eq('client_id', clientId)
@@ -86,11 +105,19 @@ export class DocumentProcessingService {
           .limit(1)
           .maybeSingle();
           
-        if (agentData?.name) {
-          agentName = agentData.name;
+        if (agentError) {
+          console.error('Error fetching agent name for error tracking:', agentError);
+          throw agentError;
         }
+        
+        if (!agentData || !agentData.name) {
+          throw new Error('Agent name not found for this client');
+        }
+        
+        agentName = agentData.name;
       } catch (nameError) {
         console.error('Error fetching agent name:', nameError);
+        throw new Error('Failed to process document: Could not determine agent name');
       }
       
       // Track processing failure in the database
@@ -139,7 +166,7 @@ export class DocumentProcessingService {
     fileSize, 
     status, 
     errorMessage = null,
-    agentName = 'AI Assistant'
+    agentName
   ) {
     try {
       const { error } = await supabase
@@ -151,7 +178,7 @@ export class DocumentProcessingService {
           error: errorMessage,
           document_type: 'pdf', // Default to PDF for now
           created_at: new Date().toISOString(),
-          agent_name: agentName, // Add agent_name field
+          agent_name: agentName, // Required field, must be provided
           metadata: {
             original_filename: fileName,
             file_size: fileSize,
@@ -186,7 +213,7 @@ export class DocumentProcessingService {
         throw new Error('Client ID is required');
       }
       
-      // Get agent name for the client
+      // Get agent name for the client - ensure it's found
       const { data: agentData, error: agentError } = await supabase
         .from('ai_agents')
         .select('name')
@@ -195,7 +222,16 @@ export class DocumentProcessingService {
         .limit(1)
         .maybeSingle();
         
-      const agentName = agentData?.name || 'AI Assistant';
+      if (agentError) {
+        console.error('Error fetching agent name:', agentError);
+        throw new Error(`Failed to get agent name: ${agentError.message}`);
+      }
+      
+      if (!agentData || !agentData.name) {
+        throw new Error('Agent name not found for this client');
+      }
+      
+      const agentName = agentData.name;
       
       // Create a processing job in the database
       const { data, error } = await supabase
@@ -206,7 +242,7 @@ export class DocumentProcessingService {
           document_type: 'url',
           status: 'pending',
           created_at: new Date().toISOString(),
-          agent_name: agentName // Add agent_name field
+          agent_name: agentName // Required field
         })
         .select('id')
         .single();
