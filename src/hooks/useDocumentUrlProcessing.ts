@@ -79,7 +79,7 @@ export const useDocumentUrlProcessing = (clientId: string) => {
             ai_agent_id: clientId,
             filename: fetchResult.title || url,
             type: 'url',
-            status: 'completed',
+            status: 'processed',
             content: fetchResult.content || '',
             metadata: {
               url: url,
@@ -128,7 +128,7 @@ export const useDocumentUrlProcessing = (clientId: string) => {
           stage: 'failed',
           progress: 0,
           message: `Failed to process URL: ${error instanceof Error ? error.message : String(error)}`,
-          error: error instanceof Error ? error : new Error(String(error))
+          error: error instanceof Error ? error.message : String(error)
         });
         
         result.success = false;
@@ -143,7 +143,7 @@ export const useDocumentUrlProcessing = (clientId: string) => {
         stage: 'failed',
         progress: 0,
         message: `Error: ${error instanceof Error ? error.message : String(error)}`,
-        error: error instanceof Error ? error : new Error(String(error))
+        error: error instanceof Error ? error.message : String(error)
       });
       
       const result: DocumentProcessingResult = {

@@ -13,6 +13,7 @@ export interface DocumentProcessingOptions {
   syncToWidgetSettings?: boolean;
   folder?: string;
   description?: string;
+  clientId?: string;
 }
 
 export interface DocumentProcessingStatus {
