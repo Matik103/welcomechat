@@ -5,7 +5,7 @@ import { ActivityType } from '@/types/activity';
 export async function createClientActivity(
   clientId: string,
   agentName?: string,
-  activityType: string = ActivityType.PAGE_VIEW,
+  activityType: string = 'page_view', // Changed from ActivityType.PAGE_VIEW to a string literal
   description: string = 'User viewed page',
   activityData: Record<string, any> = {}
 ): Promise<void> {
