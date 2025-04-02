@@ -1,7 +1,7 @@
 
 import { supabase } from '../integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
-import { LLAMA_CLOUD_API_KEY, LLAMA_EXTRACTION_AGENT_ID } from '@/config/env';
+import { LLAMA_CLOUD_API_KEY, LLAMA_EXTRACTION_AGENT_ID, OPENAI_API_KEY } from '@/config/env';
 
 // Constant for the storage bucket name
 const DOCUMENT_STORAGE_BUCKET = 'document-storage';
@@ -80,27 +80,46 @@ export class DocumentProcessingService {
       
       // Check if we have a LlamaIndex API key
       let llamaApiKey = LLAMA_CLOUD_API_KEY;
-      if (!llamaApiKey) {
-        console.log("No LLAMA_CLOUD_API_KEY found in env vars, attempting to get from Supabase secrets");
+      let openaiApiKey = OPENAI_API_KEY;
+      
+      if (!llamaApiKey || !openaiApiKey) {
+        console.log("Missing API keys in env vars, attempting to get from Supabase secrets");
         try {
+          const keysToFetch = [];
+          if (!llamaApiKey) keysToFetch.push('LLAMA_CLOUD_API_KEY');
+          if (!openaiApiKey) keysToFetch.push('OPENAI_API_KEY');
+          
           const { data: secretData, error: secretError } = await supabase.functions.invoke('get-secrets', {
-            body: { keys: ['LLAMA_CLOUD_API_KEY'] }
+            body: { keys: keysToFetch }
           });
           
           if (secretError) {
-            console.error("Error fetching LLAMA_CLOUD_API_KEY from Supabase:", secretError);
-          } else if (secretData && secretData.LLAMA_CLOUD_API_KEY) {
-            llamaApiKey = secretData.LLAMA_CLOUD_API_KEY;
-            console.log("Successfully retrieved LLAMA_CLOUD_API_KEY from Supabase secrets");
+            console.error("Error fetching API keys from Supabase:", secretError);
+          } else if (secretData) {
+            if (secretData.LLAMA_CLOUD_API_KEY) {
+              llamaApiKey = secretData.LLAMA_CLOUD_API_KEY;
+              console.log("Successfully retrieved LLAMA_CLOUD_API_KEY from Supabase secrets");
+            }
+            
+            if (secretData.OPENAI_API_KEY) {
+              openaiApiKey = secretData.OPENAI_API_KEY;
+              console.log("Successfully retrieved OPENAI_API_KEY from Supabase secrets");
+            }
           }
         } catch (err) {
           console.error("Error invoking get-secrets function:", err);
         }
       }
       
+      // Validate API keys
       if (!llamaApiKey) {
         console.error("No LlamaIndex API key available - cannot process document");
         throw new Error("LlamaIndex API key is required but not found");
+      }
+      
+      if (!openaiApiKey) {
+        console.error("No OpenAI API key available - cannot process document");
+        throw new Error("OpenAI API key is required but not found");
       }
       
       console.log("Preparing to call LlamaIndex API for text extraction...");
@@ -124,7 +143,8 @@ export class DocumentProcessingService {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${llamaApiKey}`
+            'Authorization': `Bearer ${llamaApiKey}`,
+            'x-openai-api-key': openaiApiKey // Pass OpenAI API key for embedding
           },
           body: JSON.stringify({
             file_name: file.name,
