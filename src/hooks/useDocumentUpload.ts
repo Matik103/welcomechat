@@ -1,17 +1,18 @@
 
 import { useState } from 'react';
-import { DocumentProcessingService } from '@/utils/DocumentProcessingService';
 import { DocumentProcessingResult } from '@/types/document-processing';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
+import { useLlamaIndexProcessing } from './useLlamaIndexProcessing';
 
 export function useDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
+  const { processDocument, progress } = useLlamaIndexProcessing(clientId);
 
   const uploadDocument = async (file: File): Promise<void> => {
     if (!clientId) {
@@ -39,22 +40,13 @@ export function useDocumentUpload(clientId: string) {
       // Use a default agent name if none is found
       const agentName = agentData?.name || 'AI Assistant';
       
-      // Simulate progress updates
+      // Update progress based on LlamaIndex processing progress
       const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 5;
-        });
-      }, 500);
+        setUploadProgress(progress);
+      }, 200);
       
-      // Process the document - pass just the file and clientId
-      const result = await DocumentProcessingService.processDocument(
-        file,
-        clientId
-      );
+      // Process the document with LlamaIndex
+      const result = await processDocument(file);
       
       // Clear the interval and set final progress
       clearInterval(progressInterval);
@@ -66,16 +58,18 @@ export function useDocumentUpload(clientId: string) {
           clientId,
           agentName,
           ActivityType.DOCUMENT_ADDED,
-          `Document uploaded: ${file.name}`,
+          `Document uploaded and processed: ${file.name}`,
           {
             file_name: file.name,
             file_size: file.size,
-            file_type: file.type
+            file_type: file.type,
+            processed_sections: result.processed,
+            failed_sections: result.failed
           }
         );
         
         setUploadResult(result);
-        toast.success('Document uploaded successfully');
+        toast.success('Document uploaded and processed successfully');
       } else {
         setUploadResult({
           success: false,

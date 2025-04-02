@@ -13,7 +13,12 @@ import { ClientLayout } from "@/components/layout/ClientLayout";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const ClientRoutes = () => {
-  const { userRole } = useAuth();
+  const { userRole, isLoading } = useAuth();
+  
+  // If user is still loading, don't render anything to prevent flash
+  if (isLoading) {
+    return null;
+  }
   
   // If user is an admin, redirect to admin dashboard
   if (userRole === 'admin') {

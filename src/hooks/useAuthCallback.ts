@@ -52,10 +52,11 @@ export const useAuthCallback = ({
           try {
             const role = await getUserRole();
             setUserRole(role);
+            console.log('Set user role in callback:', role); // Debug log
             
             // Store role in session storage as a fallback
             if (role) {
-              sessionStorage.setItem('user_role_set', role);
+              sessionStorage.setItem('user_role', role);
             }
           } catch (error) {
             console.error('Error getting user role in callback:', error);

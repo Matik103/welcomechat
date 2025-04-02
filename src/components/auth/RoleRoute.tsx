@@ -14,7 +14,12 @@ export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
   const { user, isLoading, userRole } = useAuth();
   const location = useLocation();
 
-  // Don't show loading state - immediately render based on current auth state
+  // Don't render anything while role is being determined to prevent flash
+  if (isLoading) {
+    return null;
+  }
+
+  // If not authenticated, redirect to auth
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
