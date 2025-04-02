@@ -1,5 +1,5 @@
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { useAuthSafetyTimeout } from "./hooks/useAuthSafetyTimeout";
@@ -14,7 +14,6 @@ import { ConfigError } from "./components/routes/ErrorDisplay";
 function App() {
   const { user, userRole, isLoading, setIsLoading, session } = useAuth();
   const location = useLocation();
-  const [initialRender, setInitialRender] = useState(true);
   
   // Check if current path is a public route
   const isAuthCallback = useMemo(() => location.pathname.includes('/auth/callback'), [location.pathname]);
@@ -27,32 +26,14 @@ function App() {
     isAuthPage || isClientAuthPage || isAuthCallback || isHomePage || isAboutPage || isContactPage
   ), [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage]);
 
-  // Debug current route for troubleshooting
+  // Enhanced loading state handling
   useEffect(() => {
-    console.log('Current path:', location.pathname);
-    console.log('Is public route:', isPublicRoute);
-    console.log('Auth state:', { user, userRole, isLoading });
-  }, [location.pathname, isPublicRoute, user, userRole, isLoading]);
-
-  // Force complete initial render after a short timeout
-  useEffect(() => {
-    if (initialRender) {
-      const timer = setTimeout(() => {
-        setInitialRender(false);
-        setIsLoading(false);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [initialRender, setIsLoading]);
-  
-  // Enhanced loading state handling with shorter timeout
-  useEffect(() => {
-    // Shorter timeout for client routes
+    // If we're on a client route but still loading, use a shorter timeout
     if (isLoading && location.pathname.includes('/client/')) {
       const clientRouteTimeout = setTimeout(() => {
         console.log("Client route detected - using shorter loading timeout");
         setIsLoading(false);
-      }, 1000);
+      }, 1500);
       
       return () => clearTimeout(clientRouteTimeout);
     }
@@ -62,11 +43,30 @@ function App() {
       const generalTimeout = setTimeout(() => {
         console.log("General timeout triggered to prevent infinite loading");
         setIsLoading(false);
-      }, 2000);
+      }, 5000);
       
       return () => clearTimeout(generalTimeout);
     }
   }, [isLoading, location.pathname, isAuthCallback, setIsLoading]);
+  
+  // Check for stored auth state
+  useEffect(() => {
+    const storedState = sessionStorage.getItem('auth_state');
+    if (storedState) {
+      try {
+        const { timestamp } = JSON.parse(storedState);
+        // If we have recent stored state, don't show loading
+        if (Date.now() - timestamp < 60 * 60 * 1000) {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Error checking stored auth state:', error);
+        // If error parsing stored state, clear it and don't show loading
+        sessionStorage.removeItem('auth_state');
+        setIsLoading(false);
+      }
+    }
+  }, [setIsLoading]);
   
   // Initialize timeout for auth loading
   useAuthSafetyTimeout({
@@ -94,18 +94,8 @@ function App() {
     );
   }
   
-  // Force complete loading state after initialization
-  useEffect(() => {
-    if (isInitializing) {
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isInitializing, setIsLoading]);
-  
   // Only show loading state if we're initializing or in an auth callback
-  const shouldShowLoading = (isLoading && isAuthCallback) || (isInitializing && initialRender);
+  const shouldShowLoading = (isLoading && isAuthCallback) || isInitializing;
   
   if (shouldShowLoading) {
     return (
