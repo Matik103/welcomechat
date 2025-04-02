@@ -13,14 +13,23 @@ export const getAgentDataByClientAndName = async (
   try {
     console.log(`Querying agent data for client: ${clientId}, agent: ${agentName}`);
     
-    // Query directly from the ai_agents table
-    const { data, error } = await supabase
+    // Query directly from the ai_agents table, handling null client_id properly
+    let query = supabase
       .from('ai_agents')
       .select('*')
-      .eq('client_id', clientId)
       .eq('name', agentName)
       .order('created_at', { ascending: false })
       .limit(limit);
+    
+    // Only add the client_id filter if it's not null or undefined
+    if (clientId && clientId !== "null") {
+      query = query.eq('client_id', clientId);
+    } else {
+      // For null client_id values, use IS NULL filter instead of equality
+      query = query.is('client_id', null);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error querying agent data:", error);
@@ -48,11 +57,19 @@ export const getAgentsByClientId = async (
     console.log(`Querying all agent data for client: ${clientId}`);
     
     // First get all unique agent names
-    const { data: namesData, error: namesError } = await supabase
+    let namesQuery = supabase
       .from('ai_agents')
       .select('name')
-      .eq('client_id', clientId)
       .order('name');
+      
+    // Handle null client_id properly
+    if (clientId && clientId !== "null") {
+      namesQuery = namesQuery.eq('client_id', clientId);
+    } else {
+      namesQuery = namesQuery.is('client_id', null);
+    }
+    
+    const { data: namesData, error: namesError } = await namesQuery;
 
     if (namesError) {
       console.error("Error querying client agents:", namesError);
@@ -66,13 +83,21 @@ export const getAgentsByClientId = async (
     // For each agent name, get the most recent record
     const agentRecords = [];
     for (const name of uniqueNames) {
-      const { data, error } = await supabase
+      let recordQuery = supabase
         .from('ai_agents')
         .select('*')
-        .eq('client_id', clientId)
         .eq('name', name)
         .order('created_at', { ascending: false })
         .limit(1);
+        
+      // Handle null client_id properly
+      if (clientId && clientId !== "null") {
+        recordQuery = recordQuery.eq('client_id', clientId);
+      } else {
+        recordQuery = recordQuery.is('client_id', null);
+      }
+      
+      const { data, error } = await recordQuery;
         
       if (!error && data && data.length > 0) {
         agentRecords.push(data[0]);
@@ -98,10 +123,18 @@ export const getAgentNamesByClientId = async (
   try {
     console.log(`Querying agent names for client: ${clientId}`);
     
-    const { data, error } = await supabase
+    let query = supabase
       .from('ai_agents')
-      .select('name')
-      .eq('client_id', clientId);
+      .select('name');
+      
+    // Handle null client_id properly
+    if (clientId && clientId !== "null") {
+      query = query.eq('client_id', clientId);
+    } else {
+      query = query.is('client_id', null);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error querying agent names:", error);
@@ -128,17 +161,22 @@ export const generateAgentQueryForN8n = (
   agentName: string,
   limit: number = 100
 ) => {
+  // Handle null client_id with IS NULL syntax in SQL
+  const clientIdCondition = clientId && clientId !== "null" 
+    ? `client_id = '${clientId}'::uuid`
+    : `client_id IS NULL`;
+    
   return `
 -- Use this query in your n8n PostgreSQL node to get data for a specific AI agent
 SELECT * FROM ai_agents
-WHERE client_id = '${clientId}'::uuid
+WHERE ${clientIdCondition}
   AND name = '${agentName}'
 ORDER BY created_at DESC
 LIMIT ${limit};
 
 -- To get distinct agent names for a client:
 -- SELECT DISTINCT name FROM ai_agents
--- WHERE client_id = '${clientId}'::uuid
+-- WHERE ${clientIdCondition}
 -- ORDER BY name;
   `.trim();
 };
@@ -176,13 +214,16 @@ export const getAgentDashboardStats = async (
                       'exists' in funcExistsData[0] && 
                       funcExistsData[0].exists === true;
     
+    // Process client_id to handle null values
+    const clientIdParam = clientId && clientId !== "null" ? clientId : null;
+    
     // If the function exists, use it
     if (funcExists) {
       // Use the database function for the stats
       const { data, error } = await supabase.rpc(
         'get_agent_dashboard_stats',
         { 
-          client_id_param: clientId,
+          client_id_param: clientIdParam,
           agent_name_param: agentName
         }
       );
@@ -198,18 +239,31 @@ export const getAgentDashboardStats = async (
       // If function doesn't exist, query directly from ai_agents table
       console.log("get_agent_dashboard_stats function not found, querying directly");
       
-      // Get total interactions
-      const { data: totalInteractions, error: countError } = await supabase
+      // Get total interactions with correct NULL handling
+      let countQuery = supabase
         .from('ai_agents')
         .select('id', { count: 'exact' })
-        .eq('client_id', clientId)
         .eq('name', agentName)
         .eq('interaction_type', 'chat_interaction');
+      
+      // Handle null client_id properly
+      if (clientId && clientId !== "null") {
+        countQuery = countQuery.eq('client_id', clientId);
+      } else {
+        countQuery = countQuery.is('client_id', null);
+      }
+      
+      const { data: totalInteractions, error: countError } = await countQuery;
         
       if (countError) {
         console.error("Error counting interactions:", countError);
         throw countError;
       }
+      
+      // Prepare SQL for client_id condition
+      const clientIdSqlCondition = clientId && clientId !== "null" 
+        ? `client_id = '${clientId}'` 
+        : `client_id IS NULL`;
       
       // Get active days
       const { data: activeDaysData, error: daysError } = await supabase.rpc(
@@ -218,7 +272,7 @@ export const getAgentDashboardStats = async (
           sql_query: `
             SELECT COUNT(DISTINCT DATE(created_at)) as active_days
             FROM ai_agents
-            WHERE client_id = '${clientId}'
+            WHERE ${clientIdSqlCondition}
               AND name = '${agentName}'
               AND interaction_type = 'chat_interaction'
           `
@@ -237,7 +291,7 @@ export const getAgentDashboardStats = async (
           sql_query: `
             SELECT COALESCE(AVG(response_time_ms)::numeric / 1000, 0) as avg_response_time
             FROM ai_agents
-            WHERE client_id = '${clientId}'
+            WHERE ${clientIdSqlCondition}
               AND name = '${agentName}'
               AND interaction_type = 'chat_interaction'
               AND response_time_ms IS NOT NULL
@@ -257,7 +311,7 @@ export const getAgentDashboardStats = async (
           sql_query: `
             SELECT query_text, COUNT(*) as frequency
             FROM ai_agents
-            WHERE client_id = '${clientId}'
+            WHERE ${clientIdSqlCondition}
               AND name = '${agentName}'
               AND interaction_type = 'chat_interaction'
               AND query_text IS NOT NULL
@@ -311,12 +365,20 @@ export const getAgentDashboardStats = async (
  */
 export const debugGetAllAgentData = async (clientId: string) => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('ai_agents')
       .select('*')
-      .eq('client_id', clientId)
       .order('created_at', { ascending: false })
       .limit(100);
+      
+    // Handle null client_id properly
+    if (clientId && clientId !== "null") {
+      query = query.eq('client_id', clientId);
+    } else {
+      query = query.is('client_id', null);
+    }
+    
+    const { data, error } = await query;
       
     if (error) throw error;
     return data;

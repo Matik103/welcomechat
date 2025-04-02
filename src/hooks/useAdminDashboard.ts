@@ -77,10 +77,11 @@ export const useAdminDashboard = () => {
         throw activeError;
       }
       
-      // Count unique client IDs with recent activity
+      // Count unique client IDs with recent activity, handling both null and non-null values correctly
       const uniqueClientIds = new Set();
       activeClientsData?.forEach(item => {
-        if (item.client_id) uniqueClientIds.add(item.client_id);
+        // Add either the client_id or a special symbol for null values
+        uniqueClientIds.add(item.client_id || "NULL_CLIENT_ID");
       });
       
       const activeClientCount = uniqueClientIds.size;

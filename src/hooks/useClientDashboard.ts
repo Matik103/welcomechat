@@ -5,16 +5,19 @@ import { useClientChatHistory } from "@/hooks/useClientChatHistory";
 import { InteractionStats, ChatInteraction } from "@/types/client-dashboard";
 
 export const useClientDashboard = (clientId: string, defaultAgentName: string = 'AI Assistant') => {
+  // Ensure clientId is never "null" as a string
+  const safeClientId = clientId && clientId !== "null" ? clientId : null;
+  
   // Get interaction stats
   const {
     data: stats,
     isLoading: isLoadingStats,
     error: statsError,
   } = useQuery({
-    queryKey: ["interaction-stats", clientId, defaultAgentName],
+    queryKey: ["interaction-stats", safeClientId, defaultAgentName],
     queryFn: async () => {
       try {
-        const data = await getInteractionStats(clientId, defaultAgentName);
+        const data = await getInteractionStats(safeClientId || "", defaultAgentName);
         
         // Ensure both snake_case and camelCase properties exist
         return {
@@ -50,7 +53,7 @@ export const useClientDashboard = (clientId: string, defaultAgentName: string = 
         } as InteractionStats;
       }
     },
-    enabled: !!clientId,
+    enabled: !!safeClientId || safeClientId === null, // Enable even for null client IDs, but not undefined
     retry: 2,
     staleTime: 60000, // 60 seconds
     refetchOnWindowFocus: false,
@@ -61,7 +64,7 @@ export const useClientDashboard = (clientId: string, defaultAgentName: string = 
     chatHistory,
     isLoading: isLoadingChatHistory,
     error: chatHistoryError,
-  } = useClientChatHistory(clientId);
+  } = useClientChatHistory(safeClientId || "");
 
   // Calculate loading and error states
   const isLoading = isLoadingStats || isLoadingChatHistory;
