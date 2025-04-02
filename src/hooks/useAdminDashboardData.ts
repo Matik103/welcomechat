@@ -124,8 +124,18 @@ export function useAdminDashboardData() {
     }
     
     try {
-      const agents = await getAllAgents();
-      const totalAgents = agents.length;
+      // Fetch all agents directly from the database to ensure we get all data
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('ai_agents')
+        .select('*')
+        .eq('interaction_type', 'config')
+        .is('deleted_at', null);
+      
+      if (agentsError) {
+        throw agentsError;
+      }
+      
+      const totalAgents = agentsData?.length || 0;
       
       // Get last 24 hours timestamp
       const last24Hours = new Date();
@@ -133,30 +143,24 @@ export function useAdminDashboardData() {
       const last24HoursStr = last24Hours.toISOString();
       
       // For agents active in the last 24 hours
-      const activeAgents = agents.filter(agent => 
+      const activeAgents = agentsData?.filter(agent => 
         agent.last_active && new Date(agent.last_active) > last24Hours
-      ).length;
+      ).length || 0;
       
       // Get clients with their last_active status
-      const { data: clientsData, error: clientsError } = await supabase
-        .from('ai_agents')  // Changed from 'clients' to 'ai_agents' to match the actual table structure
-        .select('id, client_id, last_active, status, deleted_at')
-        .eq('interaction_type', 'config')  // Only get config records which represent clients
-        .eq('status', 'active')
-        .is('deleted_at', null);
-      
-      if (clientsError) throw clientsError;
-      
-      // Use a Set to count unique client_ids
-      const uniqueClientIds = new Set();
-      clientsData.forEach(client => {
-        if (client.client_id) uniqueClientIds.add(client.client_id);
+      // Using a Map to track unique client IDs
+      const uniqueClientIds = new Map();
+      agentsData?.forEach(agent => {
+        if (agent.client_id) {
+          uniqueClientIds.set(agent.client_id, agent);
+        }
       });
+      
       const totalClients = uniqueClientIds.size;
       
       // Count clients active in the last 24 hours
-      const activeClients = clientsData.filter(client => 
-        client.last_active && new Date(client.last_active) > last24Hours
+      const activeClients = Array.from(uniqueClientIds.values()).filter(agent => 
+        agent.last_active && new Date(agent.last_active) > last24Hours
       ).length;
       
       // Calculate growth percentages
@@ -169,7 +173,9 @@ export function useAdminDashboardData() {
         .select('id', { count: 'exact', head: true })
         .eq('interaction_type', 'chat_interaction');
       
-      if (interactionsError) throw interactionsError;
+      if (interactionsError) {
+        throw interactionsError;
+      }
       
       // Get recent interactions (last 24 hours)
       const { count: recentInteractionsCount, error: recentInteractionsError } = await supabase
@@ -178,43 +184,61 @@ export function useAdminDashboardData() {
         .eq('interaction_type', 'chat_interaction')
         .gt('created_at', last24HoursStr);
       
-      if (recentInteractionsError) throw recentInteractionsError;
+      if (recentInteractionsError) {
+        throw recentInteractionsError;
+      }
       
       // Count training resources
       const { count: websiteUrlsCount, error: websiteUrlsError } = await supabase
         .from('website_urls')
         .select('id', { count: 'exact', head: true });
       
-      if (websiteUrlsError) throw websiteUrlsError;
+      if (websiteUrlsError) {
+        throw websiteUrlsError;
+      }
       
       const { count: documentLinksCount, error: documentLinksError } = await supabase
         .from('document_links')
         .select('id', { count: 'exact', head: true });
       
-      if (documentLinksError) throw documentLinksError;
+      if (documentLinksError) {
+        throw documentLinksError;
+      }
       
       const { count: driveLinksCount, error: driveLinksError } = await supabase
         .from('google_drive_links')
         .select('id', { count: 'exact', head: true });
       
-      if (driveLinksError) throw driveLinksError;
+      if (driveLinksError) {
+        throw driveLinksError;
+      }
       
       const trainingsTotal = (websiteUrlsCount || 0) + (documentLinksCount || 0) + (driveLinksCount || 0);
       
       // Get administration activities
       const { count: adminActivitiesCount, error: adminActivitiesError } = await supabase
-        .from('activities')
+        .from('client_activities')
         .select('id', { count: 'exact', head: true })
-        .in('type', ['client_created', 'client_updated', 'client_deleted']);
+        .in('activity_type', ['client_created', 'client_updated', 'client_deleted']);
       
-      if (adminActivitiesError) throw adminActivitiesError;
+      if (adminActivitiesError) {
+        throw adminActivitiesError;
+      }
       
       // Get chart data from the function
       const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
       
-      if (chartError) throw chartError;
+      if (chartError) {
+        console.error("Error fetching chart data:", chartError);
+        // Continue with empty chart data
+      }
       
-      const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
+      const parsedChartData = chartData ? (typeof chartData === 'string' ? JSON.parse(chartData) : chartData) : {
+        database: { value: "0", title: "Database", subtitle: "REST Requests", data: [] },
+        auth: { value: "0", title: "Auth", subtitle: "Auth Requests", data: [] },
+        storage: { value: "0", title: "Storage", subtitle: "Storage Requests", data: [] },
+        realtime: { value: "0", title: "Realtime", subtitle: "Realtime Requests", data: [] }
+      };
 
       // For administration card, count recent clients who logged in the last 24 hours
       // This is similar to activeClients but we're tracking it separately for the administration card
@@ -223,7 +247,7 @@ export function useAdminDashboardData() {
       // Calculate growth metrics
       const interactionsChangePercentage = 
         recentInteractionsCount && interactionsCount ? 
-        Math.round((recentInteractionsCount / (interactionsCount - recentInteractionsCount)) * 100) : 0;
+        Math.round((recentInteractionsCount / (interactionsCount - recentInteractionsCount || 1)) * 100) : 0;
       
       const adminChangePercentage = 
         recentAdminLogins && totalClients ? 
