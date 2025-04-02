@@ -1,123 +1,61 @@
 
 /**
- * Types for document processing functionality
+ * Document processing type definitions
  */
 
+export interface DocumentProcessingOptions {
+  shouldExtractText?: boolean;
+  shouldParsePDF?: boolean;
+  shouldUseAI?: boolean;
+  maxPages?: number;
+}
+
 export interface DocumentProcessingStatus {
-  id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  error?: string;
-  created_at: string;
-  updated_at: string;
-  completed_at?: string;
-}
-
-export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
-
-export type DocumentType = 
-  | 'pdf' 
-  | 'text' 
-  | 'google_doc' 
-  | 'google_drive' 
-  | 'docx' 
-  | 'html' 
-  | 'url' 
-  | 'web_page';
-
-export interface DocumentLink {
-  id: number;
-  client_id: string;
-  link: string;
-  document_type: string;
-  created_at: string;
-  refresh_rate: number;
-  notified_at?: string;
-  access_status?: AccessStatus;
-  file_name?: string;
-  file_size?: number;
-  mime_type?: string;
-  storage_path?: string;
-}
-
-export interface DocumentLinkFormData {
-  link: string;
-  refresh_rate: number;
-  document_type: string;
-}
-
-export interface DriveLinksProps {
-  documents?: DocumentLink[];
-  isLoading?: boolean;
-  isUploading?: boolean;
-  addDocumentLink?: (data: DocumentLinkFormData) => Promise<void>;
-  deleteDocumentLink?: (linkId: number) => Promise<void>;
-  uploadDocument?: (file: File) => Promise<void>;
-  isClientView?: boolean;
-  isValidating?: boolean;
-  deletingId?: number | null;
-  isDeleteLoading?: boolean;
+  stage: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed';
+  progress: number;
+  message?: string;
+  error?: Error;
 }
 
 export interface DocumentProcessingResult {
-  success: boolean;
-  error?: string;
-  documentId?: string;
-  jobId?: string;
-  status?: string;
-  documentUrl?: string;
-  processed: number;
-  failed: number;
-  urlsScraped?: number;
-  contentStored?: number;
-  message?: string;
+  documentId: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  url: string;
+  uploadDate: string;
   extractedText?: string;
-  llamaJobId?: string;
-}
-
-export interface DocumentProcessingRequest {
-  client_id: string;
-  document_url: string;
-  document_type: string;
-}
-
-export interface DocumentProcessingOptions {
-  clientId: string;
-  documentType?: string;
-  agentName?: string;
-}
-
-export interface DocumentChunk {
-  content: string;
+  aiSummary?: string;
+  aiProcessed: boolean;
+  status: 'success' | 'failed' | 'pending';
   metadata?: Record<string, any>;
-  id?: string;
 }
 
-export interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
-  message?: string;
-  status?: 'success' | 'error' | 'warning' | 'info';
+export interface LlamaIndexProcessingOptions {
+  shouldUseAI?: boolean;
+  maxTokens?: number;
+  temperature?: number;
 }
 
-export interface DocumentUploadFormProps {
-  onSubmitDocument: (file: File) => Promise<void>;
-  isUploading: boolean;
-}
-
-export interface ParseResponse {
-  success: boolean;
-  text?: string;
-  chunks?: DocumentChunk[];
-  error?: string;
-}
-
-export interface LlamaIndexJobStatus {
+export interface LlamaIndexJobResponse {
   job_id: string;
   status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
   error?: string;
 }
 
-export interface LlamaIndexProcessingOptions {
-  maxAttempts?: number;
-  delayMs?: number;
+export interface LlamaIndexParsingResult {
+  job_id: string;
+  status: 'SUCCEEDED' | 'FAILED';
+  parsed_content?: string;
+  error?: string;
+  document_chunks?: LlamaIndexDocumentChunk[];
+}
+
+export interface LlamaIndexDocumentChunk {
+  text: string;
+  metadata?: {
+    page_number?: number;
+    source?: string;
+    [key: string]: any;
+  };
 }

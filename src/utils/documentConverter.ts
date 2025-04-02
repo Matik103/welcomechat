@@ -1,215 +1,232 @@
 
-/**
- * Utilities for converting documents to PDF format and handling URLs
- */
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-import { isGoogleDriveUrl, getGoogleDriveDownloadUrl } from './documentConverter'; 
+// Do not re-import functions that are defined in this file
+// import { isGoogleDriveUrl, getGoogleDriveDownloadUrl } from '@/utils/documentUtils';
 
 /**
- * Convert a document to PDF if needed
- * @param file The file to potentially convert
- * @returns A Promise resolving to the (potentially converted) file
+ * Converts a document to the specified format
+ * @param file The file to convert
+ * @param targetFormat The format to convert to
+ * @returns The converted file or null if conversion failed
  */
-export const convertToPdfIfNeeded = async (file: File): Promise<File> => {
+export async function convertDocument(
+  file: File,
+  targetFormat: string = 'pdf'
+): Promise<File | null> {
+  // Currently, we only support PDF conversion
+  // This is a placeholder for future conversion capabilities
+  if (targetFormat.toLowerCase() !== 'pdf') {
+    console.error(`Conversion to ${targetFormat} is not supported yet`);
+    return null;
+  }
+
   // Check if file is already a PDF
   if (file.type === 'application/pdf') {
-    console.log('File is already a PDF, skipping conversion');
+    console.log('File is already a PDF, no conversion needed');
     return file;
   }
 
-  console.log(`Converting file from ${file.type} to PDF`);
-  
-  // For now, we'll just pass through the file
-  // In a real implementation, you'd integrate with a PDF conversion service
-  // like pdf.js, jsPDF, or a server-side solution
-  
-  // This is a placeholder for actual conversion logic
-  // Return the original file for now
-  return file;
-};
+  try {
+    // For now, we'll just return the original file since actual conversion
+    // would require a backend service. In a real implementation, this would
+    // call an API to convert the file.
+    console.log(`Conversion from ${file.type} to PDF is not implemented yet`);
+    toast.info('Document conversion is not available yet, using original format');
+    return file;
+  } catch (error) {
+    console.error('Failed to convert document:', error);
+    toast.error('Failed to convert document');
+    return null;
+  }
+}
+
+/**
+ * Extracts text content from a document
+ * @param file The file to extract text from
+ * @returns The extracted text or null if extraction failed
+ */
+export async function extractTextFromDocument(file: File): Promise<string | null> {
+  try {
+    // This is a placeholder for text extraction logic
+    // In a real implementation, this would use a library or API to extract text
+    console.log('Text extraction not implemented yet');
+    return '';
+  } catch (error) {
+    console.error('Failed to extract text from document:', error);
+    return null;
+  }
+}
+
+/**
+ * Process a document URL and convert it to a downloadable format if needed
+ * @param url The document URL to process
+ * @returns An object with downloadUrl and fileName, or null if processing failed
+ */
+export async function processDocumentUrl(url: string): Promise<{ downloadUrl: string; fileName: string } | null> {
+  try {
+    if (isGoogleDriveUrl(url)) {
+      const downloadUrl = await getGoogleDriveDownloadUrl(url);
+      if (downloadUrl) {
+        // Try to get the filename from the URL or use a default name
+        const urlParts = url.split('/');
+        const fileName = `google-drive-document-${urlParts[urlParts.length - 2] || 'unknown'}.pdf`;
+        return { downloadUrl, fileName };
+      }
+    }
+    
+    // If it's already a downloadable URL, return it as is
+    return { downloadUrl: url, fileName: getFileNameFromUrl(url) };
+  } catch (error) {
+    console.error('Failed to process document URL:', error);
+    return null;
+  }
+}
 
 /**
  * Download a file from a URL
  * @param url The URL to download from
- * @returns A Promise resolving to a File object
+ * @param fileName The name to give the downloaded file
+ * @returns The downloaded file or null if download failed
  */
-export const downloadFileFromUrl = async (url: string): Promise<File> => {
+export async function downloadFileFromUrl(url: string, fileName: string): Promise<File | null> {
   try {
-    console.log(`Downloading file from URL: ${url}`);
-    
-    // Check if it's a Google Drive URL and get the direct download link
-    if (isGoogleDriveUrl(url)) {
-      url = getGoogleDriveDownloadUrl(url);
-      console.log(`Converted to direct download URL: ${url}`);
-    }
-    
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+      console.error(`Failed to download file from ${url}: ${response.statusText}`);
+      return null;
     }
     
     const blob = await response.blob();
-    const filename = extractFilenameFromUrl(url);
-    
-    // Set appropriate content type if it can be determined
-    const contentType = determineContentType(url, blob.type);
-    
-    return new File([blob], filename, { type: contentType });
+    const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+    return file;
   } catch (error) {
-    console.error('Error downloading file:', error);
-    throw error;
+    console.error('Failed to download file:', error);
+    return null;
   }
-};
+}
 
 /**
- * Determine the content type from URL and blob type
- * @param url The URL of the file
- * @param blobType The MIME type from the blob
- * @returns The determined content type
+ * Get the file name from a URL
+ * @param url The URL to extract the file name from
+ * @returns The file name
  */
-const determineContentType = (url: string, blobType: string): string => {
-  // If blob has a valid type, use it
-  if (blobType && blobType !== 'application/octet-stream') {
-    return blobType;
-  }
-  
-  // Try to determine type from URL extension
-  const extension = url.split('.').pop()?.toLowerCase();
-  if (extension) {
-    switch (extension) {
-      case 'pdf': return 'application/pdf';
-      case 'doc': return 'application/msword';
-      case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case 'txt': return 'text/plain';
-      case 'csv': return 'text/csv';
-      case 'xlsx': return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      case 'ppt': return 'application/vnd.ms-powerpoint';
-      case 'pptx': return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+export function getFileNameFromUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/');
+    let fileName = pathParts[pathParts.length - 1];
+    
+    // If no filename is found, use a default
+    if (!fileName || fileName === '') {
+      fileName = 'downloaded-file';
     }
+    
+    // Remove query parameters if present
+    if (fileName.includes('?')) {
+      fileName = fileName.split('?')[0];
+    }
+    
+    return fileName;
+  } catch (error) {
+    console.error('Failed to extract file name from URL:', error);
+    return 'downloaded-file';
   }
-  
-  // Default to binary if can't determine
-  return 'application/octet-stream';
-};
-
-/**
- * Extract a filename from a URL
- * @param url The URL to extract from
- * @returns The extracted filename
- */
-const extractFilenameFromUrl = (url: string): string => {
-  // Try to extract filename from URL
-  const urlParts = url.split('/');
-  let filename = urlParts[urlParts.length - 1];
-  
-  // Remove query parameters if present
-  if (filename.includes('?')) {
-    filename = filename.split('?')[0];
-  }
-  
-  // If no reasonable filename, use a default
-  if (!filename || filename.length < 3) {
-    // Try to determine type from URL
-    const extension = determineExtensionFromUrl(url);
-    filename = `downloaded-document${extension}`;
-  }
-  
-  return filename;
-};
-
-/**
- * Determine file extension from URL
- * @param url The URL to analyze
- * @returns The file extension with dot
- */
-const determineExtensionFromUrl = (url: string): string => {
-  if (url.includes('drive.google.com') || url.includes('docs.google.com/document')) {
-    return '.pdf';
-  }
-  
-  if (url.includes('docs.google.com/spreadsheets')) {
-    return '.xlsx';
-  }
-  
-  if (url.includes('docs.google.com/presentation')) {
-    return '.pptx';
-  }
-  
-  return '.pdf'; // Default to PDF
-};
+}
 
 /**
  * Check if a URL is a Google Drive URL
  * @param url The URL to check
- * @returns True if it's a Google Drive URL
+ * @returns True if the URL is a Google Drive URL
  */
-export const isGoogleDriveUrl = (url: string): boolean => {
-  return url.includes('drive.google.com') || 
-         url.includes('docs.google.com') || 
-         url.includes('sheets.google.com') ||
-         url.includes('slides.google.com');
-};
+export function isGoogleDriveUrl(url: string): boolean {
+  return url.includes('drive.google.com') || url.includes('docs.google.com');
+}
 
 /**
- * Get a direct download URL for Google Drive documents
+ * Get the direct download URL for a Google Drive file
  * @param url The Google Drive URL
- * @returns A direct download URL
+ * @returns The direct download URL or null if conversion failed
  */
-export const getGoogleDriveDownloadUrl = (url: string): string => {
-  // Handle Google Drive links
-  if (url.includes('drive.google.com/file/d/')) {
-    // Convert file link to download link
-    const fileId = url.match(/\/file\/d\/([^\/]+)/)?.[1];
-    if (fileId) {
+export async function getGoogleDriveDownloadUrl(url: string): Promise<string | null> {
+  try {
+    if (!isGoogleDriveUrl(url)) {
+      return null;
+    }
+    
+    // Extract the file ID from the URL
+    let fileId = '';
+    
+    if (url.includes('/file/d/')) {
+      // Format: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+      const matches = url.match(/\/file\/d\/([^\/]+)/);
+      if (matches && matches[1]) {
+        fileId = matches[1];
+      }
+    } else if (url.includes('id=')) {
+      // Format: https://drive.google.com/open?id=FILE_ID
+      const urlObj = new URL(url);
+      fileId = urlObj.searchParams.get('id') || '';
+    } else if (url.includes('/document/d/')) {
+      // Format: https://docs.google.com/document/d/FILE_ID/edit
+      const matches = url.match(/\/document\/d\/([^\/]+)/);
+      if (matches && matches[1]) {
+        fileId = matches[1];
+      }
+    }
+    
+    if (!fileId) {
+      console.error('Could not extract file ID from Google Drive URL');
+      return null;
+    }
+    
+    // Construct the download URL
+    // For docs, use the export format. For other files, use the direct download link
+    if (url.includes('docs.google.com/document')) {
+      return `https://docs.google.com/document/d/${fileId}/export?format=pdf`;
+    } else if (url.includes('docs.google.com/spreadsheets')) {
+      return `https://docs.google.com/spreadsheets/d/${fileId}/export?format=xlsx`;
+    } else if (url.includes('docs.google.com/presentation')) {
+      return `https://docs.google.com/presentation/d/${fileId}/export/pdf`;
+    } else {
       return `https://drive.google.com/uc?export=download&id=${fileId}`;
     }
+  } catch (error) {
+    console.error('Failed to get Google Drive download URL:', error);
+    return null;
   }
-  
-  // Handle Google Docs/Sheets/Slides links
-  if (url.includes('docs.google.com/document')) {
-    return url.replace(/\/edit.*$/, '/export?format=pdf');
-  }
-  
-  if (url.includes('docs.google.com/spreadsheets')) {
-    return url.replace(/\/edit.*$/, '/export?format=pdf');
-  }
-  
-  if (url.includes('docs.google.com/presentation')) {
-    return url.replace(/\/edit.*$/, '/export?format=pdf');
-  }
-  
-  // If we can't transform, return the original URL
-  return url;
-};
+}
 
 /**
- * Process a document URL with LlamaIndex
- * @param url The URL to process
- * @returns Processing result
+ * Get the content type of a file based on its extension
+ * @param fileName The file name
+ * @returns The content type
  */
-export const processUrlWithLlamaIndex = async (url: string): Promise<{
-  success: boolean;
-  text?: string;
-  error?: string;
-}> => {
-  try {
-    // Download the file first
-    const file = await downloadFileFromUrl(url);
-    
-    // Then process it with LlamaIndex (this would call the LlamaIndex service)
-    // This is a placeholder - the actual implementation would be in the LlamaIndex service
-    console.log(`Document downloaded from URL: ${url}, ready for LlamaIndex processing`);
-    
-    // Return placeholder success
-    return {
-      success: true,
-      text: `Document content from URL: ${url}`
-    };
-  } catch (error) {
-    console.error('Error processing URL with LlamaIndex:', error);
-    return {
-      success: false,
-      error: `Failed to process URL: ${error instanceof Error ? error.message : String(error)}`
-    };
-  }
-};
+export function getContentTypeFromFileName(fileName: string): string {
+  const extension = fileName.split('.').pop()?.toLowerCase() || '';
+  
+  const contentTypeMap: Record<string, string> = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    txt: 'text/plain',
+    csv: 'text/csv',
+    md: 'text/markdown',
+    json: 'application/json',
+    html: 'text/html',
+    htm: 'text/html',
+    xml: 'application/xml',
+    zip: 'application/zip',
+    rar: 'application/x-rar-compressed',
+    tar: 'application/x-tar',
+    gz: 'application/gzip',
+    '7z': 'application/x-7z-compressed',
+  };
+  
+  return contentTypeMap[extension] || 'application/octet-stream';
+}

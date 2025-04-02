@@ -40,6 +40,16 @@ export interface WidgetSettings {
     trackingEnabled?: boolean;
   };
   documents?: DocumentMetadata[];
+  display_mode?: 'floating' | 'inline' | 'sidebar';
+  welcome_text?: string;
+  background_color?: string;
+  text_color?: string;
+  chat_color?: string;
+  secondary_color?: string;
+  agent_name?: string;
+  agent_description?: string;
+  logo_url?: string;
+  logo_storage_path?: string;
 }
 
 export interface WidgetConfigProps {
@@ -76,4 +86,9 @@ export const defaultSettings: WidgetSettings = {
     trackingEnabled: true,
   },
   documents: [],
+  display_mode: 'floating',
+  background_color: '#ffffff',
+  text_color: '#333333',
+  chat_color: '#007bff',
+  secondary_color: '#f5f5f5',
 };

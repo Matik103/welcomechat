@@ -1,210 +1,177 @@
 
-import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
+import { LlamaIndexJobResponse, LlamaIndexParsingResult } from '@/types/document-processing';
 import { toast } from 'sonner';
-
-interface LlamaIndexParsingJobResponse {
-  job_id: string;
-  status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
-  error?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface LlamaIndexParsingResult {
-  text: string;
-  metadata?: Record<string, any>;
-}
+import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 
 /**
- * Upload a document to LlamaIndex for parsing
- * @param file The file to upload
- * @returns Promise with job ID
+ * Process a document using LlamaIndex API
  */
-export const uploadDocumentToLlamaIndex = async (
-  file: File | Blob
-): Promise<string> => {
-  if (!LLAMA_CLOUD_API_KEY) {
-    throw new Error('LlamaIndex API key not set. Please set LLAMA_CLOUD_API_KEY in environment.');
-  }
-
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key not set. LlamaIndex requires an OpenAI API key to process documents.');
+export async function processDocumentWithLlamaIndex(
+  file: File,
+  options: {
+    shouldUseAI?: boolean;
+    maxTokens?: number;
+    temperature?: number;
+  } = {}
+): Promise<LlamaIndexParsingResult | null> {
+  // Check if API keys are available
+  if (!LLAMA_CLOUD_API_KEY || !OPENAI_API_KEY) {
+    console.warn('LlamaIndex or OpenAI API keys not configured, skipping AI processing');
+    return null;
   }
 
   try {
+    // Step 1: Upload document to LlamaIndex
+    const uploadResponse = await uploadDocumentToLlamaIndex(file);
+    
+    if (!uploadResponse || !uploadResponse.job_id) {
+      throw new Error('Failed to upload document to LlamaIndex API');
+    }
+
+    const jobId = uploadResponse.job_id;
+    
+    // Step 2: Poll for job completion
+    const result = await pollForJobCompletion(jobId);
+    
+    if (!result) {
+      throw new Error('Failed to get parsing results from LlamaIndex API');
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('LlamaIndex processing error:', error);
+    if (error instanceof Error) {
+      toast.error(`Document processing failed: ${error.message}`);
+    } else {
+      toast.error('Document processing failed due to an unknown error');
+    }
+    return null;
+  }
+}
+
+/**
+ * Upload a document to LlamaIndex API
+ */
+async function uploadDocumentToLlamaIndex(file: File): Promise<LlamaIndexJobResponse | null> {
+  try {
+    // Create form data for the file upload
     const formData = new FormData();
     formData.append('file', file);
     
-    // Include OpenAI API key in the request metadata
-    formData.append('metadata', JSON.stringify({
-      openai_api_key: OPENAI_API_KEY,
-      use_openai: true
-    }));
-
-    const response = await fetch('https://api.cloud.llamaindex.ai/api/parsing/upload', {
+    // Make API request to LlamaIndex
+    const response = await fetch('https://api.cloud.llamaindex.ai/api/parse', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`
+        'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
+        'X-OpenAI-Api-Key': OPENAI_API_KEY || '',
       },
       body: formData
     });
-
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('LlamaIndex upload error:', errorText);
-      throw new Error(`LlamaIndex upload failed: ${response.status} ${response.statusText}`);
+      const errorData = await response.json().catch(() => null);
+      throw new Error(`LlamaIndex API error (${response.status}): ${errorData?.error || response.statusText}`);
     }
-
-    const result = await response.json() as LlamaIndexParsingJobResponse;
-    console.log('LlamaIndex upload success, job ID:', result.job_id);
-    return result.job_id;
+    
+    const data = await response.json();
+    return data as LlamaIndexJobResponse;
   } catch (error) {
     console.error('Error uploading document to LlamaIndex:', error);
-    throw error;
+    return null;
   }
-};
+}
 
 /**
- * Check the status of a LlamaIndex parsing job
- * @param jobId The job ID to check
- * @returns The job status response
+ * Poll for job completion
  */
-export const checkLlamaIndexJobStatus = async (
-  jobId: string
-): Promise<LlamaIndexParsingJobResponse> => {
-  if (!LLAMA_CLOUD_API_KEY) {
-    throw new Error('LlamaIndex API key not set. Please set LLAMA_CLOUD_API_KEY in environment.');
-  }
-
-  try {
-    const response = await fetch(`https://api.cloud.llamaindex.ai/api/parsing/job/${jobId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('LlamaIndex job status error:', errorText);
-      throw new Error(`Failed to check job status: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json() as LlamaIndexParsingJobResponse;
-  } catch (error) {
-    console.error('Error checking LlamaIndex job status:', error);
-    throw error;
-  }
-};
-
-/**
- * Get the results of a LlamaIndex parsing job in Markdown format
- * @param jobId The job ID to get results for
- * @returns The parsed text from the document
- */
-export const getLlamaIndexJobResult = async (
-  jobId: string
-): Promise<string> => {
-  if (!LLAMA_CLOUD_API_KEY) {
-    throw new Error('LlamaIndex API key not set. Please set LLAMA_CLOUD_API_KEY in environment.');
-  }
-
-  try {
-    const response = await fetch(`https://api.cloud.llamaindex.ai/api/parsing/job/${jobId}/result/markdown`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('LlamaIndex job result error:', errorText);
-      throw new Error(`Failed to get job result: ${response.status} ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    return result.text || '';
-  } catch (error) {
-    console.error('Error getting LlamaIndex job result:', error);
-    throw error;
-  }
-};
-
-/**
- * Process and wait for results from LlamaIndex
- * @param jobId The job ID to process
- * @param maxAttempts Maximum number of polling attempts
- * @param delayMs Delay between polling attempts in milliseconds
- * @returns The extracted text from the document
- */
-export const processLlamaIndexJob = async (
+async function pollForJobCompletion(
   jobId: string,
-  maxAttempts: number = 30,
-  delayMs: number = 5000
-): Promise<string> => {
+  maxAttempts = 30,
+  intervalMs = 2000
+): Promise<LlamaIndexParsingResult | null> {
   let attempts = 0;
   
+  // Function to get job status
+  const checkJobStatus = async (): Promise<LlamaIndexParsingResult | null> => {
+    try {
+      const response = await fetch(`https://api.cloud.llamaindex.ai/api/parse/status/${jobId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(`LlamaIndex API error (${response.status}): ${errorData?.error || response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Check if job completed
+      if (data.status === 'SUCCEEDED') {
+        return data as LlamaIndexParsingResult;
+      } else if (data.status === 'FAILED') {
+        throw new Error(`LlamaIndex job failed: ${data.error || 'Unknown error'}`);
+      }
+      
+      // Still processing
+      return null;
+    } catch (error) {
+      console.error('Error checking LlamaIndex job status:', error);
+      throw error;
+    }
+  };
+  
+  // Poll for status until complete or max attempts reached
   while (attempts < maxAttempts) {
     attempts++;
     
     try {
-      const status = await checkLlamaIndexJobStatus(jobId);
-      console.log(`LlamaIndex job status (attempt ${attempts}/${maxAttempts}):`, status.status);
+      const result = await checkJobStatus();
       
-      if (status.status === 'SUCCEEDED') {
-        // Job completed successfully, get the results
-        return await getLlamaIndexJobResult(jobId);
-      } else if (status.status === 'FAILED') {
-        throw new Error(`LlamaIndex job failed: ${status.error || 'Unknown error'}`);
+      if (result) {
+        return result;
       }
       
-      // Job still processing, wait and try again
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
     } catch (error) {
-      console.error(`Error checking job status (attempt ${attempts}/${maxAttempts}):`, error);
-      
-      // Wait and try again
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      console.error(`Polling attempt ${attempts} failed:`, error);
+      if (attempts >= maxAttempts) {
+        throw error;
+      }
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
     }
   }
   
   throw new Error(`LlamaIndex job timed out after ${maxAttempts} attempts`);
-};
+}
 
 /**
- * Process a document using LlamaIndex with OpenAI
- * @param file The file to process
- * @returns The extracted text and metadata
+ * Get parsing results for a completed job
  */
-export const processDocumentWithLlamaIndex = async (
-  file: File | Blob
-): Promise<{ text: string, metadata: Record<string, any> }> => {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key is required for LlamaIndex document processing');
-  }
-  
+export async function getParsingResults(jobId: string): Promise<LlamaIndexParsingResult | null> {
   try {
-    // 1. Upload document to LlamaIndex
-    const jobId = await uploadDocumentToLlamaIndex(file);
+    const response = await fetch(`https://api.cloud.llamaindex.ai/api/parse/results/${jobId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
     
-    // 2. Process the job and wait for results
-    const extractedText = await processLlamaIndexJob(jobId);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(`LlamaIndex API error (${response.status}): ${errorData?.error || response.statusText}`);
+    }
     
-    // 3. Return the results
-    return {
-      text: extractedText,
-      metadata: {
-        jobId,
-        processingMethod: 'llamaindex',
-        processingTime: new Date().toISOString(),
-        openaiEnabled: true
-      }
-    };
+    const data = await response.json();
+    return data as LlamaIndexParsingResult;
   } catch (error) {
-    console.error('Error processing document with LlamaIndex:', error);
-    throw error;
+    console.error('Error getting LlamaIndex parsing results:', error);
+    return null;
   }
-};
+}
