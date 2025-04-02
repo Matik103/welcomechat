@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -27,8 +26,7 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
         clientId,
         shouldUseAI: true,
         syncToAgent: true,
-        syncToProfile: true,
-        syncToWidgetSettings: true
+        agentName
       });
       
       // Create client activity

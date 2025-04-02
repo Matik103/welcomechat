@@ -1,3 +1,4 @@
+
 /**
  * Document processing type definitions
  */
@@ -10,10 +11,6 @@ export interface DocumentProcessingOptions {
   shouldUseAI?: boolean;
   maxPages?: number;
   syncToAgent?: boolean;
-  syncToProfile?: boolean;
-  syncToWidgetSettings?: boolean;
-  folder?: string;
-  description?: string;
   clientId: string;
   documentType?: string;
   agentName?: string;
@@ -21,8 +18,8 @@ export interface DocumentProcessingOptions {
 }
 
 export interface DocumentProcessingStatus {
-  status: 'init' | 'uploading' | 'parsing' | 'processing' | 'storing' | 'syncing' | 'completed' | 'failed';
-  stage?: 'init' | 'uploading' | 'parsing' | 'processing' | 'storing' | 'syncing' | 'completed' | 'failed' | 'analyzing' | 'complete';
+  status?: 'init' | 'uploading' | 'parsing' | 'processing' | 'storing' | 'syncing' | 'completed' | 'failed';
+  stage?: 'init' | 'uploading' | 'parsing' | 'processing' | 'storing' | 'syncing' | 'completed' | 'failed' | 'analyzing';
   progress?: number;
   message?: string;
   error?: string;
@@ -37,6 +34,11 @@ export interface DocumentProcessingResult {
   fileName?: string;
   fileSize?: number;
   fileType?: string;
+  documentId?: string;
+  documentUrl?: string;
+  extractedText?: string;
+  message?: string;
+  downloadUrl?: string;
 }
 
 export interface LlamaIndexProcessingOptions {
@@ -59,6 +61,7 @@ export interface LlamaIndexParsingResult {
 }
 
 export interface DocumentChunk {
+  id?: string;
   content: string;
   metadata: {
     format: string;
@@ -106,4 +109,3 @@ export interface ValidationResult {
   message?: string;
   status?: 'success' | 'error' | 'warning' | 'info';
 }
-

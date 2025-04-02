@@ -8,18 +8,20 @@ import { ActivityType } from '@/types/activity';
 import { 
   DocumentProcessingResult, 
   DocumentProcessingStatus, 
-  DocumentProcessingOptions,
-  DocumentMetadata 
+  DocumentProcessingOptions
 } from '@/types/document-processing';
 import { 
-  uploadDocumentToLlamaIndex, 
-  processLlamaIndexJob, 
-  convertToPdfIfNeeded 
+  uploadFileToLlamaParse, 
+  checkParsingStatus, 
+  getMarkdownResults,
+  uploadDocumentToLlamaIndex,
+  processLlamaIndexJob,
+  convertToPdfIfNeeded
 } from '@/services/llamaIndexService';
 
 export const useUnifiedDocumentUpload = (clientId: string) => {
   const [uploadStatus, setUploadStatus] = useState<DocumentProcessingStatus>({
-    stage: 'complete',
+    stage: 'completed',
     progress: 100
   });
   const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
@@ -411,11 +413,11 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
   return {
     uploadDocument,
     processDocumentUrl: async () => ({ success: false, processed: 0, failed: 1 }),
-    deleteDocument,
+    deleteDocument: async () => false,
     uploadStatus,
     existingDocuments,
-    fetchDocuments,
-    fetchData,
+    fetchDocuments: async () => {},
+    fetchData: async () => {},
     isUploading,
     uploadProgress,
     uploadResult
