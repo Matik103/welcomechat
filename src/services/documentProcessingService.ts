@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentProcessingResult, DocumentLink } from '@/types/document-processing';
 
@@ -228,7 +227,7 @@ export const checkDocumentProcessingStatus = async (jobId: string): Promise<Docu
     
     return {
       success: data.status === 'completed',
-      error: data.error || data.error_message,
+      error: data.error || undefined,
       processed,
       failed,
       status: data.status,

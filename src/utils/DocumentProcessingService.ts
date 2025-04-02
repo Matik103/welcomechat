@@ -1,3 +1,4 @@
+
 import { 
   LlamaParseReader, 
   VectorStoreIndex,
@@ -441,7 +442,7 @@ export class DocumentProcessingService {
         console.error('Error saving to ai_agents:', aiAgentError);
       }
       
-      // Save to document_processing_jobs table
+      // Save to document_processing_jobs table instead of document_processing
       const { data: processingJobData, error: processingJobError } = await supabase
         .from('document_processing_jobs')
         .insert({
