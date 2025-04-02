@@ -29,10 +29,10 @@ export const useDocumentUrlProcessing = (clientId: string) => {
       const now = new Date().toISOString();
       const shouldUseAI = options?.shouldUseAI ?? true;
       
-      // Initialize result
+      // Fix error handling
       let result: DocumentProcessingResult = {
         success: false,
-        documentId,
+        documentId: '',
         documentUrl: url,
         processed: 0,
         failed: 0
@@ -89,10 +89,6 @@ export const useDocumentUrlProcessing = (clientId: string) => {
           throw new Error(`Failed to insert document link record: ${documentLinkError.message}`);
         }
         
-        if (shouldUseAI) {
-          result.aiProcessed = true;
-        }
-        
         result = {
           ...result,
           success: true,
@@ -104,6 +100,10 @@ export const useDocumentUrlProcessing = (clientId: string) => {
           processed: 1,
           failed: 0,
         };
+        
+        if (options?.shouldUseAI) {
+          result.aiProcessed = true;
+        }
         
         // Sync to agent if requested
         if (options?.syncToAgent) {
@@ -156,7 +156,7 @@ export const useDocumentUrlProcessing = (clientId: string) => {
       // Get or create agent_content record
       const { data: existingContent, error: fetchError } = await supabase
         .from('ai_agents')
-        .select('id')
+        .select('id, content')
         .eq('client_id', clientId)
         .eq('interaction_type', 'document_content')
         .maybeSingle();
