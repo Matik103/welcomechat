@@ -57,10 +57,11 @@ export function useDocumentUpload(clientId: string) {
       setUploadProgress(100);
       
       if (result.success) {
-        // Create client activity with correct parameter order: clientId, ActivityType enum, description, metadata
+        // Create client activity with correct parameter order and enum type
         await createClientActivity(
           clientId,
-          ActivityType.DOCUMENT_ADDED,
+          agentName,
+          ActivityType.DOCUMENT_ADDED,  // Using enum instead of string description
           `Document uploaded: ${file.name}`,
           {
             file_name: file.name,

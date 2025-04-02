@@ -1,302 +1,189 @@
 
-import { LlamaExtractionService } from './LlamaExtractionService.js';
-import { supabase } from '../integrations/supabase/client.js';
-import { supabaseService } from '../integrations/supabase/service-client.js';
-import { convertWordToPdf, convertHtmlToPdf, splitPdfIntoChunks } from './documentConverters.js';
 import { LLAMA_EXTRACTION_AGENT_ID } from '../config/env';
-import { DOCUMENTS_BUCKET } from '../utils/supabaseStorage';
+import { LlamaExtractionService } from './LlamaExtractionService';
+import { supabase } from '../integrations/supabase/client';
+import { convertWordToPdf, convertHtmlToPdf, splitPdfIntoChunks } from './documentConverters';
+
+// Constant for the storage bucket name
+const DOCUMENT_STORAGE_BUCKET = 'document-storage';
 
 export class DocumentProcessingService {
-  static EXTRACTION_AGENT_ID = LLAMA_EXTRACTION_AGENT_ID;
-  
-  // File size limits in bytes
-  static MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-  static MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB per chunk
-  static MAX_PAGES_PER_CHUNK = 20; // Maximum pages per chunk
-  
-  // Storage bucket name - use the consistent DOCUMENTS_BUCKET from supabaseStorage.ts
-  static STORAGE_BUCKET = DOCUMENTS_BUCKET;
-
   /**
-   * Process a document from file upload or URL
+   * Process a document for an AI assistant
+   * @param {File} file The document file to process
+   * @param {string} clientId The client ID
+   * @returns {Promise<Object>} Processing result
    */
-  static async processDocument(fileOrUrl, clientId) {
-    let jobData = null;
-
+  static async processDocument(file, clientId) {
+    console.log(`Processing document: ${file.name} for client: ${clientId}`);
+    
     try {
-      let fileToProcess;
-      let documentUrl;
-
-      // Step 1: Handle input and upload to storage
-      if (fileOrUrl instanceof File) {
-        // Handle file upload
-        fileToProcess = fileOrUrl;
-        if (fileToProcess.size > this.MAX_FILE_SIZE) {
-          throw new Error(`File size exceeds ${Math.round(this.MAX_FILE_SIZE / 1024 / 1024)}MB limit`);
-        }
-
-        // Upload to document-storage bucket using service client
-        const filePath = `${clientId}/${Date.now()}-${fileToProcess.name}`;
-        const { error: uploadError } = await supabaseService.storage
-          .from(this.STORAGE_BUCKET)
-          .upload(filePath, fileToProcess, {
-            upsert: true,
-            contentType: fileToProcess.type
-          });
-
-        if (uploadError) {
-          throw new Error(`Upload failed: ${uploadError.message}`);
-        }
-
-        // Get the public URL
-        const { data: { publicUrl } } = supabaseService.storage
-          .from(this.STORAGE_BUCKET)
-          .getPublicUrl(filePath);
-
-        documentUrl = publicUrl;
-      } else {
-        // Handle URL input
-        documentUrl = fileOrUrl;
-        const response = await fetch(fileOrUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to access URL: ${response.statusText}`);
-        }
-        
-        const blob = await response.blob();
-        if (blob.size > this.MAX_FILE_SIZE) {
-          throw new Error(`File size exceeds ${Math.round(this.MAX_FILE_SIZE / 1024 / 1024)}MB limit`);
-        }
-        
-        fileToProcess = new File([blob], 'document', { type: response.headers.get('content-type') || 'application/octet-stream' });
+      // Make sure the file is valid
+      if (!file || !file.name) {
+        throw new Error('Invalid file');
       }
-
-      // Step 2: Create processing job record
-      const { data, error: jobError } = await supabase
-        .from('document_processing_jobs')
-        .insert({
-          client_id: clientId,
-          document_url: documentUrl,
-          document_type: this.getDocumentType(fileToProcess),
-          document_id: crypto.randomUUID(),
-          status: 'processing',
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (jobError) {
-        throw new Error(`Failed to create job: ${jobError.message}`);
+      
+      if (!clientId) {
+        throw new Error('Client ID is required');
       }
-
-      jobData = data;
-
-      // Step 3: Convert to PDF if needed
-      let pdfFile = fileToProcess;
-      if (fileToProcess.type === 'text/plain') {
-        const text = await fileToProcess.text();
-        const pdfBuffer = await this.convertTextToPdf(text);
-        pdfFile = new File([pdfBuffer], 'converted.pdf', { type: 'application/pdf' });
-      } else if (fileToProcess.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        const pdfBuffer = await convertWordToPdf(fileToProcess);
-        pdfFile = new File([pdfBuffer], 'converted.pdf', { type: 'application/pdf' });
+      
+      // Create a unique filename to avoid collisions
+      const timestamp = new Date().getTime();
+      const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const filePath = `${clientId}/${fileName}`;
+      
+      console.log(`Uploading to path: ${filePath} in bucket: ${DOCUMENT_STORAGE_BUCKET}`);
+      
+      // Upload the original file to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(DOCUMENT_STORAGE_BUCKET)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
       }
-
-      // Step 4: Process with LlamaParse
-      const { id: fileId } = await LlamaExtractionService.uploadDocument(pdfFile);
-      const extractionJob = await LlamaExtractionService.startExtractionJob(
-        fileId,
-        this.EXTRACTION_AGENT_ID
-      );
-
-      // Step 5: Get extraction result
-      const extractionResult = await LlamaExtractionService.getExtractionResult(extractionJob.id);
-      if (!extractionResult) {
-        throw new Error('Extraction failed: No result returned');
+      
+      // Get the public URL of the uploaded file
+      const { data: { publicUrl } } = supabase.storage
+        .from(DOCUMENT_STORAGE_BUCKET)
+        .getPublicUrl(filePath);
+      
+      console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
+      
+      // Start Llama extraction process
+      const fileId = await this.startLlamaExtraction(file);
+      
+      if (!fileId) {
+        throw new Error('Failed to get file ID from Llama extraction');
       }
-
+      
+      // Track processing success in the database
+      await this.trackDocumentProcessing(clientId, filePath, publicUrl, file.name, file.size, 'completed');
+      
       return {
         success: true,
-        jobId: jobData.id,
-        content: extractionResult
+        fileId,
+        publicUrl,
+        processed: 1,
+        failed: 0
       };
-
     } catch (error) {
-      console.error('Document processing error:', error);
-
-      if (jobData?.id) {
-        await supabase
-          .from('document_processing_jobs')
-          .update({
-            status: 'failed',
-            error_message: error.message,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', jobData.id);
+      console.error('Error processing document:', error);
+      
+      // Track processing failure in the database
+      if (clientId) {
+        try {
+          await this.trackDocumentProcessing(
+            clientId, 
+            null, 
+            null, 
+            file?.name || 'unknown', 
+            file?.size || 0, 
+            'failed',
+            error.message
+          );
+        } catch (trackingError) {
+          console.error('Error tracking document processing failure:', trackingError);
+        }
       }
-
+      
       return {
         success: false,
-        error: error.message
+        error: error.message || 'Unknown error occurred',
+        processed: 0,
+        failed: 1
       };
     }
   }
-
+  
   /**
-   * Determine document type from file
+   * Start the Llama extraction process for a file
+   * @param {File} file The document file
+   * @returns {Promise<string>} The file ID
    */
-  static getDocumentType(file) {
-    const mimeType = file.type.toLowerCase();
-    
-    if (mimeType.includes('pdf')) return 'pdf';
-    if (mimeType.includes('word') || mimeType.includes('docx')) return 'docx';
-    if (mimeType.includes('text/plain')) return 'text';
-    if (mimeType.includes('csv')) return 'csv';
-    if (mimeType.includes('excel') || mimeType.includes('xlsx')) return 'xlsx';
-    
-    // Default to generic document type
-    return 'document';
-  }
-
-  /**
-   * Convert text to PDF
-   */
-  static async convertTextToPdf(text) {
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 40px; }
-            pre { white-space: pre-wrap; }
-          </style>
-        </head>
-        <body>
-          <pre>${text}</pre>
-        </body>
-      </html>
-    `;
-    return await convertHtmlToPdf(html);
-  }
-
-  // Helper methods
-  static async getFileSize(url) {
+  static async startLlamaExtraction(file) {
     try {
-      const response = await fetch(url, { method: 'HEAD' });
-      const contentLength = response.headers.get('content-length');
-      return contentLength ? parseInt(contentLength, 10) : 0;
-    } catch {
-      return 0; // If we can't determine size, proceed with caution
-    }
-  }
-
-  static async processLargeFile(file) {
-    if (file.size <= this.MAX_CHUNK_SIZE) {
-      return [file];
-    }
-
-    // For PDF files, split by pages
-    if (file.type === 'application/pdf') {
-      return await splitPdfIntoChunks(file, this.MAX_PAGES_PER_CHUNK);
-    }
-
-    // For other files, split by size
-    const chunks = [];
-    let offset = 0;
-    
-    while (offset < file.size) {
-      const chunk = file.slice(offset, offset + this.MAX_CHUNK_SIZE);
-      chunks.push(new File([chunk], `chunk-${chunks.length + 1}`, { type: file.type }));
-      offset += this.MAX_CHUNK_SIZE;
-    }
-
-    return chunks;
-  }
-
-  static combineResults(results) {
-    if (results.length === 1) {
-      return results[0];
-    }
-
-    // Combine the results based on their structure
-    const combined = {
-      personal_info: results[0].personal_info || {},
-      summary: results.map(r => r.summary).filter(Boolean).join('\n\n'),
-      experience: [],
-      education: [],
-      skills: new Set(),
-      certifications: new Set()
-    };
-
-    // Combine arrays and sets from all chunks
-    for (const result of results) {
-      if (result.experience) combined.experience.push(...result.experience);
-      if (result.education) combined.education.push(...result.education);
-      if (result.skills) result.skills.forEach(skill => combined.skills.add(skill));
-      if (result.certifications) result.certifications.forEach(cert => combined.certifications.add(cert));
-    }
-
-    // Convert sets back to arrays
-    combined.skills = Array.from(combined.skills);
-    combined.certifications = Array.from(combined.certifications);
-
-    // Remove duplicates from arrays
-    combined.experience = this.removeDuplicates(combined.experience, 'company');
-    combined.education = this.removeDuplicates(combined.education, 'institution');
-
-    return combined;
-  }
-
-  static removeDuplicates(array, key) {
-    const seen = new Set();
-    return array.filter(item => {
-      const value = item[key];
-      if (seen.has(value)) return false;
-      seen.add(value);
-      return true;
-    });
-  }
-
-  static async updateJobStatus(jobId, status, additionalData = {}) {
-    await supabase
-      .from('document_processing_jobs')
-      .update({
-        status,
-        ...additionalData,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', jobId);
-  }
-
-  static isPdfValid(file) {
-    return file.type === 'application/pdf' && file.size > 0;
-  }
-
-  static async downloadFile(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to download file: ${response.statusText}`);
-    }
-    
-    const blob = await response.blob();
-    const fileName = url.split('/').pop() || 'document';
-    return new File([blob], fileName, { type: response.headers.get('content-type') || '' });
-  }
-
-  static async waitForExtraction(jobId, maxAttempts = 12) {
-    let attempts = 0;
-    
-    while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+      console.log('Starting Llama extraction for file:', file.name);
       
-      const result = await LlamaExtractionService.getExtractionResult(jobId);
+      // Upload the file to Llama
+      const uploadResult = await LlamaExtractionService.uploadDocument(file);
       
-      if (result.status !== 'PENDING') {
-        return result;
+      if (!uploadResult || !uploadResult.file_id) {
+        throw new Error('Failed to upload file to Llama');
       }
       
-      attempts++;
+      console.log('File uploaded to Llama successfully. File ID:', uploadResult.file_id);
+      
+      // Start extraction job
+      const jobResult = await LlamaExtractionService.startExtractionJob(
+        uploadResult.file_id,
+        LLAMA_EXTRACTION_AGENT_ID
+      );
+      
+      if (!jobResult || !jobResult.job_id) {
+        throw new Error('Failed to start extraction job');
+      }
+      
+      console.log('Extraction job started successfully. Job ID:', jobResult.job_id);
+      
+      // Get extraction result
+      const extractionResult = await LlamaExtractionService.getExtractionResult(jobResult.job_id);
+      
+      if (!extractionResult) {
+        throw new Error('Failed to get extraction result');
+      }
+      
+      console.log('Extraction completed successfully');
+      
+      return uploadResult.file_id;
+    } catch (error) {
+      console.error('Error in Llama extraction:', error);
+      throw error;
     }
-    
-    throw new Error('Extraction timed out');
+  }
+  
+  /**
+   * Track document processing in the database
+   * @param {string} clientId The client ID
+   * @param {string} filePath The file path in storage
+   * @param {string} publicUrl The public URL of the file
+   * @param {string} fileName The original file name
+   * @param {number} fileSize The file size in bytes
+   * @param {string} status The processing status
+   * @param {string} errorMessage Optional error message
+   */
+  static async trackDocumentProcessing(
+    clientId, 
+    filePath, 
+    publicUrl, 
+    fileName, 
+    fileSize, 
+    status, 
+    errorMessage = null
+  ) {
+    try {
+      const { error } = await supabase
+        .from('document_processing')
+        .insert({
+          client_id: clientId,
+          file_path: filePath,
+          public_url: publicUrl,
+          file_name: fileName,
+          file_size: fileSize,
+          status,
+          error_message: errorMessage,
+          created_at: new Date().toISOString()
+        });
+      
+      if (error) {
+        console.error('Error tracking document processing:', error);
+      }
+    } catch (error) {
+      console.error('Error tracking document processing:', error);
+    }
   }
 }
