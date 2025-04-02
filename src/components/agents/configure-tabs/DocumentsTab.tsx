@@ -41,7 +41,7 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
         // Fix: Only pass the file parameter without the second argument
         await uploadDocument(file);
         
-        // Log the upload activity - Fix: Use ActivityType enum value instead of string description
+        // Fix: Pass parameters in the correct order (clientId, type, description, metadata)
         await createClientActivity(
           clientId,
           ActivityType.DOCUMENT_ADDED,

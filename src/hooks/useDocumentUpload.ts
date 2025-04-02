@@ -57,7 +57,7 @@ export function useDocumentUpload(clientId: string) {
       setUploadProgress(100);
       
       if (result.success) {
-        // Create client activity record - Fix: Use ActivityType enum value instead of string description
+        // Fix: Pass parameters in the correct order (clientId, type, description, metadata)
         await createClientActivity(
           clientId,
           ActivityType.DOCUMENT_ADDED,
