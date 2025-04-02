@@ -53,7 +53,7 @@ export const fixDocumentLinksRLS = async (): Promise<{ success: boolean; message
       return { success: false, message: 'Failed to update document links RLS policies' };
     }
 
-    // Now fix the storage bucket RLS policies
+    // Now fix the storage bucket RLS policies for the existing bucket
     const storageSuccess = await executeRlsUpdate(`
       BEGIN;
       
@@ -95,101 +95,37 @@ export const fixDocumentLinksRLS = async (): Promise<{ success: boolean; message
   }
 };
 
-// Function to ensure the document-storage bucket exists
+// Function to ensure the document-storage bucket exists - but now just verifies without creating
 export const ensureDocumentStorageBucket = async (): Promise<{ success: boolean; message?: string }> => {
   try {
     console.log("Checking if document-storage bucket exists...");
     
-    // Try using the admin client first if available
-    if (isAdminClientConfigured()) {
-      try {
-        const { data: adminBuckets, error: adminListError } = await supabaseAdmin.storage.listBuckets();
-        
-        if (!adminListError) {
-          const bucketExists = adminBuckets?.some(bucket => bucket.name === 'document-storage');
-          
-          if (!bucketExists) {
-            // Create using admin client which bypasses RLS
-            const { error: createError } = await supabaseAdmin.storage.createBucket('document-storage', {
-              public: true,
-              fileSizeLimit: 20971520, // 20MB
-              allowedMimeTypes: [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'text/plain',
-                'text/csv'
-              ]
-            });
-            
-            if (createError && !createError.message.includes('already exists')) {
-              console.error('Error creating document-storage bucket with admin client:', createError);
-              // Continue to try with regular client and SQL
-            } else {
-              console.log("document-storage bucket created successfully with admin client");
-              return { success: true };
-            }
-          } else {
-            console.log("document-storage bucket already exists (verified with admin client)");
-            return { success: true };
-          }
-        }
-      } catch (err) {
-        console.error("Error with admin bucket operations:", err);
-        // Fall through to try regular client
-      }
-    }
-    
-    // Check with regular client
+    // Check with regular client - we're just verifying the bucket exists
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     
     if (listError) {
       console.error("Error listing buckets:", listError);
-      // Continue to SQL approach as fallback
-    } else {
-      // Check if bucket exists
-      const bucketExists = buckets?.some(bucket => bucket.name === 'document-storage');
-      
-      if (!bucketExists) {
-        // Try to create with regular client
-        const { error } = await supabase.storage.createBucket('document-storage', {
-          public: true,
-          fileSizeLimit: 20971520, // 20MB
-          allowedMimeTypes: [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'text/plain',
-            'text/csv'
-          ]
-        });
-        
-        if (error && !error.message.includes('already exists')) {
-          console.warn('Error creating bucket with regular client:', error);
-          // Continue to SQL approach
-        } else {
-          console.log("document-storage bucket created or already exists");
-          return { success: true };
-        }
-      } else {
-        console.log("document-storage bucket already exists");
-        return { success: true };
-      }
+      return { 
+        success: false, 
+        message: `Error checking bucket: ${listError.message}` 
+      };
     }
     
-    // As a final fallback, try SQL-based bucket creation
+    // Check if bucket exists
+    const bucketExists = buckets?.some(bucket => bucket.name === 'document-storage');
+    
+    if (!bucketExists) {
+      console.error("Required bucket 'document-storage' does not exist");
+      return { 
+        success: false, 
+        message: "The required storage bucket 'document-storage' does not exist. Please contact an administrator to create it." 
+      };
+    }
+    
+    console.log("document-storage bucket exists, setting permissions");
+    
+    // Set proper RLS permissions for the existing bucket using the RLS update function
     const success = await executeRlsUpdate(`
-      -- First ensure we have the ability to create buckets
-      GRANT ALL ON storage.buckets TO service_role;
-      GRANT ALL ON storage.buckets TO authenticated;
-      
-      -- Ensure the document-storage bucket exists
-      INSERT INTO storage.buckets (id, name, public)
-      VALUES ('document-storage', 'document-storage', true)
-      ON CONFLICT (id) DO UPDATE 
-      SET public = true
-      RETURNING *;
-      
       -- Ensure proper RLS for the bucket
       DROP POLICY IF EXISTS "Enable storage access for all users" ON storage.objects;
       
@@ -197,13 +133,17 @@ export const ensureDocumentStorageBucket = async (): Promise<{ success: boolean;
         ON storage.objects FOR ALL
         USING (bucket_id = 'document-storage')
         WITH CHECK (bucket_id = 'document-storage');
+        
+      -- Grant necessary permissions
+      GRANT ALL ON storage.objects TO authenticated;
+      GRANT ALL ON storage.objects TO service_role;
     `);
 
     if (!success) {
-      console.error('Error ensuring document-storage bucket using SQL');
+      console.error('Error setting permissions on document-storage bucket');
       return { 
         success: false, 
-        message: "Failed to ensure document storage bucket exists through SQL. Please contact support."
+        message: "Failed to set permissions on the document storage bucket. Please contact support." 
       };
     }
 
