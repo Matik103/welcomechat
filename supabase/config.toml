@@ -1,4 +1,5 @@
 
+# Project configuration
 project_id = "mgjodiqecnnltsgorife"
 
 [api]
@@ -20,22 +21,14 @@ pool_mode = "transaction"
 default_pool_size = 20
 max_client_conn = 100
 
-[storage]
-enabled = true
-buckets_regex = ".*"
-
 [studio]
 enabled = true
 port = 54323
 api_url = "http://localhost"
 
-[functions]
-enabled = true
-port = 54324
-
+# Auth configuration
 [auth]
 enabled = true
-port = 54325
 site_url = "https://preview--welcomechat.lovable.app"
 additional_redirect_urls = [
   "https://localhost:3000",
@@ -43,30 +36,26 @@ additional_redirect_urls = [
   "https://welcomechat.lovable.app"
 ]
 
+# Real-time configuration
 [realtime]
 enabled = true
-port = 54326
 
-[vector]
-enabled = false
-port = 54327
+# Storage configuration
+[storage]
+enabled = true
 
+# Edge Functions configuration
+[functions]
+enabled = true
+
+# Vector configuration (removed as it was causing errors)
+
+# Inbucket configuration
 [inbucket]
 enabled = true
 port = 54328
 
-[edge_functions]
-port = 54324
-
-[edge_runtime]
-enabled = true
-
+# Analytics configuration
 [analytics]
 enabled = false
 port = 54327
-vector_port = 54328
-
-[experimental]
-minimal_gss = true
-events_per_recvr = 1
-flush_all_batched_events_timeout_ms = 0
