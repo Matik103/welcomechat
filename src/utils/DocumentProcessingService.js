@@ -32,6 +32,10 @@ export class DocumentProcessingService {
       const filePath = `${clientId}/${fileName}`;
       
       console.log(`Uploading to path: ${filePath} in bucket: ${DOCUMENT_STORAGE_BUCKET}`);
+
+      // Generate a document ID early
+      const documentId = uuidv4();
+      console.log(`Generated document ID: ${documentId}`);
       
       // Upload the original file to Supabase storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -74,9 +78,6 @@ export class DocumentProcessingService {
       const agentName = agentData.name;
       console.log(`Using agent name: ${agentName} for client: ${clientId}`);
       
-      // Generate a document ID
-      const documentId = uuidv4();
-      
       // Check if we have a LlamaIndex API key
       let llamaApiKey = LLAMA_CLOUD_API_KEY;
       if (!llamaApiKey) {
@@ -118,55 +119,79 @@ export class DocumentProcessingService {
       const llamaEndpoint = 'https://api.cloud.llamaindex.ai/api/parsing';
       console.log(`Calling LlamaIndex API at: ${llamaEndpoint}`);
       
-      const llamaResponse = await fetch(llamaEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${llamaApiKey}`
-        },
-        body: JSON.stringify({
-          file_name: file.name,
-          file_content: base64File,
-          extract_all: true
-        })
-      });
-      
-      if (!llamaResponse.ok) {
-        const errorText = await llamaResponse.text();
-        console.error("LlamaIndex API error:", errorText);
-        throw new Error(`LlamaIndex API error: ${llamaResponse.status} - ${errorText}`);
+      try {
+        const llamaResponse = await fetch(llamaEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${llamaApiKey}`
+          },
+          body: JSON.stringify({
+            file_name: file.name,
+            file_content: base64File,
+            extract_all: true
+          })
+        });
+        
+        if (!llamaResponse.ok) {
+          const errorText = await llamaResponse.text();
+          console.error("LlamaIndex API error:", errorText);
+          throw new Error(`LlamaIndex API error: ${llamaResponse.status} - ${errorText}`);
+        }
+        
+        const extractionResult = await llamaResponse.json();
+        console.log("LlamaIndex extraction completed successfully:", extractionResult);
+        
+        // Extract the text from the response
+        const extractedText = extractionResult.text || "No text was extracted";
+        
+        console.log(`Extracted text (first 100 chars): ${extractedText.substring(0, 100)}...`);
+        
+        // Track processing success in the database
+        await this.trackDocumentProcessing(
+          clientId, 
+          filePath, 
+          publicUrl, 
+          file.name, 
+          file.size, 
+          'completed', 
+          null, 
+          agentName,
+          documentId,
+          extractedText
+        );
+        
+        return {
+          success: true,
+          publicUrl,
+          processed: 1,
+          failed: 0,
+          documentId,
+          extractedText
+        };
+      } catch (fetchError) {
+        console.error('Error calling LlamaIndex API:', fetchError);
+        
+        // Track processing failure in the database
+        try {
+          await this.trackDocumentProcessing(
+            clientId, 
+            filePath, 
+            publicUrl, // Keep the uploaded file's URL for the record
+            file.name, 
+            file.size, 
+            'failed',
+            fetchError.message || 'Error calling LlamaIndex API',
+            agentName,
+            documentId,
+            null // No extracted text on failure
+          );
+        } catch (trackingError) {
+          console.error('Error tracking document processing failure:', trackingError);
+        }
+        
+        throw new Error(fetchError.message || 'Error calling LlamaIndex API');
       }
-      
-      const extractionResult = await llamaResponse.json();
-      console.log("LlamaIndex extraction completed successfully:", extractionResult);
-      
-      // Extract the text from the response
-      const extractedText = extractionResult.text || "No text was extracted";
-      
-      console.log(`Extracted text (first 100 chars): ${extractedText.substring(0, 100)}...`);
-      
-      // Track processing success in the database
-      await this.trackDocumentProcessing(
-        clientId, 
-        filePath, 
-        publicUrl, 
-        file.name, 
-        file.size, 
-        'completed', 
-        null, 
-        agentName,
-        documentId,
-        extractedText
-      );
-      
-      return {
-        success: true,
-        publicUrl,
-        processed: 1,
-        failed: 0,
-        documentId,
-        extractedText
-      };
     } catch (error) {
       console.error('Error processing document:', error);
       
@@ -183,33 +208,37 @@ export class DocumentProcessingService {
           
         if (agentError) {
           console.error('Error fetching agent name for error tracking:', agentError);
-          throw agentError;
         }
         
         if (!agentData || !agentData.name) {
-          throw new Error('Agent name not found for this client');
+          console.error('Agent name not found for this client');
+          agentName = 'Unknown Agent';
+        } else {
+          agentName = agentData.name;
         }
-        
-        agentName = agentData.name;
       } catch (nameError) {
         console.error('Error fetching agent name:', nameError);
-        throw new Error('Failed to process document: Could not determine agent name');
+        agentName = 'Unknown Agent';
       }
       
       // Generate a document ID even for failures to satisfy the constraint
       const documentId = uuidv4();
+      console.log(`Generated document ID for failed processing: ${documentId}`);
+      
+      // Create a placeholder URL for the failed document
+      const errorPublicUrl = `error://failed-to-process/${documentId}`;
       
       // Track processing failure in the database
       if (clientId) {
         try {
           await this.trackDocumentProcessing(
             clientId, 
-            null, 
-            null, 
+            null, // May be null if we failed before upload
+            errorPublicUrl, // Use a placeholder URL to satisfy the constraint
             file?.name || 'unknown', 
             file?.size || 0, 
             'failed',
-            error.message,
+            error.message || 'Unknown processing error',
             agentName,
             documentId,
             null // No extracted text on failure
@@ -257,6 +286,13 @@ export class DocumentProcessingService {
     try {
       if (!documentId) {
         documentId = uuidv4(); // Ensure we have a document ID as a fallback
+        console.log(`Generated fallback document ID: ${documentId}`);
+      }
+      
+      if (!publicUrl) {
+        // Create a placeholder URL for the tracking record
+        publicUrl = `placeholder://document-processing/${documentId}`;
+        console.log(`Using placeholder URL: ${publicUrl}`);
       }
       
       console.log('Tracking document processing:', {

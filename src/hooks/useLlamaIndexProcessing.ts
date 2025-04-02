@@ -39,33 +39,55 @@ export function useLlamaIndexProcessing(clientId: string) {
         });
       }, 500);
       
-      // Process document with LlamaIndex
-      console.log("Calling DocumentProcessingService.processDocument...");
-      const result = await DocumentProcessingService.processDocument(file, clientId);
-      console.log("Document processing completed with result:", result);
-      
-      // Clear the interval and set final progress
-      clearInterval(progressInterval);
-      setProgress(100);
-      
-      if (result.success) {
-        console.log("Document processing successful!");
-        if (result.extractedText) {
-          console.log(`Extracted text length: ${result.extractedText.length} characters`);
-          console.log(`First 100 chars of extracted text: ${result.extractedText.substring(0, 100)}...`);
+      try {
+        // Process document with LlamaIndex
+        console.log("Calling DocumentProcessingService.processDocument...");
+        const result = await DocumentProcessingService.processDocument(file, clientId);
+        console.log("Document processing completed with result:", result);
+        
+        // Clear the interval and set final progress
+        clearInterval(progressInterval);
+        setProgress(100);
+        
+        if (result.success) {
+          console.log("Document processing successful!");
+          if (result.extractedText) {
+            console.log(`Extracted text length: ${result.extractedText.length} characters`);
+            console.log(`First 100 chars of extracted text: ${result.extractedText.substring(0, 100)}...`);
+          } else {
+            console.warn("Document processed successfully but no extracted text was returned");
+          }
+          
+          setResult(result);
+          toast.success('Document processed successfully');
         } else {
-          console.warn("Document processed successfully but no extracted text was returned");
+          setResult(result);
+          console.error("Document processing failed:", result.error);
+          toast.error(result.error || 'Failed to process document');
         }
         
-        setResult(result);
-        toast.success('Document processed successfully');
-      } else {
-        setResult(result);
-        console.error("Document processing failed:", result.error);
-        toast.error(result.error || 'Failed to process document');
+        return result;
+      } catch (fetchError) {
+        console.error('Error in DocumentProcessingService.processDocument:', fetchError);
+        // Make sure we clear the interval in case of error
+        clearInterval(progressInterval);
+        
+        const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown error';
+        
+        const failResult: DocumentProcessingResult = {
+          success: false,
+          error: `Error processing document: ${errorMessage}`,
+          processed: 0,
+          failed: 1,
+          documentId: undefined
+        };
+        
+        setResult(failResult);
+        setProgress(100); // Set to 100 to indicate processing is complete, even if failed
+        toast.error(`Error processing document: ${errorMessage}`);
+        
+        return failResult;
       }
-      
-      return result;
     } catch (error) {
       console.error('Error processing document with LlamaIndex:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

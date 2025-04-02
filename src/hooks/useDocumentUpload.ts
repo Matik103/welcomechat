@@ -52,45 +52,62 @@ export function useDocumentUpload(clientId: string) {
       
       console.log("Starting LlamaIndex document processing for file:", file.name);
       
-      // Process the document with LlamaIndex
-      const result = await processDocument(file);
-      
-      console.log("LlamaIndex processing result:", result);
-      
-      // Clear the interval and set final progress
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-      
-      if (result.success) {
-        // Create client activity with enum type
-        await createClientActivity(
-          clientId,
-          agentName,
-          ActivityType.DOCUMENT_ADDED,
-          `Document uploaded and processed: ${file.name}`,
-          {
-            file_name: file.name,
-            file_size: file.size,
-            file_type: file.type,
-            processed_sections: result.processed,
-            failed_sections: result.failed,
-            processed_with: 'llamaindex',
-            document_id: result.documentId
-          }
-        );
+      try {
+        // Process the document with LlamaIndex
+        const result = await processDocument(file);
         
-        setUploadResult(result);
-        toast.success('Document uploaded and processed successfully');
-      } else {
-        console.error("Document processing failed:", result.error);
+        console.log("LlamaIndex processing result:", result);
+        
+        // Clear the interval and set final progress
+        clearInterval(progressInterval);
+        setUploadProgress(100);
+        
+        if (result.success) {
+          // Create client activity with enum type
+          await createClientActivity(
+            clientId,
+            agentName,
+            ActivityType.DOCUMENT_ADDED,
+            `Document uploaded and processed: ${file.name}`,
+            {
+              file_name: file.name,
+              file_size: file.size,
+              file_type: file.type,
+              processed_sections: result.processed,
+              failed_sections: result.failed,
+              processed_with: 'llamaindex',
+              document_id: result.documentId
+            }
+          );
+          
+          setUploadResult(result);
+          toast.success('Document uploaded and processed successfully');
+        } else {
+          console.error("Document processing failed:", result.error);
+          setUploadResult({
+            success: false,
+            error: result.error || 'Failed to process document',
+            processed: 0,
+            failed: 1,
+            documentId: result.documentId
+          });
+          throw new Error(result.error || 'Failed to process document');
+        }
+      } catch (processingError) {
+        console.error("Error in document processing:", processingError);
+        clearInterval(progressInterval);
+        setUploadProgress(100);  // Set to 100 to indicate processing is complete, even if failed
+        
+        const errorMessage = processingError instanceof Error ? processingError.message : 'Unknown processing error';
         setUploadResult({
           success: false,
-          error: result.error || 'Failed to process document',
+          error: errorMessage,
           processed: 0,
           failed: 1,
-          documentId: result.documentId
+          documentId: uuidv4() // Generate a new document ID for the error case
         });
-        throw new Error(result.error || 'Failed to process document');
+        
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Error in uploadDocument:', error);
