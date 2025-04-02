@@ -1,3 +1,4 @@
+
 import { supabase } from '../integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { LLAMA_CLOUD_API_KEY, LLAMA_EXTRACTION_AGENT_ID, OPENAI_API_KEY } from '@/config/env';
@@ -121,9 +122,9 @@ export class DocumentProcessingService {
         throw new Error("OpenAI API key is required but not found");
       }
       
-      console.log("Preparing to call LlamaIndex API for text extraction via Edge Function...");
+      console.log("Preparing to call LlamaIndex API for text extraction...");
       
-      // Call LlamaIndex API to extract text from the document through our proxy
+      // Call LlamaIndex API to extract text from the document
       // First convert file to base64
       const fileBuffer = await file.arrayBuffer();
       const base64File = btoa(
@@ -133,34 +134,36 @@ export class DocumentProcessingService {
         )
       );
       
-      // Call our Supabase Edge Function instead of directly calling the LlamaIndex API
-      console.log(`Calling Supabase Edge Function to proxy LlamaIndex API request`);
+      // Call the LlamaIndex API
+      const llamaEndpoint = 'https://api.cloud.llamaindex.ai/api/parsing';
+      console.log(`Calling LlamaIndex API at: ${llamaEndpoint}`);
       
       try {
-        const { data: extractionData, error: extractionError } = await supabase.functions.invoke(
-          'llamaindex-proxy',
-          {
-            body: {
-              file_name: file.name,
-              file_content: base64File,
-              extract_all: true
-            }
-          }
-        );
+        const llamaResponse = await fetch(llamaEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${llamaApiKey}`,
+            'x-openai-api-key': openaiApiKey // Pass OpenAI API key for embedding
+          },
+          body: JSON.stringify({
+            file_name: file.name,
+            file_content: base64File,
+            extract_all: true
+          })
+        });
         
-        if (extractionError) {
-          console.error("Error calling LlamaIndex proxy:", extractionError);
-          throw new Error(`Error calling LlamaIndex proxy: ${extractionError.message}`);
+        if (!llamaResponse.ok) {
+          const errorText = await llamaResponse.text();
+          console.error("LlamaIndex API error:", errorText);
+          throw new Error(`LlamaIndex API error: ${llamaResponse.status} - ${errorText}`);
         }
         
-        if (!extractionData) {
-          throw new Error("No data returned from LlamaIndex proxy");
-        }
-        
-        console.log("LlamaIndex extraction completed successfully:", extractionData);
+        const extractionResult = await llamaResponse.json();
+        console.log("LlamaIndex extraction completed successfully:", extractionResult);
         
         // Extract the text from the response
-        const extractedText = extractionData.text || "No text was extracted";
+        const extractedText = extractionResult.text || "No text was extracted";
         
         console.log(`Extracted text (first 100 chars): ${extractedText.substring(0, 100)}...`);
         
