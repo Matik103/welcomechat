@@ -36,6 +36,12 @@ port = 54324
 [auth]
 enabled = true
 port = 54325
+site_url = "https://preview--welcomechat.lovable.app"
+additional_redirect_urls = [
+  "https://localhost:3000",
+  "https://preview--welcomechat.lovable.app",
+  "https://welcomechat.lovable.app"
+]
 
 [realtime]
 enabled = true
@@ -64,4 +70,3 @@ vector_port = 54328
 minimal_gss = true
 events_per_recvr = 1
 flush_all_batched_events_timeout_ms = 0
-
