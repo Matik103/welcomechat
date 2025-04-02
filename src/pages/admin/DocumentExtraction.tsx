@@ -6,6 +6,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useCheckAdmin } from '@/hooks/useCheckAdmin';
 import { Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -87,7 +90,35 @@ export default function DocumentExtractionPage() {
     <AdminLayout>
       <div className="container py-6">
         <h1 className="text-3xl font-bold mb-6">Document Extraction</h1>
+        
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Attention</AlertTitle>
+          <AlertDescription>
+            The document processing functionality is currently being rebuilt. 
+            Basic file uploads are still available, but advanced document extraction 
+            features will return in a future update.
+          </AlertDescription>
+        </Alert>
+        
         <div className="grid grid-cols-1 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Document Processing</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                The document extraction service is being rebuilt with improved functionality.
+                You can still upload documents in the client management section, but advanced
+                processing features are temporarily unavailable.
+              </p>
+              
+              <p className="text-sm text-muted-foreground">
+                Check back soon for the updated document processing capabilities.
+              </p>
+            </CardContent>
+          </Card>
+          
           <ProcessExistingDocuments clients={clients} />
         </div>
       </div>

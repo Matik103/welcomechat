@@ -1,8 +1,5 @@
 
-import { LLAMA_EXTRACTION_AGENT_ID } from '../config/env';
-import { LlamaExtractionService } from './LlamaExtractionService';
 import { supabase } from '../integrations/supabase/client';
-import { convertWordToPdf, convertHtmlToPdf, splitPdfIntoChunks } from './documentConverters';
 
 // Constant for the storage bucket name
 const DOCUMENT_STORAGE_BUCKET = 'document-storage';
@@ -54,19 +51,11 @@ export class DocumentProcessingService {
       
       console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
       
-      // Start Llama extraction process
-      const fileId = await this.startLlamaExtraction(file);
-      
-      if (!fileId) {
-        throw new Error('Failed to get file ID from Llama extraction');
-      }
-      
       // Track processing success in the database
       await this.trackDocumentProcessing(clientId, filePath, publicUrl, file.name, file.size, 'completed');
       
       return {
         success: true,
-        fileId,
         publicUrl,
         processed: 1,
         failed: 0
@@ -97,52 +86,6 @@ export class DocumentProcessingService {
         processed: 0,
         failed: 1
       };
-    }
-  }
-  
-  /**
-   * Start the Llama extraction process for a file
-   * @param {File} file The document file
-   * @returns {Promise<string>} The file ID
-   */
-  static async startLlamaExtraction(file) {
-    try {
-      console.log('Starting Llama extraction for file:', file.name);
-      
-      // Upload the file to Llama
-      const uploadResult = await LlamaExtractionService.uploadDocument(file);
-      
-      if (!uploadResult || !uploadResult.file_id) {
-        throw new Error('Failed to upload file to Llama');
-      }
-      
-      console.log('File uploaded to Llama successfully. File ID:', uploadResult.file_id);
-      
-      // Start extraction job
-      const jobResult = await LlamaExtractionService.startExtractionJob(
-        uploadResult.file_id,
-        LLAMA_EXTRACTION_AGENT_ID
-      );
-      
-      if (!jobResult || !jobResult.job_id) {
-        throw new Error('Failed to start extraction job');
-      }
-      
-      console.log('Extraction job started successfully. Job ID:', jobResult.job_id);
-      
-      // Get extraction result
-      const extractionResult = await LlamaExtractionService.getExtractionResult(jobResult.job_id);
-      
-      if (!extractionResult) {
-        throw new Error('Failed to get extraction result');
-      }
-      
-      console.log('Extraction completed successfully');
-      
-      return uploadResult.file_id;
-    } catch (error) {
-      console.error('Error in Llama extraction:', error);
-      throw error;
     }
   }
   

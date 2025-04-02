@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -125,8 +126,8 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
       </Card>
       
       <div className="text-sm text-muted-foreground">
-        <p>Uploaded documents will be processed and made available to your AI agent.</p>
-        <p className="mt-2">The agent will use the information in these documents to provide more accurate and context-aware responses.</p>
+        <p>Basic document upload is available, but advanced document processing is being rebuilt.</p>
+        <p className="mt-2">Your files will be stored but advanced extraction features will be available in a future update.</p>
       </div>
     </div>
   );

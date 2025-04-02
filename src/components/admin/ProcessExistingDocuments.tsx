@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { processExistingDocuments } from '@/utils/documentReprocessing';
 
 interface ProcessExistingDocumentsProps {
   clients: { id: string; name: string; agent_name: string }[];
@@ -45,36 +44,19 @@ export const ProcessExistingDocuments: React.FC<ProcessExistingDocumentsProps> =
         return;
       }
       
-      toast.info(`Starting to process documents for ${client.name}...`, {
+      toast.info(`This functionality is being rebuilt and is temporarily unavailable.`, {
         duration: 3000,
       });
       
-      const result = await processExistingDocuments(
-        client.id,
-        client.agent_name || 'AI Assistant'
-      );
+      // Placeholder for future implementation
+      setProcessingStats({
+        processed: 0,
+        failed: 0,
+        total: 0,
+        progress: 0
+      });
       
-      if (result.success) {
-        const total = result.processed + result.failed;
-        setProcessingStats({
-          processed: result.processed,
-          failed: result.failed,
-          total,
-          progress: total > 0 ? Math.round((result.processed / total) * 100) : 0
-        });
-        
-        if (result.processed === 0 && result.failed === 0) {
-          toast.info('No documents found that need processing');
-        } else if (result.failed === 0) {
-          toast.success(`Successfully processed ${result.processed} documents`);
-        } else if (result.processed === 0) {
-          toast.error(`Failed to process ${result.failed} documents`);
-        } else {
-          toast.success(`Processed ${result.processed} documents with ${result.failed} failures`);
-        }
-      } else {
-        toast.error('Failed to process documents');
-      }
+      toast.info('Document processing functionality is being rebuilt');
     } catch (error) {
       console.error('Error processing documents:', error);
       toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -138,16 +120,15 @@ export const ProcessExistingDocuments: React.FC<ProcessExistingDocumentsProps> =
                 Processing...
               </>
             ) : (
-              'Process Documents with LlamaParse'
+              'Process Documents (Coming Soon)'
             )}
           </Button>
           
           <p className="text-xs text-muted-foreground">
-            This will find all unprocessed documents for the selected client and send them to LlamaParse for text extraction.
-            The process may take several minutes depending on the number of documents.
+            Document processing functionality is currently being rebuilt. Check back later.
           </p>
         </div>
       </CardContent>
     </Card>
   );
-};
+}
