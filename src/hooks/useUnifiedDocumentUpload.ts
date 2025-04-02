@@ -1,518 +1,418 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { DocumentProcessingResult, DocumentProcessingStatus } from '@/types/document-processing';
-import { convertToPdfIfNeeded, processDocumentUrl, downloadFileFromUrl } from '@/utils/documentConverter';
-import { DocumentMetadata } from '@/types/widget-settings';
-import { processDocumentWithLlamaIndex } from '@/services/llamaIndexService';
+import { createClientActivity } from '@/services/clientActivityService';
+import { ActivityType } from '@/types/activity';
+import { convertToPdfIfNeeded, uploadDocumentToLlamaIndex, processLlamaIndexJob } from '@/services/llamaIndexService';
+import { DocumentProcessingResult, DocumentProcessingStatus, DocumentProcessingOptions, DocumentMetadata } from '@/types/document-processing';
 
 export const useUnifiedDocumentUpload = (clientId: string) => {
   const [uploadStatus, setUploadStatus] = useState<DocumentProcessingStatus>({
-    stage: 'uploading',
-    progress: 0,
-    message: 'Ready to upload'
+    stage: 'complete',
+    progress: 100
   });
   const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
-  const queryClient = useQueryClient();
+  const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
 
-  // Computed properties for component compatibility
+  // Helper function to check if file is uploading
   const isUploading = uploadStatus.stage === 'uploading' || 
-                      uploadStatus.stage === 'processing' || 
-                      uploadStatus.stage === 'analyzing';
-  
-  const uploadProgress = uploadStatus.progress;
+                       uploadStatus.stage === 'processing' || 
+                       uploadStatus.stage === 'parsing' || 
+                       uploadStatus.stage === 'analyzing';
 
-  // Fetch existing documents for the client
-  const { data: existingDocuments = [], refetch } = useQuery({
-    queryKey: ['documents', clientId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('document_links')
-        .select('*')
-        .eq('client_id', clientId)
-        .is('deleted_at', null);
+  // Helper function to get upload progress
+  const uploadProgress = uploadStatus.progress || 0;
 
-      if (error) {
-        console.error('Error fetching documents:', error);
-        return [];
-      }
-
-      return data || [];
-    },
-    staleTime: 60000, // 1 minute
-    enabled: !!clientId
-  });
-
-  // Handle file upload
-  const uploadFile = async (file: File, options: {
-    useAI?: boolean;
-    folder?: string;
-    description?: string;
-  } = {}): Promise<DocumentProcessingResult | null> => {
-    if (!clientId) {
-      toast.error('Client ID is required for file upload');
-      return null;
-    }
-
-    const documentId = uuidv4();
-    const folder = options.folder || 'documents';
-    const filePath = `${clientId}/${folder}/${documentId}-${file.name}`;
-
+  const uploadDocument = useCallback(async (
+    file: File, 
+    options: DocumentProcessingOptions = {}
+  ): Promise<DocumentProcessingResult> => {
     try {
+      console.log(`Starting unified document upload for ${file.name} with options:`, options);
+      
+      // Set initial upload status
       setUploadStatus({
         stage: 'uploading',
-        progress: 0,
-        message: 'Uploading document...'
+        progress: 5,
+        message: 'Starting upload...'
       });
-
-      // Upload the file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client-files')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) {
-        throw new Error(`File upload failed: ${uploadError.message}`);
-      }
-
-      // Get the public URL for the uploaded file
-      const { data: publicUrlData } = supabase.storage
-        .from('client-files')
-        .getPublicUrl(filePath);
-
-      const publicUrl = publicUrlData?.publicUrl;
-
-      if (!publicUrl) {
-        throw new Error('Failed to get public URL for uploaded file');
-      }
-
+      
+      // Generate a unique ID for this document
+      const documentId = uuidv4();
+      const storageFilename = `${documentId}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const storagePath = `documents/${clientId}/${storageFilename}`;
+      const now = new Date().toISOString();
+      
+      // Convert to PDF if needed (for Office documents, etc.)
       setUploadStatus({
         stage: 'processing',
-        progress: 50,
+        progress: 10,
         message: 'Processing document...'
       });
-
-      // Use LlamaIndex for document processing if AI is enabled
+      
+      const processedFile = await convertToPdfIfNeeded(file);
+      
+      // Upload file to storage
+      setUploadStatus({
+        stage: 'uploading',
+        progress: 20,
+        message: 'Uploading to storage...'
+      });
+      
+      const { data: storageData, error: storageError } = await supabase
+        .storage
+        .from('client-documents')
+        .upload(storagePath, processedFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (storageError) {
+        console.error('Error uploading document to storage:', storageError);
+        setUploadStatus({
+          stage: 'failed',
+          progress: 0,
+          message: `Upload failed: ${storageError.message}`,
+          error: storageError.message
+        });
+        
+        const result: DocumentProcessingResult = {
+          success: false,
+          error: storageError.message,
+          processed: 0,
+          failed: 1
+        };
+        
+        setUploadResult(result);
+        return result;
+      }
+      
+      console.log('Document uploaded to storage:', storageData);
+      
+      // Get a public URL for the uploaded file
+      const { data: publicUrlData } = supabase
+        .storage
+        .from('client-documents')
+        .getPublicUrl(storagePath);
+      
+      const publicUrl = publicUrlData.publicUrl;
+      
+      // Insert document record
+      setUploadStatus({
+        stage: 'processing',
+        progress: 40,
+        message: 'Recording document metadata...'
+      });
+      
+      const mimeType = file.type || 'application/octet-stream';
+      let documentType = 'document';
+      
+      if (mimeType.includes('pdf')) {
+        documentType = 'pdf';
+      } else if (mimeType.includes('word') || mimeType.includes('office')) {
+        documentType = 'docx';
+      } else if (mimeType.includes('text')) {
+        documentType = 'text';
+      }
+      
       let extractedText = '';
       let aiProcessed = false;
-
-      if (options.useAI) {
+      
+      // Process with LlamaIndex and OpenAI if requested
+      if (options.useAI || options.shouldUseAI) {
         try {
           setUploadStatus({
             stage: 'analyzing',
-            progress: 70,
-            message: 'Analyzing document with AI...'
+            progress: 60,
+            message: 'Processing with AI...'
           });
-
-          const result = await processDocumentWithLlamaIndex(file, {
+          
+          console.log('Uploading document to LlamaIndex for AI processing...');
+          
+          // Upload to LlamaIndex for processing
+          const llamaIndexResponse = await uploadDocumentToLlamaIndex(processedFile, {
             shouldUseAI: true
           });
-
-          if (result && result.parsed_content) {
-            extractedText = result.parsed_content;
-            aiProcessed = true;
+          
+          if (llamaIndexResponse && llamaIndexResponse.job_id) {
+            console.log('Document uploaded to LlamaIndex, polling for results...');
+            
+            // Poll for processing results
+            setUploadStatus({
+              stage: 'analyzing',
+              progress: 70,
+              message: 'AI processing in progress...'
+            });
+            
+            const processingResult = await processLlamaIndexJob(llamaIndexResponse.job_id);
+            
+            if (processingResult.status === 'SUCCEEDED' && processingResult.parsed_content) {
+              extractedText = processingResult.parsed_content;
+              aiProcessed = true;
+              
+              console.log('Document successfully processed with AI');
+              console.log(`Extracted text length: ${extractedText.length} characters`);
+            } else {
+              console.warn('LlamaIndex processing did not return content:', processingResult);
+            }
           }
-        } catch (error) {
-          console.error('LlamaIndex processing failed:', error);
-          toast.error('AI processing failed, using standard processing instead');
+        } catch (aiError) {
+          console.error('Error processing document with AI:', aiError);
+          // Continue with the upload process even if AI processing fails
         }
       }
-
-      // Create record in document_links table
-      const documentRecord = {
-        id: documentId,
-        client_id: clientId,
-        link: publicUrl,
-        document_type: file.type.includes('pdf') ? 'pdf' : 'document',
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: file.type,
-        storage_path: filePath,
-        refresh_rate: 30,
-        description: options.description || '',
-        extracted_text: extractedText,
-        ai_processed: aiProcessed,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      const { error: dbError } = await supabase
-        .from('document_links')
-        .insert(documentRecord);
-
-      if (dbError) {
-        throw new Error(`Failed to save document record: ${dbError.message}`);
+      
+      // Create document record in the database
+      const { data: documentData, error: documentError } = await supabase
+        .from('documents')
+        .insert({
+          id: parseInt(documentId.replace(/-/g, '').substring(0, 9), 16) % 2147483647, // Convert UUID to int for PostgreSQL
+          client_id: clientId,
+          link: publicUrl,
+          document_type: documentType,
+          file_name: file.name,
+          file_size: file.size,
+          mime_type: mimeType,
+          storage_path: storagePath,
+          refresh_rate: 0, // Not applicable for uploaded documents
+          description: options.description || file.name,
+          extracted_text: extractedText,
+          ai_processed: aiProcessed,
+          created_at: now,
+          updated_at: now
+        })
+        .select()
+        .single();
+      
+      if (documentError) {
+        console.error('Error creating document record:', documentError);
+        setUploadStatus({
+          stage: 'failed',
+          progress: 0,
+          message: `Document upload failed: ${documentError.message}`,
+          error: documentError.message
+        });
+        
+        const result: DocumentProcessingResult = {
+          success: false,
+          error: documentError.message,
+          documentId,
+          documentUrl: publicUrl,
+          processed: 0,
+          failed: 1
+        };
+        
+        setUploadResult(result);
+        return result;
       }
-
-      // Prepare document metadata for widget settings
-      const documentMetadata: DocumentMetadata = {
-        documentId,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        uploadDate: new Date().toISOString(),
-        url: publicUrl,
-        aiProcessed
-      };
-
-      // Update widget settings with the new document
-      await updateWidgetDocuments(clientId, documentMetadata);
-
-      // If AI processed, update the agent_content as well
-      if (aiProcessed && extractedText) {
-        await updateAgentContent(clientId, extractedText, file.name);
+      
+      console.log('Document record created:', documentData);
+      
+      // Log activity
+      await createClientActivity(
+        clientId,
+        documentData.file_name,
+        ActivityType.DOCUMENT_ADDED,
+        `Document uploaded: ${documentData.file_name}`,
+        {
+          file_name: documentData.file_name,
+          file_size: documentData.file_size,
+          file_type: documentData.mime_type,
+          document_id: documentData.id
+        }
+      );
+      
+      // Update agent content if requested
+      if (options.syncToAgent && extractedText) {
+        await syncDocumentToAgent(clientId, documentId, extractedText, now);
       }
-
-      // Create processing result
-      const result: DocumentProcessingResult = {
-        success: true,
-        documentId,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        url: publicUrl,
-        uploadDate: new Date().toISOString(),
-        extractedText,
-        aiProcessed,
-        status: 'success',
-        processed: 1,
-        failed: 0
-      };
-
+      
+      // Complete successfully
       setUploadStatus({
         stage: 'complete',
         progress: 100,
-        message: 'Document uploaded successfully'
+        message: 'Document processed successfully'
       });
-
+      
+      const result: DocumentProcessingResult = {
+        success: true,
+        documentId: documentData.id.toString(),
+        documentUrl: publicUrl,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: mimeType,
+        downloadUrl: publicUrl,
+        extractedText,
+        aiProcessed,
+        processed: 1,
+        failed: 0
+      };
+      
       setUploadResult(result);
-
-      // Invalidate documents query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['documents', clientId] });
-      refetch();
-
+      
+      // Refresh document list
+      fetchDocuments();
+      
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error during file upload';
-      console.error('Document upload failed:', errorMessage);
-      
+      console.error('Error in unified document upload:', error);
       setUploadStatus({
         stage: 'failed',
         progress: 0,
-        message: errorMessage,
-        error: errorMessage
+        message: 'Document upload failed',
+        error: error instanceof Error ? error : new Error(String(error))
       });
       
-      const failedResult = {
+      const result: DocumentProcessingResult = {
         success: false,
-        error: errorMessage,
+        error: error instanceof Error ? error.message : String(error),
         processed: 0,
         failed: 1
       };
       
-      setUploadResult(failedResult);
-      
-      toast.error(`Document upload failed: ${errorMessage}`);
-      return failedResult;
-    }
-  };
-
-  // Process a document URL
-  const processDocumentUrl = async (url: string, options: {
-    useAI?: boolean;
-    documentType?: string;
-    refreshRate?: number;
-    description?: string;
-  } = {}): Promise<DocumentProcessingResult | null> => {
-    if (!clientId) {
-      toast.error('Client ID is required for document URL processing');
-      return null;
-    }
-
-    try {
-      setUploadStatus({
-        stage: 'processing',
-        progress: 0,
-        message: 'Processing document URL...'
-      });
-
-      // Process URL to get downloadable link
-      const urlProcessResult = await processDocumentUrl(url);
-      if (!urlProcessResult) {
-        throw new Error('Failed to process document URL');
-      }
-
-      const { downloadUrl, fileName } = urlProcessResult;
-
-      setUploadStatus({
-        stage: 'uploading',
-        progress: 25,
-        message: 'Downloading document...'
-      });
-
-      // Download the file first
-      const file = await downloadFileFromUrl(downloadUrl, fileName);
-      if (!file) {
-        throw new Error('Failed to download file from URL');
-      }
-
-      // Use the file upload function to handle the rest
-      const result = await uploadFile(file, {
-        useAI: options.useAI,
-        folder: 'documents',
-        description: options.description || url
-      });
-
+      setUploadResult(result);
       return result;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error processing document URL';
-      console.error('Document URL processing failed:', errorMessage);
-      
-      setUploadStatus({
-        stage: 'failed',
-        progress: 0,
-        message: errorMessage,
-        error: errorMessage
-      });
-      
-      const failedResult = {
-        success: false,
-        error: errorMessage,
-        processed: 0,
-        failed: 1
-      };
-      
-      setUploadResult(failedResult);
-      
-      toast.error(`Document URL processing failed: ${errorMessage}`);
-      return failedResult;
     }
-  };
+  }, [clientId]);
 
-  // Helper to update widget settings with new document
-  const updateWidgetDocuments = async (clientId: string, documentMetadata: DocumentMetadata) => {
+  const syncDocumentToAgent = async (clientId: string, documentId: string, content: string, timestamp: string) => {
     try {
-      // Get current settings
-      const { data: agentData, error: getError } = await supabase
-        .from('ai_agents')
-        .select('settings')
-        .eq('client_id', clientId)
-        .eq('interaction_type', 'config')
-        .maybeSingle();
-
-      if (getError) {
-        console.error('Error fetching agent settings:', getError);
-        return;
-      }
-
-      // Parse settings
-      let settings = {} as any;
-      if (agentData?.settings) {
-        if (typeof agentData.settings === 'string') {
-          try {
-            settings = JSON.parse(agentData.settings);
-          } catch (e) {
-            console.error('Error parsing settings JSON:', e);
-          }
-        } else {
-          settings = agentData.settings;
-        }
-      }
-
-      // Update documents array
-      const documents = Array.isArray(settings.documents) ? [...settings.documents] : [];
-      documents.push(documentMetadata);
-
-      // Update settings
-      const updatedSettings = {
-        ...settings,
-        documents
-      };
-
-      // Save updated settings
-      const { error: updateError } = await supabase
-        .from('ai_agents')
-        .update({
-          settings: updatedSettings,
-          updated_at: new Date().toISOString()
-        })
-        .eq('client_id', clientId)
-        .eq('interaction_type', 'config');
-
-      if (updateError) {
-        console.error('Error updating agent settings:', updateError);
-      }
-    } catch (error) {
-      console.error('Failed to update widget documents:', error);
-    }
-  };
-
-  // Helper to update agent content with extracted text
-  const updateAgentContent = async (clientId: string, extractedText: string, fileName: string) => {
-    try {
-      // Get existing agent content
-      const { data: existingContent, error: getError } = await supabase
+      // Get or create agent_content record
+      const { data: existingContent, error: fetchError } = await supabase
         .from('ai_agents')
         .select('id, content')
         .eq('client_id', clientId)
-        .eq('interaction_type', 'content')
+        .eq('interaction_type', 'document_content')
         .maybeSingle();
-
-      if (getError) {
-        console.error('Error fetching agent content:', getError);
+      
+      if (fetchError) {
+        console.error('Error checking for existing agent_content:', fetchError);
+        return;
       }
-
-      // Format new content
-      const documentHeader = `Document: ${fileName}\n`;
-      const documentContent = `${documentHeader}\n${extractedText}\n\n`;
-
-      if (existingContent?.id) {
-        // Update existing content
-        const updatedContent = `${existingContent.content || ''}\n${documentContent}`;
-        
+      
+      if (existingContent) {
+        // Update existing record
         const { error: updateError } = await supabase
           .from('ai_agents')
           .update({
-            content: updatedContent,
-            updated_at: new Date().toISOString()
+            content: existingContent.content 
+              ? `${existingContent.content}\n\n${content}`
+              : content,
+            updated_at: timestamp
           })
           .eq('id', existingContent.id);
-
+        
         if (updateError) {
-          console.error('Error updating agent content:', updateError);
+          console.error('Error updating agent_content:', updateError);
         }
       } else {
-        // Create new content record
+        // Create new record
         const { error: insertError } = await supabase
           .from('ai_agents')
           .insert({
             client_id: clientId,
-            content: documentContent,
-            interaction_type: 'content',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            name: 'Document Content',
+            content: content,
+            interaction_type: 'document_content',
+            created_at: timestamp,
+            updated_at: timestamp
           });
-
+        
         if (insertError) {
-          console.error('Error creating agent content:', insertError);
+          console.error('Error creating agent_content:', insertError);
         }
       }
     } catch (error) {
-      console.error('Failed to update agent content:', error);
+      console.error('Error syncing document to agent:', error);
     }
   };
 
-  // Delete a document
   const deleteDocument = async (documentId: string): Promise<boolean> => {
-    if (!clientId) {
-      toast.error('Client ID is required for document deletion');
-      return false;
-    }
-
     try {
-      // Soft delete the document record
-      const { error: deleteError } = await supabase
-        .from('document_links')
+      // Find the document first
+      const { data: documentData, error: fetchError } = await supabase
+        .from('documents')
+        .select('storage_path, file_name')
+        .eq('id', parseInt(documentId))
+        .single();
+      
+      if (fetchError) {
+        console.error('Error fetching document:', fetchError);
+        return false;
+      }
+      
+      // Mark as deleted in the database
+      const { error: updateError } = await supabase
+        .from('documents')
         .update({
-          updated_at: new Date().toISOString()
+          deleted_at: new Date().toISOString()
         })
-        .eq('id', documentId)
-        .eq('client_id', clientId);
-
-      if (deleteError) {
-        throw new Error(`Failed to delete document record: ${deleteError.message}`);
+        .eq('id', parseInt(documentId));
+      
+      if (updateError) {
+        console.error('Error marking document as deleted:', updateError);
+        return false;
       }
-
-      // Update widget settings to remove the document
-      try {
-        // Get current settings
-        const { data: agentData, error: getError } = await supabase
-          .from('ai_agents')
-          .select('settings')
-          .eq('client_id', clientId)
-          .eq('interaction_type', 'config')
-          .maybeSingle();
-
-        if (getError) {
-          console.error('Error fetching agent settings:', getError);
-        } else if (agentData?.settings) {
-          // Parse settings
-          let settings = {} as any;
-          if (typeof agentData.settings === 'string') {
-            try {
-              settings = JSON.parse(agentData.settings);
-            } catch (e) {
-              console.error('Error parsing settings JSON:', e);
-            }
-          } else {
-            settings = agentData.settings;
-          }
-
-          // Update documents array
-          const documents = Array.isArray(settings.documents) 
-            ? settings.documents.filter((doc: DocumentMetadata) => doc.documentId !== documentId)
-            : [];
-
-          // Update settings
-          const updatedSettings = {
-            ...settings,
-            documents
-          };
-
-          // Save updated settings
-          const { error: updateError } = await supabase
-            .from('ai_agents')
-            .update({
-              settings: updatedSettings,
-              updated_at: new Date().toISOString()
-            })
-            .eq('client_id', clientId)
-            .eq('interaction_type', 'config');
-
-          if (updateError) {
-            console.error('Error updating agent settings:', updateError);
-          }
+      
+      // Log activity
+      await createClientActivity(
+        clientId,
+        documentData.file_name,
+        ActivityType.DOCUMENT_REMOVED,
+        `Document removed: ${documentData.file_name}`,
+        {
+          file_name: documentData.file_name,
+          document_id: documentId
         }
-      } catch (error) {
-        console.error('Failed to update widget documents:', error);
-      }
-
-      // Invalidate documents query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['documents', clientId] });
-      refetch();
-
-      toast.success('Document deleted successfully');
+      );
+      
+      // Refresh document list
+      fetchDocuments();
+      
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error during document deletion';
-      console.error('Document deletion failed:', errorMessage);
-      toast.error(`Document deletion failed: ${errorMessage}`);
+      console.error('Error deleting document:', error);
       return false;
     }
   };
 
-  // Unified interface for component compatibility
-  const uploadDocument = async (file: File, options = {}) => {
-    return await uploadFile(file, options);
+  const fetchDocuments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('client_id', clientId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching documents:', error);
+        return;
+      }
+      
+      setExistingDocuments(data || []);
+    } catch (error) {
+      console.error('Error in fetchDocuments:', error);
+    }
   };
 
+  // Fetch documents on initial load
+  const fetchData = useCallback(async () => {
+    await fetchDocuments();
+  }, [clientId]);
+
   return {
-    uploadFile,
-    uploadDocument,
-    processDocumentUrl,
+    uploadFile: uploadDocument,
+    processDocumentUrl: async () => ({ success: false, processed: 0, failed: 1 }),
     deleteDocument,
     uploadStatus,
     existingDocuments,
-    refetchDocuments: refetch,
+    fetchDocuments,
+    fetchData,
+    uploadDocument,
     isUploading,
     uploadProgress,
     uploadResult
   };
 };
-
-export default useUnifiedDocumentUpload;

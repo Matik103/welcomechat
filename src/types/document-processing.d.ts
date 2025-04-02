@@ -7,7 +7,13 @@ export interface DocumentProcessingOptions {
   shouldExtractText?: boolean;
   shouldParsePDF?: boolean;
   shouldUseAI?: boolean;
+  useAI?: boolean;
   maxPages?: number;
+  syncToAgent?: boolean;
+  syncToProfile?: boolean;
+  syncToWidgetSettings?: boolean;
+  folder?: string;
+  description?: string;
 }
 
 export interface DocumentProcessingStatus {
@@ -75,4 +81,15 @@ export interface DocumentType {
 export interface DocumentUploadFormProps {
   onSubmitDocument: (file: File) => Promise<void>;
   isUploading: boolean;
+}
+
+export interface DocumentMetadata {
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string[];
+  creationDate?: string;
+  modificationDate?: string;
+  pageCount?: number;
+  [key: string]: any;
 }

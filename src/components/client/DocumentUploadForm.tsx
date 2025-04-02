@@ -1,152 +1,137 @@
 
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { Upload, FileX } from 'lucide-react';
 import { DocumentUploadFormProps } from '@/types/document-processing';
-import { Upload, X, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
 
-export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
+export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({ 
   onSubmitDocument,
   isUploading
 }) => {
+  const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
+    e.stopPropagation();
     
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      handleFileSelected(file);
+      handleFileSelect(file);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      handleFileSelected(file);
-    }
-  };
-
-  const handleFileSelected = (file: File) => {
-    const maxSize = 20 * 1024 * 1024; // 20MB
-    
-    if (file.size > maxSize) {
-      toast.error(`File size exceeds 20MB limit. Please upload a smaller file.`);
-      return;
-    }
-    
-    const supportedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/csv'];
-    
-    if (!supportedTypes.includes(file.type)) {
-      toast.error(`Unsupported file type: ${file.type}. Please upload PDF, DOCX, TXT, or CSV.`);
+  const handleFileSelect = (file: File) => {
+    // Check file size (20MB limit)
+    if (file.size > 20 * 1024 * 1024) {
+      alert('File is too large. Maximum size is 20MB.');
       return;
     }
     
     setSelectedFile(file);
   };
-
-  const handleUpload = async () => {
-    if (!selectedFile) return;
-    
-    try {
-      await onSubmitDocument(selectedFile);
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileSelect(e.target.files[0]);
     }
   };
-
-  const handleClearFile = () => {
+  
+  const handleClearSelection = () => {
     setSelectedFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
-
+  
+  const handleSubmit = async () => {
+    if (selectedFile) {
+      await onSubmitDocument(selectedFile);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+  
   return (
-    <div className="space-y-4">
-      <div 
-        className={`border-2 border-dashed rounded-lg p-6 text-center ${
-          isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
+    <div className="space-y-2">
+      <div
+        className={`border-2 border-dashed rounded-md p-6 text-center ${
+          dragActive ? 'border-primary bg-primary/5' : 'border-gray-300'
         }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
         onDrop={handleDrop}
       >
-        <div className="flex flex-col items-center justify-center gap-2">
-          <Upload className="h-10 w-10 text-gray-400" />
-          <p className="text-sm text-gray-600">
-            Drag and drop a file here, or{' '}
-            <Button 
-              variant="link" 
-              className="p-0 h-auto text-sm text-primary"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              browse
-            </Button>
-          </p>
-          <p className="text-xs text-gray-500">
-            Supported formats: PDF, DOCX, TXT, CSV (Max 20MB)
-          </p>
-          <input 
-            type="file" 
-            ref={fileInputRef}
-            onChange={handleFileChange} 
-            className="hidden" 
-            accept=".pdf,.docx,.txt,.csv"
-          />
-        </div>
-      </div>
-
-      {selectedFile && (
-        <div className="mt-4 border rounded-md p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium truncate max-w-[200px]">
-                {selectedFile.name}
-              </span>
-              <span className="text-xs text-gray-500">
-                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-              </span>
+        {selectedFile ? (
+          <div className="py-2">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center">
+                <div className="bg-blue-100 p-2 rounded mr-3">
+                  <Upload className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium">{selectedFile.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleClearSelection}
+                disabled={isUploading}
+              >
+                <FileX className="h-4 w-4" />
+              </Button>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleClearFile}
-              disabled={isUploading}
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
-
-          <div className="mt-3">
-            <Button 
-              onClick={handleUpload} 
-              disabled={isUploading || !selectedFile}
-              className="w-full"
-            >
-              {isUploading ? 'Uploading...' : 'Upload Document'}
-            </Button>
+        ) : (
+          <div className="py-4 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+            <p className="text-sm font-medium">
+              Drag and drop your file here, or click to browse
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              PDF, Word, Text files up to 20MB
+            </p>
           </div>
-        </div>
-      )}
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept=".pdf,.docx,.doc,.txt"
+          onChange={handleFileChange}
+          disabled={isUploading}
+        />
+      </div>
+      
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSubmit}
+          disabled={!selectedFile || isUploading}
+          className="w-full sm:w-auto"
+        >
+          {isUploading ? 'Uploading...' : 'Upload Document'}
+        </Button>
+      </div>
     </div>
   );
 };
