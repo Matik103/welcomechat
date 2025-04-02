@@ -1,97 +1,166 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Loader2, Upload, AlertCircle } from 'lucide-react';
-import { Label } from '@/components/ui/label';
 import { DocumentUploadFormProps } from '@/types/document-processing';
-import { Alert, AlertDescription } from '@/components/ui/alert'; 
+import { Upload, X, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
-export const DocumentUploadForm = ({
+export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
   onSubmitDocument,
   isUploading
-}: DocumentUploadFormProps) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
+}) => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setFile(files[0]);
-      setError(null); // Clear any previous errors
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      handleFileSelected(file);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (file) {
-      try {
-        setError(null);
-        await onSubmitDocument(file);
-        setFile(null);
-        
-        // Reset the file input
-        const fileInput = document.getElementById('document-file') as HTMLInputElement;
-        if (fileInput) {
-          fileInput.value = '';
-        }
-      } catch (error) {
-        console.error('Error uploading document:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        setError(errorMessage);
-        
-        // If the error contains "Could not find client record", provide more specific guidance
-        if (errorMessage.includes("Could not find client record")) {
-          setError(`${errorMessage} - This may be due to an issue with client identification. Please check if the client ID is correct or try reloading the page.`);
-        }
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      handleFileSelected(file);
+    }
+  };
+
+  const handleFileSelected = (file: File) => {
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    
+    if (file.size > maxSize) {
+      toast.error(`File size exceeds 20MB limit. Please upload a smaller file.`);
+      return;
+    }
+    
+    const supportedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/csv'];
+    
+    if (!supportedTypes.includes(file.type)) {
+      toast.error(`Unsupported file type: ${file.type}. Please upload PDF, DOCX, TXT, or CSV.`);
+      return;
+    }
+    
+    setSelectedFile(file);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+    
+    setUploadError(null);
+    try {
+      await onSubmitDocument(selectedFile);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Check if this is a permission related error
+      const isPossiblePermissionError = 
+        errorMessage.includes('permission denied') || 
+        errorMessage.includes('not authorized') || 
+        errorMessage.includes('violates row-level security') ||
+        errorMessage.includes('NetworkError');
+      
+      if (isPossiblePermissionError) {
+        setUploadError('Permission error detected. Try using the "Fix Security Permissions" button above.');
+      } else {
+        setUploadError(`Upload failed: ${errorMessage}`);
       }
     }
   };
 
   return (
-    <Card className="p-4">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        <div>
-          <Label htmlFor="document-file">Select Document</Label>
-          <Input
-            id="document-file"
-            type="file"
-            onChange={handleFileChange}
-            disabled={isUploading}
-            accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
-            className="mt-1"
-          />
-          <p className="text-sm text-muted-foreground mt-1">
-            Supported formats: PDF, Word, Excel, PowerPoint, and text files
+    <div className="space-y-4">
+      <div 
+        className={`border-2 border-dashed rounded-lg p-6 text-center ${
+          isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <div className="flex flex-col items-center justify-center gap-2">
+          <Upload className="h-10 w-10 text-gray-400" />
+          <p className="text-sm text-gray-600">
+            Drag and drop a file here, or{' '}
+            <Button 
+              variant="link" 
+              className="p-0 h-auto text-sm text-primary"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              browse
+            </Button>
           </p>
+          <p className="text-xs text-gray-500">
+            Supported formats: PDF, DOCX, TXT, CSV (Max 20MB)
+          </p>
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            onChange={handleFileChange} 
+            className="hidden" 
+            accept=".pdf,.docx,.txt,.csv"
+          />
         </div>
-        
-        <Button
-          type="submit"
-          disabled={!file || isUploading}
-          className="w-full"
-        >
-          {isUploading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Document
-            </>
-          )}
-        </Button>
-      </form>
-    </Card>
+      </div>
+
+      {uploadError && (
+        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm flex items-start gap-2">
+          <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+          <p>{uploadError}</p>
+        </div>
+      )}
+
+      {selectedFile && (
+        <div className="mt-4 border rounded-md p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium truncate max-w-[200px]">
+                {selectedFile.name}
+              </span>
+              <span className="text-xs text-gray-500">
+                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+              </span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleClearFile}
+              disabled={isUploading}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="mt-3">
+            <Button 
+              onClick={handleUpload} 
+              disabled={isUploading || !selectedFile}
+              className="w-full"
+            >
+              {isUploading ? 'Uploading...' : 'Upload Document'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

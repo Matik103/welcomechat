@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
 import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
@@ -6,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { toast } from 'sonner';
-import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
+import { fixDocumentLinksRLS, ensureDocumentStorageBucket } from '@/utils/applyDocumentLinksRLS';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { Button } from '@/components/ui/button';
@@ -35,15 +34,12 @@ export const ClientResourceSections = ({
   const handleFixPermissions = async () => {
     setIsFixingRls(true);
     try {
-      // Use a simplified RLS fix with timeout to prevent long operations
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("RLS fix timed out")), 5000)
-      );
+      // First ensure the bucket exists
+      const bucketResult = await ensureDocumentStorageBucket();
+      console.log("Bucket creation result:", bucketResult);
       
-      const rlsPromise = fixDocumentLinksRLS();
-      
-      // Race between timeout and actual operation
-      const result = await Promise.race([rlsPromise, timeoutPromise]) as { success: boolean };
+      // Then fix the RLS policies
+      const result = await fixDocumentLinksRLS();
       
       if (result.success) {
         toast.success("Security policies updated successfully");

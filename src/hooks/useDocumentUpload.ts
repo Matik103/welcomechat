@@ -30,6 +30,7 @@ export function useDocumentUpload(clientId: string) {
         .single();
       
       if (agentError) {
+        console.error('Failed to get agent name:', agentError);
         throw new Error(`Failed to get agent name: ${agentError.message}`);
       }
       
@@ -57,11 +58,11 @@ export function useDocumentUpload(clientId: string) {
       setUploadProgress(100);
       
       if (result.success) {
-        // Create client activity with correct parameter order and enum type
+        // Create client activity with enum type
         await createClientActivity(
           clientId,
           agentName,
-          ActivityType.DOCUMENT_ADDED,  // Using enum instead of string description
+          ActivityType.DOCUMENT_ADDED,
           `Document uploaded: ${file.name}`,
           {
             file_name: file.name,
@@ -83,7 +84,22 @@ export function useDocumentUpload(clientId: string) {
       }
     } catch (error) {
       console.error('Error in uploadDocument:', error);
-      toast.error(`Error uploading document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+      // Check if this is a permission related error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isPossiblePermissionError = 
+        errorMessage.includes('permission denied') || 
+        errorMessage.includes('not authorized') || 
+        errorMessage.includes('violates row-level security') ||
+        errorMessage.includes('NetworkError');
+      
+      // Let the user know this could be a permissions issue
+      if (isPossiblePermissionError) {
+        toast.error('Permission error detected. Try using the "Fix Security Permissions" button.');
+      } else {
+        toast.error(`Error uploading document: ${errorMessage}`);
+      }
+      
       throw error;
     } finally {
       setIsUploading(false);
