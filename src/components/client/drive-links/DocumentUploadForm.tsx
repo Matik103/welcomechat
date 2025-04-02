@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { DocumentUploadFormProps } from '@/types/document-processing';
@@ -84,6 +85,13 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
       } else {
         setUploadError(`Upload failed: ${errorMessage}`);
       }
+    }
+  };
+
+  const handleClearFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
