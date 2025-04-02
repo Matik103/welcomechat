@@ -27,17 +27,30 @@ Deno.serve(async (req) => {
     console.log(`Processing LlamaIndex request for endpoint: ${endpoint}`);
     console.log(`Headers: ${JSON.stringify([...req.headers.entries()].map(([k, v]) => `${k}: ${v}`))}`);
     
+    // Get authorization header from the request if available
+    const authorization = req.headers.get('authorization');
+    
     if (endpoint === 'process_file') {
       // Handle file upload to LlamaIndex Cloud
       const formData = await req.formData();
       
+      // Set up headers with required API keys and authorization
+      const headers = {
+        'x-api-key': LLAMA_CLOUD_API_KEY,
+      };
+      
+      // Add OPENAI_API_KEY as Bearer token if authorization not provided
+      if (authorization) {
+        headers['Authorization'] = authorization;
+      } else if (OPENAI_API_KEY) {
+        headers['Authorization'] = `Bearer ${OPENAI_API_KEY}`;
+      }
+      
       // Forward to LlamaIndex Cloud API using the correct parsing endpoint
+      console.log('Sending request to LlamaIndex with headers:', JSON.stringify(headers));
       const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/api/parsing/upload`, {
         method: 'POST',
-        headers: {
-          'x-api-key': LLAMA_CLOUD_API_KEY,
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        },
+        headers,
         body: formData,
       });
       
@@ -55,12 +68,20 @@ Deno.serve(async (req) => {
       // Handle job status check
       const jobId = url.pathname.split('/jobs/')[1];
       
+      // Set up headers with required API key
+      const headers = {
+        'x-api-key': LLAMA_CLOUD_API_KEY,
+        'Content-Type': 'application/json',
+      };
+      
+      // Add authorization if available
+      if (authorization) {
+        headers['Authorization'] = authorization;
+      }
+      
       const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/api/parsing/jobs/${jobId}`, {
         method: 'GET',
-        headers: {
-          'x-api-key': LLAMA_CLOUD_API_KEY,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
       
       const data = await llamaResponse.json();

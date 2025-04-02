@@ -24,9 +24,24 @@ export const uploadDocumentToLlamaIndex = async (
     const formData = new FormData();
     formData.append('file', file);
     
+    // Get the access token for authorization if available
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    
+    // Prepare headers
+    const headers: HeadersInit = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    } else if (OPENAI_API_KEY) {
+      headers['Authorization'] = `Bearer ${OPENAI_API_KEY}`;
+    }
+    
+    console.log('Using authorization header:', headers['Authorization'] ? 'Yes (present)' : 'No');
+    
     // Use our Supabase Edge Function as a proxy to avoid CORS issues
     const response = await fetch(`${SUPABASE_FUNCTION_URL}/process_file`, {
       method: 'POST',
+      headers,
       body: formData,
     });
     
@@ -50,8 +65,19 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
   try {
     console.log(`Checking status of LlamaIndex job ${jobId}`);
     
+    // Get the access token for authorization if available
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    
+    // Prepare headers
+    const headers: HeadersInit = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    
     const response = await fetch(`${SUPABASE_FUNCTION_URL}/jobs/${jobId}`, {
       method: 'GET',
+      headers,
     });
     
     if (!response.ok) {
