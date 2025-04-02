@@ -29,7 +29,7 @@ export function useUnifiedDocumentUpload(clientId: string) {
   const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
 
   /**
-   * Process text content directly without going through LlamaIndex
+   * Process text content directly without external processing
    * @param content Text content to process
    * @param fileName The name of the document
    * @returns Processing result with extracted text
@@ -222,38 +222,8 @@ export function useUnifiedDocumentUpload(clientId: string) {
         // 6. Update widget settings if requested
         if (options.syncToWidgetSettings) {
           try {
-            // Check if widget settings exist
-            const { data: widgetData } = await supabase
-              .rpc('get_widget_settings', { p_client_id: clientId });
-            
-            if (widgetData && widgetData.settings) {
-              // Add document knowledge to widget settings
-              const settings = widgetData.settings;
-              
-              if (!settings.knowledge_base) {
-                settings.knowledge_base = [];
-              }
-              
-              settings.knowledge_base.push({
-                type: 'document',
-                name: file.name,
-                url: publicUrl,
-                added_at: new Date().toISOString()
-              });
-              
-              // Update widget settings
-              const { error: widgetUpdateError } = await supabase
-                .rpc('update_widget_settings', {
-                  p_client_id: clientId,
-                  p_settings: settings
-                });
-              
-              if (widgetUpdateError) {
-                console.error('Error updating widget settings:', widgetUpdateError);
-              } else {
-                console.log('Successfully updated widget settings with document data');
-              }
-            }
+            // We'll skip this part since the RPC function isn't available
+            console.log('Widget settings synchronization is not available');
           } catch (widgetError) {
             console.error('Error updating widget settings with document data:', widgetError);
           }
@@ -281,8 +251,6 @@ export function useUnifiedDocumentUpload(clientId: string) {
         setUploadResult(result);
         
         toast.success('Document uploaded and processed successfully');
-        
-        return result;
       } catch (processingError) {
         console.error('Error processing document:', processingError);
         clearInterval(progressInterval);
