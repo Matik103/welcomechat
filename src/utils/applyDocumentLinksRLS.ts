@@ -95,78 +95,10 @@ export const fixDocumentLinksRLS = async (): Promise<{ success: boolean; message
   }
 };
 
-// Function to ensure the document-storage bucket exists - but now just verifies without creating
-export const ensureDocumentStorageBucket = async (): Promise<{ success: boolean; message?: string }> => {
-  try {
-    console.log("Checking if document-storage bucket exists...");
-    
-    // Check with regular client - we're just verifying the bucket exists
-    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-    
-    if (listError) {
-      console.error("Error listing buckets:", listError);
-      return { 
-        success: false, 
-        message: `Error checking bucket: ${listError.message}` 
-      };
-    }
-    
-    // Check if bucket exists
-    const bucketExists = buckets?.some(bucket => bucket.name === 'document-storage');
-    
-    if (!bucketExists) {
-      console.error("Required bucket 'document-storage' does not exist");
-      return { 
-        success: false, 
-        message: "The required storage bucket 'document-storage' does not exist. Please contact an administrator to create it." 
-      };
-    }
-    
-    console.log("document-storage bucket exists, setting permissions");
-    
-    // Set proper RLS permissions for the existing bucket using the RLS update function
-    const success = await executeRlsUpdate(`
-      -- Ensure proper RLS for the bucket
-      DROP POLICY IF EXISTS "Enable storage access for all users" ON storage.objects;
-      
-      CREATE POLICY "Enable storage access for all users"
-        ON storage.objects FOR ALL
-        USING (bucket_id = 'document-storage')
-        WITH CHECK (bucket_id = 'document-storage');
-        
-      -- Grant necessary permissions
-      GRANT ALL ON storage.objects TO authenticated;
-      GRANT ALL ON storage.objects TO service_role;
-    `);
-
-    if (!success) {
-      console.error('Error setting permissions on document-storage bucket');
-      return { 
-        success: false, 
-        message: "Failed to set permissions on the document storage bucket. Please contact support." 
-      };
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error in ensureDocumentStorageBucket:', error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : "Unknown error occurred" 
-    };
-  }
-};
-
 // Comprehensive function to fix all document permissions issues
 export const fixAllDocumentPermissions = async (): Promise<{ success: boolean; message?: string }> => {
   try {
-    // First ensure the bucket exists
-    const bucketResult = await ensureDocumentStorageBucket();
-    if (!bucketResult.success) {
-      return bucketResult;
-    }
-    
-    // Then fix the RLS policies
+    // Just fix the RLS policies - we assume the bucket exists
     const rlsResult = await fixDocumentLinksRLS();
     return rlsResult;
   } catch (error) {

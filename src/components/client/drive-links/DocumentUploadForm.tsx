@@ -73,20 +73,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
     } catch (error) {
       console.error('Error uploading document:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      // Check if this is a permission related error
-      const isPossiblePermissionError = 
-        errorMessage.includes('permission denied') || 
-        errorMessage.includes('not authorized') || 
-        errorMessage.includes('violates row-level security') ||
-        errorMessage.includes('NetworkError') ||
-        errorMessage.includes('Failed to get agent name');
-      
-      if (isPossiblePermissionError) {
-        setUploadError('Permission error detected. Try using the "Fix Security Permissions" button above.');
-      } else {
-        setUploadError(`Upload failed: ${errorMessage}`);
-      }
+      setUploadError(`Upload failed: ${errorMessage}`);
     }
   };
 
