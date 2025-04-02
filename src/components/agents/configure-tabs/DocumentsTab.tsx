@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,13 +37,12 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
-        // Add metadata as a separate parameter - this allows the hook to handle the metadata field properly
-        await uploadDocument(file, agentName);
+        // Fix: Only pass the file parameter without the second argument
+        await uploadDocument(file);
         
         // Log the upload activity
         await createClientActivity(
           clientId,
-          agentName,
           ActivityType.DOCUMENT_ADDED,
           `Document uploaded for agent ${agentName}: ${file.name}`,
           {

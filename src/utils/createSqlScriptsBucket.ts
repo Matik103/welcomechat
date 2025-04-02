@@ -1,5 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
 
 export const createSqlScriptsBucket = async () => {
   try {
@@ -116,8 +116,8 @@ export const initializeSqlResources = async () => {
     
     // Also apply the RLS policies right away to ensure they're in place
     try {
-      const { applyDocumentLinksRLS } = await import('@/utils/applyDocumentLinksRLS');
-      const { success: rlsSuccess } = await applyDocumentLinksRLS();
+      // Fix: Use the imported fixDocumentLinksRLS function directly
+      const { success: rlsSuccess } = await fixDocumentLinksRLS();
       console.log("Initial RLS policies application result:", rlsSuccess);
       return bucketsResult && rlsSuccess;
     } catch (rlsError) {

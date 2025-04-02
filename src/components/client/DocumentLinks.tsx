@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
@@ -54,12 +53,9 @@ export function DocumentLinks({ clientId }: DocumentLinksProps) {
     if (!file) return;
 
     try {
-      const result = await uploadDocument(file);
-      if (result.success) {
-        refetch();
-      } else {
-        toast.error(result.error || 'Failed to upload document');
-      }
+      await uploadDocument(file);
+      toast.success('File uploaded successfully');
+      refetch();
     } catch (error) {
       console.error('Error uploading file:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to upload file');

@@ -46,12 +46,10 @@ export function useDocumentUpload(clientId: string) {
         });
       }, 500);
       
-      // Process the document
+      // Process the document - this now expects a single argument
       const result = await DocumentProcessingService.processDocument(
         file,
-        file.type === 'application/pdf' ? 'pdf' : 'document',
-        clientId,
-        agentName
+        clientId
       );
       
       // Clear the interval and set final progress
@@ -62,7 +60,6 @@ export function useDocumentUpload(clientId: string) {
         // Create client activity record
         await createClientActivity(
           clientId,
-          undefined,
           ActivityType.DOCUMENT_ADDED,
           `Document uploaded: ${file.name}`,
           {
