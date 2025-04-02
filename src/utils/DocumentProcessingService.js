@@ -1,3 +1,4 @@
+
 import { supabase } from '../integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { LLAMA_CLOUD_API_KEY, LLAMA_EXTRACTION_AGENT_ID } from '@/config/env';
@@ -109,7 +110,12 @@ export class DocumentProcessingService {
           throw new Error(`Edge function error: ${processingError.message}`);
         }
         
-        if (!processingResult || !processingResult.success) {
+        if (!processingResult) {
+          console.error("Edge function returned no data");
+          throw new Error("Failed to process document: No response from edge function");
+        }
+        
+        if (!processingResult.success) {
           console.error("Edge function didn't return a success:", processingResult?.error || "Unknown error");
           throw new Error(processingResult?.error || "Failed to process document");
         }
