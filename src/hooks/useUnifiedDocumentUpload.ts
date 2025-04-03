@@ -68,10 +68,11 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         const openAIResult = await syncDocumentWithOpenAI(clientId, file, result.documentId);
         
         if (!openAIResult.success) {
-          console.warn('Failed to sync document with OpenAI:', openAIResult.error);
-          toast.warning('Document uploaded but failed to sync with AI assistant');
+          console.error('Failed to sync document with OpenAI:', openAIResult.error);
+          toast.warning(`Document uploaded but failed to sync with AI assistant: ${openAIResult.error}`);
         } else {
           console.log('Document synced with OpenAI assistant successfully');
+          toast.success('Document uploaded and synced with AI assistant successfully');
         }
       }
       
@@ -86,7 +87,9 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         failed: result.failed || 0
       });
       
-      toast.success('Document uploaded and processed successfully');
+      if (options.syncToOpenAI === false) {
+        toast.success('Document uploaded and processed successfully');
+      }
       
       return {
         success: true,

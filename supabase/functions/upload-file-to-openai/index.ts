@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
-// Get OpenAI API key from environment variables
+// Get environment variables
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
 // CORS headers
@@ -35,16 +35,15 @@ serve(async (req) => {
   }
 
   try {
-    // Parse request body
+    // Parse the form data
     const formData = await req.formData();
     const file = formData.get("file");
     const assistantId = formData.get("assistant_id");
-    const purpose = formData.get("purpose") || "assistants";
-    
+
     // Validate required fields
-    if (!file || !assistantId) {
+    if (!file || !(file instanceof File)) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: file and assistant_id are required" }),
+        JSON.stringify({ error: "Missing or invalid file" }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 400,
@@ -52,56 +51,72 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Uploading file to OpenAI for assistant ${assistantId}`);
-
-    // First upload the file to OpenAI
-    const fileResponse = await fetch("https://api.openai.com/v1/files", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: (() => {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("purpose", purpose);
-        return formData;
-      })(),
-    });
-
-    const fileData = await fileResponse.json();
-
-    if (!fileResponse.ok) {
-      console.error("OpenAI file upload error:", fileData);
+    if (!assistantId || typeof assistantId !== "string") {
       return new Response(
-        JSON.stringify({ error: `OpenAI API error: ${fileData.error?.message || "Unknown error"}` }),
+        JSON.stringify({ error: "Missing or invalid assistant_id" }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: fileResponse.status,
+          status: 400,
         }
       );
     }
 
-    console.log("Successfully uploaded file to OpenAI:", fileData.id);
+    console.log(`Uploading file "${file.name}" to OpenAI...`);
 
-    // Now attach the file to the assistant
+    // Step 1: Upload the file to OpenAI
+    const fileData = new FormData();
+    fileData.append("file", file);
+    fileData.append("purpose", "assistants");
+
+    const fileUploadResponse = await fetch("https://api.openai.com/v1/files", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: fileData,
+    });
+
+    const fileUploadData = await fileUploadResponse.json();
+
+    if (!fileUploadResponse.ok) {
+      console.error("OpenAI file upload error:", fileUploadData);
+      return new Response(
+        JSON.stringify({ 
+          error: `OpenAI file upload error: ${fileUploadData.error?.message || JSON.stringify(fileUploadData)}` 
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: fileUploadResponse.status,
+        }
+      );
+    }
+
+    const fileId = fileUploadData.id;
+    console.log(`File uploaded to OpenAI with ID: ${fileId}`);
+
+    // Step 2: Attach the file to the assistant
+    console.log(`Attaching file ${fileId} to assistant ${assistantId}...`);
+    
     const attachResponse = await fetch(`https://api.openai.com/v1/assistants/${assistantId}/files`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "OpenAI-Beta": "assistants=v2", // Using v2 of the API
+        "OpenAI-Beta": "assistants=v2",
       },
       body: JSON.stringify({
-        file_id: fileData.id
+        file_id: fileId,
       }),
     });
 
     const attachData = await attachResponse.json();
 
     if (!attachResponse.ok) {
-      console.error("OpenAI assistant file attachment error:", attachData);
+      console.error("OpenAI file attachment error:", attachData);
       return new Response(
-        JSON.stringify({ error: `OpenAI API error: ${attachData.error?.message || "Failed to attach file to assistant"}` }),
+        JSON.stringify({ 
+          error: `OpenAI file attachment error: ${attachData.error?.message || JSON.stringify(attachData)}` 
+        }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: attachResponse.status,
@@ -111,13 +126,13 @@ serve(async (req) => {
 
     console.log("Successfully attached file to OpenAI assistant");
 
-    // Return the successful response
+    // Return success response
     return new Response(
       JSON.stringify({
-        file_id: fileData.id,
+        file_id: fileId,
         assistant_file_id: attachData.id,
         status: "success",
-        message: "File uploaded and attached to OpenAI assistant successfully",
+        message: "File successfully uploaded and attached to assistant",
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

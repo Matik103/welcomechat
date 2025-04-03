@@ -1,6 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 /**
  * Synchronizes a document with an OpenAI assistant
@@ -20,7 +20,7 @@ export async function syncDocumentWithOpenAI(
     // First, get the OpenAI assistant ID for this client
     const { data: aiAgent, error: agentError } = await supabase
       .from('ai_agents')
-      .select('openai_assistant_id')
+      .select('openai_assistant_id, name')
       .eq('client_id', clientId)
       .eq('interaction_type', 'config')
       .maybeSingle();
@@ -33,27 +33,31 @@ export async function syncDocumentWithOpenAI(
       };
     }
     
-    const assistantId = aiAgent?.openai_assistant_id;
+    let assistantId = aiAgent?.openai_assistant_id;
+    const agentName = aiAgent?.name || "AI Assistant";
     
     if (!assistantId) {
-      console.error('No OpenAI assistant ID found for client', clientId);
+      console.log('No OpenAI assistant ID found for client, attempting to create one');
       
       // Try to create an assistant if none exists
       try {
         const { data: assistantData, error: createError } = await supabase.functions.invoke('create-openai-assistant', {
           body: {
             client_id: clientId,
-            agent_name: "AI Assistant",
+            agent_name: agentName,
             agent_description: "A helpful assistant that answers questions based on uploaded documents."
           },
         });
         
         if (createError || !assistantData?.assistant_id) {
+          console.error('Error creating OpenAI assistant:', createError || 'No assistant ID returned');
           throw new Error(createError?.message || 'Failed to create OpenAI assistant');
         }
         
+        console.log('Successfully created OpenAI assistant:', assistantData.assistant_id);
+        
         // Use the newly created assistant ID
-        return uploadDocumentToAssistant(clientId, file, assistantData.assistant_id);
+        assistantId = assistantData.assistant_id;
       } catch (createError) {
         console.error('Error creating OpenAI assistant:', createError);
         return {
@@ -63,30 +67,9 @@ export async function syncDocumentWithOpenAI(
       }
     }
     
-    // Upload the document to the existing assistant
-    return uploadDocumentToAssistant(clientId, file, assistantId);
-  } catch (error) {
-    console.error('Error in syncDocumentWithOpenAI:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error syncing document with OpenAI'
-    };
-  }
-}
-
-/**
- * Upload a document to an OpenAI assistant
- * @param clientId The client ID
- * @param file The file to upload
- * @param assistantId The OpenAI assistant ID
- * @returns Success status and OpenAI file ID if successful
- */
-async function uploadDocumentToAssistant(
-  clientId: string,
-  file: File,
-  assistantId: string
-): Promise<{ success: boolean; fileId?: string; error?: string }> {
-  try {
+    // Now we have an assistant ID, upload the document to it
+    console.log(`Uploading document to OpenAI assistant ${assistantId}`);
+    
     // Create form data for the file upload
     const formData = new FormData();
     formData.append('file', file);
@@ -142,15 +125,17 @@ async function uploadDocumentToAssistant(
       // Continue despite this error, as the file was uploaded successfully
     }
     
+    toast.success('Document uploaded to OpenAI assistant successfully');
+    
     return {
       success: true,
       fileId: data.file_id
     };
   } catch (error) {
-    console.error('Error uploading document to OpenAI assistant:', error);
+    console.error('Error syncing document with OpenAI:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to upload document to OpenAI assistant'
+      error: error instanceof Error ? error.message : 'Failed to sync document with OpenAI'
     };
   }
 }
