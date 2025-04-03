@@ -1,190 +1,127 @@
 
 import { PDFDocument } from 'pdf-lib';
-import * as mammoth from 'mammoth';
-import { jsPDF } from 'jspdf';
+import mammoth from 'mammoth';
 
 /**
- * Convert text file to PDF
+ * Convert a DOCX file to PDF
+ * @param file The DOCX file to convert
+ * @returns A Promise resolving to the converted PDF file
  */
-export const textToPdf = async (file: File): Promise<Uint8Array> => {
+const convertDocxToPdf = async (file: File): Promise<File> => {
   try {
-    const text = await file.text();
-    const doc = new jsPDF();
-    
-    // Split text into chunks to handle long documents
-    const textChunks = [];
-    const chunkSize = 2000; // Characters per chunk
-    for (let i = 0; i < text.length; i += chunkSize) {
-      textChunks.push(text.substring(i, i + chunkSize));
-    }
-    
-    // Add text chunks to document
-    const lineHeight = 7;
-    const margin = 20;
-    let yPosition = margin;
-    
-    for (const chunk of textChunks) {
-      // Add a new page if we're at the bottom
-      if (yPosition > doc.internal.pageSize.height - margin) {
-        doc.addPage();
-        yPosition = margin;
-      }
-      
-      // Split chunk into lines and add them
-      const lines = doc.splitTextToSize(chunk, doc.internal.pageSize.width - 2 * margin);
-      for (const line of lines) {
-        doc.text(line, margin, yPosition);
-        yPosition += lineHeight;
-        
-        // Add a new page if we're at the bottom
-        if (yPosition > doc.internal.pageSize.height - margin) {
-          doc.addPage();
-          yPosition = margin;
-        }
-      }
-    }
-    
-    return new Uint8Array(doc.output('arraybuffer'));
-  } catch (error) {
-    console.error('Error converting text to PDF:', error);
-    throw new Error('Failed to convert text file to PDF');
-  }
-};
-
-/**
- * Convert DOCX file to PDF
- */
-export const docxToPdf = async (file: File): Promise<Uint8Array> => {
-  try {
+    // Read the DOCX file as an ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
     
-    // Extract text content from DOCX
-    const result = await mammoth.extractRawText({ arrayBuffer });
-    const text = result.value;
+    // Use mammoth to convert DOCX to HTML
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    const html = result.value;
     
-    // Create PDF document
-    const doc = new jsPDF();
+    // Create a new PDF document
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([600, 800]);
     
-    // Split text into chunks to handle long documents
-    const textChunks = [];
-    const chunkSize = 2000; // Characters per chunk
-    for (let i = 0; i < text.length; i += chunkSize) {
-      textChunks.push(text.substring(i, i + chunkSize));
-    }
+    // Add HTML content to PDF (very basic, just text)
+    const { width, height } = page.getSize();
+    page.drawText(html.replace(/<[^>]*>/g, ' ').slice(0, 1000), {
+      x: 50,
+      y: height - 50,
+      size: 12,
+      maxWidth: width - 100,
+    });
     
-    // Add text chunks to document
-    const lineHeight = 7;
-    const margin = 20;
-    let yPosition = margin;
+    // Save PDF as bytes
+    const pdfBytes = await pdfDoc.save();
     
-    for (const chunk of textChunks) {
-      // Add a new page if we're at the bottom
-      if (yPosition > doc.internal.pageSize.height - margin) {
-        doc.addPage();
-        yPosition = margin;
-      }
-      
-      // Split chunk into lines and add them
-      const lines = doc.splitTextToSize(chunk, doc.internal.pageSize.width - 2 * margin);
-      for (const line of lines) {
-        doc.text(line, margin, yPosition);
-        yPosition += lineHeight;
-        
-        // Add a new page if we're at the bottom
-        if (yPosition > doc.internal.pageSize.height - margin) {
-          doc.addPage();
-          yPosition = margin;
-        }
-      }
-    }
+    // Create a new PDF file
+    const pdfFile = new File([pdfBytes], `${file.name.replace(/\.docx$/, '')}.pdf`, {
+      type: 'application/pdf',
+    });
     
-    return new Uint8Array(doc.output('arraybuffer'));
+    return pdfFile;
   } catch (error) {
     console.error('Error converting DOCX to PDF:', error);
-    throw new Error('Failed to convert DOCX file to PDF');
+    throw new Error(`Failed to convert DOCX to PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
 /**
- * Convert CSV file to PDF
+ * Convert a text file to PDF
+ * @param file The text file to convert
+ * @returns A Promise resolving to the converted PDF file
  */
-export const csvToPdf = async (file: File): Promise<Uint8Array> => {
+const convertTextToPdf = async (file: File): Promise<File> => {
   try {
+    // Read the text file content
     const text = await file.text();
-    const lines = text.split('\n');
     
-    // Create PDF document
-    const doc = new jsPDF();
+    // Create a new PDF document
+    const pdfDoc = await PDFDocument.create();
     
-    // Process CSV data
-    const lineHeight = 7;
-    const margin = 10;
-    let yPosition = margin;
+    // Split text into chunks of 1000 characters to fit on pages
+    const textChunks = text.match(/.{1,1000}/g) || [];
     
-    // Calculate column widths
-    const maxCols = lines.reduce((max, line) => {
-      const cols = line.split(',');
-      return Math.max(max, cols.length);
-    }, 0);
-    
-    const colWidth = (doc.internal.pageSize.width - 2 * margin) / maxCols;
-    
-    // Add each row
-    for (const line of lines) {
-      // Skip empty lines
-      if (!line.trim()) continue;
+    for (const chunk of textChunks) {
+      const page = pdfDoc.addPage([600, 800]);
+      const { width, height } = page.getSize();
       
-      // Add a new page if we're at the bottom
-      if (yPosition > doc.internal.pageSize.height - margin - lineHeight) {
-        doc.addPage();
-        yPosition = margin;
-      }
-      
-      // Process columns
-      const cols = line.split(',');
-      cols.forEach((col, index) => {
-        const xPosition = margin + (index * colWidth);
-        doc.text(col.trim(), xPosition, yPosition);
+      page.drawText(chunk, {
+        x: 50,
+        y: height - 50,
+        size: 12,
+        maxWidth: width - 100,
       });
-      
-      yPosition += lineHeight;
     }
     
-    return new Uint8Array(doc.output('arraybuffer'));
+    // Save PDF as bytes
+    const pdfBytes = await pdfDoc.save();
+    
+    // Create a new PDF file
+    const pdfFile = new File([pdfBytes], `${file.name.replace(/\.(txt|csv)$/, '')}.pdf`, {
+      type: 'application/pdf',
+    });
+    
+    return pdfFile;
   } catch (error) {
-    console.error('Error converting CSV to PDF:', error);
-    throw new Error('Failed to convert CSV file to PDF');
+    console.error('Error converting text to PDF:', error);
+    throw new Error(`Failed to convert text to PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
 /**
- * Convert a file to PDF format
+ * Convert a file to PDF based on its type
+ * @param file The file to convert
+ * @returns A Promise resolving to the converted PDF file
  */
 export const convertToPdf = async (file: File): Promise<File> => {
-  try {
-    // If already PDF, return as is
-    if (file.type === 'application/pdf') {
-      return file;
-    }
-    
-    let pdfBytes: Uint8Array;
-    
-    // Convert based on file type
-    if (file.type === 'text/plain') {
-      pdfBytes = await textToPdf(file);
-    } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      pdfBytes = await docxToPdf(file);
-    } else if (file.type === 'text/csv') {
-      pdfBytes = await csvToPdf(file);
-    } else {
-      throw new Error(`Unsupported file type: ${file.type}`);
-    }
-    
-    // Create a new file with PDF data
-    const pdfFilename = file.name.replace(/\.[^/.]+$/, '') + '.pdf';
-    return new File([pdfBytes], pdfFilename, { type: 'application/pdf' });
-  } catch (error) {
-    console.error('Error converting file to PDF:', error);
-    throw error;
+  // If the file is already a PDF, return it as is
+  if (file.type === 'application/pdf') {
+    return file;
   }
+  
+  // DOCX file
+  if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    return convertDocxToPdf(file);
+  }
+  
+  // Text or CSV file
+  if (file.type === 'text/plain' || file.type === 'text/csv') {
+    return convertTextToPdf(file);
+  }
+  
+  // Unsupported file type
+  throw new Error(`File type ${file.type} not supported for conversion to PDF`);
+};
+
+/**
+ * Convert a file to PDF if needed
+ * @param file The file to potentially convert
+ * @returns A Promise resolving to the original file or the converted PDF file
+ */
+export const convertToPdfIfNeeded = async (file: File): Promise<File> => {
+  // Only convert if the file is not already a PDF
+  if (file.type !== 'application/pdf') {
+    console.log(`Converting ${file.type} file to PDF: ${file.name}`);
+    return convertToPdf(file);
+  }
+  return file;
 };

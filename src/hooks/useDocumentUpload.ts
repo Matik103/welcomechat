@@ -50,6 +50,7 @@ export function useDocumentUpload(clientId: string) {
       // 2. Convert the file to PDF if needed
       console.log("Converting document to PDF if needed:", file.name);
       const pdfFile = await convertToPdfIfNeeded(file);
+      console.log("File conversion complete:", pdfFile.name);
       
       // 3. Upload the file to storage
       const timestamp = new Date().getTime();
@@ -78,7 +79,8 @@ export function useDocumentUpload(clientId: string) {
       
       // 4. Process the document with LlamaIndex
       console.log("Uploading document to LlamaIndex for processing:", pdfFile.name);
-      const jobId = await uploadDocumentToLlamaIndex(pdfFile);
+      const llamaIndexJob = await uploadDocumentToLlamaIndex(pdfFile);
+      const jobId = llamaIndexJob.job_id;
       console.log("LlamaIndex job created:", jobId);
       
       // 5. Create a document processing job record
@@ -97,7 +99,7 @@ export function useDocumentUpload(clientId: string) {
             file_size: file.size,
             storage_path: filePath,
             llama_job_id: jobId
-          }
+          } as any
         });
       
       if (jobError) {
@@ -125,7 +127,8 @@ export function useDocumentUpload(clientId: string) {
       
       // 7. Wait for LlamaIndex job to complete and get the results
       console.log("Waiting for LlamaIndex job to complete...");
-      const extractedText = await processLlamaIndexJob(jobId);
+      const processResult = await processLlamaIndexJob(jobId);
+      const extractedText = processResult.parsed_content || '';
       console.log("LlamaIndex processing complete, text length:", extractedText.length);
       
       // 8. Update the document processing job with the extracted text
@@ -140,7 +143,7 @@ export function useDocumentUpload(clientId: string) {
             storage_path: filePath,
             llama_job_id: jobId,
             processing_completed: new Date().toISOString()
-          }
+          } as any
         })
         .eq('document_id', documentId);
       
