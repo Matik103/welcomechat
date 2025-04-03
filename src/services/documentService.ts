@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 interface UploadResult {
   success: boolean;
@@ -20,9 +21,14 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
     const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     const filePath = `${clientId}/${fileName}`;
 
+    console.log(`Attempting to upload to bucket: ${DOCUMENTS_BUCKET}`);
+    
+    // Ensure the bucket exists before attempting to upload
+    await ensureDocumentStorageBucket();
+
     // Upload to storage bucket
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('client-documents')
+      .from(DOCUMENTS_BUCKET)
       .upload(filePath, file);
 
     if (uploadError) {
@@ -32,7 +38,7 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
 
     // Get the public URL
     const { data: urlData } = await supabase.storage
-      .from('client-documents')
+      .from(DOCUMENTS_BUCKET)
       .getPublicUrl(filePath);
 
     if (!urlData?.publicUrl) {
@@ -77,5 +83,37 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error during document upload'
     };
+  }
+};
+
+// Function to ensure the bucket exists
+const ensureDocumentStorageBucket = async (): Promise<void> => {
+  try {
+    console.log(`Checking if bucket ${DOCUMENTS_BUCKET} exists...`);
+    
+    // Check if bucket exists
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(bucket => bucket.name === DOCUMENTS_BUCKET);
+    
+    if (!bucketExists) {
+      console.log(`Creating ${DOCUMENTS_BUCKET} bucket...`);
+      const { error } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
+        public: true,
+        allowedMimeTypes: ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        fileSizeLimit: 20971520 // 20MB
+      });
+      
+      if (error) {
+        console.error(`Error creating bucket ${DOCUMENTS_BUCKET}:`, error);
+        throw new Error(`Failed to create storage bucket: ${error.message}`);
+      }
+      
+      console.log(`Created ${DOCUMENTS_BUCKET} bucket successfully`);
+    } else {
+      console.log(`${DOCUMENTS_BUCKET} bucket already exists`);
+    }
+  } catch (error) {
+    console.error('Error in ensureDocumentStorageBucket:', error);
+    throw error;
   }
 };
