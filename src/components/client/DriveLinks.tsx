@@ -117,6 +117,10 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
         throw new Error(`Failed to process document: ${processError.message}`);
       }
 
+      if (!processResult?.document_id) {
+        throw new Error('Failed to get document ID from processing result');
+      }
+
       clearInterval(progressInterval);
       
       await addDocumentLink.mutateAsync({
@@ -141,7 +145,7 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
       }, 1000);
     } catch (error) {
       console.error('Error uploading document:', error);
-      toast.error('Failed to upload document');
+      toast.error(error instanceof Error ? error.message : 'Failed to upload document');
     } finally {
       setIsUploading(false);
     }
