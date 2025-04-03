@@ -2,14 +2,36 @@
 import { supabase } from "@/integrations/supabase/client";
 import { EDGE_FUNCTIONS_URL } from "@/config/env";
 
+// Cache for recent website content to avoid duplicate fetches
+const contentCache = new Map<string, {
+  content: string;
+  timestamp: number;
+  success: boolean;
+  error?: string;
+}>();
+
+// Cache expiration time (5 minutes)
+const CACHE_EXPIRATION_MS = 5 * 60 * 1000;
+
 /**
- * Fetches website content as markdown
+ * Fetches website content as markdown with caching
  */
 export async function fetchWebsiteContent(url: string): Promise<{
   content: string;
   success: boolean;
   error?: string;
 }> {
+  // Check cache first
+  const cachedResult = contentCache.get(url);
+  if (cachedResult && (Date.now() - cachedResult.timestamp) < CACHE_EXPIRATION_MS) {
+    console.log("Using cached content for URL:", url);
+    return {
+      content: cachedResult.content,
+      success: cachedResult.success,
+      error: cachedResult.error
+    };
+  }
+
   try {
     console.log("Fetching content for URL:", url);
     
@@ -29,13 +51,23 @@ export async function fetchWebsiteContent(url: string): Promise<{
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url }),
+        // Add a timeout to prevent hanging requests
+        signal: AbortSignal.timeout(30000) // 30 second timeout
       });
 
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.content) {
           console.log("Successfully fetched website content from Edge Function");
+          
+          // Cache the result
+          contentCache.set(url, {
+            content: data.content,
+            timestamp: Date.now(),
+            success: true
+          });
+          
           return {
             content: data.content,
             success: true
@@ -53,22 +85,51 @@ export async function fetchWebsiteContent(url: string): Promise<{
     }
 
     // Fallback: direct fetch (note: this will only work for CORS-enabled sites)
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch website with status: ${response.status}`);
-    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch website with status: ${response.status}`);
+      }
 
-    const htmlContent = await response.text();
-    
-    // Very basic HTML to markdown conversion
-    const markdownContent = convertHtmlToMarkdown(htmlContent);
-    
-    return {
-      content: markdownContent,
-      success: true
-    };
+      const htmlContent = await response.text();
+      
+      // Basic HTML to markdown conversion
+      const markdownContent = convertHtmlToMarkdown(htmlContent);
+      
+      // Cache the result
+      contentCache.set(url, {
+        content: markdownContent,
+        timestamp: Date.now(),
+        success: true
+      });
+      
+      return {
+        content: markdownContent,
+        success: true
+      };
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
+    }
   } catch (error) {
     console.error("Error fetching website content:", error);
+    
+    // Cache the error result
+    contentCache.set(url, {
+      content: "",
+      timestamp: Date.now(),
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error occurred"
+    });
+    
     return {
       content: "",
       success: false,
@@ -128,7 +189,7 @@ function convertHtmlToMarkdown(html: string): string {
   content = content.trim();
   
   // If content is too long, truncate it
-  const MAX_CONTENT_LENGTH = 100000; // ~100KB
+  const MAX_CONTENT_LENGTH = 50000; // Reduced from 100KB to 50KB for better performance
   if (content.length > MAX_CONTENT_LENGTH) {
     content = content.substring(0, MAX_CONTENT_LENGTH) + 
       '\n\n... Content truncated due to size limits ...\n';

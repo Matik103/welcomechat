@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { setupRealtimeActivities } from '@/utils/setupRealtimeActivities';
 import { subscribeToAllActivities } from '@/services/activitySubscriptionService';
@@ -16,6 +16,7 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState<Error | null>(null);
   const [isManuallyRefreshing, setIsManuallyRefreshing] = useState(false);
   
+  // Memoize the manual refresh handler to prevent unnecessary re-renders
   const handleManualRefresh = useCallback(async () => {
     try {
       setIsManuallyRefreshing(true);
@@ -26,6 +27,20 @@ export default function AdminDashboardPage() {
       }, 500); // Show loading state for at least 500ms for better UX
     }
   }, [fetchDashboardData]);
+  
+  // Memoize the dashboard content to prevent unnecessary re-renders
+  const dashboardContent = useMemo(() => {
+    if (isLoading && !isManuallyRefreshing) {
+      return <DashboardLoading />;
+    }
+    
+    return (
+      <>
+        <StatsCardsSection dashboardData={dashboardData} />
+        <ActivityChartsSection activityCharts={dashboardData.activityCharts} />
+      </>
+    );
+  }, [isLoading, isManuallyRefreshing, dashboardData]);
   
   useEffect(() => {
     let activitiesChannel: any = null;
@@ -126,14 +141,7 @@ export default function AdminDashboardPage() {
           onRefresh={handleManualRefresh}
         />
         
-        {isLoading && !isManuallyRefreshing ? (
-          <DashboardLoading />
-        ) : (
-          <>
-            <StatsCardsSection dashboardData={dashboardData} />
-            <ActivityChartsSection activityCharts={dashboardData.activityCharts} />
-          </>
-        )}
+        {dashboardContent}
       </div>
     </AdminLayout>
   );

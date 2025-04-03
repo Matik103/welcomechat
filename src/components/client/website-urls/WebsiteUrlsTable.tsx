@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { WebsiteUrl, WebsiteUrlsListProps } from '@/types/website-url';
 import { Button } from '@/components/ui/button';
 import { Trash, Loader2, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
@@ -13,12 +13,18 @@ import {
 } from '@/components/ui/table';
 import { formatDistanceToNow } from 'date-fns';
 
-export function WebsiteUrlsTable({ 
-  urls, 
+// Memoized table row component to prevent unnecessary re-renders
+const WebsiteUrlRow = memo(({ 
+  url, 
   onDelete, 
-  isDeleting = false,
-  deletingId = null 
-}: WebsiteUrlsListProps) {
+  isDeleting, 
+  deletingId 
+}: { 
+  url: WebsiteUrl, 
+  onDelete: (id: number) => void, 
+  isDeleting: boolean, 
+  deletingId: number | null 
+}) => {
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'Never';
     try {
@@ -42,6 +48,59 @@ export function WebsiteUrlsTable({
   };
 
   return (
+    <TableRow key={url.id}>
+      <TableCell className="max-w-xs truncate font-medium">
+        <a 
+          href={url.url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="hover:underline text-blue-600"
+        >
+          {url.url}
+        </a>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1.5">
+          {getStatusIcon(url.status)}
+          <span className="capitalize">{url.status || 'Pending'}</span>
+        </div>
+        {url.error && (
+          <div className="text-xs text-red-500 mt-1 truncate max-w-[200px]" title={url.error}>
+            {url.error}
+          </div>
+        )}
+      </TableCell>
+      <TableCell>{formatDate(url.last_crawled)}</TableCell>
+      <TableCell>{url.refresh_rate} days</TableCell>
+      <TableCell className="text-right">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onDelete(url.id)}
+          disabled={isDeleting && deletingId === url.id}
+        >
+          {isDeleting && deletingId === url.id ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Trash className="h-4 w-4" />
+          )}
+          <span className="sr-only">Delete</span>
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+});
+
+WebsiteUrlRow.displayName = 'WebsiteUrlRow';
+
+// The main table component is also memoized
+export const WebsiteUrlsTable = memo(function WebsiteUrlsTable({ 
+  urls, 
+  onDelete, 
+  isDeleting = false,
+  deletingId = null 
+}: WebsiteUrlsListProps) {
+  return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
@@ -55,49 +114,16 @@ export function WebsiteUrlsTable({
         </TableHeader>
         <TableBody>
           {urls.map((url) => (
-            <TableRow key={url.id}>
-              <TableCell className="max-w-xs truncate font-medium">
-                <a 
-                  href={url.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="hover:underline text-blue-600"
-                >
-                  {url.url}
-                </a>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1.5">
-                  {getStatusIcon(url.status)}
-                  <span className="capitalize">{url.status || 'Pending'}</span>
-                </div>
-                {url.error && (
-                  <div className="text-xs text-red-500 mt-1 truncate max-w-[200px]" title={url.error}>
-                    {url.error}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell>{formatDate(url.last_crawled)}</TableCell>
-              <TableCell>{url.refresh_rate} days</TableCell>
-              <TableCell className="text-right">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onDelete(url.id)}
-                  disabled={isDeleting && deletingId === url.id}
-                >
-                  {isDeleting && deletingId === url.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash className="h-4 w-4" />
-                  )}
-                  <span className="sr-only">Delete</span>
-                </Button>
-              </TableCell>
-            </TableRow>
+            <WebsiteUrlRow 
+              key={url.id}
+              url={url}
+              onDelete={onDelete}
+              isDeleting={isDeleting}
+              deletingId={deletingId}
+            />
           ))}
         </TableBody>
       </Table>
     </div>
   );
-}
+});
