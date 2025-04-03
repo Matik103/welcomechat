@@ -15,11 +15,19 @@ export async function fetchWebsiteContent(url: string): Promise<{
     
     // First try to use a dedicated Edge Function if available
     try {
+      // Get auth session token for the edge function
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        console.warn("No access token available for Edge Function");
+      }
+      
       const response = await fetch(`${EDGE_FUNCTIONS_URL}/fetch-website-content`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.getSession().then(({ data }) => data.session?.access_token)}`
+          'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({ url })
       });
@@ -32,7 +40,11 @@ export async function fetchWebsiteContent(url: string): Promise<{
             content: data.content,
             success: true
           };
+        } else {
+          console.warn("Edge Function returned an error:", data.error || "Unknown error");
         }
+      } else {
+        console.warn(`Edge Function returned status: ${response.status}`);
       }
       
       console.log("Edge Function not available or failed, falling back to direct fetch");

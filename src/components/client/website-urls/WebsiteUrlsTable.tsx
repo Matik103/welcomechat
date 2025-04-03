@@ -1,5 +1,8 @@
 
 import React from 'react';
+import { WebsiteUrl, WebsiteUrlsListProps } from '@/types/website-url';
+import { Button } from '@/components/ui/button';
+import { Trash, Loader2, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -8,93 +11,93 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Loader2, Trash2 } from 'lucide-react';
-import { WebsiteUrl } from '@/types/website-url';
-import { truncateString, formatDate } from '@/utils/stringUtils';
+import { formatDistanceToNow } from 'date-fns';
 
-export interface WebsiteUrlsTableProps {
-  urls: WebsiteUrl[];
-  onDelete: (urlId: number) => Promise<void>;
-  isDeleting: boolean;
-}
-
-export const WebsiteUrlsTable: React.FC<WebsiteUrlsTableProps> = ({
-  urls,
-  onDelete,
-  isDeleting
-}) => {
-  const getStatusBadgeColor = (status?: string) => {
-    if (!status) return "bg-gray-100 text-gray-800";
-    
-    switch (status) {
-      case 'completed':
-        return "bg-green-100 text-green-800";
-      case 'failed':
-        return "bg-red-100 text-red-800";
+export function WebsiteUrlsTable({ 
+  urls, 
+  onDelete, 
+  isDeleting = false,
+  deletingId = null 
+}: WebsiteUrlsListProps) {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'Never';
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch (e) {
+      return dateString;
+    }
+  };
+  
+  const getStatusIcon = (status: string | undefined) => {
+    switch(status) {
       case 'processing':
-        return "bg-blue-100 text-blue-800";
-      case 'pending':
+        return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+      case 'completed':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'failed':
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
       default:
-        return "bg-yellow-100 text-yellow-800";
+        return <RefreshCw className="h-4 w-4 text-gray-500" />;
     }
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>URL</TableHead>
-          <TableHead>Added</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="w-[100px]">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {urls.map((url) => (
-          <TableRow key={url.id}>
-            <TableCell>
-              <a
-                href={url.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                {truncateString(url.url, 50)}
-              </a>
-            </TableCell>
-            <TableCell>{formatDate(url.created_at)}</TableCell>
-            <TableCell>
-              {url.status && (
-                <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadgeColor(url.status)}`}>
-                  {url.status.charAt(0).toUpperCase() + url.status.slice(1)}
-                </span>
-              )}
-              {url.scrapability && (
-                <span className="ml-2 text-xs text-gray-500">
-                  {url.scrapability === 'high' ? '(High scrapability)' : 
-                    url.scrapability === 'medium' ? '(Medium scrapability)' : 
-                      url.scrapability === 'low' ? '(Low scrapability)' : ''}
-                </span>
-              )}
-            </TableCell>
-            <TableCell>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(url.id)}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                )}
-              </Button>
-            </TableCell>
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>URL</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Last Crawled</TableHead>
+            <TableHead>Refresh Rate</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {urls.map((url) => (
+            <TableRow key={url.id}>
+              <TableCell className="max-w-xs truncate font-medium">
+                <a 
+                  href={url.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:underline text-blue-600"
+                >
+                  {url.url}
+                </a>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1.5">
+                  {getStatusIcon(url.status)}
+                  <span className="capitalize">{url.status || 'Pending'}</span>
+                </div>
+                {url.error && (
+                  <div className="text-xs text-red-500 mt-1 truncate max-w-[200px]" title={url.error}>
+                    {url.error}
+                  </div>
+                )}
+              </TableCell>
+              <TableCell>{formatDate(url.last_crawled)}</TableCell>
+              <TableCell>{url.refresh_rate} days</TableCell>
+              <TableCell className="text-right">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDelete(url.id)}
+                  disabled={isDeleting && deletingId === url.id}
+                >
+                  {isDeleting && deletingId === url.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash className="h-4 w-4" />
+                  )}
+                  <span className="sr-only">Delete</span>
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
-};
+}
