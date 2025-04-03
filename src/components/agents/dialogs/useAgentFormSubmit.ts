@@ -84,7 +84,7 @@ export function useAgentFormSubmit({
       
       // Try to create OpenAI assistant
       try {
-        await createOpenAIAssistant(clientId, agentName, agentDescription, clientName);
+        await createOpenAIAssistant(clientId, agentName, agentDescription);
       } catch (openAiError) {
         console.error('Error creating OpenAI assistant:', openAiError);
         // Continue with agent creation even if OpenAI assistant creation fails

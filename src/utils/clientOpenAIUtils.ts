@@ -13,7 +13,7 @@ export const setupOpenAIAssistant = async (clientId: string, agentName: string, 
     const systemPrompt = createSystemPrompt(agentDescription, clientName, agentName);
     
     // Call the create assistant function with the enhanced system prompt
-    const assistantId = await createOpenAIAssistant(clientId, agentName, systemPrompt, clientName);
+    const assistantId = await createOpenAIAssistant(clientId, agentName, systemPrompt);
     
     // Log the assistant creation
     console.log(`OpenAI assistant created with ID: ${assistantId}`);
@@ -69,8 +69,7 @@ ${agentDescription}`.trim();
 export const createOpenAIAssistant = async (
   clientId: string,
   agentName: string,
-  agentDescription: string,
-  clientName?: string
+  agentDescription: string
 ): Promise<string> => {
   try {
     console.log(`Creating OpenAI assistant for client ${clientId}`);
@@ -78,15 +77,13 @@ export const createOpenAIAssistant = async (
     // Sanitize input values to prevent errors with quotes
     const sanitizedAgentName = agentName.replace(/"/g, "'");
     const sanitizedAgentDescription = agentDescription.replace(/"/g, "'");
-    const sanitizedClientName = clientName ? clientName.replace(/"/g, "'") : undefined;
     
     // Call the Supabase Edge Function to create the OpenAI assistant
     const { data, error } = await supabase.functions.invoke('create-openai-assistant', {
       body: {
         client_id: clientId,
         agent_name: sanitizedAgentName,
-        agent_description: sanitizedAgentDescription,
-        client_name: sanitizedClientName
+        agent_description: sanitizedAgentDescription
       },
     });
     

@@ -21,7 +21,7 @@ interface AnswerResult {
 export const syncDocumentWithOpenAI = async (
   clientId: string,
   file: File,
-  documentId?: number
+  documentId?: string
 ): Promise<SyncDocumentResult> => {
   try {
     console.log(`Syncing document ${file.name} with OpenAI assistant for client ${clientId}`);
