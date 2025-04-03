@@ -214,3 +214,72 @@ export async function searchSimilarDocuments(
     return [];
   }
 }
+
+/**
+ * Generate an answer to a query using retrieved similar documents as context
+ * @param clientId The client ID to search documents for
+ * @param query The question to answer
+ * @param threshold The similarity threshold for document matching
+ * @param maxResults Maximum number of documents to use as context
+ * @returns Generated answer based on document context
+ */
+export async function generateAnswerFromDocuments(
+  clientId: string,
+  query: string,
+  threshold: number = 0.7,
+  maxResults: number = 5
+): Promise<{ answer: string; sourceDocs: any[] }> {
+  try {
+    console.log(`Generating answer for query: "${query}" for client ${clientId}`);
+    
+    // Search for similar documents to provide context
+    const similarDocs = await searchSimilarDocuments(clientId, query, threshold, maxResults);
+    
+    if (!similarDocs || similarDocs.length === 0) {
+      console.warn('No similar documents found for context');
+      return { 
+        answer: "I couldn't find any relevant information to answer your question.", 
+        sourceDocs: [] 
+      };
+    }
+    
+    // Prepare context from the documents
+    const context = similarDocs.map(doc => doc.content || '').join('\n\n');
+    
+    // Call the Supabase Edge Function to generate the answer
+    const { data, error } = await supabase.functions.invoke('generate-answer', {
+      body: { 
+        query,
+        context,
+        clientId
+      }
+    });
+    
+    if (error) {
+      console.error('Error calling generate-answer function:', error);
+      return { 
+        answer: "Sorry, I encountered an error while trying to generate an answer.", 
+        sourceDocs: similarDocs 
+      };
+    }
+    
+    if (!data || !data.answer) {
+      console.error('No answer returned from function:', data?.error || 'Unknown error');
+      return { 
+        answer: "Sorry, I couldn't generate a response based on the available information.", 
+        sourceDocs: similarDocs 
+      };
+    }
+    
+    return {
+      answer: data.answer,
+      sourceDocs: similarDocs
+    };
+  } catch (error) {
+    console.error('Error generating answer from documents:', error);
+    return { 
+      answer: "An error occurred while processing your question.", 
+      sourceDocs: [] 
+    };
+  }
+}

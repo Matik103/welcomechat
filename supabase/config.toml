@@ -89,3 +89,6 @@ webhook_secret = ""
 
 [functions.generate-embeddings]
 verify_jwt = true
+
+[functions.generate-answer]
+verify_jwt = true
