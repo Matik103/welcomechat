@@ -1,7 +1,6 @@
 
-// Utility functions for OpenAI API interactions
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 /**
  * Creates or updates an OpenAI assistant for a client
@@ -9,48 +8,55 @@ import { toast } from "sonner";
 export const createOpenAIAssistant = async (
   clientId: string,
   agentName: string,
-  agentDescription: string,
-  clientName?: string
+  agentDescription?: string
 ): Promise<string> => {
   try {
-    console.log(`Creating/updating OpenAI assistant for client ${clientId}`);
+    if (!clientId) {
+      throw new Error('Client ID is required');
+    }
     
-    // Sanitize input values to prevent errors with quotes
-    const sanitizedAgentName = agentName.replace(/"/g, "'");
-    const sanitizedAgentDescription = agentDescription.replace(/"/g, "'");
-    const sanitizedClientName = clientName ? clientName.replace(/"/g, "'") : undefined;
+    if (!agentName) {
+      throw new Error('Agent name is required');
+    }
     
-    // Call the Supabase Edge Function to create/update the OpenAI assistant
+    console.log(`Creating/updating OpenAI assistant for client ${clientId}`, {
+      agent_name: agentName,
+      agent_description: agentDescription
+    });
+    
+    // Get client name if available
+    const { data: client } = await supabase
+      .from('clients')
+      .select('client_name')
+      .eq('id', clientId)
+      .maybeSingle();
+    
+    const clientName = client?.client_name || '';
+    
+    // Call the Supabase Edge Function to create the assistant
     const { data, error } = await supabase.functions.invoke('create-openai-assistant', {
       body: {
         client_id: clientId,
-        agent_name: sanitizedAgentName,
-        agent_description: sanitizedAgentDescription,
-        client_name: sanitizedClientName
-      },
+        agent_name: agentName,
+        agent_description: agentDescription || '',
+        client_name: clientName
+      }
     });
     
     if (error) {
-      console.error('OpenAI assistant creation error:', error);
-      toast.error('Failed to create OpenAI assistant: ' + error.message);
-      throw new Error(error.message || 'Failed to create OpenAI assistant');
+      console.error('Error creating OpenAI assistant:', error);
+      throw new Error(`Failed to create OpenAI assistant: ${error.message}`);
     }
-    
-    console.log('OpenAI assistant response:', data);
     
     if (!data || !data.assistant_id) {
-      const errorMsg = 'Invalid response from OpenAI assistant creation';
-      console.error(errorMsg, data);
-      toast.error(errorMsg);
-      throw new Error(errorMsg);
+      throw new Error('No assistant ID returned from OpenAI');
     }
     
-    // Success notification
-    toast.success('OpenAI assistant created successfully');
+    console.log('OpenAI assistant created successfully:', data.assistant_id);
     return data.assistant_id;
   } catch (error) {
     console.error('Error in createOpenAIAssistant:', error);
-    toast.error(`OpenAI assistant creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    toast.error(error instanceof Error ? error.message : 'Failed to create OpenAI assistant');
     throw error;
   }
 };

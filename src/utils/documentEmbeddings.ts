@@ -49,20 +49,33 @@ export const searchSimilarDocuments = async (
 ): Promise<DocumentSearchResult[]> => {
   try {
     // First, generate an embedding for the query
-    const embedding = await generateEmbedding(query);
+    const embedResponse = await supabase.functions.invoke('generate-embeddings', {
+      body: { text: query.trim() }
+    });
+    
+    if (embedResponse.error) {
+      console.error('Error generating embeddings:', embedResponse.error);
+      return [];
+    }
+    
+    const embedding = embedResponse.data?.embedding;
+    
+    if (!embedding || !Array.isArray(embedding)) {
+      console.error('Invalid embedding response');
+      return [];
+    }
     
     // Then, search for similar documents
-    // Convert the embedding array to a string for the RPC function
     const { data, error } = await supabase.rpc('match_documents', {
       p_client_id: clientId,
-      p_query_embedding: JSON.stringify(embedding), // Convert the array to a JSON string
-      p_match_threshold: 0.5, // Adjust as needed
+      p_query_embedding: embedding,
+      p_match_threshold: 0.5,
       p_match_count: limit
     });
     
     if (error) {
       console.error('Error searching for similar documents:', error);
-      throw new Error(`Failed to search documents: ${error.message}`);
+      return [];
     }
     
     if (!data || !Array.isArray(data)) {
@@ -94,7 +107,7 @@ export const generateAnswerFromDocuments = async (
     
     if (!similarDocuments || similarDocuments.length === 0) {
       return {
-        answer: "I don't have enough information to answer that question. Please try asking something else or upload relevant documents.",
+        answer: "I don't have enough information to answer that question. Please try uploading some relevant documents first.",
         documents: []
       };
     }
@@ -109,11 +122,18 @@ export const generateAnswerFromDocuments = async (
     
     if (error) {
       console.error('Error generating answer:', error);
-      throw new Error(`Failed to generate answer: ${error.message}`);
+      return {
+        answer: "I'm sorry, I encountered an error while trying to answer your question. Please try again later.",
+        error: error.message,
+        documents: similarDocuments
+      };
     }
     
     if (!data || !data.answer) {
-      throw new Error('Invalid answer response format');
+      return {
+        answer: "I couldn't generate a proper answer. Please try asking a different question.",
+        documents: similarDocuments
+      };
     }
     
     return {

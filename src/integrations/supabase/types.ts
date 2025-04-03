@@ -160,6 +160,7 @@ export type Database = {
           error_type: string | null
           id: string
           interaction_type: string | null
+          is_active: boolean | null
           is_error: boolean | null
           last_active: string | null
           logo_storage_path: string | null
@@ -206,6 +207,7 @@ export type Database = {
           error_type?: string | null
           id?: string
           interaction_type?: string | null
+          is_active?: boolean | null
           is_error?: boolean | null
           last_active?: string | null
           logo_storage_path?: string | null
@@ -252,6 +254,7 @@ export type Database = {
           error_type?: string | null
           id?: string
           interaction_type?: string | null
+          is_active?: boolean | null
           is_error?: boolean | null
           last_active?: string | null
           logo_storage_path?: string | null
@@ -510,6 +513,42 @@ export type Database = {
           embedding?: string | null
           id?: number
           metadata?: Json | null
+        }
+        Relationships: []
+      }
+      assistant_queries: {
+        Row: {
+          answer: string | null
+          client_id: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          processing_time_ms: number | null
+          query: string
+          success: boolean | null
+          thread_id: string | null
+        }
+        Insert: {
+          answer?: string | null
+          client_id: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          processing_time_ms?: number | null
+          query: string
+          success?: boolean | null
+          thread_id?: string | null
+        }
+        Update: {
+          answer?: string | null
+          client_id?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          processing_time_ms?: number | null
+          query?: string
+          success?: boolean | null
+          thread_id?: string | null
         }
         Relationships: []
       }
@@ -869,6 +908,7 @@ export type Database = {
           content: string | null
           created_at: string | null
           document_id: string
+          embedding: string | null
           file_type: string | null
           filename: string | null
           id: number
@@ -880,6 +920,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           document_id: string
+          embedding?: string | null
           file_type?: string | null
           filename?: string | null
           id?: number
@@ -891,6 +932,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           document_id?: string
+          embedding?: string | null
           file_type?: string | null
           filename?: string | null
           id?: number
@@ -3765,7 +3807,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      assistant_creation_stats: {
+        Row: {
+          date: string | null
+          successful_creations: number | null
+          total_created: number | null
+        }
+        Relationships: []
+      }
+      assistant_query_stats: {
+        Row: {
+          date: string | null
+          successful_queries: number | null
+          total_queries: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_invitation: {
@@ -4479,13 +4536,13 @@ export type Database = {
         | {
             Args: {
               p_client_id: string
-              p_query_embedding: string
+              p_embedding: string
               p_match_threshold?: number
               p_match_count?: number
             }
             Returns: {
-              id: string
-              document_id: number
+              id: number
+              document_id: string
               content: string
               similarity: number
             }[]
@@ -4503,6 +4560,19 @@ export type Database = {
               similarity: number
             }[]
           }
+      match_documents_by_embedding: {
+        Args: {
+          p_client_id: string
+          p_query_embedding: string
+          p_match_threshold?: number
+          p_match_count?: number
+        }
+        Returns: {
+          id: string
+          content: string
+          similarity: number
+        }[]
+      }
       match_frenniy: {
         Args: {
           query_embedding: string
@@ -6037,7 +6107,7 @@ export type Database = {
       store_document_embedding: {
         Args: {
           p_client_id: string
-          p_document_id: number
+          p_document_id: string
           p_content: string
           p_embedding: string
         }
