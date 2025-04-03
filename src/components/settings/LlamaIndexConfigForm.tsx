@@ -1,14 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, ArrowRight, Check, Info } from 'lucide-react';
+import { AlertCircle, ArrowRight, Check, Info, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getApiKeys, isLlamaIndexConfigured } from '@/services/llamaIndexService';
 
 interface LlamaIndexConfigFormProps {
   onApiKeySet?: (apiKey: string, openaiApiKey: string) => void;
@@ -19,6 +20,38 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
   const [openaiApiKey, setOpenaiApiKey] = useState(OPENAI_API_KEY || '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCheckingConfig, setIsCheckingConfig] = useState(true);
+  const [areKeysConfigured, setAreKeysConfigured] = useState(false);
+
+  // Check if the API keys are configured
+  useEffect(() => {
+    const checkConfiguration = async () => {
+      setIsCheckingConfig(true);
+      try {
+        // Try to get keys from environment or secrets
+        const { llamaCloudApiKey, openaiApiKey } = await getApiKeys();
+        
+        // Update state with values if found
+        if (llamaCloudApiKey && llamaCloudApiKey !== llamaApiKey) {
+          setLlamaApiKey(llamaCloudApiKey);
+        }
+        
+        if (openaiApiKey && openaiApiKey !== openaiApiKey) {
+          setOpenaiApiKey(openaiApiKey);
+        }
+        
+        // Check if both keys are available
+        const configured = await isLlamaIndexConfigured();
+        setAreKeysConfigured(configured);
+      } catch (err) {
+        console.error('Error checking LlamaIndex configuration:', err);
+      } finally {
+        setIsCheckingConfig(false);
+      }
+    };
+    
+    checkConfiguration();
+  }, []);
 
   const handleSaveApiKey = async () => {
     if (!llamaApiKey.trim()) {
@@ -62,9 +95,6 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
       setIsSaving(false);
     }
   };
-
-  // Check if both required API keys are configured - convert to boolean explicitly
-  const areKeysConfigured = Boolean(LLAMA_CLOUD_API_KEY && OPENAI_API_KEY);
 
   return (
     <Card>
@@ -126,14 +156,21 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
           </Alert>
         )}
         
-        {areKeysConfigured && (
+        {isCheckingConfig ? (
+          <Alert className="bg-gray-50 border-gray-100">
+            <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
+            <AlertDescription className="text-gray-700">
+              Checking API configuration...
+            </AlertDescription>
+          </Alert>
+        ) : areKeysConfigured ? (
           <Alert className="bg-green-50 border-green-100">
             <Check className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-700">
               LlamaIndex and OpenAI API keys are already configured.
             </AlertDescription>
           </Alert>
-        )}
+        ) : null}
         
         <div className="flex justify-between items-center pt-2">
           <a 

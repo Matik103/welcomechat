@@ -11,6 +11,7 @@ import {
 } from '@/types/document-processing';
 import { LLAMA_CLOUD_API_KEY } from '@/config/env';
 import { convertToPdf } from '@/utils/fileConverter';
+import { fetchSecrets } from './secretsService';
 
 // Constants
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -21,6 +22,66 @@ const SUPPORTED_MIME_TYPES = [
   'text/plain',
   'text/csv'
 ];
+
+// Cache for API keys to avoid redundant requests
+let cachedApiKeys: {
+  llamaCloudApiKey?: string;
+  openaiApiKey?: string;
+  timestamp?: number;
+} = {};
+
+/**
+ * Get API keys with caching
+ */
+export const getApiKeys = async (): Promise<{ llamaCloudApiKey?: string; openaiApiKey?: string }> => {
+  try {
+    // Check if we have cached keys that are less than 5 minutes old
+    const now = Date.now();
+    if (cachedApiKeys.timestamp && now - cachedApiKeys.timestamp < 5 * 60 * 1000) {
+      return {
+        llamaCloudApiKey: cachedApiKeys.llamaCloudApiKey,
+        openaiApiKey: cachedApiKeys.openaiApiKey
+      };
+    }
+    
+    // First try environment variables
+    let llamaCloudApiKey = LLAMA_CLOUD_API_KEY;
+    let openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    
+    // If not available, try to fetch from Supabase secrets
+    if (!llamaCloudApiKey || !openaiApiKey) {
+      const secrets = await fetchSecrets(['LLAMA_CLOUD_API_KEY', 'OPENAI_API_KEY']);
+      
+      if (!llamaCloudApiKey && secrets.LLAMA_CLOUD_API_KEY) {
+        llamaCloudApiKey = secrets.LLAMA_CLOUD_API_KEY;
+      }
+      
+      if (!openaiApiKey && secrets.OPENAI_API_KEY) {
+        openaiApiKey = secrets.OPENAI_API_KEY;
+      }
+    }
+    
+    // Cache the results
+    cachedApiKeys = {
+      llamaCloudApiKey,
+      openaiApiKey,
+      timestamp: now
+    };
+    
+    return { llamaCloudApiKey, openaiApiKey };
+  } catch (error) {
+    console.error('Error getting API keys:', error);
+    return {};
+  }
+};
+
+/**
+ * Check if LlamaIndex is properly configured
+ */
+export const isLlamaIndexConfigured = async (): Promise<boolean> => {
+  const { llamaCloudApiKey, openaiApiKey } = await getApiKeys();
+  return Boolean(llamaCloudApiKey && openaiApiKey);
+};
 
 /**
  * Validate file before upload
@@ -44,6 +105,12 @@ export const uploadDocumentToLlamaIndex = async (
 ): Promise<LlamaIndexJobResponse> => {
   try {
     console.log('Uploading document to LlamaIndex via Edge Function:', file.name);
+    
+    // Check if API keys are configured
+    const isConfigured = await isLlamaIndexConfigured();
+    if (!isConfigured) {
+      throw new Error('LlamaIndex or OpenAI API keys are not configured. Please set them in your environment variables or Supabase secrets.');
+    }
     
     // Validate file
     validateFile(file);
