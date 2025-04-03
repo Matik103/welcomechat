@@ -1,8 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 // Get environment variables
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+// Create Supabase client
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // CORS headers
 const corsHeaders = {
@@ -72,7 +78,7 @@ When answering questions:
         model: "gpt-4-turbo-preview",
         tools: [
           { type: "code_interpreter" },
-          { type: "retrieval" }
+          { type: "file_search" }
         ],
         metadata: {
           client_id: client_id,
@@ -96,6 +102,24 @@ When answering questions:
     }
 
     console.log("Successfully created OpenAI assistant:", responseData.id);
+
+    // Update the ai_agents table with the assistant ID
+    const { error: updateError } = await supabase
+      .from("ai_agents")
+      .update({ openai_assistant_id: responseData.id })
+      .eq("client_id", client_id)
+      .eq("interaction_type", "config");
+
+    if (updateError) {
+      console.error("Error updating ai_agents table:", updateError);
+      return new Response(
+        JSON.stringify({ error: "Failed to update assistant ID in database" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        }
+      );
+    }
 
     // Return the successful response
     return new Response(
