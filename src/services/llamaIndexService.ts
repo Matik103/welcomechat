@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { 
   DocumentChunk,
@@ -10,7 +11,6 @@ import {
 } from '@/types/document-processing';
 import { LLAMA_CLOUD_API_KEY } from '@/config/env';
 import { convertToPdf } from '@/utils/fileConverter';
-import { fetchSecrets } from './secretsService';
 
 // Constants
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -21,76 +21,6 @@ const SUPPORTED_MIME_TYPES = [
   'text/plain',
   'text/csv'
 ];
-
-// Cache for API keys to avoid redundant requests
-let cachedApiKeys: {
-  llamaCloudApiKey?: string;
-  openaiApiKey?: string;
-  timestamp?: number;
-} = {};
-
-/**
- * Get API keys with caching
- */
-export const getApiKeys = async (): Promise<{ llamaCloudApiKey?: string; openaiApiKey?: string }> => {
-  try {
-    // Check if we have cached keys that are less than 5 minutes old
-    const now = Date.now();
-    if (cachedApiKeys.timestamp && now - cachedApiKeys.timestamp < 5 * 60 * 1000) {
-      return {
-        llamaCloudApiKey: cachedApiKeys.llamaCloudApiKey,
-        openaiApiKey: cachedApiKeys.openaiApiKey
-      };
-    }
-    
-    // First try environment variables
-    let llamaCloudApiKey = LLAMA_CLOUD_API_KEY;
-    let openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    
-    // If not available, try to fetch from Supabase secrets
-    if (!llamaCloudApiKey || !openaiApiKey) {
-      console.log('API keys not found in environment, fetching from Supabase secrets...');
-      const secrets = await fetchSecrets(['LLAMA_CLOUD_API_KEY', 'OPENAI_API_KEY']);
-      
-      if (!llamaCloudApiKey && secrets.LLAMA_CLOUD_API_KEY) {
-        console.log('Found LLAMA_CLOUD_API_KEY in Supabase secrets');
-        llamaCloudApiKey = secrets.LLAMA_CLOUD_API_KEY;
-      }
-      
-      if (!openaiApiKey && secrets.OPENAI_API_KEY) {
-        console.log('Found OPENAI_API_KEY in Supabase secrets');
-        openaiApiKey = secrets.OPENAI_API_KEY;
-      }
-    }
-    
-    // Cache the results
-    cachedApiKeys = {
-      llamaCloudApiKey,
-      openaiApiKey,
-      timestamp: now
-    };
-    
-    return { llamaCloudApiKey, openaiApiKey };
-  } catch (error) {
-    console.error('Error getting API keys:', error);
-    return {};
-  }
-};
-
-/**
- * Check if LlamaIndex is properly configured
- */
-export const isLlamaIndexConfigured = async (): Promise<boolean> => {
-  try {
-    const { llamaCloudApiKey, openaiApiKey } = await getApiKeys();
-    const isConfigured = Boolean(llamaCloudApiKey && openaiApiKey);
-    console.log('LlamaIndex configuration check result:', isConfigured);
-    return isConfigured;
-  } catch (error) {
-    console.error('Error in isLlamaIndexConfigured:', error);
-    return false;
-  }
-};
 
 /**
  * Validate file before upload
@@ -114,12 +44,6 @@ export const uploadDocumentToLlamaIndex = async (
 ): Promise<LlamaIndexJobResponse> => {
   try {
     console.log('Uploading document to LlamaIndex via Edge Function:', file.name);
-    
-    // Check if API keys are configured
-    const isConfigured = await isLlamaIndexConfigured();
-    if (!isConfigured) {
-      throw new Error('LlamaIndex or OpenAI API keys are not configured. Please set them in your environment variables or Supabase secrets.');
-    }
     
     // Validate file
     validateFile(file);
@@ -157,7 +81,7 @@ export const uploadDocumentToLlamaIndex = async (
       const result = await response.json();
       
       if (!response.ok) {
-        throw new Error(result.error || `Failed to upload document (status: ${response.status})`);
+        throw new Error(result.error || 'Failed to upload document');
       }
       
       if (!result.job_id) {
@@ -173,9 +97,7 @@ export const uploadDocumentToLlamaIndex = async (
     } catch (parseError) {
       // If JSON parsing fails, try to get the error message from the cloned response
       const errorText = await responseClone.text();
-      console.error('Failed to parse response:', errorText);
-      console.error('JSON parsing error:', parseError);
-      throw new Error(`Failed to process document: ${errorText || (parseError instanceof Error ? parseError.message : String(parseError))}`);
+      throw new Error(`Failed to process document: ${errorText}`);
     }
   } catch (error) {
     console.error('Error in uploadDocumentToLlamaIndex:', error);
@@ -231,7 +153,7 @@ export const processLlamaIndexJob = async (
     });
     
     if (!response.ok) {
-      let errorMessage = `Failed to get job status (status: ${response.status})`;
+      let errorMessage = 'Failed to get job status';
       try {
         const errorData = await response.json();
         errorMessage = errorData.error || errorMessage;
@@ -259,8 +181,7 @@ export const processLlamaIndexJob = async (
     console.log(`LlamaIndex parsing result for job ${jobId}:`, result);
     
     // If job is still processing, wait and retry with exponential backoff
-    if (result.status !== 'completed' && result.status !== 'failed' && 
-        result.status !== 'SUCCEEDED' && result.status !== 'FAILED') {
+    if (result.status !== 'completed' && result.status !== 'failed') {
       // Calculate delay with exponential backoff: 2s, 4s, 8s, 16s, etc.
       const delay = Math.min(BASE_DELAY * Math.pow(2, attempt - 1), MAX_DELAY);
       console.log(`Job ${jobId} is still processing. Waiting ${delay/1000} seconds before retry ${attempt}...`);
@@ -269,7 +190,7 @@ export const processLlamaIndexJob = async (
     }
     
     // If job completed successfully
-    if (result.status === 'completed' || result.status === 'SUCCEEDED') {
+    if (result.status === 'completed') {
       if (!result.parsed_content) {
         throw new Error('No content received from LlamaIndex');
       }
