@@ -16,7 +16,7 @@ interface UploadOptions {
 
 interface UploadResult {
   success: boolean;
-  documentId?: number;
+  documentId?: number | string;
   error?: string;
   processed?: number;
   failed?: number;
@@ -65,7 +65,10 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         console.log('Syncing document with OpenAI assistant...');
         setUploadProgress(85); // Update progress
         
-        const openAIResult = await syncDocumentWithOpenAI(clientId, file, result.documentId);
+        // Convert documentId to string if it's a number
+        const documentIdString = result.documentId ? String(result.documentId) : undefined;
+        
+        const openAIResult = await syncDocumentWithOpenAI(clientId, file, documentIdString);
         
         if (!openAIResult.success) {
           console.error('Failed to sync document with OpenAI:', openAIResult.error);
