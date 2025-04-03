@@ -82,9 +82,9 @@ vector_port = 54328
 [realtime]
 enabled = true
 
-[functions]
 # For local development only. Sets a secret value for the Edge Functions webhook verification, which is
 # a custom header that is passed to external calls. For more settings, refer to project settings.
+[functions]
 webhook_secret = ""
 
 [functions.generate-embeddings]
@@ -95,4 +95,3 @@ verify_jwt = true
 
 [functions.query-openai-assistant]
 verify_jwt = true
-

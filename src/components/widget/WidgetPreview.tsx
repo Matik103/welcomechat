@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { WidgetSettings } from '@/types/widget-settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { PaperPlaneIcon, Loader2 } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 import { getAnswerFromOpenAIAssistant } from '@/utils/openAIDocumentSync';
 import { generateAnswerFromDocuments } from '@/utils/documentEmbeddings';
 
@@ -80,7 +80,7 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
   };
   
   // Define colors based on settings
-  const themeColor = settings.primary_color || '#3b82f6';
+  const themeColor = settings.chat_color || '#3b82f6';
   const textColor = settings.text_color || '#ffffff';
   const bgColor = settings.background_color || '#ffffff';
   
@@ -133,7 +133,7 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
               <div className="flex-1">
                 <h3 className="font-medium">{settings.agent_name || 'AI Assistant'}</h3>
                 {settings.agent_description && (
-                  <p className="text-xs opacity-90">{settings.subtitle || 'How can I help you?'}</p>
+                  <p className="text-xs opacity-90">{settings.agent_description || 'How can I help you?'}</p>
                 )}
               </div>
               <button onClick={() => setIsOpen(false)} className="opacity-80 hover:opacity-100">
@@ -195,12 +195,12 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <PaperPlaneIcon className="h-4 w-4" />
+                    <Send className="h-4 w-4" />
                   )}
                 </Button>
               </div>
               <div className="text-xs text-center mt-2 text-gray-500">
-                {settings.footer_text || 'Powered by AI'}
+                Powered by AI
               </div>
             </div>
           </div>

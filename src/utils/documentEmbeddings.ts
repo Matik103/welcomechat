@@ -1,286 +1,129 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { callRpcFunctionSafe } from './rpcUtils';
 
-/**
- * Store document embedding in the ai_agents table
- * @param clientId The client ID associated with the document
- * @param documentId The document ID to associate with the embedding
- * @param content The text content to be embedded
- * @param embedding The vector embedding
- * @returns Success status and message
- */
-export async function storeDocumentEmbedding(
-  clientId: string,
-  documentId: number,
-  content: string,
-  embedding: number[]
-): Promise<{ success: boolean; message?: string; error?: string }> {
-  try {
-    console.log(`Storing embedding for document ${documentId} for client ${clientId}`);
-    
-    // Call the RPC function to store the embedding
-    const { data, error } = await callRpcFunctionSafe(
-      'store_document_embedding',
-      {
-        p_client_id: clientId,
-        p_document_id: documentId,
-        p_content: content,
-        p_embedding: embedding
-      }
-    );
-    
-    if (error) {
-      console.error('Error storing document embedding:', error);
-      return {
-        success: false,
-        error: error.message,
-        message: 'Failed to store document embedding'
-      };
-    }
-    
-    return {
-      success: true,
-      message: 'Document embedding stored successfully'
-    };
-  } catch (error) {
-    console.error('Error in storeDocumentEmbedding:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      message: 'An unexpected error occurred while storing document embedding'
-    };
-  }
+interface DocumentSearchResult {
+  content: string;
+  similarity: number;
+  documentId: string;
+  metadata?: Record<string, any>;
+}
+
+interface AnswerResult {
+  answer: string;
+  documents?: DocumentSearchResult[];
+  error?: string;
 }
 
 /**
- * Find similar documents based on embedding
- * @param clientId The client ID to search documents for
- * @param queryEmbedding The vector embedding to compare against
- * @param threshold The similarity threshold (0-1, higher is more similar)
- * @param maxResults Maximum number of results to return
- * @returns Array of similar documents with similarity scores
+ * Generates an embedding for a given text using the OpenAI API.
  */
-export async function findSimilarDocuments(
-  clientId: string,
-  queryEmbedding: number[],
-  threshold: number = 0.7,
-  maxResults: number = 5
-): Promise<any[]> {
+export const generateEmbedding = async (text: string): Promise<number[]> => {
   try {
-    console.log(`Finding similar documents for client ${clientId}`);
-    
-    // Call the RPC function to match documents
-    const { data, error } = await callRpcFunctionSafe(
-      'match_documents',
-      {
-        p_client_id: clientId,
-        p_query_embedding: queryEmbedding,
-        p_match_threshold: threshold,
-        p_match_count: maxResults
-      }
-    );
-    
-    if (error) {
-      console.error('Error finding similar documents:', error);
-      return [];
-    }
-    
-    return data || [];
-  } catch (error) {
-    console.error('Error in findSimilarDocuments:', error);
-    return [];
-  }
-}
-
-/**
- * Generate embedding using OpenAI API via Supabase Edge Function
- * @param text Text to generate embedding for
- * @returns Array of numbers representing the embedding
- */
-export async function generateEmbedding(text: string): Promise<number[]> {
-  try {
-    // Trim and clean the text
-    const cleanedText = text.trim().replace(/\n+/g, ' ').slice(0, 8000);
-    
-    if (!cleanedText) {
-      console.error('Empty text for embedding generation');
-      return [];
-    }
-    
-    // Call the Supabase Edge Function to generate embedding
     const { data, error } = await supabase.functions.invoke('generate-embeddings', {
-      body: { text: cleanedText }
+      body: { text }
     });
     
     if (error) {
-      console.error('Error calling generate-embeddings function:', error);
-      return [];
+      console.error('Error generating embedding:', error);
+      throw new Error(`Failed to generate embedding: ${error.message}`);
     }
     
-    if (!data || !data.success || !data.embedding) {
-      console.error('No embedding data returned from function:', data?.error || 'Unknown error');
-      return [];
+    if (!data || !data.embedding || !Array.isArray(data.embedding)) {
+      throw new Error('Invalid embedding response format');
     }
     
-    return data.embedding as number[];
+    return data.embedding;
   } catch (error) {
-    console.error('Error generating embedding:', error);
-    return []; // Return empty array instead of empty object
+    console.error('Error in generateEmbedding:', error);
+    throw error;
   }
-}
+};
 
 /**
- * Process document and generate embedding
- * @param clientId Client ID
- * @param documentId Document ID
- * @param text Document text content
- * @returns Result of processing
+ * Searches for documents similar to the given query using vector similarity.
  */
-export async function processDocumentEmbedding(
-  clientId: string,
-  documentId: number,
-  text: string
-): Promise<{ success: boolean; message?: string; error?: string }> {
+export const searchSimilarDocuments = async (
+  clientId: string, 
+  query: string,
+  limit = 5
+): Promise<DocumentSearchResult[]> => {
   try {
-    console.log(`Processing document embedding for client ${clientId}, document ${documentId}`);
+    // First, generate an embedding for the query
+    const embedding = await generateEmbedding(query);
     
-    // Call the Supabase Edge Function to generate and store embedding
-    const { data, error } = await supabase.functions.invoke('generate-embeddings', {
-      body: { 
-        text, 
-        clientId, 
-        documentId 
-      }
+    // Then, search for similar documents
+    const { data, error } = await supabase.rpc('match_documents', {
+      client_id: clientId,
+      query_embedding: embedding,
+      match_threshold: 0.5, // Adjust as needed
+      match_count: limit
     });
     
     if (error) {
-      console.error('Error calling generate-embeddings function:', error);
-      return {
-        success: false,
-        error: error.message,
-        message: 'Failed to generate embedding via edge function'
-      };
+      console.error('Error searching for similar documents:', error);
+      throw new Error(`Failed to search documents: ${error.message}`);
     }
     
-    if (!data || !data.success) {
-      return {
-        success: false,
-        error: data?.error || 'Unknown error',
-        message: 'Failed to process document embedding'
-      };
-    }
-    
-    return {
-      success: true,
-      message: 'Document embedding processed successfully'
-    };
-  } catch (error) {
-    console.error('Error processing document embedding:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      message: 'Failed to process document embedding'
-    };
-  }
-}
-
-/**
- * Search for similar documents based on a query
- * @param clientId The client ID to search documents for
- * @param query The text query to search with
- * @param threshold The similarity threshold (0-1, higher is more similar)
- * @param maxResults Maximum number of results to return
- * @returns Array of similar documents with similarity scores
- */
-export async function searchSimilarDocuments(
-  clientId: string,
-  query: string,
-  threshold: number = 0.7,
-  maxResults: number = 5
-): Promise<any[]> {
-  try {
-    // Generate the embedding for the user's query
-    const queryEmbedding = await generateEmbedding(query);
-    
-    if (!queryEmbedding || queryEmbedding.length === 0) {
-      console.error('Failed to generate embedding for query');
+    if (!data || !Array.isArray(data)) {
       return [];
     }
     
-    // Find similar documents using the query embedding
-    return await findSimilarDocuments(clientId, queryEmbedding, threshold, maxResults);
+    return data.map(item => ({
+      content: item.content || '',
+      similarity: item.similarity || 0,
+      documentId: item.id || '',
+      metadata: item.metadata || {}
+    }));
   } catch (error) {
-    console.error('Error searching for similar documents:', error);
+    console.error('Error in searchSimilarDocuments:', error);
     return [];
   }
-}
+};
 
 /**
- * Generate an answer to a query using retrieved similar documents as context
- * @param clientId The client ID to search documents for
- * @param query The question to answer
- * @param threshold The similarity threshold for document matching
- * @param maxResults Maximum number of documents to use as context
- * @returns Generated answer based on document context
+ * Generates an answer based on the given query and related documents.
  */
-export async function generateAnswerFromDocuments(
+export const generateAnswerFromDocuments = async (
   clientId: string,
-  query: string,
-  threshold: number = 0.7,
-  maxResults: number = 5
-): Promise<{ answer: string; sourceDocs: any[] }> {
+  query: string
+): Promise<AnswerResult> => {
   try {
-    console.log(`Generating answer for query: "${query}" for client ${clientId}`);
+    // Get similar documents
+    const similarDocuments = await searchSimilarDocuments(clientId, query);
     
-    // Search for similar documents to provide context
-    const similarDocs = await searchSimilarDocuments(clientId, query, threshold, maxResults);
-    
-    if (!similarDocs || similarDocs.length === 0) {
-      console.warn('No similar documents found for context');
-      return { 
-        answer: "I couldn't find any relevant information to answer your question.", 
-        sourceDocs: [] 
+    if (!similarDocuments || similarDocuments.length === 0) {
+      return {
+        answer: "I don't have enough information to answer that question. Please try asking something else or upload relevant documents.",
+        documents: []
       };
     }
     
-    // Prepare context from the documents
-    const context = similarDocs.map(doc => doc.content || '').join('\n\n');
-    
-    // Call the Supabase Edge Function to generate the answer
+    // Call the generate-answer function with the query and similar documents
     const { data, error } = await supabase.functions.invoke('generate-answer', {
-      body: { 
+      body: {
         query,
-        context,
-        clientId
+        documents: similarDocuments
       }
     });
     
     if (error) {
-      console.error('Error calling generate-answer function:', error);
-      return { 
-        answer: "Sorry, I encountered an error while trying to generate an answer.", 
-        sourceDocs: similarDocs 
-      };
+      console.error('Error generating answer:', error);
+      throw new Error(`Failed to generate answer: ${error.message}`);
     }
     
     if (!data || !data.answer) {
-      console.error('No answer returned from function:', data?.error || 'Unknown error');
-      return { 
-        answer: "Sorry, I couldn't generate a response based on the available information.", 
-        sourceDocs: similarDocs 
-      };
+      throw new Error('Invalid answer response format');
     }
     
     return {
       answer: data.answer,
-      sourceDocs: similarDocs
+      documents: similarDocuments
     };
   } catch (error) {
-    console.error('Error generating answer from documents:', error);
-    return { 
-      answer: "An error occurred while processing your question.", 
-      sourceDocs: [] 
+    console.error('Error in generateAnswerFromDocuments:', error);
+    return {
+      answer: "I'm sorry, I encountered an error while trying to answer your question. Please try again later.",
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
-}
+};

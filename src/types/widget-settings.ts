@@ -22,6 +22,7 @@ export interface WidgetSettings {
   welcome_text: string;
   response_time_text: string;
   display_mode: WidgetDisplayMode;
+  openai_assistant_id?: string; // Add this for OpenAI assistant integration
 }
 
 // Default widget settings

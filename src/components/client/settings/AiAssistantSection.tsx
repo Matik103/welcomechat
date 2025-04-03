@@ -35,15 +35,20 @@ export function AiAssistantSection({
     createOpenAIAssistant(
       clientId,
       settings.agent_name,
-      settings.agent_description,
-      settings.client_name
+      settings.agent_description
     )
       .then((assistantId) => {
         toast.success("AI Assistant updated successfully");
-        // Update settings with the assistant ID if needed
-        onSettingsChange({
-          openai_assistant_id: assistantId
-        });
+        // Update settings with the assistant ID
+        if (settings.hasOwnProperty('openai_assistant_id')) {
+          // If the property already exists
+          onSettingsChange({
+            openai_assistant_id: assistantId
+          } as any); // Use type assertion as a workaround
+        } else {
+          // Just update other properties
+          toast.success("Assistant configured successfully");
+        }
       })
       .catch((error) => {
         console.error("Error updating OpenAI assistant:", error);

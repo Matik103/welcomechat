@@ -70,7 +70,7 @@ export function WidgetSettingsContainer({
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Widget Settings</h1>
           <Button
-            variant="primary"
+            variant="default"
             onClick={handleSubmit}
             disabled={updateSettingsMutation.isPending}
           >
