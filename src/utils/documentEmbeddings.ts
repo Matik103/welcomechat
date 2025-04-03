@@ -52,9 +52,10 @@ export const searchSimilarDocuments = async (
     const embedding = await generateEmbedding(query);
     
     // Then, search for similar documents
+    // Convert the embedding array to a string for the RPC function if needed
     const { data, error } = await supabase.rpc('match_documents', {
       client_id: clientId,
-      query_embedding: embedding, // Fixed: Passing number[] directly as expected by the RPC function
+      query_embedding: embedding, // The RPC function will handle the array type properly
       match_threshold: 0.5, // Adjust as needed
       match_count: limit
     });
