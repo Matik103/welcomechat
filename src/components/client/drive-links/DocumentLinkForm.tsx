@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -11,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { validateDocumentLink } from '@/utils/documentProcessing';
 import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const formSchema = z.object({
   link: z.string().url({ message: 'Please enter a valid URL' }),
