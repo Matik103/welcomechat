@@ -81,24 +81,40 @@ export function useUnifiedDocumentUpload(clientId: string) {
       console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
       setUploadProgress(40);
       
+      let openAIResult = {
+        success: false,
+        error: '',
+        fileId: null
+      };
+      
       // 3. Process the document with OpenAI's built-in file handling
       if (options.shouldUseAI !== false) {
         setUploadProgress(50);
         console.log("Uploading document to OpenAI Assistant:", file.name);
         
-        const openAIResult = await uploadToOpenAIAssistant(
-          effectiveClientId,
-          agentName,
-          file,
-          existingAssistantId
-        );
-        
-        if (!openAIResult.success) {
-          console.error("Error uploading to OpenAI:", openAIResult.error);
-          toast.error(`Error processing with OpenAI: ${openAIResult.error}`);
+        try {
+          openAIResult = await uploadToOpenAIAssistant(
+            effectiveClientId,
+            agentName,
+            file,
+            existingAssistantId
+          );
+          
+          if (!openAIResult.success) {
+            console.error("Error uploading to OpenAI:", openAIResult.error);
+            toast.warning(`OpenAI processing skipped: ${openAIResult.error}`);
+            // Continue despite the error
+          } else {
+            console.log("Successfully uploaded to OpenAI Assistant");
+          }
+        } catch (aiError) {
+          console.error("Error in OpenAI upload:", aiError);
+          openAIResult = {
+            success: false,
+            error: aiError instanceof Error ? aiError.message : 'Unknown error with OpenAI',
+            fileId: null
+          };
           // Continue despite the error
-        } else {
-          console.log("Successfully uploaded to OpenAI Assistant");
         }
         
         setUploadProgress(80);

@@ -36,7 +36,7 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
       // Ensure document_type is set with the correct type
       const enhancedData = {
         ...data,
-        document_type: (data.document_type || 'document') as DocumentType
+        document_type: (data.document_type || 'google_drive') as DocumentType
       };
       
       await addDocumentLink.mutateAsync(enhancedData);
@@ -100,7 +100,7 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
       // Add the document link to the database
       await addDocumentLink.mutateAsync({
         link: uploadResult.url || '',
-        document_type: 'document',
+        document_type: file.type.includes('pdf') ? 'pdf' : 'document',
         refresh_rate: 30,
         storage_path: uploadResult.path
       });

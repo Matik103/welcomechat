@@ -139,7 +139,7 @@ export async function uploadDocumentToStorage(
       extractedText = await extractTextFromPDF(file);
       
       if (extractedText) {
-        // Store the extracted text in the document-storage table
+        // Store the extracted text using the RPC function instead of direct table access
         const textStoreResult = await supabase.rpc('store_document_text', {
           p_client_id: clientId,
           p_document_name: file.name,
@@ -152,14 +152,6 @@ export async function uploadDocumentToStorage(
         console.log('Text storage result:', textStoreResult);
       }
     }
-    
-    // Process the document upload
-    const result = await supabase.rpc('process_document_upload', {
-      file_path: data.path,
-      filename: file.name,
-      content_type: file.type,
-      file_size: file.size
-    });
     
     return {
       success: true,
@@ -186,12 +178,11 @@ export async function getDocumentContent(
   filePath: string
 ): Promise<any | null> {
   try {
-    const { data, error } = await supabase
-      .from('document-storage')
-      .select('*')
-      .eq('client_id', clientId)
-      .eq('storage_path', filePath)
-      .single();
+    // Use the RPC to get document content instead of direct table access
+    const { data, error } = await supabase.rpc('get_document_content', {
+      p_client_id: clientId,
+      p_storage_path: filePath
+    });
       
     if (error) {
       console.error('Error fetching document content:', error);

@@ -48,3 +48,34 @@ export const ensureDocumentStorageBucket = async (): Promise<boolean> => {
     return false;
   }
 };
+
+/**
+ * Safely access document-storage records
+ * This helps avoid issues with hyphenated table names which can cause 
+ * TypeScript type errors with Supabase client
+ */
+export const getDocumentStorage = async (clientId: string, storagePath?: string) => {
+  try {
+    if (storagePath) {
+      // Query for a specific document
+      const { data, error } = await supabase.rpc('get_document_by_path', {
+        p_client_id: clientId,
+        p_storage_path: storagePath
+      });
+      
+      if (error) throw error;
+      return data;
+    } else {
+      // Query for all client documents
+      const { data, error } = await supabase.rpc('get_client_documents', {
+        p_client_id: clientId
+      });
+      
+      if (error) throw error;
+      return data;
+    }
+  } catch (error) {
+    console.error('Error accessing document-storage:', error);
+    return null;
+  }
+};

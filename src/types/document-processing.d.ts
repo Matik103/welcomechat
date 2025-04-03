@@ -24,6 +24,7 @@ export type DocumentType =
   | 'docx' 
   | 'html' 
   | 'url' 
+  | 'document'
   | 'web_page';
 
 export interface DocumentLink {
