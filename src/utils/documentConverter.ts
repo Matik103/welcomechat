@@ -139,7 +139,7 @@ export async function uploadDocumentToStorage(
       extractedText = await extractTextFromPDF(file);
       
       if (extractedText) {
-        // Store the extracted text in the document_content table
+        // Store the extracted text in the document-storage table
         const textStoreResult = await supabase.rpc('store_document_text', {
           p_client_id: clientId,
           p_document_name: file.name,
@@ -187,7 +187,7 @@ export async function getDocumentContent(
 ): Promise<any | null> {
   try {
     const { data, error } = await supabase
-      .from('document_content')
+      .from('document-storage')
       .select('*')
       .eq('client_id', clientId)
       .eq('storage_path', filePath)

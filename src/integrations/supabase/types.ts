@@ -852,50 +852,6 @@ export type Database = {
         }
         Relationships: []
       }
-      document_content: {
-        Row: {
-          client_id: string | null
-          created_at: string | null
-          document_name: string
-          document_text: string
-          file_size: number | null
-          id: number
-          mime_type: string | null
-          storage_path: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          client_id?: string | null
-          created_at?: string | null
-          document_name: string
-          document_text: string
-          file_size?: number | null
-          id?: number
-          mime_type?: string | null
-          storage_path?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          client_id?: string | null
-          created_at?: string | null
-          document_name?: string
-          document_text?: string
-          file_size?: number | null
-          id?: number
-          mime_type?: string | null
-          storage_path?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "document_content_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       document_links: {
         Row: {
           access_status: string | null
@@ -1094,6 +1050,47 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "document_processing_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      "document-storage": {
+        Row: {
+          client_id: string | null
+          document_name: string
+          document_text: string
+          file_size: number | null
+          id: number
+          mime_type: string | null
+          storage_path: string | null
+          uploaded_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          document_name: string
+          document_text: string
+          file_size?: number | null
+          id?: number
+          mime_type?: string | null
+          storage_path?: string | null
+          uploaded_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          document_name?: string
+          document_text?: string
+          file_size?: number | null
+          id?: number
+          mime_type?: string | null
+          storage_path?: string | null
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document-storage_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
