@@ -1,10 +1,12 @@
-
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload, File, X } from 'lucide-react';
+import { Upload, File, X, Link as LinkIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface DocumentUploadFormProps {
-  onSubmitDocument: (file: File) => Promise<void>;
+  onSubmitDocument: (file: File | string) => Promise<void>;
   isUploading: boolean;
 }
 
@@ -13,6 +15,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
   isUploading
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [driveUrl, setDriveUrl] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,110 +34,153 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setSelectedFile(e.dataTransfer.files[0]);
+      const file = e.dataTransfer.files[0];
+      if (isValidFileType(file)) {
+        setSelectedFile(file);
+        setDriveUrl(''); // Clear drive URL when file is selected
+      } else {
+        toast.error('Invalid file type. Please upload a PDF, DOCX, or text file.');
+      }
     }
+  };
+
+  const isValidFileType = (file: File) => {
+    const validTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain'
+    ];
+    return validTypes.includes(file.type);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
+      const file = e.target.files[0];
+      if (isValidFileType(file)) {
+        setSelectedFile(file);
+        setDriveUrl(''); // Clear drive URL when file is selected
+      } else {
+        toast.error('Invalid file type. Please upload a PDF, DOCX, or text file.');
+      }
     }
   };
 
+  const isValidDriveUrl = (url: string) => {
+    return url.includes('drive.google.com') && url.includes('/d/');
+  };
+
+  const handleDriveUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDriveUrl(e.target.value);
+    setSelectedFile(null); // Clear selected file when drive URL is entered
+  };
+
   const handleSubmit = async () => {
-    if (!selectedFile) return;
-    
     try {
-      await onSubmitDocument(selectedFile);
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      if (driveUrl) {
+        if (!isValidDriveUrl(driveUrl)) {
+          toast.error('Please enter a valid Google Drive URL');
+          return;
+        }
+        await onSubmitDocument(driveUrl);
+        setDriveUrl('');
+      } else if (selectedFile) {
+        await onSubmitDocument(selectedFile);
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } else {
+        toast.error('Please select a file or enter a Google Drive URL');
       }
     } catch (error) {
       console.error('Error uploading document:', error);
+      toast.error('Failed to upload document');
     }
   };
 
   const handleClearFile = () => {
     setSelectedFile(null);
+    setDriveUrl('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
   return (
-    <div className="space-y-4">
-      <div 
-        className={`border-2 border-dashed rounded-lg p-6 text-center ${
-          isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
+    <div className="w-full max-w-md mx-auto">
+      <div
+        className={`border-2 border-dashed rounded-lg p-6 mb-4 ${
+          isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="flex flex-col items-center justify-center gap-2">
-          <Upload className="h-10 w-10 text-gray-400" />
-          <p className="text-sm text-gray-600">
-            Drag and drop a document here, or{' '}
-            <Button 
-              variant="link" 
-              className="p-0 h-auto text-sm text-primary"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              browse
-            </Button>
-          </p>
-          <p className="text-xs text-gray-500">
-            Supported formats: PDF, DOCX, TXT, CSV (Max 20MB)
-          </p>
-          <input 
-            type="file" 
+        <div className="text-center">
+          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+          <div className="mt-4">
+            <p className="text-sm text-gray-600">
+              Drag and drop your file here, or{' '}
+              <button
+                type="button"
+                className="text-blue-500 hover:text-blue-600"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                browse
+              </button>
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, DOCX, TXT
+            </p>
+          </div>
+          <input
             ref={fileInputRef}
-            onChange={handleFileChange} 
-            className="hidden" 
-            accept=".pdf,.docx,.txt,.csv"
+            type="file"
+            className="hidden"
+            onChange={handleFileChange}
+            accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
           />
         </div>
       </div>
 
-      {selectedFile && (
-        <div className="border rounded-md p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <File className="h-5 w-5 text-blue-500" />
-              <span className="text-sm font-medium truncate max-w-[200px]">
-                {selectedFile.name}
-              </span>
-              <span className="text-xs text-gray-500">
-                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-              </span>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleClearFile}
-              disabled={isUploading}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+      <div className="mb-4">
+        <Label htmlFor="driveUrl">Or enter a Google Drive URL</Label>
+        <div className="flex gap-2">
+          <Input
+            id="driveUrl"
+            type="text"
+            placeholder="https://drive.google.com/file/d/..."
+            value={driveUrl}
+            onChange={handleDriveUrlChange}
+            className="flex-1"
+          />
+          <LinkIcon className="w-5 h-5 text-gray-400 self-center" />
+        </div>
+      </div>
 
-          <div className="mt-3">
-            <Button 
-              onClick={handleSubmit} 
-              disabled={isUploading || !selectedFile}
-              className="w-full"
-            >
-              {isUploading ? 'Uploading & Processing...' : 'Upload Document'}
-            </Button>
-            {isUploading && selectedFile.type === 'application/pdf' && (
-              <p className="text-xs text-gray-500 mt-1 text-center">
-                PDF detected - extracting text content...
-              </p>
-            )}
-          </div>
+      {(selectedFile || driveUrl) && (
+        <div className="flex items-center gap-2 mb-4 p-2 bg-gray-50 rounded">
+          <File className="h-5 w-5 text-gray-500" />
+          <span className="text-sm text-gray-700 truncate flex-1">
+            {selectedFile ? selectedFile.name : 'Google Drive Document'}
+          </span>
+          <button
+            onClick={handleClearFile}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
       )}
+
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSubmit}
+          disabled={isUploading || (!selectedFile && !driveUrl)}
+        >
+          {isUploading ? 'Uploading...' : 'Upload Document'}
+        </Button>
+      </div>
     </div>
   );
 };
