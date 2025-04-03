@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,7 +8,8 @@ import {
   DocumentProcessingResult, 
   DocumentProcessingStatus, 
   DocumentProcessingOptions,
-  DocumentMetadata 
+  DocumentMetadata,
+  JsonSerializable
 } from '@/types/document-processing';
 import { 
   uploadDocumentToLlamaIndex, 
@@ -17,8 +19,12 @@ import {
 
 export const useUnifiedDocumentUpload = (clientId: string) => {
   const [uploadStatus, setUploadStatus] = useState<DocumentProcessingStatus>({
+    id: uuidv4(),
+    status: 'completed',
     stage: 'complete',
-    progress: 100
+    progress: 100,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   });
   const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
   const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
@@ -41,9 +47,13 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       
       // Set initial upload status
       setUploadStatus({
+        id: uuidv4(),
+        status: 'pending',
         stage: 'uploading',
         progress: 5,
-        message: 'Starting upload...'
+        message: 'Starting upload...',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
       
       // Generate a unique ID for this document
@@ -53,20 +63,26 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       const now = new Date().toISOString();
       
       // Convert to PDF if needed (for Office documents, etc.)
-      setUploadStatus({
+      setUploadStatus(prevStatus => ({
+        ...prevStatus,
+        status: 'processing',
         stage: 'processing',
         progress: 10,
-        message: 'Processing document...'
-      });
+        message: 'Processing document...',
+        updated_at: new Date().toISOString()
+      }));
       
       const processedFile = await convertToPdfIfNeeded(file);
       
       // Upload file to storage
-      setUploadStatus({
+      setUploadStatus(prevStatus => ({
+        ...prevStatus,
+        status: 'processing',
         stage: 'uploading',
         progress: 20,
-        message: 'Uploading to storage...'
-      });
+        message: 'Uploading to storage...',
+        updated_at: new Date().toISOString()
+      }));
       
       const { data: storageData, error: storageError } = await supabase
         .storage
@@ -78,12 +94,15 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       
       if (storageError) {
         console.error('Error uploading document to storage:', storageError);
-        setUploadStatus({
+        setUploadStatus(prevStatus => ({
+          ...prevStatus,
+          status: 'failed',
           stage: 'failed',
           progress: 0,
           message: `Upload failed: ${storageError.message}`,
-          error: storageError.message
-        });
+          error: storageError.message,
+          updated_at: new Date().toISOString()
+        }));
         
         const result: DocumentProcessingResult = {
           success: false,
@@ -108,11 +127,14 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       
       // Instead of inserting directly to 'documents', use document_links table
       // which might have less restrictive RLS policies
-      setUploadStatus({
+      setUploadStatus(prevStatus => ({
+        ...prevStatus,
+        status: 'processing',
         stage: 'processing',
         progress: 40,
-        message: 'Recording document metadata...'
-      });
+        message: 'Recording document metadata...',
+        updated_at: new Date().toISOString()
+      }));
       
       const mimeType = file.type || 'application/octet-stream';
       let documentType = 'document';
@@ -131,28 +153,34 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       // Process with LlamaIndex and OpenAI if requested
       if (options.shouldUseAI) {
         try {
-          setUploadStatus({
+          setUploadStatus(prevStatus => ({
+            ...prevStatus,
+            status: 'processing',
             stage: 'analyzing',
             progress: 60,
-            message: 'Processing with AI...'
-          });
+            message: 'Processing with AI...',
+            updated_at: new Date().toISOString()
+          }));
           
           console.log('Uploading document to LlamaIndex for AI processing...');
           
           // Upload to LlamaIndex for processing
           const llamaIndexResponse = await uploadDocumentToLlamaIndex(processedFile, {
-            shouldUseAI: true
+            clientId: options.clientId
           });
           
           if (llamaIndexResponse && llamaIndexResponse.job_id) {
             console.log('Document uploaded to LlamaIndex, polling for results...');
             
             // Poll for processing results
-            setUploadStatus({
+            setUploadStatus(prevStatus => ({
+              ...prevStatus,
+              status: 'processing',
               stage: 'analyzing',
               progress: 70,
-              message: 'AI processing in progress...'
-            });
+              message: 'AI processing in progress...',
+              updated_at: new Date().toISOString()
+            }));
             
             const processingResult = await processLlamaIndexJob(llamaIndexResponse.job_id);
             
@@ -171,6 +199,13 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
           // Continue with the upload process even if AI processing fails
         }
       }
+      
+      // Prepare metadata for database storage
+      const metadata: Record<string, JsonSerializable> = {
+        file_name: file.name,
+        file_size: file.size,
+        storage_path: storagePath
+      };
       
       // Insert into document_links table instead of documents
       const { data: documentLinkData, error: linkError } = await supabase
@@ -191,12 +226,15 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       
       if (linkError) {
         console.error('Error creating document link record:', linkError);
-        setUploadStatus({
+        setUploadStatus(prevStatus => ({
+          ...prevStatus,
+          status: 'failed',
           stage: 'failed',
           progress: 0,
           message: `Document upload failed: ${linkError.message}`,
-          error: linkError.message
-        });
+          error: linkError.message,
+          updated_at: new Date().toISOString()
+        }));
         
         const result: DocumentProcessingResult = {
           success: false,
@@ -233,11 +271,15 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       }
       
       // Complete successfully
-      setUploadStatus({
+      setUploadStatus(prevStatus => ({
+        ...prevStatus,
+        status: 'completed',
         stage: 'complete',
         progress: 100,
-        message: 'Document processed successfully'
-      });
+        message: 'Document processed successfully',
+        updated_at: new Date().toISOString(),
+        completed_at: new Date().toISOString()
+      }));
       
       const result: DocumentProcessingResult = {
         success: true,
@@ -261,12 +303,15 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       return result;
     } catch (error) {
       console.error('Error in unified document upload:', error);
-      setUploadStatus({
+      setUploadStatus(prevStatus => ({
+        ...prevStatus,
+        status: 'failed',
         stage: 'failed',
         progress: 0,
         message: 'Document upload failed',
-        error: error instanceof Error ? error.message : String(error)
-      });
+        error: error instanceof Error ? error.message : String(error),
+        updated_at: new Date().toISOString()
+      }));
       
       const result: DocumentProcessingResult = {
         success: false,

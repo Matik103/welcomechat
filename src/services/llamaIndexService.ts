@@ -76,15 +76,31 @@ export const uploadDocumentToLlamaIndex = async (
     if (!response.ok) {
       let errorMessage = 'Failed to upload document';
       try {
+        // Try to parse response as JSON
         const errorData = await response.json();
         errorMessage = errorData.error || errorMessage;
-      } catch {
-        errorMessage = await response.text() || errorMessage;
+      } catch (parseError) {
+        // If can't parse as JSON, get text content
+        const textContent = await response.text();
+        if (textContent.includes('<!DOCTYPE')) {
+          errorMessage = 'Received HTML response instead of JSON. The service may be unavailable or misconfigured.';
+        } else {
+          errorMessage = textContent || errorMessage;
+        }
       }
       throw new Error(`Failed to upload document to LlamaIndex: ${errorMessage}`);
     }
     
-    const result = await response.json();
+    // Parse response as JSON
+    let result;
+    try {
+      result = await response.json();
+    } catch (parseError) {
+      const textContent = await response.text();
+      console.error('Failed to parse response as JSON:', textContent);
+      throw new Error('Invalid response format from LlamaIndex service');
+    }
+    
     console.log('LlamaIndex upload result:', result);
     
     if (!result.job_id) {
@@ -131,13 +147,27 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
       try {
         const errorData = await response.json();
         errorMessage = errorData.error || errorMessage;
-      } catch {
-        errorMessage = await response.text() || errorMessage;
+      } catch (parseError) {
+        const textContent = await response.text();
+        if (textContent.includes('<!DOCTYPE')) {
+          errorMessage = 'Received HTML response instead of JSON. The service may be unavailable or misconfigured.';
+        } else {
+          errorMessage = textContent || errorMessage;
+        }
       }
       throw new Error(`Failed to get LlamaIndex parsing result: ${errorMessage}`);
     }
     
-    const result = await response.json();
+    // Parse response as JSON
+    let result;
+    try {
+      result = await response.json();
+    } catch (parseError) {
+      const textContent = await response.text();
+      console.error('Failed to parse response as JSON:', textContent);
+      throw new Error('Invalid response format from LlamaIndex job status service');
+    }
+    
     console.log(`LlamaIndex parsing result for job ${jobId}:`, result);
     
     // If job is still processing, wait and retry
@@ -179,9 +209,7 @@ export const convertToPdfIfNeeded = async (file: File): Promise<File> => {
   }
   
   try {
-    // For non-PDF files, we won't convert it as LlamaIndex Cloud can handle various file types
-    console.log('No conversion needed for LlamaIndex Cloud, supporting multiple file types');
-    return file;
+    return await convertToPdf(file);
   } catch (error) {
     console.error('Error in convertToPdfIfNeeded:', error);
     throw error;

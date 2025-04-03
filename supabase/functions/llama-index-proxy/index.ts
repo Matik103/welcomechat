@@ -69,19 +69,43 @@ Deno.serve(async (req) => {
       };
       
       // Forward to LlamaIndex Cloud API using the correct parsing endpoint
-      console.log('Sending request to LlamaIndex with headers:', JSON.stringify(headers));
-      const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/upload`, {
-        method: 'POST',
-        headers,
-        body: formData,
-      });
+      console.log('Sending request to LlamaIndex with headers:', JSON.stringify({
+        Authorization: 'Bearer ***' // Masked for security
+      }));
+      
+      let llamaResponse;
+      try {
+        llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/upload`, {
+          method: 'POST',
+          headers,
+          body: formData,
+        });
+      } catch (fetchError) {
+        console.error('Fetch error when calling LlamaIndex API:', fetchError);
+        throw new Error(`Network error while calling LlamaIndex: ${fetchError.message}`);
+      }
       
       if (!llamaResponse.ok) {
-        const errorData = await llamaResponse.json().catch(() => ({ error: llamaResponse.statusText }));
+        let errorData;
+        try {
+          errorData = await llamaResponse.json();
+        } catch (jsonError) {
+          // If response is not JSON, get text content
+          const textContent = await llamaResponse.text();
+          console.error('Non-JSON error response from LlamaIndex:', textContent);
+          errorData = { error: textContent || llamaResponse.statusText };
+        }
         throw new Error(errorData.error || 'Failed to process file with LlamaIndex');
       }
       
-      const data = await llamaResponse.json();
+      let data;
+      try {
+        data = await llamaResponse.json();
+      } catch (jsonError) {
+        console.error('Error parsing JSON from LlamaIndex response:', jsonError);
+        throw new Error('Invalid JSON response from LlamaIndex API');
+      }
+      
       console.log(`LlamaIndex upload response [${llamaResponse.status}]:`, JSON.stringify(data));
       
       return new Response(JSON.stringify(data), {
@@ -111,13 +135,25 @@ Deno.serve(async (req) => {
       // Check if this is a job status request or content request
       if (jobPath.includes('/content')) {
         // Get job content (markdown results)
-        const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/job/${jobId}/result/markdown`, {
-          method: 'GET',
-          headers,
-        });
+        let llamaResponse;
+        try {
+          llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/job/${jobId}/result/markdown`, {
+            method: 'GET',
+            headers,
+          });
+        } catch (fetchError) {
+          console.error('Fetch error when calling LlamaIndex content API:', fetchError);
+          throw new Error(`Network error while getting content: ${fetchError.message}`);
+        }
         
         if (!llamaResponse.ok) {
-          const errorData = await llamaResponse.json().catch(() => ({ error: llamaResponse.statusText }));
+          let errorData;
+          try {
+            errorData = await llamaResponse.json();
+          } catch (jsonError) {
+            const textContent = await llamaResponse.text();
+            errorData = { error: textContent || llamaResponse.statusText };
+          }
           throw new Error(errorData.error || `Failed to get content for job ${jobId}`);
         }
         
@@ -132,17 +168,36 @@ Deno.serve(async (req) => {
         });
       } else {
         // Get job status
-        const llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/job/${jobId}`, {
-          method: 'GET',
-          headers,
-        });
+        let llamaResponse;
+        try {
+          llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/job/${jobId}`, {
+            method: 'GET',
+            headers,
+          });
+        } catch (fetchError) {
+          console.error('Fetch error when calling LlamaIndex status API:', fetchError);
+          throw new Error(`Network error while getting job status: ${fetchError.message}`);
+        }
         
         if (!llamaResponse.ok) {
-          const errorData = await llamaResponse.json().catch(() => ({ error: llamaResponse.statusText }));
+          let errorData;
+          try {
+            errorData = await llamaResponse.json();
+          } catch (jsonError) {
+            const textContent = await llamaResponse.text();
+            errorData = { error: textContent || llamaResponse.statusText };
+          }
           throw new Error(errorData.error || `Failed to get job status for ${jobId}`);
         }
         
-        const data = await llamaResponse.json();
+        let data;
+        try {
+          data = await llamaResponse.json();
+        } catch (jsonError) {
+          console.error('Error parsing JSON from LlamaIndex job status response:', jsonError);
+          throw new Error('Invalid JSON response from LlamaIndex job status API');
+        }
+        
         console.log(`Job status for ${jobId}:`, JSON.stringify(data));
         
         // If includeContent parameter is present and job is completed, also fetch content

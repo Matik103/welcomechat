@@ -1,14 +1,13 @@
-
 /**
  * Types for document processing functionality
  */
 
 export interface DocumentProcessingStatus {
-  id: string;
+  id?: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   error?: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
   completed_at?: string;
   stage?: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed' | 'init' | 'storing' | 'syncing';
   progress?: number;
@@ -167,3 +166,20 @@ export interface LlamaIndexDocumentChunk {
     [key: string]: any;
   };
 }
+
+// LlamaIndex JSON-serializable types for metadata
+export interface LlamaIndexJobResponseJson {
+  job_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// This type ensures LlamaIndex responses can be serialized as JSON in metadata
+export type JsonSerializable = 
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonSerializable }
+  | JsonSerializable[];
