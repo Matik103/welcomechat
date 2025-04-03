@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { 
   DocumentChunk,
@@ -74,46 +73,31 @@ export const uploadDocumentToLlamaIndex = async (
       body: formData,
     });
     
-    if (!response.ok) {
-      let errorMessage = 'Failed to upload document';
-      try {
-        // Try to parse response as JSON
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorMessage;
-      } catch (parseError) {
-        // If can't parse as JSON, get text content
-        const textContent = await response.text();
-        if (textContent.includes('<!DOCTYPE')) {
-          errorMessage = 'Received HTML response instead of JSON. The service may be unavailable or misconfigured.';
-        } else {
-          errorMessage = textContent || errorMessage;
-        }
-      }
-      throw new Error(`Failed to upload document to LlamaIndex: ${errorMessage}`);
-    }
+    // Clone the response before reading it
+    const responseClone = response.clone();
     
-    // Parse response as JSON
-    let result;
     try {
-      result = await response.json();
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to upload document');
+      }
+      
+      if (!result.job_id) {
+        throw new Error('No job ID received from LlamaIndex');
+      }
+      
+      return {
+        job_id: result.job_id,
+        status: 'PENDING',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
     } catch (parseError) {
-      const textContent = await response.text();
-      console.error('Failed to parse response as JSON:', textContent);
-      throw new Error('Invalid response format from LlamaIndex service');
+      // If JSON parsing fails, try to get the error message from the cloned response
+      const errorText = await responseClone.text();
+      throw new Error(`Failed to process document: ${errorText}`);
     }
-    
-    console.log('LlamaIndex upload result:', result);
-    
-    if (!result.job_id) {
-      throw new Error('No job ID received from LlamaIndex');
-    }
-    
-    return {
-      job_id: result.job_id,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
   } catch (error) {
     console.error('Error in uploadDocumentToLlamaIndex:', error);
     throw error;

@@ -1,4 +1,3 @@
-
 import { corsHeaders } from '../_shared/cors.ts';
 
 // Constants
@@ -70,22 +69,26 @@ Deno.serve(async (req) => {
         });
       } catch (error) {
         console.error('Error calling LlamaIndex API:', error);
-        throw error;
+        throw new Error(`Network error: ${error.message}`);
       }
       
-      if (!llamaResponse.ok) {
-        const errorText = await llamaResponse.text();
-        throw new Error(`LlamaIndex API error: ${errorText}`);
+      // Clone the response before reading it
+      const responseClone = llamaResponse.clone();
+      
+      try {
+        const data = await llamaResponse.json();
+        return new Response(JSON.stringify(data), {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+          status: llamaResponse.ok ? 200 : 400,
+        });
+      } catch (jsonError) {
+        // If JSON parsing fails, try to get the error message from the cloned response
+        const errorText = await responseClone.text();
+        throw new Error(`Failed to process document: ${errorText}`);
       }
-      
-      const data = await llamaResponse.json();
-      
-      return new Response(JSON.stringify(data), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
-      });
     } else if (endpoint.startsWith('jobs/')) {
       // Handle job status checking
       const jobId = endpoint.replace('jobs/', '');
@@ -108,36 +111,44 @@ Deno.serve(async (req) => {
         });
       } catch (error) {
         console.error(`Error calling LlamaIndex API for job ${jobId}:`, error);
-        throw error;
+        throw new Error(`Network error: ${error.message}`);
       }
       
-      if (!llamaResponse.ok) {
-        const errorText = await llamaResponse.text();
-        throw new Error(`LlamaIndex API error for job ${jobId}: ${errorText}`);
+      // Clone the response before reading it
+      const responseClone = llamaResponse.clone();
+      
+      try {
+        const data = await llamaResponse.json();
+        
+        // Process the response to make it compatible with our frontend expectations
+        const processedResponse = {
+          job_id: jobId,
+          status: data.status || 'pending',
+          parsed_content: data.text || null,
+          error: data.error || null,
+        };
+        
+        return new Response(JSON.stringify(processedResponse), {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+          status: llamaResponse.ok ? 200 : 400,
+        });
+      } catch (jsonError) {
+        // If JSON parsing fails, try to get the error message from the cloned response
+        const errorText = await responseClone.text();
+        throw new Error(`Failed to get job status: ${errorText}`);
       }
-      
-      const data = await llamaResponse.json();
-      
-      // Process the response to make it compatible with our frontend expectations
-      const processedResponse = {
-        job_id: jobId,
-        status: data.status || 'pending',
-        parsed_content: data.text || null,
-        error: data.error || null,
-      };
-      
-      return new Response(JSON.stringify(processedResponse), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
-      });
     }
     
     throw new Error(`Unknown endpoint: ${endpoint}`);
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      status: 'error'
+    }), {
       headers: {
         ...corsHeaders,
         'Content-Type': 'application/json',
