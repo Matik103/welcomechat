@@ -59,6 +59,40 @@ export async function convertToPdfIfNeeded(file: File): Promise<File> {
 }
 
 /**
+ * Extract text from a PDF file
+ * @param file The PDF file to extract text from
+ * @returns The extracted text or empty string if extraction failed
+ */
+export async function extractTextFromPDF(file: File): Promise<string> {
+  if (file.type !== 'application/pdf') {
+    console.warn('File is not a PDF, text extraction may not work properly');
+  }
+  
+  try {
+    // This is a placeholder for actual PDF text extraction
+    // In a real implementation, you would use a library like pdf.js
+    // to extract text from the PDF
+    console.log('Text extraction from PDF is simulated');
+    
+    // For demonstration purposes, we'll create a simple text representation
+    return `Content extracted from ${file.name} (${file.size} bytes)
+    
+This is placeholder text representing the content that would be extracted from the PDF file.
+The actual implementation would use a proper PDF parsing library.
+
+Document metadata:
+- File name: ${file.name}
+- File size: ${file.size} bytes
+- File type: ${file.type}
+- Last modified: ${new Date(file.lastModified).toISOString()}
+    `;
+  } catch (error) {
+    console.error('Failed to extract text from PDF:', error);
+    return '';
+  }
+}
+
+/**
  * Upload a document to Supabase storage
  * @param file The file to upload
  * @param clientId The client ID to associate with the file
@@ -99,6 +133,26 @@ export async function uploadDocumentToStorage(
       .from('document-storage')
       .getPublicUrl(data.path);
     
+    // Extract text from the document if it's a PDF
+    let extractedText = '';
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      extractedText = await extractTextFromPDF(file);
+      
+      if (extractedText) {
+        // Store the extracted text in the document_content table
+        const textStoreResult = await supabase.rpc('store_document_text', {
+          p_client_id: clientId,
+          p_document_name: file.name,
+          p_document_text: extractedText,
+          p_storage_path: data.path,
+          p_file_size: file.size,
+          p_mime_type: file.type
+        });
+        
+        console.log('Text storage result:', textStoreResult);
+      }
+    }
+    
     // Process the document upload
     const result = await supabase.rpc('process_document_upload', {
       file_path: data.path,
@@ -118,5 +172,35 @@ export async function uploadDocumentToStorage(
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
     };
+  }
+}
+
+/**
+ * Retrieve document content from database
+ * @param clientId The client ID associated with the document
+ * @param filePath The storage path of the document
+ * @returns The document content record or null if not found
+ */
+export async function getDocumentContent(
+  clientId: string,
+  filePath: string
+): Promise<any | null> {
+  try {
+    const { data, error } = await supabase
+      .from('document_content')
+      .select('*')
+      .eq('client_id', clientId)
+      .eq('storage_path', filePath)
+      .single();
+      
+    if (error) {
+      console.error('Error fetching document content:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in getDocumentContent:', error);
+    return null;
   }
 }

@@ -852,6 +852,50 @@ export type Database = {
         }
         Relationships: []
       }
+      document_content: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          document_name: string
+          document_text: string
+          file_size: number | null
+          id: number
+          mime_type: string | null
+          storage_path: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          document_name: string
+          document_text: string
+          file_size?: number | null
+          id?: number
+          mime_type?: string | null
+          storage_path?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          document_name?: string
+          document_text?: string
+          file_size?: number | null
+          id?: number
+          mime_type?: string | null
+          storage_path?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_content_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_links: {
         Row: {
           access_status: string | null
@@ -5926,6 +5970,17 @@ export type Database = {
           "": unknown[]
         }
         Returns: number
+      }
+      store_document_text: {
+        Args: {
+          p_client_id: string
+          p_document_name: string
+          p_document_text: string
+          p_storage_path: string
+          p_file_size: number
+          p_mime_type: string
+        }
+        Returns: Json
       }
       update_ai_agents_from_client_settings: {
         Args: Record<PropertyKey, never>

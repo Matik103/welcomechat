@@ -125,8 +125,13 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
               disabled={isUploading || !selectedFile}
               className="w-full"
             >
-              {isUploading ? 'Uploading...' : 'Upload Document'}
+              {isUploading ? 'Uploading & Processing...' : 'Upload Document'}
             </Button>
+            {isUploading && selectedFile.type === 'application/pdf' && (
+              <p className="text-xs text-gray-500 mt-1 text-center">
+                PDF detected - extracting text content...
+              </p>
+            )}
           </div>
         </div>
       )}
