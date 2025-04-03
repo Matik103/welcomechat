@@ -184,3 +184,34 @@ export async function processDocumentEmbedding(
     };
   }
 }
+
+/**
+ * Search for similar documents based on a query
+ * @param clientId The client ID to search documents for
+ * @param query The text query to search with
+ * @param threshold The similarity threshold (0-1, higher is more similar)
+ * @param maxResults Maximum number of results to return
+ * @returns Array of similar documents with similarity scores
+ */
+export async function searchSimilarDocuments(
+  clientId: string,
+  query: string,
+  threshold: number = 0.7,
+  maxResults: number = 5
+): Promise<any[]> {
+  try {
+    // Generate the embedding for the user's query
+    const queryEmbedding = await generateEmbedding(query);
+    
+    if (!queryEmbedding || queryEmbedding.length === 0) {
+      console.error('Failed to generate embedding for query');
+      return [];
+    }
+    
+    // Find similar documents using the query embedding
+    return await findSimilarDocuments(clientId, queryEmbedding, threshold, maxResults);
+  } catch (error) {
+    console.error('Error searching for similar documents:', error);
+    return [];
+  }
+}
