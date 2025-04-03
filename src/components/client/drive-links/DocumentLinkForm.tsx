@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { validateDocumentLink } from '@/utils/documentProcessing';
-import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
+import { isLlamaIndexConfigured } from '@/services/llamaIndexService';
 
 const formSchema = z.object({
   link: z.string().url({ message: 'Please enter a valid URL' }),
@@ -29,9 +29,22 @@ interface DocumentLinkFormProps {
 
 export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assistant' }: DocumentLinkFormProps) {
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [aiProcessingAvailable, setAiProcessingAvailable] = useState<boolean>(
-    !!LLAMA_CLOUD_API_KEY && !!OPENAI_API_KEY
-  );
+  const [aiProcessingAvailable, setAiProcessingAvailable] = useState<boolean>(false);
+  
+  // Check if API keys are configured on component mount
+  useEffect(() => {
+    const checkApiKeys = async () => {
+      try {
+        const configured = await isLlamaIndexConfigured();
+        setAiProcessingAvailable(configured);
+      } catch (error) {
+        console.error('Error checking LlamaIndex configuration:', error);
+        setAiProcessingAvailable(false);
+      }
+    };
+    
+    checkApiKeys();
+  }, []);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),

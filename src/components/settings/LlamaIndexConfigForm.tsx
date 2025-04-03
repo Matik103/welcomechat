@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, ArrowRight, Check, Info, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -16,8 +15,8 @@ interface LlamaIndexConfigFormProps {
 }
 
 export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps) {
-  const [llamaApiKey, setLlamaApiKey] = useState(LLAMA_CLOUD_API_KEY || '');
-  const [openaiApiKey, setOpenaiApiKey] = useState(OPENAI_API_KEY || '');
+  const [llamaApiKey, setLlamaApiKey] = useState('');
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCheckingConfig, setIsCheckingConfig] = useState(true);
@@ -42,7 +41,7 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
         
         // Check if both keys are available
         const configured = await isLlamaIndexConfigured();
-        setAreKeysConfigured(configured);
+        setAreKeysConfigured(Boolean(configured));
       } catch (err) {
         console.error('Error checking LlamaIndex configuration:', err);
       } finally {

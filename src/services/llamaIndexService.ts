@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { 
   DocumentChunk,
@@ -50,13 +49,16 @@ export const getApiKeys = async (): Promise<{ llamaCloudApiKey?: string; openaiA
     
     // If not available, try to fetch from Supabase secrets
     if (!llamaCloudApiKey || !openaiApiKey) {
+      console.log('API keys not found in environment, fetching from Supabase secrets...');
       const secrets = await fetchSecrets(['LLAMA_CLOUD_API_KEY', 'OPENAI_API_KEY']);
       
       if (!llamaCloudApiKey && secrets.LLAMA_CLOUD_API_KEY) {
+        console.log('Found LLAMA_CLOUD_API_KEY in Supabase secrets');
         llamaCloudApiKey = secrets.LLAMA_CLOUD_API_KEY;
       }
       
       if (!openaiApiKey && secrets.OPENAI_API_KEY) {
+        console.log('Found OPENAI_API_KEY in Supabase secrets');
         openaiApiKey = secrets.OPENAI_API_KEY;
       }
     }
@@ -79,8 +81,15 @@ export const getApiKeys = async (): Promise<{ llamaCloudApiKey?: string; openaiA
  * Check if LlamaIndex is properly configured
  */
 export const isLlamaIndexConfigured = async (): Promise<boolean> => {
-  const { llamaCloudApiKey, openaiApiKey } = await getApiKeys();
-  return Boolean(llamaCloudApiKey && openaiApiKey);
+  try {
+    const { llamaCloudApiKey, openaiApiKey } = await getApiKeys();
+    const isConfigured = Boolean(llamaCloudApiKey && openaiApiKey);
+    console.log('LlamaIndex configuration check result:', isConfigured);
+    return isConfigured;
+  } catch (error) {
+    console.error('Error in isLlamaIndexConfigured:', error);
+    return false;
+  }
 };
 
 /**

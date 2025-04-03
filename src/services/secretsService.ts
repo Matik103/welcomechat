@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { setSecretsCache } from '@/config/env';
 
 /**
  * Fetch secret values from Supabase Edge Function
@@ -23,6 +24,9 @@ export const fetchSecrets = async (secretNames: string[]): Promise<Record<string
       console.error('Invalid response from secrets function:', data);
       return {};
     }
+    
+    // Update secrets cache
+    setSecretsCache(data as Record<string, string>);
     
     return data as Record<string, string>;
   } catch (error) {
