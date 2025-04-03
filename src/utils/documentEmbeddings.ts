@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { callRpcFunctionSafe } from './rpcUtils';
 
@@ -125,7 +126,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     return data.embedding as number[];
   } catch (error) {
     console.error('Error generating embedding:', error);
-    return [];
+    return []; // Fixed: Return empty array instead of empty object
   }
 }
 
