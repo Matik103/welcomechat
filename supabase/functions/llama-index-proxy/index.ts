@@ -1,4 +1,6 @@
 
+/// <reference lib="deno.unstable" />
+
 import { corsHeaders } from '../_shared/cors.ts';
 
 // Constants

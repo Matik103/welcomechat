@@ -214,7 +214,7 @@ export const processLlamaIndexJob = async (
   }
 };
 
-// Convert a file to PDF if it's not already a PDF
+// Convert a file to PDF if needed
 export const convertToPdfIfNeeded = async (file: File): Promise<File> => {
   if (file.type === 'application/pdf') {
     return file;
