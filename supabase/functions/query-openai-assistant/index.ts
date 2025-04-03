@@ -1,21 +1,52 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { OpenAI } from "https://esm.sh/openai@4.17.0";
 
 // Get OpenAI API key from environment variables
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-// Create a Supabase client
+// Create clients
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 // CORS headers
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+async function findRelevantDocuments(clientId: string, query: string) {
+  try {
+    // Generate embedding for the query
+    const embeddingResponse = await openai.embeddings.create({
+      model: "text-embedding-ada-002",
+      input: query.trim(),
+    });
+
+    const queryEmbedding = embeddingResponse.data[0].embedding;
+
+    // Search for similar documents
+    const { data: documents, error } = await supabase.rpc('match_documents', {
+      p_client_id: clientId,
+      p_embedding: queryEmbedding,
+      p_match_threshold: 0.8,
+      p_match_count: 5
+    });
+
+    if (error) {
+      console.error('Error finding relevant documents:', error);
+      return [];
+    }
+
+    return documents || [];
+  } catch (error) {
+    console.error('Error in findRelevantDocuments:', error);
+    return [];
+  }
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -52,6 +83,9 @@ serve(async (req) => {
 
     console.log(`Processing query for client ${client_id}: "${query}"`);
     
+    // Get relevant documents
+    const relevantDocs = await findRelevantDocuments(client_id, query);
+    
     // Get the OpenAI assistant ID for this client
     const { data: aiAgent, error: agentError } = await supabase
       .from("ai_agents")
@@ -84,13 +118,13 @@ serve(async (req) => {
       );
     }
     
-    // Step 1: Create a Thread
+    // Create Thread
     const threadResponse = await fetch("https://api.openai.com/v1/threads", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "OpenAI-Beta": "assistants=v2", // Using v2 of the API
+        "OpenAI-Beta": "assistants=v2",
       },
       body: JSON.stringify({}),
     });
@@ -109,14 +143,36 @@ serve(async (req) => {
     }
     
     const threadId = threadData.id;
+
+    // Add context from relevant documents if available
+    if (relevantDocs.length > 0) {
+      const contextMessage = `Here are some relevant documents that might help answer the question:
+
+${relevantDocs.map((doc, index) => `Document ${index + 1}:
+${doc.content}
+---`).join('\n')}`;
+
+      await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "OpenAI-Beta": "assistants=v2",
+        },
+        body: JSON.stringify({
+          role: "user",
+          content: contextMessage,
+        }),
+      });
+    }
     
-    // Step 2: Add a Message to the Thread
+    // Add the user's query
     const messageResponse = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "OpenAI-Beta": "assistants=v2", // Using v2 of the API
+        "OpenAI-Beta": "assistants=v2",
       },
       body: JSON.stringify({
         role: "user",

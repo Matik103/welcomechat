@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
@@ -61,9 +60,20 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         name: agent_name,
-        instructions: agent_description,
-        model: "gpt-4o-mini",
-        tools: [{ type: "code_interpreter" }],
+        instructions: `You are a helpful AI assistant named ${agent_name}. ${agent_description || ''}
+
+When answering questions:
+1. Use the provided context from retrieved documents when available
+2. Cite specific parts of documents when referencing them
+3. If the answer isn't in the provided context, say so clearly
+4. Stay factual and avoid speculation
+5. If you need clarification, ask the user
+6. Format your responses in clear, readable markdown`,
+        model: "gpt-4-turbo-preview",
+        tools: [
+          { type: "code_interpreter" },
+          { type: "retrieval" }
+        ],
         metadata: {
           client_id: client_id,
           client_name: client_name || "",
