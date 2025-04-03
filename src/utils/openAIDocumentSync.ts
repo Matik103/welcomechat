@@ -128,37 +128,46 @@ export async function syncDocumentWithOpenAI(
     }
 
     // Store document content for vector search as a backup access method
-    // First check if the document_content table exists
     try {
-      // First check if the table exists
-      const { error: tableCheckError } = await supabase
-        .from('document_content')
-        .select('id')
-        .limit(1);
+      // First, check if the setup_document_storage_policies function exists and run it
+      // to ensure we have the document_content table
+      const { callRpcFunctionSafe } = await import('@/utils/rpcUtils');
+      await callRpcFunctionSafe('setup_document_storage_policies');
       
-      if (tableCheckError) {
-        console.log('document_content table does not exist yet. Creating it...');
-        // Call the RPC to create the table and set up the bucket
-        await supabase.rpc('setup_document_storage_policies');
-      }
+      // Now use execSql to perform a direct insertion into document_content
+      // This avoids TypeScript type errors when the table is not in the schema yet
+      const { execSql } = await import('@/utils/rpcUtils');
       
-      // Now we can safely insert
-      const { error: docError } = await supabase
-        .from('document_content')
-        .insert([
-          {
-            client_id: clientId,
-            document_id: documentId?.toString() || `file_${Date.now()}`,
-            content: `Content from ${file.name}`,
-            filename: file.name,
-            file_type: file.type,
-            openai_file_id: data.file_id
-          }
-        ]);
+      await execSql(`
+        INSERT INTO document_content (
+          client_id,
+          document_id,
+          content,
+          filename,
+          file_type,
+          openai_file_id,
+          created_at,
+          updated_at
+        ) VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          NOW(),
+          NOW()
+        )
+      `, [
+        clientId,
+        documentId?.toString() || `file_${Date.now()}`,
+        `Content from ${file.name}`,
+        file.name,
+        file.type,
+        data.file_id
+      ]);
       
-      if (docError) {
-        console.error('Error storing document content:', docError);
-      }
+      console.log('Successfully stored document content for backup retrieval');
     } catch (contentError) {
       console.error('Failed to store document content:', contentError);
       // Don't fail the whole operation if just the content storage fails

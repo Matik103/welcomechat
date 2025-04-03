@@ -863,6 +863,42 @@ export type Database = {
         }
         Relationships: []
       }
+      document_content: {
+        Row: {
+          client_id: string
+          content: string | null
+          created_at: string | null
+          document_id: string
+          file_type: string | null
+          filename: string | null
+          id: number
+          openai_file_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          content?: string | null
+          created_at?: string | null
+          document_id: string
+          file_type?: string | null
+          filename?: string | null
+          id?: number
+          openai_file_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          content?: string | null
+          created_at?: string | null
+          document_id?: string
+          file_type?: string | null
+          filename?: string | null
+          id?: number
+          openai_file_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       document_links: {
         Row: {
           access_status: string | null
@@ -5969,6 +6005,10 @@ export type Database = {
           content_text: string
           similarity: number
         }[]
+      }
+      setup_document_storage_policies: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       setup_vector_table_policies: {
         Args: {

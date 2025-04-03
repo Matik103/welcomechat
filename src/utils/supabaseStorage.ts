@@ -25,8 +25,9 @@ export const ensureDocumentStorageBucket = async (): Promise<boolean> => {
     
     // Create or run the RPC function to setup storage policies
     try {
-      const { data, error: rpcError } = await supabase
-        .rpc('setup_document_storage_policies');
+      // Use callRpcFunctionSafe from rpcUtils to handle RPC calls in a type-safe way
+      const { callRpcFunctionSafe } = await import('@/utils/rpcUtils');
+      const { data, error: rpcError } = await callRpcFunctionSafe('setup_document_storage_policies');
       
       if (rpcError) {
         console.error('Error setting up storage policies:', rpcError);
