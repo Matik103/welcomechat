@@ -54,7 +54,7 @@ export const searchSimilarDocuments = async (
     // Then, search for similar documents
     const { data, error } = await supabase.rpc('match_documents', {
       client_id: clientId,
-      query_embedding: embedding,
+      query_embedding: embedding, // Fixed: Passing number[] directly as expected by the RPC function
       match_threshold: 0.5, // Adjust as needed
       match_count: limit
     });

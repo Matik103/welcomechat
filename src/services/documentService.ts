@@ -60,9 +60,14 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
       return { success: false, error: documentError.message };
     }
 
+    // Fix: Convert string id to number if needed
+    const documentId = typeof documentData.id === 'string' 
+      ? parseInt(documentData.id, 10) 
+      : documentData.id;
+
     return {
       success: true,
-      documentId: documentData.id,
+      documentId: documentId,
       processed: 1,
       failed: 0
     };
