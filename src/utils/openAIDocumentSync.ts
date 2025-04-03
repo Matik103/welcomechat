@@ -161,60 +161,30 @@ export const getAnswerFromOpenAIAssistant = async (
   try {
     console.log(`Getting answer from OpenAI assistant for client ${clientId}: "${query}"`);
     
-    // Set a timeout for the fetch request
-    const timeoutPromise = new Promise<AnswerResult>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error('Request timeout: OpenAI took too long to respond'));
-      }, 30000); // 30 second timeout
+    // Call the query-openai-assistant Edge Function
+    const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
+      body: { client_id: clientId, query }
     });
     
-    try {
-      // Create a race between the actual request and the timeout
-      const answerResult = await Promise.race([
-        timeoutPromise,
-        (async () => {
-          const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
-            body: { client_id: clientId, query }
-          });
-          
-          if (error) {
-            console.error('Error querying OpenAI assistant:', error);
-            return { 
-              answer: "I'm sorry, I encountered an error while processing your question.", 
-              error: `Error querying assistant: ${error.message}` 
-            };
-          }
-          
-          if (!data || !data.answer) {
-            return { 
-              answer: "I couldn't generate a proper response. Please try asking a different question.",
-              error: data?.error || 'No answer returned from assistant'
-            };
-          }
-          
-          return {
-            answer: data.answer,
-            threadId: data.thread_id
-          };
-        })()
-      ]);
-      
-      return answerResult;
-    } catch (fetchError) {
-      console.error('Fetch error in getAnswerFromOpenAIAssistant:', fetchError);
-      
-      if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
-        return {
-          answer: "I'm sorry, the request timed out. Please try asking a shorter or simpler question.",
-          error: 'Request timeout: OpenAI took too long to respond'
-        };
-      }
-      
-      return {
-        answer: "I'm sorry, I encountered an error while processing your question.",
-        error: fetchError instanceof Error ? fetchError.message : 'Error connecting to OpenAI'
+    if (error) {
+      console.error('Error querying OpenAI assistant:', error);
+      return { 
+        answer: "I'm sorry, I encountered an error while processing your question.", 
+        error: `Error querying assistant: ${error.message}` 
       };
     }
+    
+    if (!data || !data.answer) {
+      return { 
+        answer: "I couldn't generate a proper response. Please try asking a different question.",
+        error: data?.error || 'No answer returned from assistant'
+      };
+    }
+    
+    return {
+      answer: data.answer,
+      threadId: data.thread_id
+    };
   } catch (error) {
     console.error('Error in getAnswerFromOpenAIAssistant:', error);
     return {
