@@ -84,7 +84,10 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
                       : 'bg-primary text-primary-foreground'
                   }`}
                 >
-                  <ReactMarkdown className="prose dark:prose-invert max-w-none">
+                  <ReactMarkdown components={{
+                    // Apply styling to the content wrapper
+                    p: ({ children }) => <p className="prose dark:prose-invert max-w-none">{children}</p>
+                  }}>
                     {message.content}
                   </ReactMarkdown>
                 </div>
@@ -115,4 +118,4 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
       </CardContent>
     </Card>
   );
-} 
+}
