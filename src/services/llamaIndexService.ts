@@ -9,8 +9,28 @@ import {
 } from '@/types/document-processing';
 import { LLAMA_CLOUD_API_KEY } from '@/config/env';
 
-// Supabase Edge Function URL
+// Constants
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/llama-index-proxy`;
+const SUPPORTED_MIME_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+  'text/csv'
+];
+
+/**
+ * Validate file before upload
+ */
+const validateFile = (file: File): void => {
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error(`File size exceeds limit of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+  }
+  
+  if (!SUPPORTED_MIME_TYPES.includes(file.type)) {
+    throw new Error(`File type ${file.type} is not supported. Supported types: PDF, DOCX, TXT, CSV`);
+  }
+};
 
 /**
  * Upload a document to LlamaIndex Cloud for processing via Edge Function
@@ -22,6 +42,9 @@ export const uploadDocumentToLlamaIndex = async (
   try {
     console.log('Uploading document to LlamaIndex via Edge Function:', file.name);
     
+    // Validate file
+    validateFile(file);
+    
     // Create a FormData object to send the file
     const formData = new FormData();
     formData.append('file', file);
@@ -31,7 +54,7 @@ export const uploadDocumentToLlamaIndex = async (
     const authToken = session?.access_token;
     
     if (!authToken) {
-      throw new Error('No authentication token available');
+      throw new Error('No authentication token available. Please sign in.');
     }
     
     // Call the Edge Function
@@ -44,13 +67,22 @@ export const uploadDocumentToLlamaIndex = async (
     });
     
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error uploading to LlamaIndex:', errorText);
-      throw new Error(`Failed to upload document to LlamaIndex: ${errorText}`);
+      let errorMessage = 'Failed to upload document';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        errorMessage = await response.text() || errorMessage;
+      }
+      throw new Error(`Failed to upload document to LlamaIndex: ${errorMessage}`);
     }
     
     const result = await response.json();
     console.log('LlamaIndex upload result:', result);
+    
+    if (!result.job_id) {
+      throw new Error('No job ID received from LlamaIndex');
+    }
     
     return {
       job_id: result.job_id,
@@ -76,7 +108,7 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
     const authToken = session?.access_token;
     
     if (!authToken) {
-      throw new Error('No authentication token available');
+      throw new Error('No authentication token available. Please sign in.');
     }
     
     // Check job status with content included if completed
@@ -88,9 +120,14 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
     });
     
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Error getting LlamaIndex parsing result for job ${jobId}:`, errorText);
-      throw new Error(`Failed to get LlamaIndex parsing result: ${errorText}`);
+      let errorMessage = 'Failed to get job status';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        errorMessage = await response.text() || errorMessage;
+      }
+      throw new Error(`Failed to get LlamaIndex parsing result: ${errorMessage}`);
     }
     
     const result = await response.json();
@@ -105,6 +142,10 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
     
     // If job completed successfully
     if (result.status === 'completed') {
+      if (!result.parsed_content) {
+        throw new Error('No content received from LlamaIndex');
+      }
+      
       return {
         job_id: jobId,
         status: 'SUCCEEDED',

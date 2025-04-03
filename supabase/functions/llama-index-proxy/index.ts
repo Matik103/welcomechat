@@ -1,9 +1,26 @@
-
 import { corsHeaders } from '../_shared/cors.ts';
-import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '../_shared/config.ts';
+import { LLAMA_CLOUD_API_KEY } from '../_shared/config.ts';
 
-// Updated API endpoint for LlamaIndex Cloud
+// Constants
 const LLAMA_CLOUD_API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const SUPPORTED_MIME_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+  'text/csv'
+];
+
+// Helper function to validate file
+const validateFile = (file: File): void => {
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error(`File size exceeds limit of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+  }
+  
+  if (!SUPPORTED_MIME_TYPES.includes(file.type)) {
+    throw new Error(`File type ${file.type} is not supported. Supported types: PDF, DOCX, TXT, CSV`);
+  }
+};
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -26,24 +43,30 @@ Deno.serve(async (req) => {
     // Log the request details for debugging
     console.log(`Processing LlamaIndex request for endpoint: ${endpoint}`);
     console.log(`URL: ${url.pathname}`);
-    console.log(`Headers: ${JSON.stringify([...req.headers.entries()].map(([k, v]) => `${k}: ${v}`))}`);
     
     // Get authorization header from the request if available
     const authorization = req.headers.get('authorization');
-    console.log(`Authorization header: ${authorization ? 'Present' : 'Not present'}`);
+    if (!authorization) {
+      throw new Error('No authorization token provided');
+    }
     
     // Get x-api-key header for LlamaIndex API
     const apiKey = req.headers.get('x-api-key') || LLAMA_CLOUD_API_KEY;
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'LlamaIndex API key is required' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      });
+      throw new Error('LlamaIndex API key is required');
     }
     
     if (endpoint === 'process_file') {
       // Handle file upload to LlamaIndex Cloud
       const formData = await req.formData();
+      const file = formData.get('file') as File;
+      
+      if (!file) {
+        throw new Error('No file provided');
+      }
+      
+      // Validate file
+      validateFile(file);
       
       // Set up headers with required API keys and authorization
       const headers: Record<string, string> = {
@@ -58,9 +81,13 @@ Deno.serve(async (req) => {
         body: formData,
       });
       
-      const responseStatus = llamaResponse.status;
+      if (!llamaResponse.ok) {
+        const errorData = await llamaResponse.json().catch(() => ({ error: llamaResponse.statusText }));
+        throw new Error(errorData.error || 'Failed to process file with LlamaIndex');
+      }
+      
       const data = await llamaResponse.json();
-      console.log(`LlamaIndex upload response [${responseStatus}]:`, JSON.stringify(data));
+      console.log(`LlamaIndex upload response [${llamaResponse.status}]:`, JSON.stringify(data));
       
       return new Response(JSON.stringify(data), {
         headers: {
@@ -73,10 +100,7 @@ Deno.serve(async (req) => {
       // Extract job ID from the URL path
       const parts = url.pathname.split('/jobs/');
       if (parts.length < 2) {
-        return new Response(JSON.stringify({ error: 'Invalid job ID' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        });
+        throw new Error('Invalid job ID');
       }
       
       // Handle different job-related endpoints
@@ -98,13 +122,8 @@ Deno.serve(async (req) => {
         });
         
         if (!llamaResponse.ok) {
-          console.error(`Error getting content for job ${jobId}:`, llamaResponse.status);
-          return new Response(JSON.stringify({ 
-            error: `Failed to get content: ${llamaResponse.statusText}` 
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: llamaResponse.status,
-          });
+          const errorData = await llamaResponse.json().catch(() => ({ error: llamaResponse.statusText }));
+          throw new Error(errorData.error || `Failed to get content for job ${jobId}`);
         }
         
         const textContent = await llamaResponse.text();
@@ -124,13 +143,8 @@ Deno.serve(async (req) => {
         });
         
         if (!llamaResponse.ok) {
-          console.error(`Error getting job status for ${jobId}:`, llamaResponse.status);
-          return new Response(JSON.stringify({ 
-            error: `Failed to get job status: ${llamaResponse.statusText}` 
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: llamaResponse.status,
-          });
+          const errorData = await llamaResponse.json().catch(() => ({ error: llamaResponse.statusText }));
+          throw new Error(errorData.error || `Failed to get job status for ${jobId}`);
         }
         
         const data = await llamaResponse.json();
@@ -148,6 +162,8 @@ Deno.serve(async (req) => {
               const content = await contentResponse.text();
               data.parsed_content = content;
               console.log(`Retrieved content for job ${jobId}, length: ${content.length} characters`);
+            } else {
+              console.error(`Failed to get content for completed job ${jobId}`);
             }
           } catch (contentError) {
             console.error(`Error retrieving content for job ${jobId}:`, contentError);
@@ -163,23 +179,19 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Default error for unsupported endpoints
-    return new Response(JSON.stringify({ error: 'Unsupported endpoint' }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-      },
-      status: 400,
-    });
+    throw new Error('Unsupported endpoint');
   } catch (error) {
     console.error(`Error in llama-index-proxy: ${error.message}`);
     
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      status: 'error'
+    }), {
       headers: {
         ...corsHeaders,
         'Content-Type': 'application/json',
       },
-      status: 500,
+      status: error.message.includes('not supported') || error.message.includes('exceeds limit') ? 400 : 500,
     });
   }
 });
