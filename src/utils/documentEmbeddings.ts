@@ -66,9 +66,10 @@ export const searchSimilarDocuments = async (
     }
     
     // Then, search for similar documents
+    // Convert the embedding array to JSON string to match the expected type
     const { data, error } = await supabase.rpc('match_documents', {
       p_client_id: clientId,
-      p_embedding: embedding, // Pass the array directly, Supabase RPC will handle it
+      p_embedding: JSON.stringify(embedding), // Convert array to JSON string
       p_match_threshold: 0.5,
       p_match_count: limit
     });
