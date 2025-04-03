@@ -1,3 +1,4 @@
+
 /// <reference lib="deno.ns" />
 /// <reference lib="deno.unstable" />
 
@@ -66,13 +67,20 @@ serve(async (req) => {
       
       let llamaResponse;
       try {
+        console.log(`Uploading file to LlamaIndex: ${file.name} (${file.size} bytes)`);
         llamaResponse = await fetch(`${LLAMA_CLOUD_API_URL}/upload`, {
           method: 'POST',
           headers,
           body: formData,
         });
+        console.log(`LlamaIndex upload response status: ${llamaResponse.status}`);
       } catch (error) {
         console.error('Error calling LlamaIndex API:', error);
+        console.error('Error details:', {
+          endpoint: 'upload',
+          error: error.message,
+          stack: error.stack
+        });
         throw new Error(`Network error: ${error.message}`);
       }
       
@@ -83,12 +91,15 @@ serve(async (req) => {
         const data = await llamaResponse.json();
         
         if (!llamaResponse.ok) {
-          throw new Error(data.error || 'Failed to process document');
+          console.error('LlamaIndex API error:', data);
+          throw new Error(data.error || `Failed to process document (status: ${llamaResponse.status})`);
         }
         
         if (!data.job_id) {
           throw new Error('No job ID received from LlamaIndex');
         }
+        
+        console.log(`Document uploaded successfully. Job ID: ${data.job_id}`);
         
         return new Response(JSON.stringify(data), {
           headers: {
@@ -101,7 +112,8 @@ serve(async (req) => {
         // If JSON parsing fails, try to get the error message from the cloned response
         const errorText = await responseClone.text();
         console.error('Failed to parse LlamaIndex response:', errorText);
-        throw new Error(`Failed to process document: ${errorText}`);
+        console.error('JSON parsing error:', jsonError);
+        throw new Error(`Failed to process document: ${errorText || jsonError.message}`);
       }
     } else if (endpoint.startsWith('jobs/')) {
       // Handle job status checking
@@ -123,8 +135,15 @@ serve(async (req) => {
           method: 'GET',
           headers,
         });
+        console.log(`LlamaIndex poll response status: ${llamaResponse.status}`);
       } catch (error) {
         console.error(`Error calling LlamaIndex API for job ${jobId}:`, error);
+        console.error('Error details:', {
+          endpoint: 'poll',
+          jobId,
+          error: error.message,
+          stack: error.stack
+        });
         throw new Error(`Network error: ${error.message}`);
       }
       
@@ -133,6 +152,7 @@ serve(async (req) => {
       
       try {
         const data = await llamaResponse.json();
+        console.log(`Job ${jobId} status: ${data.status}`);
         
         // Process the response to make it compatible with our frontend expectations
         const processedResponse = {
@@ -155,7 +175,8 @@ serve(async (req) => {
         // If JSON parsing fails, try to get the error message from the cloned response
         const errorText = await responseClone.text();
         console.error('Failed to parse LlamaIndex job status response:', errorText);
-        throw new Error(`Failed to get job status: ${errorText}`);
+        console.error('JSON parsing error:', jsonError);
+        throw new Error(`Failed to get job status: ${errorText || jsonError.message}`);
       }
     }
     

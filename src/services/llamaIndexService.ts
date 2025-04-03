@@ -81,7 +81,7 @@ export const uploadDocumentToLlamaIndex = async (
       const result = await response.json();
       
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to upload document');
+        throw new Error(result.error || `Failed to upload document (status: ${response.status})`);
       }
       
       if (!result.job_id) {
@@ -97,7 +97,9 @@ export const uploadDocumentToLlamaIndex = async (
     } catch (parseError) {
       // If JSON parsing fails, try to get the error message from the cloned response
       const errorText = await responseClone.text();
-      throw new Error(`Failed to process document: ${errorText}`);
+      console.error('Failed to parse response:', errorText);
+      console.error('JSON parsing error:', parseError);
+      throw new Error(`Failed to process document: ${errorText || (parseError instanceof Error ? parseError.message : String(parseError))}`);
     }
   } catch (error) {
     console.error('Error in uploadDocumentToLlamaIndex:', error);
@@ -153,7 +155,7 @@ export const processLlamaIndexJob = async (
     });
     
     if (!response.ok) {
-      let errorMessage = 'Failed to get job status';
+      let errorMessage = `Failed to get job status (status: ${response.status})`;
       try {
         const errorData = await response.json();
         errorMessage = errorData.error || errorMessage;
@@ -181,7 +183,8 @@ export const processLlamaIndexJob = async (
     console.log(`LlamaIndex parsing result for job ${jobId}:`, result);
     
     // If job is still processing, wait and retry with exponential backoff
-    if (result.status !== 'completed' && result.status !== 'failed') {
+    if (result.status !== 'completed' && result.status !== 'failed' && 
+        result.status !== 'SUCCEEDED' && result.status !== 'FAILED') {
       // Calculate delay with exponential backoff: 2s, 4s, 8s, 16s, etc.
       const delay = Math.min(BASE_DELAY * Math.pow(2, attempt - 1), MAX_DELAY);
       console.log(`Job ${jobId} is still processing. Waiting ${delay/1000} seconds before retry ${attempt}...`);
@@ -190,7 +193,7 @@ export const processLlamaIndexJob = async (
     }
     
     // If job completed successfully
-    if (result.status === 'completed') {
+    if (result.status === 'completed' || result.status === 'SUCCEEDED') {
       if (!result.parsed_content) {
         throw new Error('No content received from LlamaIndex');
       }
