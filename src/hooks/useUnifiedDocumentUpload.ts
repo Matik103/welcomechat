@@ -17,10 +17,11 @@ interface UploadOptions {
   syncToWidgetSettings?: boolean;
 }
 
-interface OpenAIAssistantResponse {
+// Define our own interface to avoid conflicts with imported types
+interface OpenAIUploadResponse {
   success: boolean;
   error?: string;
-  fileId: string | null;
+  fileId?: string | null;
 }
 
 export function useUnifiedDocumentUpload(clientId: string) {
@@ -90,7 +91,7 @@ export function useUnifiedDocumentUpload(clientId: string) {
       setUploadProgress(40);
       
       // Initialize openAIResult with default values
-      let openAIResult: OpenAIAssistantResponse = {
+      let openAIResult: OpenAIUploadResponse = {
         success: false,
         error: '',
         fileId: null
@@ -102,12 +103,18 @@ export function useUnifiedDocumentUpload(clientId: string) {
         console.log("Uploading document to OpenAI Assistant:", file.name);
         
         try {
-          openAIResult = await uploadToOpenAIAssistant(
+          const aiResponse = await uploadToOpenAIAssistant(
             effectiveClientId,
             agentName,
             file,
             existingAssistantId
           );
+          
+          openAIResult = {
+            success: aiResponse.success,
+            error: aiResponse.error,
+            fileId: aiResponse.fileId
+          };
           
           if (!openAIResult.success) {
             console.error("Error uploading to OpenAI:", openAIResult.error);
@@ -165,11 +172,12 @@ export function useUnifiedDocumentUpload(clientId: string) {
             
             if (docError) {
               console.error('Error storing document text:', docError);
-            } else if (docData && docData.document_id) {
-              // Generate and store embedding
+            } else if (docData && typeof docData === 'object' && docData !== null && 'document_id' in docData) {
+              // Generate and store embedding using the document_id from the response
+              const documentId = Number(docData.document_id);
               await processDocumentEmbedding(
                 effectiveClientId,
-                docData.document_id,
+                documentId,
                 extractedText
               );
               console.log("Generated and stored embedding for document");

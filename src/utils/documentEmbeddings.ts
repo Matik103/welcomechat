@@ -3,9 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { OpenAI } from 'openai';
 import { callRpcFunctionSafe } from './rpcUtils';
 
-// Initialize OpenAI client
+// Initialize OpenAI client with the proper environment variable format for Vite
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
 });
 
 /**

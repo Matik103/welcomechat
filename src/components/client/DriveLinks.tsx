@@ -101,8 +101,7 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
       await addDocumentLink.mutateAsync({
         link: uploadResult.url || '',
         document_type: (file.type.includes('pdf') ? 'pdf' : 'document') as DocumentType,
-        refresh_rate: 30,
-        storage_path: uploadResult.path
+        refresh_rate: 30
       });
       
       setUploadProgress(100);
