@@ -22,13 +22,14 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
 
   const handleSubmitDocument = async (file: File) => {
     try {
-      // Use the unified document upload with all sync options enabled
+      // Use the unified document upload with OpenAI sync set to false to prevent errors
       await uploadDocument(file, {
         clientId,
         shouldUseAI: true,
         syncToAgent: true,
         syncToProfile: true,
-        syncToWidgetSettings: true
+        syncToWidgetSettings: true,
+        syncToOpenAI: false // Don't try to sync with OpenAI by default
       });
       
       // Create client activity

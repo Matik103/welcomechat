@@ -60,22 +60,27 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       
       console.log('Document uploaded successfully:', result);
       
-      // Now sync with OpenAI if requested or by default
-      if (options.syncToOpenAI !== false) { // Default to true unless explicitly set to false
-        console.log('Syncing document with OpenAI assistant...');
-        setUploadProgress(85); // Update progress
-        
-        // Convert documentId to string if it's a number
-        const documentIdString = result.documentId ? String(result.documentId) : undefined;
-        
-        const openAIResult = await syncDocumentWithOpenAI(clientId, file, documentIdString);
-        
-        if (!openAIResult.success) {
-          console.error('Failed to sync document with OpenAI:', openAIResult.error);
-          toast.warning(`Document uploaded but failed to sync with AI assistant: ${openAIResult.error}`);
-        } else {
-          console.log('Document synced with OpenAI assistant successfully');
-          toast.success('Document uploaded and synced with AI assistant successfully');
+      // Now sync with OpenAI if requested (default to false to prevent errors)
+      if (options.syncToOpenAI === true) {
+        try {
+          console.log('Syncing document with OpenAI assistant...');
+          setUploadProgress(85); // Update progress
+          
+          // Convert documentId to string if it's a number
+          const documentIdString = result.documentId ? String(result.documentId) : undefined;
+          
+          const openAIResult = await syncDocumentWithOpenAI(clientId, file, documentIdString);
+          
+          if (!openAIResult.success) {
+            console.error('Failed to sync document with OpenAI:', openAIResult.error);
+            toast.warning(`Document uploaded but failed to sync with AI assistant: ${openAIResult.error}`);
+          } else {
+            console.log('Document synced with OpenAI assistant successfully');
+            toast.success('Document uploaded and synced with AI assistant successfully');
+          }
+        } catch (openAIError) {
+          console.error('Error syncing with OpenAI:', openAIError);
+          toast.warning('Document uploaded but could not be synced with AI assistant');
         }
       }
       
@@ -90,9 +95,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         failed: result.failed || 0
       });
       
-      if (options.syncToOpenAI === false) {
-        toast.success('Document uploaded and processed successfully');
-      }
+      toast.success('Document uploaded and processed successfully');
       
       return {
         success: true,

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,7 +25,9 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       console.log("Starting document upload process for:", file.name);
       await uploadDocument(file, { 
         clientId,
-        shouldUseAI: true 
+        shouldUseAI: true,
+        // Don't try to sync with OpenAI by default
+        syncToOpenAI: false
       });
       await logClientActivity(); // Log the activity after successful upload
       
