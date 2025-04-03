@@ -1,8 +1,13 @@
+
 import React from 'react';
 import { WidgetPreview } from '../widget/WidgetPreview';
+import { WidgetSettings, defaultSettings } from '@/types/widget-settings';
 
 export function AssistantTest() {
-  const settings = {
+  // Create a complete settings object by spreading the default settings
+  // and overriding specific properties
+  const settings: WidgetSettings = {
+    ...defaultSettings,
     agent_name: "Test Assistant",
     agent_description: "I'm here to help answer questions about your documents",
     chat_color: "#3b82f6",

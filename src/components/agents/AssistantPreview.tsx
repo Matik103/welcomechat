@@ -1,10 +1,11 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/components/ui/use-toast';
-import { useSupabase } from '@/lib/supabase/supabase-provider';
+import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 
 interface Message {
@@ -22,8 +23,6 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { supabase } = useSupabase();
-  const { toast } = useToast();
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -57,11 +56,7 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
       }
     } catch (error) {
       console.error('Error querying assistant:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to get response from assistant',
-        variant: 'destructive'
-      });
+      toast.error('Failed to get response from assistant');
     } finally {
       setIsLoading(false);
     }
