@@ -3,9 +3,11 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const useClientMutation = () => {
   const [isPending, setIsPending] = useState(false);
+  const queryClient = useQueryClient();
 
   const mutateAsync = async (client: Partial<Client>): Promise<void> => {
     if (!client.client_id) {
@@ -102,6 +104,15 @@ export const useClientMutation = () => {
           throw createError;
         }
       }
+      
+      // Invalidate client list query to prevent duplications
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      
+      // Invalidate the specific client query to ensure proper data refresh
+      queryClient.invalidateQueries({ queryKey: ['client', client.client_id] });
+      
+      // Invalidate widget settings to ensure bidirectional sync
+      queryClient.invalidateQueries({ queryKey: ['widget-settings', client.client_id] });
       
       console.log('AI agent updated successfully');
       

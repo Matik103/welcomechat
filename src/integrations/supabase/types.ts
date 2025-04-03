@@ -6104,6 +6104,18 @@ export type Database = {
         }
         Returns: number
       }
+      store_document_content: {
+        Args: {
+          p_client_id: string
+          p_content: string
+          p_embedding: string
+          p_file_name: string
+          p_file_type: string
+        }
+        Returns: {
+          id: number
+        }[]
+      }
       store_document_embedding: {
         Args: {
           p_client_id: string

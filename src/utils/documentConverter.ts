@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { callRpcFunctionSafe } from './rpcUtils';
@@ -104,7 +105,7 @@ export async function uploadDocumentToStorage(
 ): Promise<{ success: boolean; url?: string; path?: string; error?: string }> {
   try {
     // Ensure the document storage bucket exists
-    await supabase.rpc('ensure_document_storage_bucket');
+    await supabase.rpc('setup_document_storage_policies');
     
     // Create a unique path with timestamp to prevent collisions
     const timestamp = new Date().getTime();
@@ -133,26 +134,46 @@ export async function uploadDocumentToStorage(
       .from('document-storage')
       .getPublicUrl(data.path);
     
-    // Extract text from the document if it's a PDF
+    // Extract text from the document
     let extractedText = '';
+    
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       extractedText = await extractTextFromPDF(file);
-      
-      if (extractedText) {
-        // Store the extracted text using the RPC function
-        const textStoreResult = await callRpcFunctionSafe(
-          'store_document_text',
+    } else {
+      // For other file types, read as text
+      try {
+        extractedText = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string || '');
+          reader.readAsText(file);
+        });
+      } catch (e) {
+        console.warn('Could not read file as text:', e);
+        extractedText = `Unable to extract text from ${file.name}`;
+      }
+    }
+    
+    if (extractedText) {
+      try {
+        // Generate embedding for the extracted text
+        const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke(
+          'generate-embeddings',
           {
-            p_client_id: clientId,
-            p_document_name: file.name,
-            p_document_text: extractedText,
-            p_storage_path: data.path,
-            p_file_size: file.size,
-            p_mime_type: file.type
+            body: { 
+              text: extractedText,
+              clientId: clientId,
+              documentId: data.path 
+            }
           }
         );
         
-        console.log('Text storage result:', textStoreResult);
+        if (embeddingError) {
+          console.error('Error generating embedding:', embeddingError);
+        } else {
+          console.log('Embedding generated successfully:', embeddingData?.success);
+        }
+      } catch (embeddingError) {
+        console.error('Exception while generating embedding:', embeddingError);
       }
     }
     
