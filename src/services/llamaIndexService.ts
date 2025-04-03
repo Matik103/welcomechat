@@ -9,8 +9,9 @@ import {
   LlamaIndexParsingResult,
   Json
 } from '@/types/document-processing';
-import { LLAMA_CLOUD_API_KEY } from '@/config/env';
+import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY, EDGE_FUNCTIONS_URL } from '@/config/env';
 import { convertToPdf } from '@/utils/fileConverter';
+import { getSecrets } from '@/services/secretsService';
 
 // Constants
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -66,6 +67,7 @@ export const uploadDocumentToLlamaIndex = async (
     }
     
     // Call the Edge Function
+    console.log('Calling Edge Function to process file:', EDGE_FUNCTION_URL);
     const response = await fetch(`${EDGE_FUNCTION_URL}/process_file`, {
       method: 'POST',
       headers: {
@@ -88,6 +90,8 @@ export const uploadDocumentToLlamaIndex = async (
         throw new Error('No job ID received from LlamaIndex');
       }
       
+      console.log('Document uploaded successfully, job ID:', result.job_id);
+      
       return {
         job_id: result.job_id,
         status: 'PENDING',
@@ -97,6 +101,7 @@ export const uploadDocumentToLlamaIndex = async (
     } catch (parseError) {
       // If JSON parsing fails, try to get the error message from the cloned response
       const errorText = await responseClone.text();
+      console.error('Failed to parse response:', errorText);
       throw new Error(`Failed to process document: ${errorText}`);
     }
   } catch (error) {
@@ -144,7 +149,10 @@ export const processLlamaIndexJob = async (
     }
     
     // Check job status with content included if completed
-    const response = await fetch(`${EDGE_FUNCTION_URL}/jobs/${jobId}?includeContent=true`, {
+    const jobUrl = `${EDGE_FUNCTION_URL}/jobs/${jobId}?includeContent=true`;
+    console.log('Polling job status at URL:', jobUrl);
+    
+    const response = await fetch(jobUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authToken}`,
@@ -159,6 +167,7 @@ export const processLlamaIndexJob = async (
         errorMessage = errorData.error || errorMessage;
       } catch (parseError) {
         const textContent = await response.text();
+        console.error('Raw error response:', textContent);
         if (textContent.includes('<!DOCTYPE')) {
           errorMessage = 'Received HTML response instead of JSON. The service may be unavailable or misconfigured.';
         } else {
@@ -172,6 +181,7 @@ export const processLlamaIndexJob = async (
     let result;
     try {
       result = await response.json();
+      console.log('Parsed response for job:', result);
     } catch (parseError) {
       const textContent = await response.text();
       console.error('Failed to parse response as JSON:', textContent);
@@ -181,7 +191,7 @@ export const processLlamaIndexJob = async (
     console.log(`LlamaIndex parsing result for job ${jobId}:`, result);
     
     // If job is still processing, wait and retry with exponential backoff
-    if (result.status !== 'completed' && result.status !== 'failed') {
+    if (result.status !== 'SUCCEEDED' && result.status !== 'FAILED') {
       // Calculate delay with exponential backoff: 2s, 4s, 8s, 16s, etc.
       const delay = Math.min(BASE_DELAY * Math.pow(2, attempt - 1), MAX_DELAY);
       console.log(`Job ${jobId} is still processing. Waiting ${delay/1000} seconds before retry ${attempt}...`);
@@ -190,7 +200,7 @@ export const processLlamaIndexJob = async (
     }
     
     // If job completed successfully
-    if (result.status === 'completed') {
+    if (result.status === 'SUCCEEDED') {
       if (!result.parsed_content) {
         throw new Error('No content received from LlamaIndex');
       }
