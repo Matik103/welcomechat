@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { validateDocumentLink } from '@/utils/documentProcessing';
 import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
+import { supabase } from '@/lib/supabase';
 
 const formSchema = z.object({
   link: z.string().url({ message: 'Please enter a valid URL' }),
@@ -29,9 +29,26 @@ interface DocumentLinkFormProps {
 
 export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assistant' }: DocumentLinkFormProps) {
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [aiProcessingAvailable, setAiProcessingAvailable] = useState<boolean>(
-    !!LLAMA_CLOUD_API_KEY && !!OPENAI_API_KEY
-  );
+  const [aiProcessingAvailable, setAiProcessingAvailable] = useState<boolean>(true);
+
+  useEffect(() => {
+    const checkAiProcessingAvailable = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-secrets', {
+          body: {
+            keys: ['LLAMA_CLOUD_API_KEY', 'OPENAI_API_KEY']
+          }
+        });
+        
+        setAiProcessingAvailable(!!data?.LLAMA_CLOUD_API_KEY && !!data?.OPENAI_API_KEY);
+      } catch (err) {
+        console.error('Error checking AI processing availability:', err);
+        setAiProcessingAvailable(false);
+      }
+    };
+
+    checkAiProcessingAvailable();
+  }, []);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -43,7 +60,6 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
   });
 
   const handleSubmit = async (data: FormData) => {
-    // Validate the link
     const validation = validateDocumentLink(data.link);
     
     if (!validation.isValid) {
@@ -59,7 +75,6 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
         document_type: data.document_type || 'google_drive',
       });
       
-      // Reset form
       form.reset({
         link: '',
         refresh_rate: 24,
@@ -148,7 +163,7 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               LlamaIndex AI processing is not available. Document content extraction will be limited.
-              Please configure LlamaIndex and OpenAI API keys for full functionality.
+              Please configure LlamaIndex and OpenAI API keys in the Supabase project settings.
             </AlertDescription>
           </Alert>
         )}

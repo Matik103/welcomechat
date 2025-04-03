@@ -1,10 +1,8 @@
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
-// This is a secure function that retrieves secrets from Supabase
-// It only returns specific allowed secrets based on the request
-
+// List of allowed secrets that can be requested
 const allowedSecrets = [
   'LLAMA_CLOUD_API_KEY',
   'OPENAI_API_KEY',

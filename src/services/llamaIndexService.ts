@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { 
   DocumentChunk,
@@ -35,6 +34,23 @@ const validateFile = (file: File): void => {
   }
 };
 
+// Fetch API keys from Supabase Edge Function
+async function getProcessingKeys() {
+  try {
+    const { data, error } = await supabase.functions.invoke('get-secrets', {
+      body: {
+        keys: ['LLAMA_CLOUD_API_KEY', 'OPENAI_API_KEY']
+      }
+    });
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching API keys:', error);
+    throw error;
+  }
+}
+
 /**
  * Upload a document to LlamaIndex Cloud for processing via Edge Function
  */
@@ -44,6 +60,12 @@ export const uploadDocumentToLlamaIndex = async (
 ): Promise<LlamaIndexJobResponse> => {
   try {
     console.log('Uploading document to LlamaIndex via Edge Function:', file.name);
+    
+    // Get API keys before proceeding
+    const keys = await getProcessingKeys();
+    if (!keys?.LLAMA_CLOUD_API_KEY) {
+      throw new Error('LlamaIndex API key not configured');
+    }
     
     // Validate file
     validateFile(file);

@@ -1,3 +1,4 @@
+
 /// <reference lib="deno.ns" />
 /// <reference lib="deno.unstable" />
 
@@ -7,7 +8,6 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 // Constants
 const LLAMA_CLOUD_API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-const LLAMA_CLOUD_API_KEY = Deno.env.get('LLAMA_CLOUD_API_KEY');
 
 // Helper function to validate file
 const validateFile = (file: File): void => {
@@ -46,6 +46,8 @@ serve(async (req) => {
       throw new Error('No authorization token provided');
     }
     
+    // Get the LlamaIndex API key from environment variables
+    const LLAMA_CLOUD_API_KEY = Deno.env.get('LLAMA_CLOUD_API_KEY');
     if (!LLAMA_CLOUD_API_KEY) {
       throw new Error('LLAMA_CLOUD_API_KEY environment variable is not set');
     }
