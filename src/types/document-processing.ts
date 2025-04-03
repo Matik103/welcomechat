@@ -1,3 +1,4 @@
+
 /**
  * Types for document processing functionality
  */
@@ -9,6 +10,9 @@ export interface DocumentProcessingStatus {
   created_at: string;
   updated_at: string;
   completed_at?: string;
+  stage?: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed' | 'init' | 'storing' | 'syncing';
+  progress?: number;
+  message?: string;
 }
 
 export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
@@ -64,12 +68,19 @@ export interface DocumentProcessingResult {
   jobId?: string;
   status?: string;
   documentUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  url?: string;
+  uploadDate?: string;
+  extractedText?: string;
+  aiProcessed?: boolean;
+  downloadUrl?: string;
   processed: number;
   failed: number;
   urlsScraped?: number;
   contentStored?: number;
   message?: string;
-  extractedText?: string;
 }
 
 export interface DocumentProcessingRequest {
@@ -82,6 +93,13 @@ export interface DocumentProcessingOptions {
   clientId: string;
   documentType?: string;
   agentName?: string;
+  shouldUseAI?: boolean;
+  maxPages?: number;
+  syncToAgent?: boolean;
+  syncToProfile?: boolean;
+  syncToWidgetSettings?: boolean;
+  folder?: string;
+  description?: string;
 }
 
 export interface DocumentChunk {
@@ -121,4 +139,31 @@ export interface LlamaIndexParsingResult {
   status: 'SUCCEEDED' | 'FAILED';
   parsed_content?: string;
   error?: string;
+}
+
+export interface DocumentMetadata {
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string[];
+  creationDate?: string;
+  modificationDate?: string;
+  pageCount?: number;
+  [key: string]: any;
+}
+
+// LlamaIndex specific types
+export interface LlamaIndexProcessingOptions {
+  shouldUseAI?: boolean;
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export interface LlamaIndexDocumentChunk {
+  text: string;
+  metadata?: {
+    page_number?: number;
+    source?: string;
+    [key: string]: any;
+  };
 }
