@@ -11,7 +11,6 @@ import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { validateDocumentLink } from '@/utils/documentProcessing';
-import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
 import { supabase } from '@/integrations/supabase/client';
 
 const formSchema = z.object({
@@ -37,11 +36,11 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
       try {
         const { data, error } = await supabase.functions.invoke('get-secrets', {
           body: {
-            keys: ['LLAMA_CLOUD_API_KEY', 'OPENAI_API_KEY']
+            keys: ['OPENAI_API_KEY']
           }
         });
         
-        setAiProcessingAvailable(!!data?.LLAMA_CLOUD_API_KEY && !!data?.OPENAI_API_KEY);
+        setAiProcessingAvailable(!!data?.OPENAI_API_KEY);
       } catch (err) {
         console.error('Error checking AI processing availability:', err);
         setAiProcessingAvailable(false);
@@ -163,8 +162,8 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
           <Alert variant="warning" className="mt-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              LlamaIndex AI processing is not available. Document content extraction will be limited.
-              Please configure LlamaIndex and OpenAI API keys in the Supabase project settings.
+              OpenAI document processing is not available. Document content extraction will be limited.
+              Please configure OpenAI API key in the Supabase project settings.
             </AlertDescription>
           </Alert>
         )}
