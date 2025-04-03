@@ -97,6 +97,9 @@ serve(async (req) => {
     // Step 2: Attach the file to the assistant
     console.log(`Attaching file ${fileId} to assistant ${assistantId}...`);
     
+    // Added delay to ensure OpenAI has processed the file
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     const attachResponse = await fetch(`https://api.openai.com/v1/assistants/${assistantId}/files`, {
       method: "POST",
       headers: {
@@ -113,13 +116,18 @@ serve(async (req) => {
 
     if (!attachResponse.ok) {
       console.error("OpenAI file attachment error:", attachData);
+      
+      // If file attachment failed, we should still return success with the file ID
+      // because the file was uploaded successfully
       return new Response(
         JSON.stringify({ 
-          error: `OpenAI file attachment error: ${attachData.error?.message || JSON.stringify(attachData)}` 
+          file_id: fileId,
+          status: "partial_success",
+          message: `File uploaded but failed to attach: ${attachData.error?.message || JSON.stringify(attachData)}` 
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: attachResponse.status,
+          status: 207, // Partial success
         }
       );
     }

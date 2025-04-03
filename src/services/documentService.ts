@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
+import { DOCUMENTS_BUCKET, ensureDocumentStorageBucket } from '@/utils/supabaseStorage';
 
 interface UploadResult {
   success: boolean;
@@ -23,24 +23,8 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
 
     console.log(`Attempting to upload to bucket: ${DOCUMENTS_BUCKET}`);
     
-    // Try to create the bucket directly before upload (more reliable than checking first)
-    try {
-      console.log(`Creating ${DOCUMENTS_BUCKET} bucket if it doesn't exist...`);
-      const { error } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
-        public: true,
-        allowedMimeTypes: ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-        fileSizeLimit: 20971520 // 20MB
-      });
-      
-      if (error && !error.message.includes('already exists')) {
-        console.error(`Error creating bucket ${DOCUMENTS_BUCKET}:`, error);
-      } else {
-        console.log(`Bucket ${DOCUMENTS_BUCKET} ready for upload`);
-      }
-    } catch (bucketError) {
-      console.warn('Bucket creation attempt error:', bucketError);
-      // Continue with upload attempt anyway
-    }
+    // Ensure bucket exists before upload
+    await ensureDocumentStorageBucket();
 
     // Upload to storage bucket
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -82,7 +66,7 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
       return { success: false, error: documentError.message };
     }
 
-    // Fix: Convert string id to number if needed
+    // Convert string id to number if needed
     const documentId = typeof documentData.id === 'string' 
       ? parseInt(documentData.id, 10) 
       : documentData.id;

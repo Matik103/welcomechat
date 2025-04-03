@@ -33,3 +33,6 @@ enabled = true
 
 [functions.upload-file-to-openai]
 verify_jwt = true
+
+[functions.create-openai-assistant]
+verify_jwt = true

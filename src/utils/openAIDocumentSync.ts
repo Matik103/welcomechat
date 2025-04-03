@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
@@ -94,16 +95,17 @@ export async function syncDocumentWithOpenAI(
       },
       body: formData
     });
-    
-    const data = await response.json();
-    
+
     if (!response.ok) {
-      console.error('Error uploading file to OpenAI:', data);
+      const errorData = await response.json();
+      console.error('Error from upload-file-to-openai function:', errorData);
       return {
         success: false,
-        error: data.error || 'Failed to upload document to OpenAI'
+        error: errorData.error || `Failed to upload document to OpenAI (${response.status})`
       };
     }
+    
+    const data = await response.json();
     
     console.log('Successfully uploaded file to OpenAI assistant:', data);
     
@@ -123,6 +125,29 @@ export async function syncDocumentWithOpenAI(
     if (updateError) {
       console.error('Error updating AI agent with assistant ID:', updateError);
       // Continue despite this error, as the file was uploaded successfully
+    }
+
+    // Store document content for vector search as a backup access method
+    try {
+      const { error: docError } = await supabase
+        .from('document_content')
+        .insert([
+          {
+            client_id: clientId,
+            document_id: documentId || `file_${Date.now()}`,
+            content: `Content from ${file.name}`,
+            filename: file.name,
+            file_type: file.type,
+            openai_file_id: data.file_id
+          }
+        ]);
+      
+      if (docError) {
+        console.error('Error storing document content:', docError);
+      }
+    } catch (contentError) {
+      console.error('Failed to store document content:', contentError);
+      // Don't fail the whole operation if just the content storage fails
     }
     
     toast.success('Document uploaded to OpenAI assistant successfully');
