@@ -107,9 +107,32 @@ export const uploadDocumentToLlamaIndex = async (
 /**
  * Poll LlamaIndex for the processing status of a job via Edge Function
  */
-export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexParsingResult> => {
+export const processLlamaIndexJob = async (
+  jobId: string, 
+  attempt: number = 1,
+  startTime: number = Date.now()
+): Promise<LlamaIndexParsingResult> => {
   try {
-    console.log(`Checking status of LlamaIndex job ${jobId} via Edge Function`);
+    // Maximum number of retry attempts
+    const MAX_RETRIES = 30; // 30 attempts
+    // Maximum total time to wait (5 minutes)
+    const MAX_WAIT_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
+    // Base delay for exponential backoff (starts at 2 seconds)
+    const BASE_DELAY = 2000;
+    // Maximum delay between retries (30 seconds)
+    const MAX_DELAY = 30000;
+
+    console.log(`Checking status of LlamaIndex job ${jobId} via Edge Function (attempt ${attempt})`);
+    
+    // Check if we've exceeded the maximum wait time
+    if (Date.now() - startTime > MAX_WAIT_TIME) {
+      throw new Error(`Job processing timed out after ${MAX_WAIT_TIME / 1000} seconds`);
+    }
+
+    // Check if we've exceeded the maximum number of retries
+    if (attempt > MAX_RETRIES) {
+      throw new Error(`Exceeded maximum number of retry attempts (${MAX_RETRIES})`);
+    }
     
     // Get the Supabase auth token
     const { data: { session } } = await supabase.auth.getSession();
@@ -156,11 +179,13 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
     
     console.log(`LlamaIndex parsing result for job ${jobId}:`, result);
     
-    // If job is still processing, wait and retry
+    // If job is still processing, wait and retry with exponential backoff
     if (result.status !== 'completed' && result.status !== 'failed') {
-      console.log(`Job ${jobId} is still processing. Waiting 2 seconds before retrying...`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return processLlamaIndexJob(jobId);
+      // Calculate delay with exponential backoff: 2s, 4s, 8s, 16s, etc.
+      const delay = Math.min(BASE_DELAY * Math.pow(2, attempt - 1), MAX_DELAY);
+      console.log(`Job ${jobId} is still processing. Waiting ${delay/1000} seconds before retry ${attempt}...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return processLlamaIndexJob(jobId, attempt + 1, startTime);
     }
     
     // If job completed successfully
