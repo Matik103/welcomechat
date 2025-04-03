@@ -124,6 +124,41 @@ BEGIN
     LIMIT p_match_count;
   END;
   $$;
+
+  -- Function to store document content and embedding
+  CREATE OR REPLACE FUNCTION public.store_document_content(
+    p_client_id UUID,
+    p_content TEXT,
+    p_embedding vector(1536),
+    p_file_name TEXT,
+    p_file_type TEXT
+  ) RETURNS TABLE (id BIGINT) 
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  AS $$
+  BEGIN
+    -- Insert the document content and return the ID
+    RETURN QUERY
+    INSERT INTO public.document_content (
+      client_id,
+      content,
+      embedding,
+      filename,
+      file_type,
+      created_at,
+      updated_at
+    ) VALUES (
+      p_client_id,
+      p_content,
+      p_embedding,
+      p_file_name,
+      p_file_type,
+      NOW(),
+      NOW()
+    )
+    RETURNING id;
+  END;
+  $$;
   
   RETURN true;
 END;

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
@@ -10,6 +9,7 @@ import { DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 import { uploadDocumentToStorage } from '@/utils/documentConverter';
+import { supabase } from '@/lib/supabase';
 
 interface DriveLinksProps {
   clientId: string;
@@ -87,25 +87,52 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
           return newProgress > 90 ? 90 : newProgress;
         });
       }, 300);
-      
-      // Upload the file to Supabase storage
+
+      // First, upload to storage
       const uploadResult = await uploadDocumentToStorage(file, clientId);
-      
-      clearInterval(progressInterval);
       
       if (!uploadResult.success) {
         throw new Error(uploadResult.error || 'Upload failed');
       }
+
+      // Get the file data as base64
+      const fileData = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          resolve(base64data.split(',')[1]); // Remove data URL prefix
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Call the Edge Function to process the document
+      const { data: processResult, error: processError } = await supabase.functions.invoke(
+        'upload-file-to-openai',
+        {
+          body: {
+            client_id: clientId,
+            file_data: fileData,
+            file_name: file.name,
+            file_type: file.type
+          }
+        }
+      );
+
+      if (processError) {
+        throw new Error(`Failed to process document: ${processError.message}`);
+      }
+
+      clearInterval(progressInterval);
       
       // Add the document link to the database
       await addDocumentLink.mutateAsync({
         link: uploadResult.url || '',
         document_type: (file.type.includes('pdf') ? 'pdf' : 'document') as DocumentType,
-        refresh_rate: 30
+        refresh_rate: 24
       });
       
       setUploadProgress(100);
-      toast.success('Document uploaded successfully');
+      toast.success('Document uploaded and processed successfully');
       
       if (refetch) {
         await refetch();

@@ -113,40 +113,32 @@ serve(async (req) => {
 
     // Parse request body
     const body = await req.json();
-    const { client_id, file_data, file_type, drive_url } = body;
-    let file_name = body.file_name;
+    const { client_id, file_data, file_type, file_name } = body;
 
     // Validate required fields
-    if (!client_id || (!file_data && !drive_url) || (!file_name && !drive_url)) {
-      throw new Error("Missing required fields: client_id and either file data or Google Drive URL are required");
+    if (!client_id || !file_data || !file_type || !file_name) {
+      throw new Error("Missing required fields: client_id, file_data, file_type, and file_name are required");
     }
 
-    console.log(`Processing ${drive_url ? 'Google Drive file' : `file "${file_name}"`} for client ${client_id}`);
+    console.log(`Processing file "${file_name}" (${file_type}) for client ${client_id}`);
 
+    // Convert base64 to binary
+    const fileContent = Uint8Array.from(atob(file_data), c => c.charCodeAt(0));
+
+    // Extract text based on file type
     let textContent: string;
-
-    if (drive_url) {
-      // Handle Google Drive URL
-      textContent = await extractTextFromGoogleDrive(drive_url);
-      file_name = drive_url.split('/').pop() || 'drive-document.txt';
-    } else {
-      // Convert base64 to binary
-      const fileContent = Uint8Array.from(atob(file_data), c => c.charCodeAt(0));
-
-      // Extract text based on file type
-      switch (file_type?.toLowerCase()) {
-        case 'application/pdf':
-          textContent = await extractTextFromPDF(fileContent);
-          break;
-        case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-          textContent = await extractTextFromDOCX(fileContent);
-          break;
-        case 'text/plain':
-          textContent = new TextDecoder('utf-8').decode(fileContent);
-          break;
-        default:
-          throw new Error(`Unsupported file type: ${file_type}`);
-      }
+    switch (file_type.toLowerCase()) {
+      case 'application/pdf':
+        textContent = await extractTextFromPDF(fileContent);
+        break;
+      case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        textContent = await extractTextFromDOCX(fileContent);
+        break;
+      case 'text/plain':
+        textContent = new TextDecoder('utf-8').decode(fileContent);
+        break;
+      default:
+        throw new Error(`Unsupported file type: ${file_type}`);
     }
 
     if (!textContent || textContent.trim().length === 0) {
@@ -168,55 +160,43 @@ serve(async (req) => {
 
     const embedding = embeddingResponse.data[0].embedding;
 
-    // Store file in document-storage bucket
-    const timestamp = new Date().getTime();
-    const storagePath = `${client_id}/${timestamp}_${file_name}`;
-    
-    const { data: storageData, error: storageError } = await supabase.storage
-      .from('document-storage')
-      .upload(storagePath, new TextEncoder().encode(textContent), {
-        contentType: 'text/plain',
-        upsert: true
-      });
-
-    if (storageError) {
-      throw new Error(`Failed to store file: ${storageError.message}`);
-    }
-
-    // Get the public URL for the stored file
-    const { data: { publicUrl } } = supabase.storage
-      .from('document-storage')
-      .getPublicUrl(storagePath);
-
-    // Store document metadata and embedding
-    const { data: documentData, error: documentError } = await supabase.rpc('store_document_embedding', {
-      p_client_id: client_id,
-      p_document_id: timestamp.toString(),
-      p_content: textContent,
-      p_embedding: embedding
-    });
+    // Store document content and embedding
+    const { data: documentData, error: documentError } = await supabase.rpc(
+      'store_document_content',
+      {
+        p_client_id: client_id,
+        p_content: textContent,
+        p_embedding: embedding,
+        p_file_name: file_name,
+        p_file_type: file_type
+      }
+    );
 
     if (documentError) {
-      throw new Error(`Failed to store document embedding: ${documentError.message}`);
+      throw new Error(`Failed to store document content: ${documentError.message}`);
     }
 
     // Return success response
     return new Response(
       JSON.stringify({
         status: "success",
-        message: "File processed and stored successfully",
-        file_url: publicUrl,
-        document_id: timestamp
+        message: "Document processed and stored successfully",
+        document_id: documentData.id
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       }
     );
+
   } catch (error) {
-    console.error("Error in upload-file-to-openai function:", error);
+    console.error('Error processing document:', error);
+    
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }),
+      JSON.stringify({
+        status: "error",
+        message: error instanceof Error ? error.message : "An unknown error occurred",
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
