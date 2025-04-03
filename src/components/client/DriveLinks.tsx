@@ -6,9 +6,9 @@ import { DocumentLinksList } from './drive-links/DocumentLinksList';
 import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
+import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 
 interface DriveLinksProps {
   clientId: string;
@@ -28,7 +28,7 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
     refetch
   } = useDocumentLinks(clientId);
 
-  const { uploadDocument, isUploading } = useDocumentUpload(clientId);
+  const { uploadDocument, isUploading } = useUnifiedDocumentUpload(clientId);
 
   const handleAddLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
     try {

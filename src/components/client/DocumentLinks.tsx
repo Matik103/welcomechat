@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { useDocumentUpload } from '@/hooks/useDocumentUpload';
+import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ export function DocumentLinks({ clientId }: DocumentLinksProps) {
   const [newLink, setNewLink] = useState('');
   const [error, setError] = useState<string | null>(null);
   const { documentLinks, isLoading, addDocumentLink, deleteDocumentLink, refetch } = useDocumentLinks(clientId);
-  const { uploadDocument, isUploading } = useDocumentUpload(clientId);
+  const { uploadDocument, isUploading } = useUnifiedDocumentUpload(clientId);
 
   useEffect(() => {
     if (!clientId) {
@@ -36,7 +37,7 @@ export function DocumentLinks({ clientId }: DocumentLinksProps) {
     try {
       await addDocumentLink.mutateAsync({
         link: newLink,
-        document_type: 'web_page', // Changed from 'url' to 'web_page' which is valid in DocumentType
+        document_type: 'web_page', 
         refresh_rate: 30
       });
       setNewLink('');

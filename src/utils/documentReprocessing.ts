@@ -2,8 +2,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentProcessingResult } from '@/types/document-processing';
 import { toast } from 'sonner';
-import { callRpcFunctionSafe } from './rpcUtils';
 import { v4 as uuidv4 } from 'uuid';
+import { callRpcFunctionSafe } from './rpcUtils';
 
 // Function to reprocess a document
 export const reprocessDocument = async (
@@ -120,16 +120,6 @@ export const processExistingDocuments = async (
   }
 };
 
-// Simplify document type checking to avoid deep type instantiation
-type DocumentMetadata = Record<string, any>;
-
-// Define the type for RPC function response
-interface RpcFunctionResponse {
-  success: boolean;
-  error?: string;
-  [key: string]: any;
-}
-
 // Extract document using a service
 export const extractDocumentContent = async (
   documentId: string,
@@ -162,8 +152,7 @@ export const extractDocumentContent = async (
       job_id: documentId
     });
     
-    // Type cast the result to our defined interface
-    const typedResult = result as RpcFunctionResponse;
+    const typedResult = result as { success: boolean; error?: string };
     
     if (!typedResult.success) {
       console.error('Error extracting document content:', typedResult.error);

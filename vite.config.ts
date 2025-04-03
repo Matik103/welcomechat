@@ -9,22 +9,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    proxy: {
-      '/api/llama': {
-        target: 'https://api.cloud.llamaindex.ai/api/parsing',
-        changeOrigin: true,
-        secure: true,
-        rewrite: (path) => path.replace(/^\/api\/llama/, ''),
-        configure: (proxy, options) => {
-          proxy.on('proxyReq', (proxyReq, req, res) => {
-            // Copy Authorization header from original request
-            if (req.headers.authorization) {
-              proxyReq.setHeader('Authorization', req.headers.authorization);
-            }
-          });
-        }
-      }
-    }
   },
   plugins: [
     react(),
