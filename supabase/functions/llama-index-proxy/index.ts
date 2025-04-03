@@ -1,7 +1,8 @@
-
+/// <reference lib="deno.ns" />
 /// <reference lib="deno.unstable" />
 
 import { corsHeaders } from '../_shared/cors.ts';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 // Constants
 const LLAMA_CLOUD_API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
@@ -19,7 +20,7 @@ const validateFile = (file: File): void => {
   }
 };
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -80,16 +81,26 @@ Deno.serve(async (req) => {
       
       try {
         const data = await llamaResponse.json();
+        
+        if (!llamaResponse.ok) {
+          throw new Error(data.error || 'Failed to process document');
+        }
+        
+        if (!data.job_id) {
+          throw new Error('No job ID received from LlamaIndex');
+        }
+        
         return new Response(JSON.stringify(data), {
           headers: {
             ...corsHeaders,
             'Content-Type': 'application/json',
           },
-          status: llamaResponse.ok ? 200 : 400,
+          status: 200,
         });
       } catch (jsonError) {
         // If JSON parsing fails, try to get the error message from the cloned response
         const errorText = await responseClone.text();
+        console.error('Failed to parse LlamaIndex response:', errorText);
         throw new Error(`Failed to process document: ${errorText}`);
       }
     } else if (endpoint.startsWith('jobs/')) {
@@ -126,7 +137,9 @@ Deno.serve(async (req) => {
         // Process the response to make it compatible with our frontend expectations
         const processedResponse = {
           job_id: jobId,
-          status: data.status || 'pending',
+          status: data.status === 'completed' ? 'SUCCEEDED' : 
+                 data.status === 'failed' ? 'FAILED' :
+                 data.status === 'processing' ? 'PROCESSING' : 'PENDING',
           parsed_content: data.text || null,
           error: data.error || null,
         };
@@ -136,11 +149,12 @@ Deno.serve(async (req) => {
             ...corsHeaders,
             'Content-Type': 'application/json',
           },
-          status: llamaResponse.ok ? 200 : 400,
+          status: 200,
         });
       } catch (jsonError) {
         // If JSON parsing fails, try to get the error message from the cloned response
         const errorText = await responseClone.text();
+        console.error('Failed to parse LlamaIndex job status response:', errorText);
         throw new Error(`Failed to get job status: ${errorText}`);
       }
     }
@@ -150,7 +164,7 @@ Deno.serve(async (req) => {
     console.error('Error:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
-      status: 'error'
+      status: 'FAILED'
     }), {
       headers: {
         ...corsHeaders,
