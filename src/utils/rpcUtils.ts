@@ -18,7 +18,8 @@ export const callRpcFunctionSafe = async <T>(
       return { data: null, error };
     }
     
-    return { data, error: null };
+    // Type assertion to ensure the data is treated as type T
+    return { data: data as T, error: null };
   } catch (error) {
     console.error(`Failed to call RPC function ${functionName}:`, error);
     return { 

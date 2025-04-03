@@ -123,7 +123,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
       return [];
     }
     
-    return data.embedding;
+    return data.embedding as number[];
   } catch (error) {
     console.error('Error generating embedding:', error);
     throw error;

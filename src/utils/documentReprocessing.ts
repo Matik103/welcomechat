@@ -145,24 +145,25 @@ export const extractDocumentContent = async (
       .eq('id', documentId);
     
     // Call RPC function to extract document
-    const result = await callRpcFunctionSafe('extract_document_content', {
-      document_url: document.document_url,
-      document_type: document.document_type || 'pdf',
-      client_id: clientId,
-      job_id: documentId
-    });
+    const result = await callRpcFunctionSafe<{ success: boolean; error?: string }>(
+      'extract_document_content',
+      {
+        document_url: document.document_url,
+        document_type: document.document_type || 'pdf',
+        client_id: clientId,
+        job_id: documentId
+      }
+    );
     
-    const typedResult = result as { success: boolean; error?: string };
-    
-    if (!typedResult.success) {
-      console.error('Error extracting document content:', typedResult.error);
+    if (result.error || !result.data || !result.data.success) {
+      console.error('Error extracting document content:', result.error || result.data?.error);
       
       // Update status to failed
       await supabase
         .from('document_processing_jobs')
         .update({ 
           status: 'failed',
-          error_message: typedResult.error || 'Unknown error during extraction'
+          error_message: result.error?.message || result.data?.error || 'Unknown error during extraction'
         })
         .eq('id', documentId);
       
