@@ -1,4 +1,3 @@
-
 project_id = "mgjodiqecnnltsgorife"
 
 [api]
@@ -27,9 +26,6 @@ enabled = true
 [realtime]
 enabled = true
 
-[functions]
-enabled = true
-
 [functions.upload-file-to-openai]
 verify_jwt = true
 
@@ -37,4 +33,10 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.query-openai-assistant]
+verify_jwt = true
+
+[functions.generate-embeddings]
+verify_jwt = true
+
+[functions.generate-answer]
 verify_jwt = true

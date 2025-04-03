@@ -1,130 +1,149 @@
-# Document Processing Service
+# Document Q&A System
 
-A Supabase Edge Function for processing documents using LlamaParse and Firecrawl.
+A production-ready system for document storage, embedding generation, and AI-powered question answering using Supabase and OpenAI.
 
 ## Features
 
-- Asynchronous document processing
-- Support for multiple document types (PDF, DOCX, XLSX, PPTX)
-- Website crawling and content extraction
-- Job status tracking
-- Error handling and logging
-- Rate limiting and file size validation
-- OpenAI Assistant integration
+- Document upload and storage
+- Vector embeddings generation
+- Semantic search capabilities
+- AI-powered question answering
+- Rate limiting and error handling
+- Monitoring and logging
+- Security best practices
+
+## Project Structure
+
+```
+.
+├── README.md
+├── supabase/
+│   ├── functions/
+│   │   ├── upload-file-to-openai/
+│   │   │   ├── index.ts
+│   │   │   └── config.ts
+│   │   ├── query-openai-assistant/
+│   │   │   ├── index.ts
+│   │   │   └── config.ts
+│   │   └── shared/
+│   │       ├── middleware/
+│   │       │   ├── cors.ts
+│   │       │   ├── rateLimit.ts
+│   │       │   └── errorHandler.ts
+│   │       ├── types/
+│   │       │   └── index.ts
+│   │       └── utils/
+│   │           ├── openai.ts
+│   │           ├── supabase.ts
+│   │           └── validation.ts
+│   └── migrations/
+│       └── 20240319000000_init.sql
+├── scripts/
+│   ├── deploy.sh
+│   └── setup-monitoring.sh
+└── config/
+    ├── production.json
+    └── development.json
+```
+
+## Prerequisites
+
+- Supabase account and project
+- OpenAI API key
+- Node.js 18+ (for development)
+- Supabase CLI
+
+## Environment Variables
+
+Required environment variables:
+
+```bash
+OPENAI_API_KEY=your-openai-api-key
+SUPABASE_URL=your-project-url
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=60
+MAX_FILE_SIZE=10485760  # 10MB
+```
 
 ## Setup
-
-1. **Environment Variables**
-
-```bash
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-LLAMA_CLOUD_API_KEY=your_llama_cloud_api_key
-FIRECRAWL_API_KEY=your_firecrawl_api_key
-```
-
-2. **Deploy Function**
-
-```bash
-supabase functions deploy process-document
-```
-
-## Usage
-
-### Process Document
-
-```bash
-curl -X POST 'https://[PROJECT_REF].supabase.co/functions/v1/process-document' \
--H 'Authorization: Bearer [ANON_KEY]' \
--H 'Content-Type: application/json' \
--d '{
-  "documentType": "pdf",
-  "clientId": "your-client-id",
-  "agentName": "your-agent",
-  "documentId": "your-doc-id",
-  "documentUrl": "your-document-url"
-}'
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "jobId": "job-uuid",
-  "status": "pending",
-  "message": "Document processing started",
-  "metadata": {
-    "document_type": "pdf",
-    "document_url": "url",
-    "processing_method": "llamaparse",
-    "request_time_ms": 123
-  }
-}
-```
-
-## Configuration
-
-The service includes configurable settings in `config.ts`:
-
-- Rate limiting (30 requests/minute)
-- Maximum file size (50MB)
-- Processing timeout (5 minutes)
-- Supported document types
-- Error messages
-
-## Database Tables
-
-1. `document_processing_jobs`: Tracks processing jobs
-2. `client_activities`: Logs client activities
-3. `ai_agents`: Stores processed content
-4. `function_metrics`: Monitors function performance
-
-## Error Handling
-
-The service includes comprehensive error handling:
-- Input validation
-- File type validation
-- Processing errors
-- API errors
-- Timeout handling
-
-## Monitoring
-
-Monitor function performance through:
-- Job status tracking
-- Error logging
-- Performance metrics
-- Client activity tracking
-
-## Development
 
 1. Clone the repository
 2. Install dependencies
 3. Set up environment variables
-4. Run locally:
+4. Run database migrations
+5. Deploy Edge Functions
+
 ```bash
-supabase start
-supabase functions serve process-document
+# Install Supabase CLI
+npm install -g supabase
+
+# Login to Supabase
+supabase login
+
+# Deploy functions
+./scripts/deploy.sh
 ```
 
-## Production
+## API Documentation
 
-For production deployment:
-1. Update environment variables
-2. Deploy function
-3. Monitor logs and metrics
-4. Set up alerts for errors
+### Upload Document
+
+```http
+POST /functions/v1/upload-file-to-openai
+Authorization: Bearer <service_role_key>
+Content-Type: application/json
+
+{
+  "client_id": "uuid",
+  "file_name": "string",
+  "file_data": "string"
+}
+```
+
+### Query Documents
+
+```http
+POST /functions/v1/query-openai-assistant
+Authorization: Bearer <service_role_key>
+Content-Type: application/json
+
+{
+  "client_id": "uuid",
+  "query": "string"
+}
+```
+
+## Monitoring
+
+- Function logs available in Supabase Dashboard
+- Error tracking via custom error handler
+- Rate limiting metrics
+- OpenAI API usage tracking
 
 ## Security
 
 - JWT authentication
 - Rate limiting
-- File size validation
-- Input sanitization
-- Error message sanitization
+- Input validation
+- File size restrictions
+- Content type validation
+- Row Level Security (RLS) policies
+
+## Maintenance
+
+Regular maintenance tasks:
+
+1. Monitor error logs
+2. Check rate limiting metrics
+3. Update dependencies
+4. Backup database
+5. Review security policies
+
+## Support
+
+For issues and feature requests, please contact support@yourdomain.com
 
 ## License
 
-MIT
+MIT License - see LICENSE file for details

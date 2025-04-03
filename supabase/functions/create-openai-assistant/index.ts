@@ -1,14 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import OpenAI from "https://esm.sh/openai@4.28.0";
 
 // Get environment variables
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-// Create Supabase client
+// Create clients
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 // CORS headers
 const corsHeaders = {
@@ -56,13 +58,13 @@ serve(async (req) => {
 
     console.log(`Creating assistant for client ${client_id} with name "${agent_name}"`);
 
-    // Call OpenAI API to create assistant with v2 header
+    // Create assistant using direct API call
     const response = await fetch("https://api.openai.com/v1/assistants", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "OpenAI-Beta": "assistants=v2", // Using v2 of the API
+        "OpenAI-Beta": "assistants=v2"
       },
       body: JSON.stringify({
         name: agent_name,

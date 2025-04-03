@@ -1,16 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import { OpenAI } from "https://esm.sh/openai@4.17.0";
+import { OpenAI } from "https://esm.sh/openai@4.28.0";
 
-// Get OpenAI API key from environment variables
+// Get environment variables
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-// Create clients
+// Create Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 // CORS headers
 const corsHeaders = {
@@ -18,292 +16,102 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function findRelevantDocuments(clientId: string, query: string) {
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      headers: corsHeaders,
+      status: 204,
+    });
+  }
+
   try {
+    // Check for API key
+    if (!OPENAI_API_KEY) {
+      throw new Error("Missing OpenAI API key");
+    }
+
+    // Parse request body
+    const { client_id, query } = await req.json();
+
+    if (!client_id || !query) {
+      throw new Error("Missing required fields: client_id and query are required");
+    }
+
+    // Initialize OpenAI
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+
     // Generate embedding for the query
     const embeddingResponse = await openai.embeddings.create({
       model: "text-embedding-ada-002",
       input: query.trim(),
     });
 
+    if (!embeddingResponse.data || embeddingResponse.data.length === 0) {
+      throw new Error("Failed to generate query embedding");
+    }
+
     const queryEmbedding = embeddingResponse.data[0].embedding;
 
     // Search for similar documents
-    const { data: documents, error } = await supabase.rpc('match_documents', {
-      p_client_id: clientId,
-      p_embedding: queryEmbedding,
-      p_match_threshold: 0.8,
+    const { data: documents, error: searchError } = await supabase.rpc('match_documents_by_embedding', {
+      p_client_id: client_id,
+      p_query_embedding: queryEmbedding,
+      p_match_threshold: 0.5,
       p_match_count: 5
     });
 
-    if (error) {
-      console.error('Error finding relevant documents:', error);
-      return [];
+    if (searchError) {
+      throw new Error(`Error searching documents: ${searchError.message}`);
     }
 
-    return documents || [];
-  } catch (error) {
-    console.error('Error in findRelevantDocuments:', error);
-    return [];
-  }
-}
-
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  // Check for API key
-  if (!OPENAI_API_KEY) {
-    console.error("Missing OpenAI API key");
-    return new Response(
-      JSON.stringify({
-        error: "OpenAI API key is not configured. Please add it in the Supabase dashboard under Settings > API.",
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
-  }
-
-  try {
-    const { client_id, query } = await req.json();
-    
-    if (!client_id || !query) {
+    if (!documents || documents.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Missing required parameters: client_id and query" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        }
-      );
-    }
-
-    console.log(`Processing query for client ${client_id}: "${query}"`);
-    
-    // Get relevant documents
-    const relevantDocs = await findRelevantDocuments(client_id, query);
-    
-    // Get the OpenAI assistant ID for this client
-    const { data: aiAgent, error: agentError } = await supabase
-      .from("ai_agents")
-      .select("openai_assistant_id")
-      .eq("client_id", client_id)
-      .eq("interaction_type", "config")
-      .maybeSingle();
-    
-    if (agentError) {
-      console.error("Error fetching OpenAI assistant ID:", agentError);
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch OpenAI assistant ID" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        }
-      );
-    }
-    
-    const assistantId = aiAgent?.openai_assistant_id;
-    
-    if (!assistantId) {
-      console.error("No OpenAI assistant ID found for client", client_id);
-      return new Response(
-        JSON.stringify({ error: "No OpenAI assistant found for this client" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 404,
-        }
-      );
-    }
-    
-    // Create Thread
-    const threadResponse = await fetch("https://api.openai.com/v1/threads", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "OpenAI-Beta": "assistants=v2",
-      },
-      body: JSON.stringify({}),
-    });
-    
-    const threadData = await threadResponse.json();
-    
-    if (!threadResponse.ok) {
-      console.error("Error creating thread:", threadData);
-      return new Response(
-        JSON.stringify({ error: "Failed to create conversation thread" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        }
-      );
-    }
-    
-    const threadId = threadData.id;
-
-    // Add context from relevant documents if available
-    if (relevantDocs.length > 0) {
-      const contextMessage = `Here are some relevant documents that might help answer the question:
-
-${relevantDocs.map((doc, index) => `Document ${index + 1}:
-${doc.content}
----`).join('\n')}`;
-
-      await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "OpenAI-Beta": "assistants=v2",
-        },
-        body: JSON.stringify({
-          role: "user",
-          content: contextMessage,
+        JSON.stringify({
+          answer: "I don't have any relevant documents to answer your question. Please try uploading some documents first.",
+          documents: []
         }),
-      });
-    }
-    
-    // Add the user's query
-    const messageResponse = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "OpenAI-Beta": "assistants=v2",
-      },
-      body: JSON.stringify({
-        role: "user",
-        content: query,
-      }),
-    });
-    
-    const messageData = await messageResponse.json();
-    
-    if (!messageResponse.ok) {
-      console.error("Error adding message to thread:", messageData);
-      return new Response(
-        JSON.stringify({ error: "Failed to add message to thread" }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
+          status: 200,
         }
       );
     }
-    
-    // Step 3: Run the Assistant on the Thread
-    const runResponse = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "OpenAI-Beta": "assistants=v2", // Using v2 of the API
-      },
-      body: JSON.stringify({
-        assistant_id: assistantId,
-      }),
-    });
-    
-    const runData = await runResponse.json();
-    
-    if (!runResponse.ok) {
-      console.error("Error running assistant:", runData);
-      return new Response(
-        JSON.stringify({ error: "Failed to run assistant" }),
+
+    // Format documents for the prompt
+    const documentContext = documents
+      .map((doc, index) => `Document ${index + 1}:\n${doc.content}\n`)
+      .join("\n");
+
+    // Generate answer using ChatGPT
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [
         {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        }
-      );
-    }
-    
-    const runId = runData.id;
-    
-    // Step 4: Check the Run status and wait for completion
-    let runStatus = runData.status;
-    let attempts = 0;
-    const maxAttempts = 30; // Maximum number of attempts (30 * 1s = 30 seconds max)
-    
-    while (runStatus !== "completed" && runStatus !== "failed" && runStatus !== "expired" && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between checks
-      
-      const runStatusResponse = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "OpenAI-Beta": "assistants=v2", // Using v2 of the API
+          role: "system",
+          content: "You are a helpful assistant that answers questions based on the provided documents. Use only the information from the documents to answer questions. If the documents don't contain relevant information, say so."
         },
-      });
-      
-      const runStatusData = await runStatusResponse.json();
-      
-      if (!runStatusResponse.ok) {
-        console.error("Error checking run status:", runStatusData);
-        break;
-      }
-      
-      runStatus = runStatusData.status;
-      attempts++;
-    }
-    
-    if (runStatus !== "completed") {
-      console.error("Run did not complete successfully. Status:", runStatus);
-      return new Response(
-        JSON.stringify({ error: `Assistant run ${runStatus}. Please try again.` }),
         {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
+          role: "user",
+          content: `Documents:\n${documentContext}\n\nQuestion: ${query}\n\nPlease answer the question based on the provided documents.`
         }
-      );
-    }
-    
-    // Step 5: Retrieve Messages (including assistant's response)
-    const messagesResponse = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "OpenAI-Beta": "assistants=v2", // Using v2 of the API
-      },
+      ],
+      temperature: 0.7,
+      max_tokens: 500
     });
-    
-    const messagesData = await messagesResponse.json();
-    
-    if (!messagesResponse.ok) {
-      console.error("Error retrieving messages:", messagesData);
-      return new Response(
-        JSON.stringify({ error: "Failed to retrieve assistant's response" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        }
-      );
+
+    if (!completion.choices || completion.choices.length === 0) {
+      throw new Error("Failed to generate answer");
     }
-    
-    // Find the assistant's response (should be the first message, as they're returned in reverse chronological order)
-    const assistantMessage = messagesData.data.find(msg => msg.role === "assistant");
-    
-    if (!assistantMessage) {
-      console.error("No assistant message found in response");
-      return new Response(
-        JSON.stringify({ error: "No response generated from assistant" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        }
-      );
-    }
-    
-    // Extract the text content from the message
-    const answer = assistantMessage.content[0].text.value;
-    
-    // Return the assistant's response
+
+    // Return the answer and relevant documents
     return new Response(
       JSON.stringify({
-        answer,
-        thread_id: threadId,
-        success: true,
+        answer: completion.choices[0].message.content,
+        documents: documents.map(doc => ({
+          content: doc.content,
+          similarity: doc.similarity
+        }))
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -313,7 +121,9 @@ ${doc.content}
   } catch (error) {
     console.error("Error in query-openai-assistant function:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "An unknown error occurred"
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
