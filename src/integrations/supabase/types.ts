@@ -148,6 +148,7 @@ export type Database = {
           deleted_at: string | null
           deletion_scheduled_at: string | null
           description: string | null
+          document_id: number | null
           drive_link: string | null
           drive_link_added_at: string | null
           drive_link_refresh_rate: number | null
@@ -193,6 +194,7 @@ export type Database = {
           deleted_at?: string | null
           deletion_scheduled_at?: string | null
           description?: string | null
+          document_id?: number | null
           drive_link?: string | null
           drive_link_added_at?: string | null
           drive_link_refresh_rate?: number | null
@@ -238,6 +240,7 @@ export type Database = {
           deleted_at?: string | null
           deletion_scheduled_at?: string | null
           description?: string | null
+          document_id?: number | null
           drive_link?: string | null
           drive_link_added_at?: string | null
           drive_link_refresh_rate?: number | null
@@ -271,7 +274,15 @@ export type Database = {
           urls?: string[] | null
           website_url_refresh_rate?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_agents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "document-storage"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_agents_backup: {
         Row: {
@@ -4428,19 +4439,34 @@ export type Database = {
           similarity: number
         }[]
       }
-      match_documents: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
+      match_documents:
+        | {
+            Args: {
+              p_client_id: string
+              p_query_embedding: string
+              p_match_threshold?: number
+              p_match_count?: number
+            }
+            Returns: {
+              id: string
+              document_id: number
+              content: string
+              similarity: number
+            }[]
+          }
+        | {
+            Args: {
+              query_embedding: string
+              match_count?: number
+              filter?: Json
+            }
+            Returns: {
+              id: number
+              content: string
+              metadata: Json
+              similarity: number
+            }[]
+          }
       match_frenniy: {
         Args: {
           query_embedding: string
@@ -5967,6 +5993,15 @@ export type Database = {
           "": unknown[]
         }
         Returns: number
+      }
+      store_document_embedding: {
+        Args: {
+          p_client_id: string
+          p_document_id: number
+          p_content: string
+          p_embedding: string
+        }
+        Returns: Json
       }
       store_document_text: {
         Args: {

@@ -81,6 +81,7 @@ export function useUnifiedDocumentUpload(clientId: string) {
       console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
       setUploadProgress(40);
       
+      // Initialize openAIResult with default values
       let openAIResult = {
         success: false,
         error: '',
