@@ -5,11 +5,13 @@ BEGIN;
 -- First, ensure the bucket exists
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('document-storage', 'document-storage', true)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET public = true;
 
 -- Then, create policies for the bucket
 DROP POLICY IF EXISTS "Public Access to document-storage" ON storage.objects;
 DROP POLICY IF EXISTS "Individual User Document Access" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload to document-storage" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own uploads in document-storage" ON storage.objects;
 
 -- Allow public access to the document-storage bucket
 CREATE POLICY "Public Access to document-storage"

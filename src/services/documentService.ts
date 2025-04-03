@@ -23,8 +23,24 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
 
     console.log(`Attempting to upload to bucket: ${DOCUMENTS_BUCKET}`);
     
-    // Ensure the bucket exists before attempting to upload
-    await ensureDocumentStorageBucket();
+    // Try to create the bucket directly before upload (more reliable than checking first)
+    try {
+      console.log(`Creating ${DOCUMENTS_BUCKET} bucket if it doesn't exist...`);
+      const { error } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
+        public: true,
+        allowedMimeTypes: ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        fileSizeLimit: 20971520 // 20MB
+      });
+      
+      if (error && !error.message.includes('already exists')) {
+        console.error(`Error creating bucket ${DOCUMENTS_BUCKET}:`, error);
+      } else {
+        console.log(`Bucket ${DOCUMENTS_BUCKET} ready for upload`);
+      }
+    } catch (bucketError) {
+      console.warn('Bucket creation attempt error:', bucketError);
+      // Continue with upload attempt anyway
+    }
 
     // Upload to storage bucket
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -83,37 +99,5 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error during document upload'
     };
-  }
-};
-
-// Function to ensure the bucket exists
-const ensureDocumentStorageBucket = async (): Promise<void> => {
-  try {
-    console.log(`Checking if bucket ${DOCUMENTS_BUCKET} exists...`);
-    
-    // Check if bucket exists
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = buckets?.some(bucket => bucket.name === DOCUMENTS_BUCKET);
-    
-    if (!bucketExists) {
-      console.log(`Creating ${DOCUMENTS_BUCKET} bucket...`);
-      const { error } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
-        public: true,
-        allowedMimeTypes: ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-        fileSizeLimit: 20971520 // 20MB
-      });
-      
-      if (error) {
-        console.error(`Error creating bucket ${DOCUMENTS_BUCKET}:`, error);
-        throw new Error(`Failed to create storage bucket: ${error.message}`);
-      }
-      
-      console.log(`Created ${DOCUMENTS_BUCKET} bucket successfully`);
-    } else {
-      console.log(`${DOCUMENTS_BUCKET} bucket already exists`);
-    }
-  } catch (error) {
-    console.error('Error in ensureDocumentStorageBucket:', error);
-    throw error;
   }
 };
