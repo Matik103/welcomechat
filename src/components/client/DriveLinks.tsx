@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
@@ -10,7 +9,7 @@ import { DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 import { uploadDocumentToStorage } from '@/utils/documentConverter';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DriveLinksProps {
   clientId: string;
@@ -34,7 +33,6 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
 
   const handleAddLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
     try {
-      // Ensure document_type is set with the correct type
       const enhancedData = {
         ...data,
         document_type: (data.document_type || 'google_drive') as DocumentType
@@ -81,7 +79,6 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
     try {
       setIsUploading(true);
       
-      // Simulate progress updates
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           const newProgress = prev + 5;
@@ -89,24 +86,21 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
         });
       }, 300);
 
-      // First, upload to storage
       const uploadResult = await uploadDocumentToStorage(file, clientId);
       
       if (!uploadResult.success) {
         throw new Error(uploadResult.error || 'Upload failed');
       }
 
-      // Get the file data as base64
       const fileData = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64data = reader.result as string;
-          resolve(base64data.split(',')[1]); // Remove data URL prefix
+          resolve(base64data.split(',')[1]);
         };
         reader.readAsDataURL(file);
       });
 
-      // Call the Edge Function to process the document
       const { data: processResult, error: processError } = await supabase.functions.invoke(
         'upload-file-to-openai',
         {
@@ -125,7 +119,6 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
 
       clearInterval(progressInterval);
       
-      // Add the document link to the database
       await addDocumentLink.mutateAsync({
         link: uploadResult.url || '',
         document_type: (file.type.includes('pdf') ? 'pdf' : 'document') as DocumentType,
@@ -143,7 +136,6 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
         onResourceChange();
       }
       
-      // Reset after a short delay
       setTimeout(() => {
         setUploadProgress(0);
       }, 1000);

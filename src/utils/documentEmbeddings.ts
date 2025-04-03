@@ -65,10 +65,10 @@ export const searchSimilarDocuments = async (
       return [];
     }
     
-    // Then, search for similar documents
+    // Then, search for similar documents - fixed parameter name
     const { data, error } = await supabase.rpc('match_documents', {
       p_client_id: clientId,
-      p_query_embedding: embedding,
+      p_embedding: JSON.stringify(embedding), // Fixed: Convert array to string and use correct parameter name
       p_match_threshold: 0.5,
       p_match_count: limit
     });
