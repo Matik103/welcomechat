@@ -1,3 +1,4 @@
+
 import { PDFDocument } from 'pdf-lib';
 import mammoth from 'mammoth';
 import { jsPDF } from 'jspdf';
@@ -81,7 +82,8 @@ async function docxToPdf(file: File): Promise<Uint8Array> {
     y += 7;
   }
   
-  return doc.output('arraybuffer');
+  // Fixed the return type to match textToPdf's return type
+  return new Uint8Array(doc.output('arraybuffer'));
 }
 
 /**
@@ -120,7 +122,8 @@ async function csvToPdf(file: File): Promise<Uint8Array> {
     y += 7;
   }
   
-  return doc.output('arraybuffer');
+  // Fixed the return type to match textToPdf's return type
+  return new Uint8Array(doc.output('arraybuffer'));
 }
 
 /**
