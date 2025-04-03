@@ -9,6 +9,7 @@ import {
   LlamaIndexParsingResult
 } from '@/types/document-processing';
 import { LLAMA_CLOUD_API_KEY } from '@/config/env';
+import { convertToPdf } from '@/utils/fileConverter';
 
 // Constants
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -46,9 +47,14 @@ export const uploadDocumentToLlamaIndex = async (
     // Validate file
     validateFile(file);
     
+    // Convert file to PDF if needed
+    console.log('Converting file to PDF if needed...');
+    const pdfFile = await convertToPdf(file);
+    console.log('File conversion complete:', pdfFile.name);
+    
     // Create a FormData object to send the file
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', pdfFile);
     
     // Get the Supabase auth token
     const { data: { session } } = await supabase.auth.getSession();

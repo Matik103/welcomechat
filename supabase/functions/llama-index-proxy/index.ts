@@ -5,12 +5,6 @@ import { LLAMA_CLOUD_API_KEY } from '../_shared/config.ts';
 // Constants
 const LLAMA_CLOUD_API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-const SUPPORTED_MIME_TYPES = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain',
-  'text/csv'
-];
 
 // Helper function to validate file
 const validateFile = (file: File): void => {
@@ -18,8 +12,8 @@ const validateFile = (file: File): void => {
     throw new Error(`File size exceeds limit of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
   }
   
-  if (!SUPPORTED_MIME_TYPES.includes(file.type)) {
-    throw new Error(`File type ${file.type} is not supported. Supported types: PDF, DOCX, TXT, CSV`);
+  if (file.type !== 'application/pdf') {
+    throw new Error('Only PDF files are supported');
   }
 };
 
