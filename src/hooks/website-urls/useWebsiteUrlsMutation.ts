@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { WebsiteUrl, WebsiteUrlFormData } from "@/types/website-url";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchWebsiteContent } from "@/utils/websiteContentFetcher";
 
 export function useWebsiteUrlsMutation(clientId: string | undefined) {
   const queryClient = useQueryClient();
@@ -40,7 +41,7 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
             client_id: effectiveClientId,
             url: input.url,
             refresh_rate: input.refresh_rate || 30,
-            status: 'pending',
+            status: 'processing',
             metadata: input.metadata || {}
           })
           .select()
@@ -55,6 +56,9 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
           throw new Error("Failed to create website URL - no data returned");
         }
         
+        // Fetch website content
+        await processWebsiteContent(data.id, input.url, effectiveClientId);
+        
         return data as WebsiteUrl;
       }
       
@@ -67,7 +71,7 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
           client_id: clientRecord.id,
           url: input.url,
           refresh_rate: input.refresh_rate || 30,
-          status: 'pending',
+          status: 'processing',
           metadata: input.metadata || {}
         })
         .select()
@@ -81,6 +85,9 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
       if (!data) {
         throw new Error("Failed to create website URL - no data returned");
       }
+      
+      // Fetch website content
+      await processWebsiteContent(data.id, input.url, clientRecord.id);
       
       return data as WebsiteUrl;
     },
@@ -120,6 +127,124 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
       toast.error(`Error removing website URL: ${error.message}`);
     }
   });
+
+  /**
+   * Process website content - fetch content and save it to the database
+   */
+  const processWebsiteContent = async (websiteUrlId: number, url: string, clientId: string): Promise<void> => {
+    try {
+      // Generate a unique document ID for tracking
+      const documentId = crypto.randomUUID();
+
+      // Create document processing job entry
+      const { data: jobData, error: jobError } = await supabase
+        .from("document_processing_jobs")
+        .insert({
+          client_id: clientId,
+          agent_name: "URL Content Processor",
+          document_id: documentId,
+          document_url: url,
+          document_type: "website",
+          status: "processing",
+          metadata: {
+            website_url_id: websiteUrlId,
+            processing_start: new Date().toISOString()
+          }
+        })
+        .select()
+        .single();
+
+      if (jobError) {
+        console.error("Error creating document processing job:", jobError);
+        throw jobError;
+      }
+
+      // Fetch the content as markdown
+      console.log("Fetching content for website:", url);
+      const { content, success, error } = await fetchWebsiteContent(url);
+
+      if (!success || !content) {
+        throw new Error(error || "Failed to fetch website content");
+      }
+
+      // Save content to document_processing_jobs
+      const { error: updateJobError } = await supabase
+        .from("document_processing_jobs")
+        .update({
+          status: "completed", 
+          content: content,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", jobData.id);
+
+      if (updateJobError) {
+        console.error("Error updating document processing job:", updateJobError);
+        throw updateJobError;
+      }
+
+      // Save content to ai_agents
+      const { error: aiAgentError } = await supabase
+        .from("ai_agents")
+        .insert({
+          client_id: clientId,
+          name: `Website: ${url}`,
+          content: content,
+          interaction_type: "website_content",
+          metadata: {
+            source_url: url,
+            website_url_id: websiteUrlId,
+            document_id: documentId,
+            imported_at: new Date().toISOString()
+          }
+        });
+
+      if (aiAgentError) {
+        console.error("Error saving content to ai_agents:", aiAgentError);
+        throw aiAgentError;
+      }
+
+      // Update website_url status to completed
+      const { error: updateUrlError } = await supabase
+        .from("website_urls")
+        .update({ 
+          status: "completed",
+          last_crawled: new Date().toISOString()
+        })
+        .eq("id", websiteUrlId);
+
+      if (updateUrlError) {
+        console.error("Error updating website URL status:", updateUrlError);
+        throw updateUrlError;
+      }
+
+      console.log("Successfully processed website content:", url);
+    } catch (error) {
+      console.error("Error processing website content:", error);
+      
+      // Update website_url status to failed
+      await supabase
+        .from("website_urls")
+        .update({ 
+          status: "failed",
+          error: error instanceof Error ? error.message : "Unknown error",
+          last_crawled: new Date().toISOString()
+        })
+        .eq("id", websiteUrlId);
+        
+      // Update document processing job status if exists
+      await supabase
+        .from("document_processing_jobs")
+        .update({ 
+          status: "failed",
+          error: error instanceof Error ? error.message : "Unknown error",
+          updated_at: new Date().toISOString()
+        })
+        .eq("document_url", url)
+        .eq("client_id", clientId);
+      
+      throw error;
+    }
+  };
 
   return {
     addWebsiteUrlMutation,
