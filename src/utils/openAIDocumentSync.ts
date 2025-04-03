@@ -60,64 +60,71 @@ export const syncDocumentWithOpenAI = async (
     formData.append('assistant_id', assistantId);
     
     // Set a timeout for the fetch request
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutPromise = new Promise<SyncDocumentResult>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Request timeout: OpenAI sync took too long to respond'));
+      }, 30000); // 30 second timeout
+    });
     
     try {
-      const { data, error } = await supabase.functions.invoke('upload-file-to-openai', {
-        body: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (error) {
-        console.error('Error uploading file to OpenAI:', error);
-        return { 
-          success: false, 
-          error: `Error uploading to OpenAI: ${error.message}` 
-        };
-      }
-      
-      console.log('File uploaded to OpenAI successfully:', data);
-      
-      if (data.file_id) {
-        // Update the document record with the OpenAI file ID if we have a document ID
-        if (documentId) {
-          const { error: updateError } = await supabase
-            .from('ai_documents')
-            .update({ 
-              openai_file_id: data.file_id,
-              status: 'completed'
-            })
-            .eq('id', documentId);
+      // Create a race between the actual request and the timeout
+      const syncResult = await Promise.race([
+        timeoutPromise,
+        (async () => {
+          const { data, error } = await supabase.functions.invoke('upload-file-to-openai', {
+            body: formData,
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
           
-          if (updateError) {
-            console.error('Error updating document with OpenAI file ID:', updateError);
-            // Non-critical error, we still uploaded the file successfully
+          if (error) {
+            console.error('Error uploading file to OpenAI:', error);
+            return { 
+              success: false, 
+              error: `Error uploading to OpenAI: ${error.message}` 
+            };
           }
-        }
-        
-        return {
-          success: true,
-          fileId: data.file_id,
-          assistantFileId: data.assistant_file_id,
-          message: 'Document synchronized with OpenAI assistant successfully'
-        };
-      } else {
-        return {
-          success: false,
-          error: data.message || 'Unknown error from OpenAI file upload'
-        };
-      }
+          
+          console.log('File uploaded to OpenAI successfully:', data);
+          
+          if (data.file_id) {
+            // Update the document record with the OpenAI file ID if we have a document ID
+            if (documentId) {
+              const { error: updateError } = await supabase
+                .from('ai_documents')
+                .update({ 
+                  openai_file_id: data.file_id,
+                  status: 'completed'
+                })
+                .eq('id', documentId);
+              
+              if (updateError) {
+                console.error('Error updating document with OpenAI file ID:', updateError);
+                // Non-critical error, we still uploaded the file successfully
+              }
+            }
+            
+            return {
+              success: true,
+              fileId: data.file_id,
+              assistantFileId: data.assistant_file_id,
+              message: 'Document synchronized with OpenAI assistant successfully'
+            };
+          } else {
+            return {
+              success: false,
+              error: data.message || 'Unknown error from OpenAI file upload'
+            };
+          }
+        })()
+      ]);
+      
+      return syncResult;
     } catch (fetchError) {
-      clearTimeout(timeoutId);
       console.error('Fetch error in syncDocumentWithOpenAI:', fetchError);
       
-      if (fetchError.name === 'AbortError') {
+      if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
         return {
           success: false,
           error: 'Request timeout: OpenAI sync took too long to respond'
@@ -148,41 +155,49 @@ export const getAnswerFromOpenAIAssistant = async (
   try {
     console.log(`Getting answer from OpenAI assistant for client ${clientId}: "${query}"`);
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    // Set a timeout for the fetch request
+    const timeoutPromise = new Promise<AnswerResult>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Request timeout: OpenAI took too long to respond'));
+      }, 30000); // 30 second timeout
+    });
     
     try {
-      const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
-        body: { client_id: clientId, query },
-        signal: controller.signal
-      });
+      // Create a race between the actual request and the timeout
+      const answerResult = await Promise.race([
+        timeoutPromise,
+        (async () => {
+          const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
+            body: { client_id: clientId, query }
+          });
+          
+          if (error) {
+            console.error('Error querying OpenAI assistant:', error);
+            return { 
+              answer: "I'm sorry, I encountered an error while processing your question.", 
+              error: `Error querying assistant: ${error.message}` 
+            };
+          }
+          
+          if (!data || !data.answer) {
+            return { 
+              answer: "I couldn't generate a proper response. Please try asking a different question.",
+              error: data?.error || 'No answer returned from assistant'
+            };
+          }
+          
+          return {
+            answer: data.answer,
+            threadId: data.thread_id
+          };
+        })()
+      ]);
       
-      clearTimeout(timeoutId);
-      
-      if (error) {
-        console.error('Error querying OpenAI assistant:', error);
-        return { 
-          answer: "I'm sorry, I encountered an error while processing your question.", 
-          error: `Error querying assistant: ${error.message}` 
-        };
-      }
-      
-      if (!data || !data.answer) {
-        return { 
-          answer: "I couldn't generate a proper response. Please try asking a different question.",
-          error: data?.error || 'No answer returned from assistant'
-        };
-      }
-      
-      return {
-        answer: data.answer,
-        threadId: data.thread_id
-      };
+      return answerResult;
     } catch (fetchError) {
-      clearTimeout(timeoutId);
       console.error('Fetch error in getAnswerFromOpenAIAssistant:', fetchError);
       
-      if (fetchError.name === 'AbortError') {
+      if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
         return {
           answer: "I'm sorry, the request timed out. Please try asking a shorter or simpler question.",
           error: 'Request timeout: OpenAI took too long to respond'
