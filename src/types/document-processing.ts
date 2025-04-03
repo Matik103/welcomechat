@@ -1,4 +1,3 @@
-
 /**
  * Types for document processing functionality
  */
@@ -107,5 +106,19 @@ export interface ParseResponse {
   success: boolean;
   text?: string;
   chunks?: DocumentChunk[];
+  error?: string;
+}
+
+export interface LlamaIndexJobResponse {
+  job_id: string;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LlamaIndexParsingResult {
+  job_id: string;
+  status: 'SUCCEEDED' | 'FAILED';
+  parsed_content?: string;
   error?: string;
 }

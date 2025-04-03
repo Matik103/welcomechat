@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { 
   DocumentChunk,
@@ -8,36 +7,38 @@ import {
   LlamaIndexJobResponse,
   LlamaIndexParsingResult
 } from '@/types/document-processing';
-import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
+import { LLAMA_CLOUD_API_KEY } from '@/config/env';
 
-// Direct API URL
-const LLAMA_API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
-
-// Check if API key is available
-if (!LLAMA_CLOUD_API_KEY) {
-  console.error('LlamaIndex Cloud API key is not set. Please set VITE_LLAMA_CLOUD_API_KEY in your environment variables.');
-}
+// Supabase Edge Function URL
+const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/llama-index-proxy`;
 
 /**
- * Upload a document to LlamaIndex Cloud for processing
+ * Upload a document to LlamaIndex Cloud for processing via Edge Function
  */
 export const uploadDocumentToLlamaIndex = async (
   file: File,
   options: DocumentProcessingOptions = { clientId: '' }
 ): Promise<LlamaIndexJobResponse> => {
   try {
-    console.log('Uploading document to LlamaIndex:', file.name);
+    console.log('Uploading document to LlamaIndex via Edge Function:', file.name);
     
     // Create a FormData object to send the file
     const formData = new FormData();
     formData.append('file', file);
     
-    // Prepare the fetch request with proper authorization
-    const response = await fetch(`${LLAMA_API_URL}/upload`, {
+    // Get the Supabase auth token
+    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = session?.access_token;
+    
+    if (!authToken) {
+      throw new Error('No authentication token available');
+    }
+    
+    // Call the Edge Function
+    const response = await fetch(`${EDGE_FUNCTION_URL}/process_file`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
-        // No Content-Type header as it's set automatically with FormData
+        'Authorization': `Bearer ${authToken}`,
       },
       body: formData,
     });
@@ -64,22 +65,26 @@ export const uploadDocumentToLlamaIndex = async (
 };
 
 /**
- * Poll LlamaIndex for the processing status of a job
+ * Poll LlamaIndex for the processing status of a job via Edge Function
  */
 export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexParsingResult> => {
   try {
-    console.log(`Checking status of LlamaIndex job ${jobId}`);
+    console.log(`Checking status of LlamaIndex job ${jobId} via Edge Function`);
     
-    // Prepare headers for the request
-    const headers: HeadersInit = {
-      'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
-      'Content-Type': 'application/json'
-    };
+    // Get the Supabase auth token
+    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = session?.access_token;
     
-    // Check job status
-    const response = await fetch(`${LLAMA_API_URL}/job/${jobId}`, {
+    if (!authToken) {
+      throw new Error('No authentication token available');
+    }
+    
+    // Check job status with content included if completed
+    const response = await fetch(`${EDGE_FUNCTION_URL}/jobs/${jobId}?includeContent=true`, {
       method: 'GET',
-      headers
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+      }
     });
     
     if (!response.ok) {
@@ -98,27 +103,12 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
       return processLlamaIndexJob(jobId);
     }
     
-    // If job completed, check if content was included in the response
+    // If job completed successfully
     if (result.status === 'completed') {
-      // Get the content with another request
-      const contentResponse = await fetch(`${LLAMA_API_URL}/job/${jobId}/result/markdown`, {
-        method: 'GET',
-        headers
-      });
-      
-      if (!contentResponse.ok) {
-        const errorText = await contentResponse.text();
-        console.error(`Error getting content for job ${jobId}:`, errorText);
-        throw new Error(`Failed to get parsed content: ${errorText}`);
-      }
-      
-      const content = await contentResponse.text();
-      console.log(`Retrieved content for job ${jobId}, length: ${content.length} characters`);
-      
       return {
         job_id: jobId,
         status: 'SUCCEEDED',
-        parsed_content: content
+        parsed_content: result.parsed_content
       };
     }
     
