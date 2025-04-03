@@ -1,6 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { callRpcFunctionSafe } from './rpcUtils';
 
 /**
  * Converts a document to the specified format
@@ -139,15 +139,18 @@ export async function uploadDocumentToStorage(
       extractedText = await extractTextFromPDF(file);
       
       if (extractedText) {
-        // Store the extracted text using the RPC function instead of direct table access
-        const textStoreResult = await supabase.rpc('store_document_text', {
-          p_client_id: clientId,
-          p_document_name: file.name,
-          p_document_text: extractedText,
-          p_storage_path: data.path,
-          p_file_size: file.size,
-          p_mime_type: file.type
-        });
+        // Store the extracted text using the RPC function
+        const textStoreResult = await callRpcFunctionSafe(
+          'store_document_text',
+          {
+            p_client_id: clientId,
+            p_document_name: file.name,
+            p_document_text: extractedText,
+            p_storage_path: data.path,
+            p_file_size: file.size,
+            p_mime_type: file.type
+          }
+        );
         
         console.log('Text storage result:', textStoreResult);
       }
@@ -178,11 +181,14 @@ export async function getDocumentContent(
   filePath: string
 ): Promise<any | null> {
   try {
-    // Use the RPC to get document content instead of direct table access
-    const { data, error } = await supabase.rpc('get_document_content', {
-      p_client_id: clientId,
-      p_storage_path: filePath
-    });
+    // Use the RPC to get document content
+    const { data, error } = await callRpcFunctionSafe(
+      'get_document_content',
+      {
+        p_client_id: clientId,
+        p_storage_path: filePath
+      }
+    );
       
     if (error) {
       console.error('Error fetching document content:', error);

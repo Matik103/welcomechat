@@ -6,6 +6,8 @@ import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { v4 as uuidv4 } from 'uuid';
 import { DocumentProcessingResult } from '@/types/document-processing';
 import { uploadToOpenAIAssistant } from '@/services/openaiAssistantService';
+import { processDocumentEmbedding } from '@/utils/documentEmbeddings';
+import { extractTextFromPDF } from '@/utils/documentConverter';
 
 interface UploadOptions {
   clientId?: string;
@@ -13,6 +15,12 @@ interface UploadOptions {
   syncToAgent?: boolean;
   syncToProfile?: boolean;
   syncToWidgetSettings?: boolean;
+}
+
+interface OpenAIAssistantResponse {
+  success: boolean;
+  error?: string;
+  fileId: string | null;
 }
 
 export function useUnifiedDocumentUpload(clientId: string) {
@@ -82,7 +90,7 @@ export function useUnifiedDocumentUpload(clientId: string) {
       setUploadProgress(40);
       
       // Initialize openAIResult with default values
-      let openAIResult = {
+      let openAIResult: OpenAIAssistantResponse = {
         success: false,
         error: '',
         fileId: null
@@ -140,9 +148,42 @@ export function useUnifiedDocumentUpload(clientId: string) {
         throw new Error(`Failed to create document record: ${linkError.message}`);
       }
       
+      // 5. Attempt to extract text and generate embeddings
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        try {
+          const extractedText = await extractTextFromPDF(file);
+          if (extractedText) {
+            // Insert into document-storage table to get a document ID
+            const { data: docData, error: docError } = await supabase.rpc('store_document_text', {
+              p_client_id: effectiveClientId,
+              p_document_name: file.name,
+              p_document_text: extractedText,
+              p_storage_path: filePath,
+              p_file_size: file.size,
+              p_mime_type: file.type
+            });
+            
+            if (docError) {
+              console.error('Error storing document text:', docError);
+            } else if (docData && docData.document_id) {
+              // Generate and store embedding
+              await processDocumentEmbedding(
+                effectiveClientId,
+                docData.document_id,
+                extractedText
+              );
+              console.log("Generated and stored embedding for document");
+            }
+          }
+        } catch (embedError) {
+          console.error('Error processing document embedding:', embedError);
+          // Continue despite embedding error
+        }
+      }
+      
       setUploadProgress(100);
       
-      // 5. Prepare success result
+      // 6. Prepare success result
       const result: DocumentProcessingResult = {
         success: true,
         processed: 1,

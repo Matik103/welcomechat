@@ -5,6 +5,7 @@ export const PROFILE_IMAGES_BUCKET = 'avatars';
 export const WIDGET_LOGOS_BUCKET = 'widget-logos';
 
 import { supabase } from '@/integrations/supabase/client';
+import { callRpcFunctionSafe } from './rpcUtils';
 
 /**
  * Ensures that the document-storage bucket exists
@@ -58,18 +59,24 @@ export const getDocumentStorage = async (clientId: string, storagePath?: string)
   try {
     if (storagePath) {
       // Query for a specific document
-      const { data, error } = await supabase.rpc('get_document_by_path', {
-        p_client_id: clientId,
-        p_storage_path: storagePath
-      });
+      const { data, error } = await callRpcFunctionSafe(
+        'get_document_by_path',
+        {
+          p_client_id: clientId,
+          p_storage_path: storagePath
+        }
+      );
       
       if (error) throw error;
       return data;
     } else {
       // Query for all client documents
-      const { data, error } = await supabase.rpc('get_client_documents', {
-        p_client_id: clientId
-      });
+      const { data, error } = await callRpcFunctionSafe(
+        'get_client_documents',
+        {
+          p_client_id: clientId
+        }
+      );
       
       if (error) throw error;
       return data;

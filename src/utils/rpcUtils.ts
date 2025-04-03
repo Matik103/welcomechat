@@ -3,23 +3,28 @@ import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Safely call a Supabase RPC function with error handling
+ * This version accepts any function name and parameters
  */
 export const callRpcFunctionSafe = async <T>(
   functionName: string, 
   params: Record<string, any> = {}
-): Promise<T> => {
+): Promise<{ data: T | null; error: Error | null }> => {
   try {
-    const { data, error } = await supabase.rpc(functionName as any, params);
+    // @ts-ignore - We need to bypass TypeScript's function name checking
+    const { data, error } = await supabase.rpc(functionName, params);
     
     if (error) {
       console.error(`Error calling RPC function ${functionName}:`, error);
-      throw error;
+      return { data: null, error };
     }
     
-    return data as T;
+    return { data, error: null };
   } catch (error) {
     console.error(`Failed to call RPC function ${functionName}:`, error);
-    throw error;
+    return { 
+      data: null, 
+      error: error instanceof Error ? error : new Error(`Unknown error in ${functionName}`) 
+    };
   }
 };
 

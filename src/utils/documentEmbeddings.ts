@@ -1,5 +1,12 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { OpenAI } from 'openai';
+import { callRpcFunctionSafe } from './rpcUtils';
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+});
 
 /**
  * Store document embedding in the ai_agents table
@@ -19,12 +26,15 @@ export async function storeDocumentEmbedding(
     console.log(`Storing embedding for document ${documentId} for client ${clientId}`);
     
     // Call the RPC function to store the embedding
-    const { data, error } = await supabase.rpc('store_document_embedding', {
-      p_client_id: clientId,
-      p_document_id: documentId,
-      p_content: content,
-      p_embedding: embedding
-    });
+    const { data, error } = await callRpcFunctionSafe(
+      'store_document_embedding',
+      {
+        p_client_id: clientId,
+        p_document_id: documentId,
+        p_content: content,
+        p_embedding: embedding
+      }
+    );
     
     if (error) {
       console.error('Error storing document embedding:', error);
@@ -67,12 +77,15 @@ export async function findSimilarDocuments(
     console.log(`Finding similar documents for client ${clientId}`);
     
     // Call the RPC function to match documents
-    const { data, error } = await supabase.rpc('match_documents', {
-      p_client_id: clientId,
-      p_query_embedding: queryEmbedding,
-      p_match_threshold: threshold,
-      p_match_count: maxResults
-    });
+    const { data, error } = await callRpcFunctionSafe(
+      'match_documents',
+      {
+        p_client_id: clientId,
+        p_query_embedding: queryEmbedding,
+        p_match_threshold: threshold,
+        p_match_count: maxResults
+      }
+    );
     
     if (error) {
       console.error('Error finding similar documents:', error);
@@ -83,5 +96,74 @@ export async function findSimilarDocuments(
   } catch (error) {
     console.error('Error in findSimilarDocuments:', error);
     return [];
+  }
+}
+
+/**
+ * Generate embedding using OpenAI API
+ * @param text Text to generate embedding for
+ * @returns Array of numbers representing the embedding
+ */
+export async function generateEmbedding(text: string): Promise<number[]> {
+  try {
+    // Trim and clean the text
+    const cleanedText = text.trim().replace(/\n+/g, ' ').slice(0, 8000);
+    
+    if (!cleanedText) {
+      console.error('Empty text for embedding generation');
+      return [];
+    }
+    
+    // Create embeddings using OpenAI
+    const response = await openai.embeddings.create({
+      model: 'text-embedding-ada-002',
+      input: cleanedText,
+    });
+    
+    if (!response.data || response.data.length === 0) {
+      console.error('No embedding data returned from OpenAI');
+      return [];
+    }
+    
+    return response.data[0].embedding;
+  } catch (error) {
+    console.error('Error generating embedding:', error);
+    throw error;
+  }
+}
+
+/**
+ * Process document and generate embedding
+ * @param clientId Client ID
+ * @param documentId Document ID
+ * @param text Document text content
+ * @returns Result of processing
+ */
+export async function processDocumentEmbedding(
+  clientId: string,
+  documentId: number,
+  text: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    // Generate embedding
+    const embedding = await generateEmbedding(text);
+    
+    if (!embedding || embedding.length === 0) {
+      return {
+        success: false,
+        error: 'Failed to generate embedding',
+        message: 'Empty embedding returned from OpenAI'
+      };
+    }
+    
+    // Store embedding
+    return await storeDocumentEmbedding(clientId, documentId, text, embedding);
+  } catch (error) {
+    console.error('Error processing document embedding:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: 'Failed to process document embedding'
+    };
   }
 }
