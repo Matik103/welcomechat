@@ -1,12 +1,11 @@
+
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload, File, X, Link as LinkIcon } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Upload, File, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DocumentUploadFormProps {
-  onSubmitDocument: (file: File | string) => Promise<void>;
+  onSubmitDocument: (file: File) => Promise<void>;
   isUploading: boolean;
 }
 
@@ -15,7 +14,6 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
   isUploading
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [driveUrl, setDriveUrl] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,7 +35,6 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
       const file = e.dataTransfer.files[0];
       if (isValidFileType(file)) {
         setSelectedFile(file);
-        setDriveUrl(''); // Clear drive URL when file is selected
       } else {
         toast.error('Invalid file type. Please upload a PDF, DOCX, or text file.');
       }
@@ -58,39 +55,22 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
       const file = e.target.files[0];
       if (isValidFileType(file)) {
         setSelectedFile(file);
-        setDriveUrl(''); // Clear drive URL when file is selected
       } else {
         toast.error('Invalid file type. Please upload a PDF, DOCX, or text file.');
       }
     }
   };
 
-  const isValidDriveUrl = (url: string) => {
-    return url.includes('drive.google.com') && url.includes('/d/');
-  };
-
-  const handleDriveUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDriveUrl(e.target.value);
-    setSelectedFile(null); // Clear selected file when drive URL is entered
-  };
-
   const handleSubmit = async () => {
     try {
-      if (driveUrl) {
-        if (!isValidDriveUrl(driveUrl)) {
-          toast.error('Please enter a valid Google Drive URL');
-          return;
-        }
-        await onSubmitDocument(driveUrl);
-        setDriveUrl('');
-      } else if (selectedFile) {
+      if (selectedFile) {
         await onSubmitDocument(selectedFile);
         setSelectedFile(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
       } else {
-        toast.error('Please select a file or enter a Google Drive URL');
+        toast.error('Please select a file');
       }
     } catch (error) {
       console.error('Error uploading document:', error);
@@ -100,7 +80,6 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
 
   const handleClearFile = () => {
     setSelectedFile(null);
-    setDriveUrl('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -143,26 +122,11 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
         </div>
       </div>
 
-      <div className="mb-4">
-        <Label htmlFor="driveUrl">Or enter a Google Drive URL</Label>
-        <div className="flex gap-2">
-          <Input
-            id="driveUrl"
-            type="text"
-            placeholder="https://drive.google.com/file/d/..."
-            value={driveUrl}
-            onChange={handleDriveUrlChange}
-            className="flex-1"
-          />
-          <LinkIcon className="w-5 h-5 text-gray-400 self-center" />
-        </div>
-      </div>
-
-      {(selectedFile || driveUrl) && (
+      {selectedFile && (
         <div className="flex items-center gap-2 mb-4 p-2 bg-gray-50 rounded">
           <File className="h-5 w-5 text-gray-500" />
           <span className="text-sm text-gray-700 truncate flex-1">
-            {selectedFile ? selectedFile.name : 'Google Drive Document'}
+            {selectedFile.name}
           </span>
           <button
             onClick={handleClearFile}
@@ -176,7 +140,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
       <div className="flex justify-end">
         <Button
           onClick={handleSubmit}
-          disabled={isUploading || (!selectedFile && !driveUrl)}
+          disabled={isUploading || !selectedFile}
         >
           {isUploading ? 'Uploading...' : 'Upload Document'}
         </Button>

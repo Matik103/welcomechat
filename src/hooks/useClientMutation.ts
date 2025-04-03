@@ -105,6 +105,9 @@ export const useClientMutation = () => {
         }
       }
       
+      // Wait briefly to avoid race conditions before invalidating queries
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Invalidate client list query to prevent duplications
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       
