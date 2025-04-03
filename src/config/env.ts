@@ -1,46 +1,48 @@
 
 /**
- * Environment variables and configuration
+ * Environment variables configuration
+ * These are loaded from .env file during build time
  */
 
-// URL for the Supabase instance
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-
-// Supabase anon key for public API access
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-// LlamaIndex API key - can come from env var for local dev or from secrets in production
+// API Keys
+export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string;
 export const LLAMA_CLOUD_API_KEY = import.meta.env.VITE_LLAMA_CLOUD_API_KEY as string;
 
-// OpenAI API key - required for LlamaIndex document processing
-export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string;
+// Supabase Configuration
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-// Base URL for Edge Functions
-export const EDGE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
+// Application Configuration
+export const APP_URL = import.meta.env.VITE_APP_URL as string;
 
-// Document processing options
-export const DEFAULT_MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+/**
+ * Checks if all required environment variables are set
+ * @returns boolean indicating if all required variables are set
+ */
+export function checkRequiredEnvVars(): boolean {
+  let isValid = true;
 
-// Check if required environment variables are set
-export const checkRequiredEnvVars = (): boolean => {
-  if (!SUPABASE_URL) {
-    console.error('VITE_SUPABASE_URL is not set');
-    return false;
-  }
-  
-  if (!SUPABASE_ANON_KEY) {
-    console.error('VITE_SUPABASE_ANON_KEY is not set');
-    return false;
-  }
-
-  // Optional check for LlamaIndex functionality
-  if (!LLAMA_CLOUD_API_KEY) {
-    console.warn('VITE_LLAMA_CLOUD_API_KEY is not set - LlamaIndex functionality will be limited');
+  // Check Supabase configuration
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('Missing required Supabase configuration. Please check your environment variables.');
+    isValid = false;
   }
 
+  // Check OpenAI API key
   if (!OPENAI_API_KEY) {
-    console.warn('VITE_OPENAI_API_KEY is not set - LlamaIndex document processing will be limited');
+    console.warn('OpenAI API key is not set. Some LlamaIndex document processing features may be limited.');
   }
-  
-  return true;
-};
+
+  // Check LlamaIndex API key
+  if (!LLAMA_CLOUD_API_KEY) {
+    console.warn('LlamaIndex Cloud API key is not set. Document processing features will be disabled.');
+  }
+
+  // Check application URL
+  if (!APP_URL) {
+    console.error('Application URL is not set. Please check your environment variables.');
+    isValid = false;
+  }
+
+  return isValid;
+}
