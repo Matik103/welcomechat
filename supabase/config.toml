@@ -92,3 +92,7 @@ verify_jwt = true
 
 [functions.generate-answer]
 verify_jwt = true
+
+[functions.query-openai-assistant]
+verify_jwt = true
+

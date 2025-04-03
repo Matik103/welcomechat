@@ -1,101 +1,124 @@
 
 import { useState } from "react";
-import { WidgetSettings } from "@/types/client-form";
-import { WidgetSettingsForm } from "@/components/widget/WidgetSettingsForm";
-import { WidgetSettingsHeader } from "@/components/widget/WidgetSettingsHeader";
-import { WidgetPreviewCard } from "@/components/widget/WidgetPreviewCard";
-import { EmbedCodeCard } from "@/components/widget/EmbedCodeCard";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WidgetSection } from "@/components/client/settings/WidgetSection";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { WidgetPreview } from "./WidgetPreview";
+import { WidgetSettings } from "@/types/widget-settings";
+import { AiAssistantSection } from "../client/settings/AiAssistantSection";
 import { toast } from "sonner";
+
+interface UpdateSettingsMutation {
+  isPending: boolean;
+  mutateAsync: (newSettings: WidgetSettings) => Promise<any>;
+}
 
 interface WidgetSettingsContainerProps {
   clientId?: string;
   settings: WidgetSettings;
-  isClientView: boolean;
+  isClientView?: boolean;
   isUploading: boolean;
-  updateSettingsMutation: {
-    isPending: boolean;
-    mutateAsync: (newSettings: WidgetSettings) => Promise<void>;
-  };
-  handleBack: () => void;
-  handleLogoUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  updateSettingsMutation: UpdateSettingsMutation;
+  handleBack?: () => void;
+  handleLogoUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   logClientActivity: () => Promise<void>;
 }
 
 export function WidgetSettingsContainer({
   clientId,
   settings,
-  isClientView,
+  isClientView = false,
   isUploading,
   updateSettingsMutation,
   handleBack,
   handleLogoUpload,
   logClientActivity
 }: WidgetSettingsContainerProps) {
-  const [currentSettings, setCurrentSettings] = useState<WidgetSettings>(settings);
-
-  const handleSettingsChange = (newSettings: Partial<WidgetSettings>) => {
-    setCurrentSettings({ ...currentSettings, ...newSettings });
+  const [activeSettings, setActiveSettings] = useState<WidgetSettings>(settings);
+  const [activeTab, setActiveTab] = useState("branding");
+  
+  const handleSettingsChange = (partialSettings: Partial<WidgetSettings>) => {
+    setActiveSettings((prev) => ({ ...prev, ...partialSettings }));
   };
 
-  const handleSave = async () => {
+  const handleSubmit = async () => {
     try {
-      await updateSettingsMutation.mutateAsync(currentSettings);
-      toast.success("Widget settings saved successfully!");
+      if (!clientId) {
+        toast.error("Client ID is required to update settings");
+        return;
+      }
+      
+      await updateSettingsMutation.mutateAsync(activeSettings);
     } catch (error) {
-      console.error("Error saving widget settings:", error);
-      toast.error("Failed to save widget settings. Please try again.");
+      console.error("Error saving settings:", error);
+      toast.error("Failed to save settings");
     }
   };
 
-  const handleCopyEmbedCode = async () => {
-    if (isClientView) {
-      // Log activity when embed code is copied with detailed information
+  const handlePreviewInteraction = async () => {
+    try {
       await logClientActivity();
+    } catch (error) {
+      console.error("Error logging client activity:", error);
     }
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
-      <WidgetSettingsHeader onBack={handleBack} />
-
+    <div className="grid md:grid-cols-[1fr_350px] gap-6">
       <div className="space-y-6">
-        <WidgetSettingsForm
-          settings={currentSettings}
-          isUploading={isUploading}
-          onSettingsChange={handleSettingsChange}
-          onLogoUpload={handleLogoUpload}
-        />
-        
-        <WidgetPreviewCard 
-          settings={currentSettings} 
-          clientId={clientId} 
-        />
-        
-        <div className="relative z-0">
-          <EmbedCodeCard 
-            settings={currentSettings} 
-            onCopy={handleCopyEmbedCode} 
-          />
-        </div>
-        
-        <div className="flex justify-end">
-          <Button 
-            onClick={handleSave} 
-            disabled={updateSettingsMutation.isPending || isUploading}
-            className="mr-2"
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Widget Settings</h1>
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={updateSettingsMutation.isPending}
           >
-            {updateSettingsMutation.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Changes'
-            )}
+            {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="branding">Branding & Appearance</TabsTrigger>
+            <TabsTrigger value="assistant">AI Assistant</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="branding" className="space-y-6">
+            <WidgetSection
+              settings={activeSettings}
+              isUploading={isUploading}
+              onSettingsChange={handleSettingsChange}
+              onLogoUpload={handleLogoUpload}
+            />
+          </TabsContent>
+
+          <TabsContent value="assistant" className="space-y-6">
+            <AiAssistantSection
+              settings={activeSettings}
+              onSettingsChange={handleSettingsChange}
+              clientId={clientId || ""}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <div className="space-y-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Widget Preview</CardTitle>
+            <CardDescription>
+              This is how your widget will look to your users
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <WidgetPreview 
+              settings={activeSettings} 
+              clientId={clientId || ""} 
+              onTestInteraction={handlePreviewInteraction}
+            />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

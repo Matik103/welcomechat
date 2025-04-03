@@ -2,220 +2,110 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
-import { v4 as uuidv4 } from 'uuid';
-import { DocumentProcessingResult } from '@/types/document-processing';
-import { uploadToOpenAIAssistant } from '@/services/openaiAssistantService';
-import { processDocumentEmbedding } from '@/utils/documentEmbeddings';
-import { extractTextFromPDF } from '@/utils/documentConverter';
+import { uploadDocument as uploadDocumentUtil } from '@/services/documentService';
+import { syncDocumentWithOpenAI } from '@/utils/openAIDocumentSync';
 
 interface UploadOptions {
-  clientId?: string;
+  clientId: string;
   shouldUseAI?: boolean;
+  syncToOpenAI?: boolean;
   syncToAgent?: boolean;
   syncToProfile?: boolean;
   syncToWidgetSettings?: boolean;
 }
 
-// Define our own interface to avoid conflicts with imported types
-interface OpenAIUploadResponse {
+interface UploadResult {
   success: boolean;
+  documentId?: number;
   error?: string;
-  fileId?: string | null;
+  processed?: number;
+  failed?: number;
 }
 
-export function useUnifiedDocumentUpload(clientId: string) {
+export const useUnifiedDocumentUpload = (clientId: string) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
 
-  /**
-   * Unified document upload function that handles multiple destinations
-   */
-  const uploadDocument = async (file: File, options: UploadOptions = {}): Promise<DocumentProcessingResult> => {
-    if (!clientId && !options.clientId) {
-      throw new Error('Client ID is required');
+  const uploadDocument = async (file: File, options: UploadOptions = { clientId }) => {
+    if (!clientId) {
+      toast.error('Client ID is required');
+      return;
     }
 
-    const effectiveClientId = options.clientId || clientId;
     setIsUploading(true);
     setUploadProgress(0);
     setUploadResult(null);
-    
+
     try {
-      // 1. Get the agent name for this client
-      setUploadProgress(5);
-      const { data: agentData, error: agentError } = await supabase
-        .from('ai_agents')
-        .select('name, openai_assistant_id')
-        .eq('client_id', effectiveClientId)
-        .eq('interaction_type', 'config')
-        .limit(1)
-        .maybeSingle();
-      
-      if (agentError) {
-        console.error('Failed to get agent name:', agentError);
-        throw new Error(`Failed to get agent name: ${agentError.message}`);
-      }
-      
-      const agentName = agentData?.name || 'AI Assistant';
-      const existingAssistantId = agentData?.openai_assistant_id;
-      console.log("Using agent name for document upload:", agentName);
-      setUploadProgress(10);
-      
-      // 2. Upload the file to storage
-      const timestamp = new Date().getTime();
-      const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const filePath = `${effectiveClientId}/${fileName}`;
-      
-      setUploadProgress(15);
-      // Upload the original file to Supabase storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(DOCUMENTS_BUCKET)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-      
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        throw new Error(`Failed to upload file: ${uploadError.message}`);
-      }
-      
-      // Get the public URL of the uploaded file
-      const { data: { publicUrl } } = supabase.storage
-        .from(DOCUMENTS_BUCKET)
-        .getPublicUrl(filePath);
-      
-      console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
-      setUploadProgress(40);
-      
-      // Initialize openAIResult with default values
-      let openAIResult: OpenAIUploadResponse = {
-        success: false,
-        error: '',
-        fileId: null
-      };
-      
-      // 3. Process the document with OpenAI's built-in file handling
-      if (options.shouldUseAI !== false) {
-        setUploadProgress(50);
-        console.log("Uploading document to OpenAI Assistant:", file.name);
-        
-        try {
-          const aiResponse = await uploadToOpenAIAssistant(
-            effectiveClientId,
-            agentName,
-            file,
-            existingAssistantId
-          );
-          
-          openAIResult = {
-            success: aiResponse.success,
-            error: aiResponse.error,
-            fileId: aiResponse.fileId
-          };
-          
-          if (!openAIResult.success) {
-            console.error("Error uploading to OpenAI:", openAIResult.error);
-            toast.warning(`OpenAI processing skipped: ${openAIResult.error}`);
-            // Continue despite the error
-          } else {
-            console.log("Successfully uploaded to OpenAI Assistant");
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 95) {
+            clearInterval(progressInterval);
+            return prev;
           }
-        } catch (aiError) {
-          console.error("Error in OpenAI upload:", aiError);
-          openAIResult = {
-            success: false,
-            error: aiError instanceof Error ? aiError.message : 'Unknown error with OpenAI',
-            fileId: null
-          };
-          // Continue despite the error
-        }
-        
-        setUploadProgress(80);
-      }
-      
-      // 4. Create a document link record
-      const { error: linkError } = await supabase
-        .from('document_links')
-        .insert({
-          client_id: effectiveClientId,
-          document_type: file.type.includes('pdf') ? 'pdf' : 'document',
-          link: publicUrl,
-          storage_path: filePath,
-          file_name: file.name,
-          file_size: file.size,
-          file_type: file.type,
-          openai_file_id: openAIResult?.fileId || null
+          return prev + 5;
         });
+      }, 300);
+
+      console.log(`Starting document upload for client ${clientId}`, { options });
       
-      if (linkError) {
-        console.error('Error creating document link record:', linkError);
-        throw new Error(`Failed to create document record: ${linkError.message}`);
+      // Upload document using the document service
+      const result = await uploadDocumentUtil(clientId, file);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to upload document');
       }
       
-      // 5. Attempt to extract text and generate embeddings
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        try {
-          const extractedText = await extractTextFromPDF(file);
-          if (extractedText) {
-            // Insert into document-storage table to get a document ID
-            const { data: docData, error: docError } = await supabase.rpc('store_document_text', {
-              p_client_id: effectiveClientId,
-              p_document_name: file.name,
-              p_document_text: extractedText,
-              p_storage_path: filePath,
-              p_file_size: file.size,
-              p_mime_type: file.type
-            });
-            
-            if (docError) {
-              console.error('Error storing document text:', docError);
-            } else if (docData && typeof docData === 'object' && docData !== null && 'document_id' in docData) {
-              // Generate and store embedding using the document_id from the response
-              const documentId = Number(docData.document_id);
-              await processDocumentEmbedding(
-                effectiveClientId,
-                documentId,
-                extractedText
-              );
-              console.log("Generated and stored embedding for document");
-            }
-          }
-        } catch (embedError) {
-          console.error('Error processing document embedding:', embedError);
-          // Continue despite embedding error
+      console.log('Document uploaded successfully:', result);
+      
+      // Now sync with OpenAI if requested or by default
+      if (options.syncToOpenAI !== false) { // Default to true unless explicitly set to false
+        console.log('Syncing document with OpenAI assistant...');
+        setUploadProgress(85); // Update progress
+        
+        const openAIResult = await syncDocumentWithOpenAI(clientId, file, result.documentId);
+        
+        if (!openAIResult.success) {
+          console.warn('Failed to sync document with OpenAI:', openAIResult.error);
+          toast.warning('Document uploaded but failed to sync with AI assistant');
+        } else {
+          console.log('Document synced with OpenAI assistant successfully');
         }
       }
       
+      clearInterval(progressInterval);
       setUploadProgress(100);
       
-      // 6. Prepare success result
-      const result: DocumentProcessingResult = {
+      // Set the final result
+      setUploadResult({
         success: true,
-        processed: 1,
-        failed: 0,
-        documentId: uuidv4(),
-        documentUrl: publicUrl,
-        extractedText: 'Document uploaded successfully to OpenAI Assistant'
+        documentId: result.documentId,
+        processed: result.processed || 0,
+        failed: result.failed || 0
+      });
+      
+      toast.success('Document uploaded and processed successfully');
+      
+      return {
+        success: true,
+        documentId: result.documentId
       };
-      
-      setUploadResult(result);
-      toast.success(`Document "${file.name}" uploaded successfully`);
-      return result;
-      
     } catch (error) {
       console.error('Error uploading document:', error);
-      const errorResult: DocumentProcessingResult = {
+      
+      setUploadResult({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        processed: 0,
-        failed: 1
+        error: error instanceof Error ? error.message : 'Unknown error uploading document'
+      });
+      
+      toast.error('Failed to upload document: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
-      setUploadResult(errorResult);
-      toast.error(`Upload failed: ${errorResult.error}`);
-      throw error;
     } finally {
       setIsUploading(false);
     }
@@ -227,4 +117,4 @@ export function useUnifiedDocumentUpload(clientId: string) {
     uploadProgress,
     uploadResult
   };
-}
+};
