@@ -1,3 +1,4 @@
+
 /**
  * Types for document processing functionality
  */
@@ -126,16 +127,17 @@ export interface ParseResponse {
   error?: string;
 }
 
+// Updated LlamaIndex types to ensure they're JSON serializable
 export interface LlamaIndexJobResponse {
   job_id: string;
-  status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
-  created_at: string;
-  updated_at: string;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface LlamaIndexParsingResult {
   job_id: string;
-  status: 'SUCCEEDED' | 'FAILED';
+  status: string;
   parsed_content?: string;
   error?: string;
 }
@@ -167,14 +169,6 @@ export interface LlamaIndexDocumentChunk {
   };
 }
 
-// LlamaIndex JSON-serializable types for metadata
-export interface LlamaIndexJobResponseJson {
-  job_id: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
 // This type ensures LlamaIndex responses can be serialized as JSON in metadata
 export type JsonSerializable = 
   | string
@@ -183,3 +177,6 @@ export type JsonSerializable =
   | null
   | { [key: string]: JsonSerializable }
   | JsonSerializable[];
+
+// Helper type for Supabase JSON column
+export type Json = JsonSerializable;

@@ -1,3 +1,4 @@
+
 import { corsHeaders } from '../_shared/cors.ts';
 
 // Constants
@@ -80,6 +81,52 @@ Deno.serve(async (req) => {
       const data = await llamaResponse.json();
       
       return new Response(JSON.stringify(data), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      });
+    } else if (endpoint.startsWith('jobs/')) {
+      // Handle job status checking
+      const jobId = endpoint.replace('jobs/', '');
+      const includeContent = url.searchParams.get('includeContent') === 'true';
+      
+      console.log(`Checking job status for job ID: ${jobId}, includeContent: ${includeContent}`);
+      
+      const headers = {
+        'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
+        'Content-Type': 'application/json',
+      };
+      
+      const pollUrl = `${LLAMA_CLOUD_API_URL}/poll/${jobId}`;
+      
+      let llamaResponse;
+      try {
+        llamaResponse = await fetch(pollUrl, {
+          method: 'GET',
+          headers,
+        });
+      } catch (error) {
+        console.error(`Error calling LlamaIndex API for job ${jobId}:`, error);
+        throw error;
+      }
+      
+      if (!llamaResponse.ok) {
+        const errorText = await llamaResponse.text();
+        throw new Error(`LlamaIndex API error for job ${jobId}: ${errorText}`);
+      }
+      
+      const data = await llamaResponse.json();
+      
+      // Process the response to make it compatible with our frontend expectations
+      const processedResponse = {
+        job_id: jobId,
+        status: data.status || 'pending',
+        parsed_content: data.text || null,
+        error: data.error || null,
+      };
+      
+      return new Response(JSON.stringify(processedResponse), {
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',

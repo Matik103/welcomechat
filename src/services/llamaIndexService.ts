@@ -6,7 +6,8 @@ import {
   DocumentProcessingResult,
   DocumentProcessingStatus,
   LlamaIndexJobResponse,
-  LlamaIndexParsingResult
+  LlamaIndexParsingResult,
+  Json
 } from '@/types/document-processing';
 import { LLAMA_CLOUD_API_KEY } from '@/config/env';
 import { convertToPdf } from '@/utils/fileConverter';
@@ -109,7 +110,7 @@ export const uploadDocumentToLlamaIndex = async (
     
     return {
       job_id: result.job_id,
-      status: 'PENDING',
+      status: 'pending',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -139,6 +140,7 @@ export const processLlamaIndexJob = async (jobId: string): Promise<LlamaIndexPar
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
       }
     });
     

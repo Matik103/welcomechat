@@ -59,7 +59,7 @@
     "googleapis": "^126.0.1",
     "html-pdf-node": "^1.0.8",
     "input-otp": "^1.2.4",
-    "jspdf": "^3.0.1",
+    "jspdf": "^2.5.1",
     "llamaindex": "^0.9.15",
     "lucide-react": "^0.462.0",
     "mammoth": "^1.9.0",

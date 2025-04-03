@@ -9,7 +9,8 @@ import {
   DocumentProcessingStatus, 
   DocumentProcessingOptions,
   DocumentMetadata,
-  JsonSerializable
+  JsonSerializable,
+  Json
 } from '@/types/document-processing';
 import { 
   uploadDocumentToLlamaIndex, 
