@@ -63,7 +63,7 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
     }
   };
 
-  // Check if both required API keys are configured
+  // Check if both required API keys are configured - convert to boolean explicitly
   const areKeysConfigured = Boolean(LLAMA_CLOUD_API_KEY && OPENAI_API_KEY);
 
   return (
