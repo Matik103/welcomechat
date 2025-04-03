@@ -1,12 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { OpenAI } from 'openai';
 import { callRpcFunctionSafe } from './rpcUtils';
-
-// Initialize OpenAI client with the proper environment variable format for Vite
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
-});
 
 /**
  * Store document embedding in the ai_agents table
@@ -100,7 +94,7 @@ export async function findSimilarDocuments(
 }
 
 /**
- * Generate embedding using OpenAI API
+ * Generate embedding using OpenAI API via Supabase Edge Function
  * @param text Text to generate embedding for
  * @returns Array of numbers representing the embedding
  */
@@ -114,18 +108,22 @@ export async function generateEmbedding(text: string): Promise<number[]> {
       return [];
     }
     
-    // Create embeddings using OpenAI
-    const response = await openai.embeddings.create({
-      model: 'text-embedding-ada-002',
-      input: cleanedText,
+    // Call the Supabase Edge Function to generate embedding
+    const { data, error } = await supabase.functions.invoke('generate-embeddings', {
+      body: { text: cleanedText }
     });
     
-    if (!response.data || response.data.length === 0) {
-      console.error('No embedding data returned from OpenAI');
+    if (error) {
+      console.error('Error calling generate-embeddings function:', error);
       return [];
     }
     
-    return response.data[0].embedding;
+    if (!data || !data.success || !data.embedding) {
+      console.error('No embedding data returned from function:', data?.error || 'Unknown error');
+      return [];
+    }
+    
+    return data.embedding;
   } catch (error) {
     console.error('Error generating embedding:', error);
     throw error;
@@ -145,19 +143,38 @@ export async function processDocumentEmbedding(
   text: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    // Generate embedding
-    const embedding = await generateEmbedding(text);
+    console.log(`Processing document embedding for client ${clientId}, document ${documentId}`);
     
-    if (!embedding || embedding.length === 0) {
+    // Call the Supabase Edge Function to generate and store embedding
+    const { data, error } = await supabase.functions.invoke('generate-embeddings', {
+      body: { 
+        text, 
+        clientId, 
+        documentId 
+      }
+    });
+    
+    if (error) {
+      console.error('Error calling generate-embeddings function:', error);
       return {
         success: false,
-        error: 'Failed to generate embedding',
-        message: 'Empty embedding returned from OpenAI'
+        error: error.message,
+        message: 'Failed to generate embedding via edge function'
       };
     }
     
-    // Store embedding
-    return await storeDocumentEmbedding(clientId, documentId, text, embedding);
+    if (!data || !data.success) {
+      return {
+        success: false,
+        error: data?.error || 'Unknown error',
+        message: 'Failed to process document embedding'
+      };
+    }
+    
+    return {
+      success: true,
+      message: 'Document embedding processed successfully'
+    };
   } catch (error) {
     console.error('Error processing document embedding:', error);
     return {
