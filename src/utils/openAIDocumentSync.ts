@@ -40,8 +40,19 @@ export async function syncDocumentWithOpenAI(
     if (!assistantId) {
       console.log('No OpenAI assistant ID found for client, attempting to create one');
       
-      // Try to create an assistant if none exists
+      // Check auth session first
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.error('No authenticated session available');
+        return {
+          success: false,
+          error: 'Authentication required to create OpenAI assistant'
+        };
+      }
+      
       try {
+        // Try to create an assistant if none exists
         const { data: assistantData, error: createError } = await supabase.functions.invoke('create-openai-assistant', {
           body: {
             client_id: clientId,
@@ -50,9 +61,14 @@ export async function syncDocumentWithOpenAI(
           },
         });
         
-        if (createError || !assistantData?.assistant_id) {
-          console.error('Error creating OpenAI assistant:', createError || 'No assistant ID returned');
-          throw new Error(createError?.message || 'Failed to create OpenAI assistant');
+        if (createError) {
+          console.error('Error creating OpenAI assistant:', createError);
+          throw new Error(createError.message || 'Failed to create OpenAI assistant');
+        }
+        
+        if (!assistantData?.assistant_id) {
+          console.error('No assistant ID returned from function');
+          throw new Error('Failed to create OpenAI assistant - no ID returned');
         }
         
         console.log('Successfully created OpenAI assistant:', assistantData.assistant_id);

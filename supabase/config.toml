@@ -35,3 +35,6 @@ verify_jwt = true
 
 [[functions.create-openai-assistant]]
 verify_jwt = true
+
+[[functions.query-openai-assistant]]
+verify_jwt = true

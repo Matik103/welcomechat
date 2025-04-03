@@ -20,21 +20,21 @@ serve(async (req) => {
     });
   }
 
-  // Check for API key
-  if (!OPENAI_API_KEY) {
-    console.error("Missing OpenAI API key");
-    return new Response(
-      JSON.stringify({
-        error: "OpenAI API key is not configured. Please add it in the Supabase dashboard under Settings > API.",
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
-  }
-
   try {
+    // Check for API key
+    if (!OPENAI_API_KEY) {
+      console.error("Missing OpenAI API key");
+      return new Response(
+        JSON.stringify({
+          error: "OpenAI API key is not configured. Please add it in the Supabase dashboard under Settings > API.",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        }
+      );
+    }
+
     // Parse request body
     const { client_id, agent_name, agent_description, client_name } = await req.json();
 
@@ -62,7 +62,7 @@ serve(async (req) => {
       body: JSON.stringify({
         name: agent_name,
         instructions: agent_description,
-        model: "gpt-4-turbo-preview",
+        model: "gpt-4o-mini",
         tools: [{ type: "code_interpreter" }],
         metadata: {
           client_id: client_id,
