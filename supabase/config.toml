@@ -8,8 +8,6 @@ schemas = ["public", "storage", "graphql_public"]
 
 [db]
 port = 54322
-schema = "public"
-shadow_schema = "shadow"
 
 [studio]
 enabled = true
@@ -22,17 +20,18 @@ port = 54324
 
 [auth]
 enabled = true
-port = 54325
-uri = "http://localhost:54321/auth"
 
-[migrations]
-enabled = false
+[storage]
+enabled = true
+
+[realtime]
+enabled = true
 
 [functions]
 enabled = true
 
-[functions.upload-file-to-openai]
+[[functions.upload-file-to-openai]]
 verify_jwt = true
 
-[functions.create-openai-assistant]
+[[functions.create-openai-assistant]]
 verify_jwt = true

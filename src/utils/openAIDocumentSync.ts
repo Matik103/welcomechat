@@ -128,13 +128,27 @@ export async function syncDocumentWithOpenAI(
     }
 
     // Store document content for vector search as a backup access method
+    // First check if the document_content table exists
     try {
+      // First check if the table exists
+      const { error: tableCheckError } = await supabase
+        .from('document_content')
+        .select('id')
+        .limit(1);
+      
+      if (tableCheckError) {
+        console.log('document_content table does not exist yet. Creating it...');
+        // Call the RPC to create the table and set up the bucket
+        await supabase.rpc('setup_document_storage_policies');
+      }
+      
+      // Now we can safely insert
       const { error: docError } = await supabase
         .from('document_content')
         .insert([
           {
             client_id: clientId,
-            document_id: documentId || `file_${Date.now()}`,
+            document_id: documentId?.toString() || `file_${Date.now()}`,
             content: `Content from ${file.name}`,
             filename: file.name,
             file_type: file.type,

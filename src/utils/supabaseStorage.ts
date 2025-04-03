@@ -23,12 +23,20 @@ export const ensureDocumentStorageBucket = async (): Promise<boolean> => {
     
     console.log(`Bucket ${DOCUMENTS_BUCKET} ready for upload`);
     
-    // Setup RLS policies for the bucket
-    const { error: policyError } = await supabase.rpc('setup_document_storage_policies');
-    
-    if (policyError) {
-      console.error('Error setting up storage policies:', policyError);
-      // Continue anyway, as the bucket was created
+    // Create or run the RPC function to setup storage policies
+    try {
+      const { data, error: rpcError } = await supabase
+        .rpc('setup_document_storage_policies');
+      
+      if (rpcError) {
+        console.error('Error setting up storage policies:', rpcError);
+        // Continue anyway, as the bucket was created
+      } else {
+        console.log('Storage policies setup successful:', data);
+      }
+    } catch (rpcError) {
+      console.error('Error calling setup_document_storage_policies RPC:', rpcError);
+      // Continue since the bucket itself might be operational
     }
     
     return true;
