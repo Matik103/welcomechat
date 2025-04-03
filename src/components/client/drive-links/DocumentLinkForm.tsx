@@ -1,25 +1,29 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { validateDocumentLink } from '@/utils/documentProcessing';
 import { supabase } from '@/integrations/supabase/client';
 
 const formSchema = z.object({
-  link: z.string().url({ message: 'Please enter a valid URL' }),
+  link: z.string()
+    .url({ message: 'Please enter a valid URL' })
+    .refine(
+      (url) => url.includes('docs.google.com') || url.includes('drive.google.com'),
+      { message: 'Please enter a valid Google Drive, Docs, Sheets, or Slides URL' }
+    ),
   refresh_rate: z.number().min(1).max(1440),
-  document_type: z.string().optional(),
 });
 
-type FormData = z.infer<typeof formSchema>;
+type FormData = z.infer<typeof formSchema> & {
+  document_type?: string;
+};
 
 interface DocumentLinkFormProps {
   onSubmit: (data: FormData) => Promise<void>;
@@ -55,7 +59,6 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
     defaultValues: {
       link: '',
       refresh_rate: 24,
-      document_type: 'google_drive',
     },
   });
 
@@ -72,13 +75,12 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
     try {
       await onSubmit({
         ...data,
-        document_type: data.document_type || 'google_drive',
+        document_type: 'google_drive',
       });
       
       form.reset({
         link: '',
         refresh_rate: 24,
-        document_type: 'google_drive',
       });
     } catch (error) {
       console.error('Error submitting document link:', error);
@@ -102,85 +104,57 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
                 />
               </FormControl>
               <FormDescription>
-                Enter a Google Drive link or direct document URL
+                Add document links from Google Drive, Sheets, or other sources
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="document_type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Document Type</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value || 'google_drive'}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="google_drive">Google Drive</SelectItem>
-                    <SelectItem value="pdf">PDF</SelectItem>
-                    <SelectItem value="docx">Word Document</SelectItem>
-                    <SelectItem value="url">Web URL</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="refresh_rate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Refresh Rate (hours)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    min="1" 
-                    max="1440" 
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {!aiProcessingAvailable && (
-          <Alert variant="warning" className="mt-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              OpenAI document processing is not available. Document content extraction will be limited.
-              Please configure OpenAI API key in the Supabase project settings.
-            </AlertDescription>
-          </Alert>
-        )}
+        <FormField
+          control={form.control}
+          name="refresh_rate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Refresh Rate (hours)</FormLabel>
+              <FormControl>
+                <Input 
+                  type="number"
+                  min={1}
+                  max={1440}
+                  {...field}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                />
+              </FormControl>
+              <FormDescription>
+                How often should we check for updates to this document?
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {validationError && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
             <AlertDescription>{validationError}</AlertDescription>
           </Alert>
         )}
 
-        <Button type="submit" disabled={isSubmitting} className="w-full">
+        {!aiProcessingAvailable && (
+          <Alert variant="warning">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              AI processing is currently unavailable. Documents will be stored but not processed by {agentName}.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Adding...
+              Adding Document...
             </>
           ) : (
             'Add Document Link'

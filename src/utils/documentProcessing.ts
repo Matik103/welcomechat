@@ -1,4 +1,3 @@
-
 import { ValidationResult, DocumentChunk } from '@/types/document-processing';
 
 // Utility function to validate document links
@@ -25,31 +24,54 @@ export const validateDocumentLink = (url: string): ValidationResult => {
     };
   }
 
-  // Check for supported document types
-  if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
-    return {
-      isValid: true,
-      errors: [],
-      status: 'success',
-      message: 'Google Drive link is valid'
-    };
-  } else if (url.endsWith('.pdf') || url.endsWith('.doc') || url.endsWith('.docx') || 
-             url.endsWith('.txt') || url.endsWith('.rtf') || url.endsWith('.csv') || 
-             url.endsWith('.xlsx') || url.endsWith('.ppt') || url.endsWith('.pptx')) {
-    return {
-      isValid: true,
-      errors: [],
-      status: 'success',
-      message: 'Document link is valid'
-    };
+  // Check for Google Drive URLs
+  const googleDriveRegex = /https:\/\/(drive|docs|sheets|slides)\.google\.com\/.+/;
+  if (googleDriveRegex.test(url)) {
+    // Check for specific Google Drive formats
+    if (url.includes('docs.google.com/document')) {
+      return {
+        isValid: true,
+        errors: [],
+        status: 'success',
+        message: 'Google Doc link is valid'
+      };
+    } else if (url.includes('docs.google.com/spreadsheets')) {
+      return {
+        isValid: true,
+        errors: [],
+        status: 'success',
+        message: 'Google Sheet link is valid'
+      };
+    } else if (url.includes('docs.google.com/presentation')) {
+      return {
+        isValid: true,
+        errors: [],
+        status: 'success',
+        message: 'Google Slides link is valid'
+      };
+    } else if (url.includes('drive.google.com/file')) {
+      return {
+        isValid: true,
+        errors: [],
+        status: 'success',
+        message: 'Google Drive file link is valid'
+      };
+    } else if (url.includes('drive.google.com/folder')) {
+      return {
+        isValid: true,
+        errors: [],
+        status: 'success',
+        message: 'Google Drive folder link is valid'
+      };
+    }
   }
 
-  // Return warning for other URLs
+  // Return error for non-Google Drive URLs
   return {
-    isValid: true,
-    errors: ['URL may not be a supported document type'],
-    status: 'warning',
-    message: 'URL may not be a supported document type'
+    isValid: false,
+    errors: ['Please enter a valid Google Drive, Docs, Sheets, or Slides URL'],
+    status: 'error',
+    message: 'Only Google Drive documents are supported in this section'
   };
 };
 
