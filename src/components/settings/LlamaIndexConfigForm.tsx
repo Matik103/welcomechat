@@ -63,6 +63,9 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
     }
   };
 
+  // Check if both required API keys are configured
+  const areKeysConfigured = Boolean(LLAMA_CLOUD_API_KEY && OPENAI_API_KEY);
+
   return (
     <Card>
       <CardHeader>
@@ -123,7 +126,7 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
           </Alert>
         )}
         
-        {LLAMA_CLOUD_API_KEY && OPENAI_API_KEY && (
+        {areKeysConfigured && (
           <Alert className="bg-green-50 border-green-100">
             <Check className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-700">
@@ -142,7 +145,7 @@ export function LlamaIndexConfigForm({ onApiKeySet }: LlamaIndexConfigFormProps)
             Visit LlamaIndex Cloud
             <ArrowRight className="h-4 w-4 ml-1" />
           </a>
-          <Button onClick={handleSaveApiKey} disabled={isSaving || (LLAMA_CLOUD_API_KEY && OPENAI_API_KEY)}>
+          <Button onClick={handleSaveApiKey} disabled={isSaving || areKeysConfigured}>
             {isSaving ? 'Saving...' : 'Validate API Keys'}
           </Button>
         </div>
