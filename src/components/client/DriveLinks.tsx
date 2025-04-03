@@ -9,6 +9,7 @@ import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
+import { uploadDocumentToStorage } from '@/utils/documentConverter';
 
 interface DriveLinksProps {
   clientId: string;
@@ -18,6 +19,8 @@ interface DriveLinksProps {
 export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChange }) => {
   const [activeTab, setActiveTab] = useState('links');
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const {
     documentLinks,
@@ -27,8 +30,6 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
     deleteDocumentLink,
     refetch
   } = useDocumentLinks(clientId);
-
-  const { uploadDocument, isUploading } = useUnifiedDocumentUpload(clientId);
 
   const handleAddLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
     try {
@@ -77,15 +78,53 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
 
   const handleUploadDocument = async (file: File) => {
     try {
-      await uploadDocument(file);
+      setIsUploading(true);
+      
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          const newProgress = prev + 5;
+          return newProgress > 90 ? 90 : newProgress;
+        });
+      }, 300);
+      
+      // Upload the file to Supabase storage
+      const uploadResult = await uploadDocumentToStorage(file, clientId);
+      
+      clearInterval(progressInterval);
+      
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error || 'Upload failed');
+      }
+      
+      // Add the document link to the database
+      await addDocumentLink.mutateAsync({
+        link: uploadResult.url || '',
+        document_type: 'document',
+        refresh_rate: 30,
+        storage_path: uploadResult.path
+      });
+      
+      setUploadProgress(100);
       toast.success('Document uploaded successfully');
+      
+      if (refetch) {
+        await refetch();
+      }
       
       if (onResourceChange) {
         onResourceChange();
       }
+      
+      // Reset after a short delay
+      setTimeout(() => {
+        setUploadProgress(0);
+      }, 1000);
     } catch (error) {
       console.error('Error uploading document:', error);
       toast.error('Failed to upload document');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -118,6 +157,7 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
             <DocumentUploadForm
               onSubmitDocument={handleUploadDocument}
               isUploading={isUploading}
+              uploadProgress={uploadProgress}
             />
           </TabsContent>
         </Tabs>

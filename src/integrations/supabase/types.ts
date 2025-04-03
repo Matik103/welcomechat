@@ -3772,6 +3772,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      ensure_document_storage_bucket: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       exec_sql:
         | {
             Args: {
@@ -5867,6 +5871,15 @@ export type Database = {
           agent_name: string
         }
         Returns: number
+      }
+      process_document_upload: {
+        Args: {
+          file_path: string
+          filename: string
+          content_type: string
+          file_size: number
+        }
+        Returns: Json
       }
       record_function_metric: {
         Args: {
