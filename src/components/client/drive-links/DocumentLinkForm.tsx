@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,7 +12,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { validateDocumentLink } from '@/utils/documentProcessing';
 import { LLAMA_CLOUD_API_KEY, OPENAI_API_KEY } from '@/config/env';
-import { checkRequiredSecrets } from '@/services/secretsService';
 
 const formSchema = z.object({
   link: z.string().url({ message: 'Please enter a valid URL' }),
@@ -33,32 +32,6 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
   const [aiProcessingAvailable, setAiProcessingAvailable] = useState<boolean>(
     !!LLAMA_CLOUD_API_KEY && !!OPENAI_API_KEY
   );
-  const [isCheckingSecrets, setIsCheckingSecrets] = useState<boolean>(false);
-
-  useEffect(() => {
-    const checkApiKeys = async () => {
-      setIsCheckingSecrets(true);
-      try {
-        // First check if keys are available in environment
-        if (LLAMA_CLOUD_API_KEY && OPENAI_API_KEY) {
-          setAiProcessingAvailable(true);
-          return;
-        }
-        
-        // Then check if keys are available in Supabase secrets
-        const hasSecrets = await checkRequiredSecrets(['LLAMA_CLOUD_API_KEY', 'OPENAI_API_KEY']);
-        setAiProcessingAvailable(hasSecrets);
-        console.log('AI processing available:', hasSecrets);
-      } catch (error) {
-        console.error('Error checking API keys:', error);
-        setAiProcessingAvailable(false);
-      } finally {
-        setIsCheckingSecrets(false);
-      }
-    };
-    
-    checkApiKeys();
-  }, []);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -170,14 +143,7 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
           />
         </div>
 
-        {isCheckingSecrets ? (
-          <Alert className="mt-4">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <AlertDescription>
-              Checking LlamaIndex configuration...
-            </AlertDescription>
-          </Alert>
-        ) : !aiProcessingAvailable && (
+        {!aiProcessingAvailable && (
           <Alert variant="warning" className="mt-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>

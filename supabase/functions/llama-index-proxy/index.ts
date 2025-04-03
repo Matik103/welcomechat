@@ -1,4 +1,3 @@
-
 /// <reference lib="deno.ns" />
 /// <reference lib="deno.unstable" />
 
@@ -48,13 +47,8 @@ serve(async (req) => {
     }
     
     if (!LLAMA_CLOUD_API_KEY) {
-      console.error('LLAMA_CLOUD_API_KEY environment variable is not set in Edge Function');
-      throw new Error('LlamaIndex API key not configured in server environment');
+      throw new Error('LLAMA_CLOUD_API_KEY environment variable is not set');
     }
-
-    // Log the LLAMA_CLOUD_API_KEY prefix to confirm it's loaded (safely)
-    const apiKeyPrefix = LLAMA_CLOUD_API_KEY.substring(0, 4);
-    console.log(`LlamaIndex API key prefix: ${apiKeyPrefix}...`);
 
     if (endpoint === 'process_file') {
       const formData = await req.formData();
@@ -69,8 +63,6 @@ serve(async (req) => {
       const headers = {
         'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
       };
-      
-      console.log(`Uploading file to LlamaIndex: ${file.name}, size: ${file.size} bytes`);
       
       let llamaResponse;
       try {
@@ -97,8 +89,6 @@ serve(async (req) => {
         if (!data.job_id) {
           throw new Error('No job ID received from LlamaIndex');
         }
-        
-        console.log(`LlamaIndex job created with ID: ${data.job_id}`);
         
         return new Response(JSON.stringify(data), {
           headers: {
@@ -143,8 +133,6 @@ serve(async (req) => {
       
       try {
         const data = await llamaResponse.json();
-        
-        console.log(`Poll response for job ${jobId}:`, JSON.stringify(data));
         
         // Process the response to make it compatible with our frontend expectations
         const processedResponse = {

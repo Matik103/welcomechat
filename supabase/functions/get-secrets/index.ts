@@ -54,9 +54,6 @@ serve(async (req) => {
       const value = Deno.env.get(key)
       if (value) {
         result[key] = value
-        console.log(`Secret found for key: ${key}`);
-      } else {
-        console.log(`No secret found for key: ${key}`);
       }
     }
 

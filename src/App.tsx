@@ -1,52 +1,70 @@
 
-import React, { useEffect } from 'react';
-import './App.css';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { PublicRoutes } from './components/routes/PublicRoutes';
-import { UnauthenticatedRoutes } from './components/routes/UnauthenticatedRoutes';
-import { ClientRoutes } from './components/routes/ClientRoutes';
-import { AdminRoutes } from './components/routes/AdminRoutes';
-import { AuthProvider } from './contexts/AuthContext';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from './components/ui/sonner';
-import { Suspense } from 'react';
-import { LoadingFallback } from './components/routes/LoadingFallback';
-import initializeApp from './utils/appInitializer';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      refetchOnMount: true,
-      retry: 1,
-    },
-  },
-});
+import { useMemo } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "./contexts/AuthContext";
+import { PublicRoutes } from "./components/routes/PublicRoutes";
+import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes";
+import { AdminRoutes } from "./components/routes/AdminRoutes";
+import { ClientRoutes } from "./components/routes/ClientRoutes";
+import { ConfigError } from "./components/routes/ErrorDisplay";
 
 function App() {
-  useEffect(() => {
-    // Initialize app when component mounts
-    initializeApp().catch(console.error);
-  }, []);
+  const { user, userRole, isLoading, session } = useAuth();
+  const location = useLocation();
+  
+  // Check if current path is a public route
+  const isAuthCallback = useMemo(() => location.pathname.includes('/auth/callback'), [location.pathname]);
+  const isAuthPage = useMemo(() => location.pathname === '/auth', [location.pathname]);
+  const isClientAuthPage = useMemo(() => location.pathname === '/client/auth', [location.pathname]);
+  const isHomePage = useMemo(() => location.pathname === '/', [location.pathname]);
+  const isAboutPage = useMemo(() => location.pathname === '/about', [location.pathname]);
+  const isContactPage = useMemo(() => location.pathname === '/contact', [location.pathname]);
+  const isPublicRoute = useMemo(() => (
+    isAuthPage || isClientAuthPage || isAuthCallback || isHomePage || isAboutPage || isContactPage
+  ), [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage]);
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Suspense fallback={<LoadingFallback />}>
-        <AuthProvider>
-          <Router>
-            <Routes>
-              <Route path="/*" element={<PublicRoutes />} />
-              <Route path="/auth/*" element={<UnauthenticatedRoutes />} />
-              <Route path="/client/*" element={<ClientRoutes />} />
-              <Route path="/admin/*" element={<AdminRoutes />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Router>
-          <Toaster position="top-right" richColors closeButton />
-        </AuthProvider>
-      </Suspense>
-    </QueryClientProvider>
-  );
+  // Debug current route for troubleshooting
+  console.log('Current path:', location.pathname);
+  console.log('Is public route:', isPublicRoute);
+  console.log('Auth state:', { user, userRole, isLoading });
+  
+  // If there's a configuration error, show it
+  if (false) { // Removed admin config error check to prevent blank screen
+    return (
+      <ConfigError 
+        message="The application is missing required Supabase configuration." 
+        details="The VITE_SUPABASE_SERVICE_ROLE_KEY environment variable is missing or empty. This key is required for admin operations such as bucket management."
+      />
+    );
+  }
+
+  // Public route rendering for non-authenticated users
+  if (!user && isPublicRoute) {
+    return <PublicRoutes />;
+  }
+
+  // Non-authenticated user routes
+  if (!user) {
+    return <UnauthenticatedRoutes />;
+  }
+
+  // If we have a user and a definitive role, render the appropriate routes
+  if (user && userRole === 'admin') {
+    return <AdminRoutes />;
+  }
+  
+  if (user && userRole === 'client') {
+    return <ClientRoutes />;
+  }
+
+  // If user is authenticated but role not determined yet, don't render anything
+  // This prevents the flash of wrong content
+  if (user && !userRole) {
+    return null;
+  }
+  
+  // Default to client view as fallback
+  return <ClientRoutes />;
 }
 
 export default App;
