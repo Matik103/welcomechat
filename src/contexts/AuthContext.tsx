@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useState,
@@ -8,10 +9,12 @@ import React, {
 import {
   Session,
   User,
-  useSession,
-  useSupabaseClient,
-} from '@supabase/auth-helpers-react';
-import { useRouter } from 'next/navigation';
+} from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+
+// Define UserRole type
+export type UserRole = 'admin' | 'client' | null;
 
 export interface AuthContextType {
   user: User | null;
@@ -22,7 +25,8 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isClient: boolean;
-  clientId: string | null; // Ensure this is defined
+  clientId: string | null;
+  userRole: UserRole; // Add userRole explicitly to the interface
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -41,17 +45,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const supabaseClient = useSupabaseClient();
-  const session = useSession();
-  const user = session?.user ?? null;
-  const router = useRouter();
+  const [userRole, setUserRole] = useState<UserRole>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkUserRole = async () => {
       setIsLoading(true);
       try {
         if (user) {
-          const { data: profile, error } = await supabaseClient
+          const { data: profile, error } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', user.id)
@@ -61,13 +65,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('Error fetching user role:', error);
             setIsAdmin(false);
             setIsClient(false);
+            setUserRole(null);
           } else {
-            setIsAdmin(profile?.role === 'admin');
-            setIsClient(profile?.role === 'client');
+            const role = profile?.role as UserRole;
+            setIsAdmin(role === 'admin');
+            setIsClient(role === 'client');
+            setUserRole(role);
           }
         } else {
           setIsAdmin(false);
           setIsClient(false);
+          setUserRole(null);
         }
       } finally {
         setIsLoading(false);
@@ -75,12 +83,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     checkUserRole();
-  }, [user, supabaseClient]);
+  }, [user, supabase]);
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { error } = await supabaseClient.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -97,10 +105,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     setIsLoading(true);
     try {
-      await supabaseClient.auth.signOut();
+      await supabase.auth.signOut();
       setIsAdmin(false);
       setIsClient(false);
-      router.push('/');
+      setUserRole(null);
+      navigate('/');
     } catch (error) {
       console.error('Sign-out error:', error);
     } finally {
@@ -116,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   }, [isClient, user]);
 
-  // Create the auth context value with clientId
+  // Create the auth context value with clientId and userRole
   const value = {
     user,
     session,
@@ -126,7 +135,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated: !!user,
     isAdmin,
     isClient,
-    clientId
+    clientId,
+    userRole
   };
 
   return (

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClientActivity } from '@/services/clientActivityService';
 import { toast } from 'sonner';
+import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 export function useClientActivity(clientId?: string) {
   const { user } = useAuth();
@@ -12,7 +13,7 @@ export function useClientActivity(clientId?: string) {
   console.log("Current user metadata:", user?.user_metadata);
 
   const logClientActivity = async (
-    activityType: string = 'page_view',
+    activityType: ActivityType | ActivityTypeString = 'page_view',
     description: string = 'Client viewed page',
     activityData: Record<string, any> = {}
   ): Promise<void> => {
@@ -35,7 +36,7 @@ export function useClientActivity(clientId?: string) {
     try {
       await createClientActivity(
         effectiveClientId,
-        undefined, // Agent name is optional
+        undefined as any, // Agent name is optional
         activityType,
         description,
         activityData

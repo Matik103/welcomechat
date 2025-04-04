@@ -21,7 +21,7 @@ export const useClientActivities = () => {
     try {
       return await createClientActivity(
         clientId,
-        clientName,
+        clientName || "",
         type,
         description,
         metadata
