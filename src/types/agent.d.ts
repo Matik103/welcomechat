@@ -2,7 +2,7 @@
 export interface Agent {
   id: string;
   client_id: string;
-  client_name: string; // Made this required to resolve type error
+  client_name: string;
   name: string;
   description: string;
   status: string;

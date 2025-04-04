@@ -1,127 +1,194 @@
 
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
-import { useClientData } from '@/hooks/useClientData';
-import { getAllAgents } from '@/services/agentService';
+import React, { useEffect, useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { ClientViewLoading } from '@/components/client-view/ClientViewLoading';
-import { AgentCard } from '@/components/agents/AgentCard';
+import { Plus } from 'lucide-react';
 import { CreateAgentDialog } from '@/components/agents/CreateAgentDialog';
+import { useAuth } from '@/contexts/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import type { AgentDetails } from '@/types/agent';
+import { Agent } from '@/types/agent';
 
-export default function ClientAgents() {
-  const { user } = useAuth();
-  const clientId = user?.user_metadata?.client_id;
-  const { client } = useClientData(clientId);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  
-  // Fetch client's agents
-  const { data: agents, isLoading, refetch } = useQuery({
-    queryKey: ['client-agents', clientId],
-    queryFn: async () => {
-      try {
-        const allAgents = await getAllAgents();
-        // Filter agents to only show this client's agents
-        return allAgents.filter(agent => agent.client_id === clientId);
-      } catch (error) {
-        console.error('Error fetching agents:', error);
-        toast.error('Failed to load agents');
-        return [];
+const ClientAgents: React.FC = () => {
+  const { user, clientId } = useAuth();
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
+  const [clientName, setClientName] = useState<string>('');
+
+  const fetchAgents = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching agents for client ID:', clientId);
+      
+      if (!clientId) {
+        setError('No client ID available');
+        return;
       }
-    },
-    enabled: !!clientId,
-  });
 
-  // Filter agents based on search query
-  const filteredAgents = agents?.filter(agent => 
-    agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (agent.agent_description && agent.agent_description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+      const { data: clientData, error: clientError } = await supabase
+        .from('ai_agents')
+        .select('client_name')
+        .eq('client_id', clientId)
+        .limit(1)
+        .single();
 
-  const handleCreateAgent = async (newAgent: Partial<AgentDetails>) => {
-    // This function will be called after successful agent creation
-    await refetch(); // Explicitly refetch agents after creation
-    setIsCreateDialogOpen(false);
+      if (clientError && clientError.code !== 'PGRST116') {
+        console.error('Error fetching client name:', clientError);
+      } else if (clientData) {
+        setClientName(clientData.client_name || '');
+      }
+
+      const { data, error: agentsError } = await supabase
+        .from('ai_agents')
+        .select('*')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (agentsError) throw agentsError;
+
+      console.log(`Fetched ${data?.length || 0} agents:`, data);
+      
+      const formattedAgents: Agent[] = (data || []).map(agent => ({
+        id: agent.id,
+        client_id: agent.client_id,
+        client_name: agent.client_name || '',
+        name: agent.name,
+        description: agent.description || '',
+        status: agent.status,
+        created_at: agent.created_at,
+        updated_at: agent.updated_at,
+        interaction_type: agent.interaction_type,
+        agent_description: agent.agent_description,
+        logo_url: agent.logo_url,
+        logo_storage_path: agent.logo_storage_path,
+        settings: agent.settings,
+        openai_assistant_id: agent.openai_assistant_id,
+        total_interactions: 0,
+        average_response_time: 0,
+        last_active: agent.last_active
+      }));
+
+      setAgents(formattedAgents);
+    } catch (err) {
+      console.error('Error fetching agents:', err);
+      setError('Failed to load agents');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (isLoading) {
-    return <ClientViewLoading />;
+  useEffect(() => {
+    if (clientId) {
+      fetchAgents();
+    } else {
+      setLoading(false);
+      setError('No client ID available');
+    }
+  }, [clientId]);
+
+  const handleAgentCreated = (agent: Agent) => {
+    console.log('Agent created:', agent);
+    // Add the new agent to the list or refetch all agents
+    fetchAgents();
+    toast.success(`Agent "${agent.name}" created successfully`);
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold">AI Agents</h1>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-6">
+              <Skeleton className="h-8 w-3/4 mb-4" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-2/3 mb-6" />
+              <Skeleton className="h-10 w-full rounded-md" />
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700">
+          {error}
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="container py-8 mx-auto">
-      <div className="flex flex-col space-y-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">AI Agents</h1>
-            <p className="text-muted-foreground mt-1">
-              Create and manage your AI agents
-            </p>
-          </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Create Agent
-          </Button>
-        </div>
-
-        {/* Search & Filters */}
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          <Input
-            placeholder="Search agents..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        {/* Agents Grid */}
-        {filteredAgents && filteredAgents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAgents.map((agent) => (
-              <AgentCard 
-                key={agent.id} 
-                agent={agent} 
-                onRefresh={refetch}
-              />
-            ))}
-          </div>
-        ) : (
-          <Card className="bg-gray-50 border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="rounded-full bg-blue-100 p-3 mb-4">
-                <Plus className="h-6 w-6 text-blue-600" />
-              </div>
-              <CardTitle className="text-xl mb-2">No Agents Found</CardTitle>
-              <CardDescription className="text-center max-w-md mb-6">
-                {searchQuery
-                  ? "No agents match your search criteria. Try a different search term."
-                  : "You haven't created any AI agents yet. Create your first agent to get started."}
-              </CardDescription>
-              {!searchQuery && (
-                <Button onClick={() => setIsCreateDialogOpen(true)}>
-                  Create Your First Agent
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold">AI Agents</h1>
+        <Button onClick={() => setIsAgentDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Create Agent
+        </Button>
       </div>
 
-      {/* Create Agent Dialog */}
+      {agents.length === 0 ? (
+        <div className="text-center p-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No AI agents found</h3>
+          <p className="text-gray-500 mb-6">
+            Create your first AI agent to start providing automated assistance to your users.
+          </p>
+          <Button onClick={() => setIsAgentDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Create Your First Agent
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {agents.map((agent) => (
+            <Card key={agent.id} className="p-6 flex flex-col">
+              <div className="flex items-center mb-4">
+                {agent.logo_url && (
+                  <div className="w-10 h-10 rounded-full bg-gray-100 mr-4 flex items-center justify-center overflow-hidden">
+                    <img 
+                      src={agent.logo_url} 
+                      alt={`${agent.name} logo`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+                <h2 className="text-xl font-semibold">{agent.name}</h2>
+              </div>
+              <p className="text-gray-600 mb-4">{agent.agent_description || 'No description provided.'}</p>
+              <div className="mt-auto">
+                <div className="text-sm text-gray-500 mt-4">Created: {new Date(agent.created_at).toLocaleDateString()}</div>
+                <div className="flex justify-end mt-2">
+                  <Button variant="outline" className="text-sm" onClick={() => toast.info('Agent configuration coming soon!')}>
+                    Configure
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
       <CreateAgentDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-        clientId={clientId}
-        clientName={client?.client_name || ""}
-        onAgentCreated={handleCreateAgent}
+        open={isAgentDialogOpen}
+        onOpenChange={setIsAgentDialogOpen}
+        clientId={clientId || undefined}
+        clientName={clientName}
+        onAgentCreated={handleAgentCreated}
       />
     </div>
   );
-}
+};
+
+export default ClientAgents;

@@ -1,6 +1,7 @@
 
 import { toast } from 'sonner';
 import { createOpenAIAssistant } from '@/utils/openAIUtils';
+import { Agent } from '@/types/agent';
 
 interface UseAgentFormSubmitProps {
   clientId: string | undefined;
@@ -12,7 +13,7 @@ interface UseAgentFormSubmitProps {
   setIsSubmitting: (value: boolean) => void;
   resetForm: () => void;
   onOpenChange: (open: boolean) => void;
-  onAgentCreated: (agent: any) => void;
+  onAgentCreated: (agent: Agent) => void;
   ensureAiAgentExists: (
     clientId: string,
     agentName: string,

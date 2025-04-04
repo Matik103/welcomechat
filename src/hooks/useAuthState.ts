@@ -1,181 +1,114 @@
 
-import { useState, useEffect, useCallback } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-import { UserRole } from "@/contexts/AuthContext";
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import type { Session, User } from '@supabase/supabase-js';
 
 export function useAuthState() {
   const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<UserRole>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [session, setSession] = useState<Session | null>(null);
-  const [authInitialized, setAuthInitialized] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [userRole, setUserRole] = useState<'admin' | 'client' | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
 
-  // Enhanced auth state initialization with improved caching
-  const initializeAuthState = useCallback(async () => {
+  // Function to check user role from the user_roles table
+  const checkUserRole = async (userId: string) => {
     try {
-      // Try to get session from cache first for instant rendering
-      const cachedAuth = sessionStorage.getItem('auth_state');
-      if (cachedAuth) {
-        try {
-          const { user: cachedUser, session: cachedSession, userRole: cachedRole } = JSON.parse(cachedAuth);
-          if (cachedUser && cachedSession) {
-            setUser(cachedUser);
-            setSession(cachedSession);
-            setUserRole(cachedRole as UserRole);
-            // Still verify with Supabase in background but don't block UI
-            setTimeout(() => {
-              supabase.auth.getSession().then(({ data }) => {
-                if (!data.session) {
-                  // Session expired, clear state
-                  setUser(null);
-                  setSession(null);
-                  setUserRole(null);
-                  sessionStorage.removeItem('auth_state');
-                }
-              });
-            }, 0);
-            // Set loading to false immediately for better UX
-            setIsLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.error("Error parsing cached auth:", e);
-          sessionStorage.removeItem('auth_state');
-        }
-      }
-      
-      // No valid cache, get session from Supabase
-      const { data, error } = await supabase.auth.getSession();
-      
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role, client_id')
+        .eq('user_id', userId)
+        .single();
+
       if (error) {
-        console.error("Error getting session:", error);
-        setIsLoading(false);
-        return;
+        console.error('Error checking user role:', error);
+        return { role: null, clientId: null };
       }
-      
-      if (data?.session) {
-        setSession(data.session);
-        setUser(data.session.user);
-        
-        // Get role from user metadata
-        const role = data.session.user?.user_metadata?.role;
-        
-        if (role) {
-          setUserRole(role as UserRole);
-          console.log("User role set from metadata:", role);
-        } else {
-          // If role not in metadata, try to determine from client relationship
-          try {
-            const clientResult = await supabase
-              .from("clients")
-              .select("id")
-              .eq("user_id", data.session.user.id)
-              .maybeSingle();
-              
-            // Check if user is an admin using direct RPC call
-            const { data: isAdmin } = await supabase.rpc('check_user_role', {
-              allowed_roles: ['admin']
-            });
-            
-            if (clientResult.data) {
-              setUserRole("client");
-              console.log("User role determined as client");
-            } else if (isAdmin) {
-              setUserRole("admin");
-              console.log("User role determined as admin");
-            } else {
-              // If no specific role found, defaulting to admin temporarily
-              console.log("No role found in database, defaulting to admin");
-              setUserRole("admin");
-            }
-          } catch (dbError) {
-            console.error("Error checking role relationships:", dbError);
-            // Default to admin role if there's an error checking
-            console.log("Error determining role, defaulting to admin");
-            setUserRole("admin");
-          }
-        }
-        
-        // Cache the auth state for faster loading next time
-        try {
-          const authState = {
-            user: data.session.user,
-            session: data.session,
-            userRole: role || "admin", // Default to admin if no role found
-            timestamp: Date.now()
-          };
-          sessionStorage.setItem('auth_state', JSON.stringify(authState));
-        } catch (e) {
-          console.error("Error caching auth state:", e);
-        }
-      } else {
-        // No session from Supabase
-        setUser(null);
-        setUserRole(null);
-      }
-      
-    } catch (error) {
-      console.error("Error in auth state initialization:", error);
-    } finally {
-      // Always set loading to false to prevent blank screens
-      setIsLoading(false);
+
+      return { 
+        role: data?.role as 'admin' | 'client' | null,
+        clientId: data?.client_id
+      };
+    } catch (err) {
+      console.error('Exception checking user role:', err);
+      return { role: null, clientId: null };
     }
+  };
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        setIsLoading(true);
+        console.log('Initializing auth state');
+        
+        // Get the current session
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          setUser(null);
+          setSession(null);
+          setUserRole(null);
+          setClientId(null);
+          return;
+        }
+
+        if (currentSession) {
+          console.log('Session found');
+          setSession(currentSession);
+          setUser(currentSession.user);
+          
+          // Check user role if we have a user
+          if (currentSession.user) {
+            const { role, clientId: userClientId } = await checkUserRole(currentSession.user.id);
+            setUserRole(role);
+            setClientId(userClientId);
+          }
+        } else {
+          console.log('No session found');
+          setUser(null);
+          setSession(null);
+          setUserRole(null);
+          setClientId(null);
+        }
+      } catch (err) {
+        console.error('Error in auth initialization:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    // Set up subscription for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log('Auth state changed:', event);
+      
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setSession(newSession);
+        setUser(newSession?.user || null);
+
+        // Check user role if we have a user
+        if (newSession?.user) {
+          const { role, clientId: userClientId } = await checkUserRole(newSession.user.id);
+          setUserRole(role);
+          setClientId(userClientId);
+          console.log(`User role set to: ${role}, client ID: ${userClientId}`);
+        }
+      }
+      
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setSession(null);
+        setUserRole(null);
+        setClientId(null);
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
-  // Initialize auth state on component mount
-  useEffect(() => {
-    // Always initialize auth state to prevent blank screens
-    initializeAuthState();
-    
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session) {
-          setSession(session);
-          setUser(session.user);
-          
-          const role = session.user?.user_metadata?.role;
-          if (role) {
-            setUserRole(role as UserRole);
-            
-            // Cache authentication state for faster loading
-            try {
-              const authState = {
-                user: session.user,
-                session,
-                userRole: role,
-                timestamp: Date.now()
-              };
-              sessionStorage.setItem('auth_state', JSON.stringify(authState));
-            } catch (e) {
-              console.error("Error caching auth state:", e);
-            }
-          }
-        } else {
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-          sessionStorage.removeItem('auth_state');
-        }
-      }
-    );
-    
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [initializeAuthState]);
-
-  return { 
-    user, 
-    userRole, 
-    isLoading, 
-    setIsLoading, 
-    session, 
-    setSession, 
-    setUser, 
-    setUserRole,
-    authInitialized,
-    setAuthInitialized
-  };
+  return { user, session, isLoading, userRole, clientId };
 }
