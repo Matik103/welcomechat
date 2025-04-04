@@ -62,20 +62,19 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     setUploadResult(null);
     
     try {
-      // Get the default assistant for this client
+      // Get the client's assistant
       const { data: assistant, error: assistantError } = await supabase
         .from('ai_agents')
         .select('openai_assistant_id')
         .eq('client_id', clientId)
-        .eq('name', 'Default Assistant')
         .single();
 
       if (assistantError) {
-        console.error('Error getting default assistant:', assistantError);
-        throw new Error('Could not find the default assistant for this client');
+        console.error('Error getting assistant:', assistantError);
+        throw new Error('Could not find an assistant for this client');
       }
       if (!assistant) {
-        throw new Error('No default assistant found for this client');
+        throw new Error('No assistant found for this client');
       }
 
       // Generate a unique file path using client ID and UUID
