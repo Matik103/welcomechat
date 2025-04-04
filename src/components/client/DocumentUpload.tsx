@@ -65,7 +65,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       // Get the default assistant for this client
       const { data: assistant, error: assistantError } = await supabase
         .from('ai_agents')
-        .select('id')
+        .select('openai_assistant_id')
         .eq('client_id', clientId)
         .eq('name', 'Default Assistant')
         .single();
@@ -136,7 +136,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       const { error: assistantDocError } = await supabase
         .from('assistant_documents')
         .insert({
-          assistant_id: assistant.id,
+          assistant_id: assistant.openai_assistant_id,
           client_id: clientId,
           filename: selectedFile.name,
           file_type: selectedFile.type,
@@ -199,7 +199,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             const { error: assistantDocUpdateError } = await supabase
               .from('assistant_documents')
               .update({ status: 'failed' })
-              .match({ assistant_id: assistant.id, filename: selectedFile.name });
+              .match({ assistant_id: assistant.openai_assistant_id, filename: selectedFile.name });
             if (assistantDocUpdateError) {
               console.error('Failed to update assistant document status:', assistantDocUpdateError);
             }
@@ -227,7 +227,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           const { error: assistantDocUpdateError } = await supabase
             .from('assistant_documents')
             .update({ status: 'failed' })
-            .match({ assistant_id: assistant.id, filename: selectedFile.name });
+            .match({ assistant_id: assistant.openai_assistant_id, filename: selectedFile.name });
           if (assistantDocUpdateError) {
             console.error('Failed to update assistant document status:', assistantDocUpdateError);
           }
