@@ -4,8 +4,8 @@ import { WidgetSettings } from '@/types/widget-settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Send, Loader2 } from 'lucide-react';
-import { getAnswerFromOpenAIAssistant } from '@/utils/openAIDocumentSync';
 import { generateAnswerFromDocuments } from '@/utils/documentEmbeddings';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -25,11 +25,48 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
       setMessages([
         {
           role: 'assistant',
-          content: `Hi there! I'm ${settings.agent_name}. How can I help you today?`
+          content: `Hi there! I'm ${settings.agent_name || 'AI Assistant'}. How can I help you today?`
         }
       ]);
     }
   }, [settings.agent_name]);
+  
+  const getAnswerFromOpenAIAssistant = async (clientId: string, query: string) => {
+    try {
+      console.log(`Getting answer from OpenAI assistant for client ${clientId}: "${query}"`);
+      
+      // Call the query-openai-assistant Edge Function
+      const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
+        body: { client_id: clientId, query }
+      });
+      
+      if (error) {
+        console.error('Error querying OpenAI assistant:', error);
+        return { 
+          answer: "I'm sorry, I encountered an error while processing your question.", 
+          error: `Error querying assistant: ${error.message}` 
+        };
+      }
+      
+      if (!data || !data.answer) {
+        return { 
+          answer: "I couldn't generate a proper response. Please try asking a different question.",
+          error: data?.error || 'No answer returned from assistant'
+        };
+      }
+      
+      return {
+        answer: data.answer,
+        threadId: data.thread_id
+      };
+    } catch (error) {
+      console.error('Error in getAnswerFromOpenAIAssistant:', error);
+      return {
+        answer: "I'm sorry, I encountered an error while processing your question.",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  };
   
   const handleSendMessage = async () => {
     if (!query.trim() || isLoading) return;
@@ -46,14 +83,35 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
         await onTestInteraction();
       }
       
+      console.log("Sending query to assistant:", query);
+      
       // First try to get an answer from the OpenAI assistant
-      let response = await getAnswerFromOpenAIAssistant(clientId, query);
+      let response;
+      
+      try {
+        response = await getAnswerFromOpenAIAssistant(clientId, query);
+        console.log("Response from OpenAI assistant:", response);
+      } catch (error) {
+        console.error("Error from OpenAI assistant:", error);
+        response = { 
+          error: true, 
+          answer: null 
+        };
+      }
       
       // If the OpenAI assistant fails or doesn't have an answer, fall back to vector search
       if (response.error || !response.answer) {
         console.log('Falling back to vector search for answer generation');
-        const vectorResponse = await generateAnswerFromDocuments(clientId, query);
-        response = { answer: vectorResponse.answer };
+        try {
+          const vectorResponse = await generateAnswerFromDocuments(clientId, query);
+          response = { answer: vectorResponse.answer };
+          console.log("Response from vector search:", response);
+        } catch (vectorError) {
+          console.error("Error from vector search:", vectorError);
+          response = { 
+            answer: "I'm sorry, I couldn't find relevant information to answer your question."
+          };
+        }
       }
       
       // Add assistant response to chat

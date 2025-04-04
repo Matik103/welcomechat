@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
@@ -85,8 +86,11 @@ serve(async (req: Request) => {
   }
 
   try {
+    console.log("Received request to query document");
+    
     const { prompt, document_id, assistant_id, client_id } = await req.json() as RequestBody;
-
+    console.log("Request payload:", { prompt, document_id, assistant_id, client_id });
+    
     // Validate required fields
     if (!prompt || !document_id || !assistant_id || !client_id) {
       throw new Error("Missing required fields");
@@ -99,19 +103,23 @@ serve(async (req: Request) => {
     }
 
     // Check assistant access
+    console.log("Checking assistant access");
     const hasAccess = await checkAssistantAccess(docId, assistant_id);
     if (!hasAccess) {
       throw new Error("Assistant does not have access to this document");
     }
 
     // Get document content
+    console.log("Fetching document content");
     const documentContent = await getDocumentContent(docId);
 
     // Create system message with document content
     const systemMessage = `You are a helpful assistant. You have access to the following document content:\n\n${documentContent}\n\nPlease answer questions about this document accurately and concisely.`;
 
     // Query OpenAI
+    console.log("Querying OpenAI");
     const response = await queryOpenAI(systemMessage, prompt);
+    console.log("Response received from OpenAI");
 
     return new Response(
       JSON.stringify({
@@ -125,6 +133,7 @@ serve(async (req: Request) => {
     );
 
   } catch (error: unknown) {
+    console.error("Error processing request:", error);
     const errorMessage = error instanceof Error ? error.message : "Internal server error";
     return new Response(
       JSON.stringify({
@@ -137,4 +146,4 @@ serve(async (req: Request) => {
       }
     );
   }
-}); 
+});

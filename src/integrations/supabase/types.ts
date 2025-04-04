@@ -516,6 +516,41 @@ export type Database = {
         }
         Relationships: []
       }
+      assistant_documents: {
+        Row: {
+          assistant_id: string
+          created_at: string | null
+          document_id: number
+          id: number
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assistant_id: string
+          created_at?: string | null
+          document_id: number
+          id?: number
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assistant_id?: string
+          created_at?: string | null
+          document_id?: number
+          id?: number
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_documents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "document_content"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistant_queries: {
         Row: {
           answer: string | null
@@ -908,11 +943,11 @@ export type Database = {
           content: string | null
           created_at: string | null
           document_id: string
-          embedding: string | null
           file_type: string | null
           filename: string | null
           id: number
-          openai_file_id: string | null
+          metadata: Json | null
+          storage_url: string | null
           updated_at: string | null
         }
         Insert: {
@@ -920,11 +955,11 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           document_id: string
-          embedding?: string | null
           file_type?: string | null
           filename?: string | null
           id?: number
-          openai_file_id?: string | null
+          metadata?: Json | null
+          storage_url?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -932,11 +967,11 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           document_id?: string
-          embedding?: string | null
           file_type?: string | null
           filename?: string | null
           id?: number
-          openai_file_id?: string | null
+          metadata?: Json | null
+          storage_url?: string | null
           updated_at?: string | null
         }
         Relationships: []
