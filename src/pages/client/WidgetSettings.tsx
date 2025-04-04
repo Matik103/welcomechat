@@ -1,19 +1,20 @@
+
 import { useState } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
+import { ActivityType } from "@/types/activity";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettingsService";
 import { handleLogoUpload } from "@/services/uploadService";
 import { defaultSettings } from "@/types/widget-settings";
-import type { WidgetSettings as WidgetSettingsType } from "@/types/widget-settings";
+import { WidgetSettings as WidgetSettingsType } from "@/types/widget-settings";
 import { toast } from "sonner";
 import { useNavigation } from "@/hooks/useNavigation";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
 import { useClientData } from "@/hooks/useClientData";
 import { useEffect } from "react";
-import { ActivityType } from "@/types/activity";
 
 export default function WidgetSettings() {
   const { user } = useAuth();
@@ -50,7 +51,8 @@ export default function WidgetSettings() {
         
         const clientName = client?.client_name || settings?.agent_name || "Unknown";
         
-        await logClientActivity("widget_settings_updated", 
+        await logClientActivity(
+          ActivityType.WIDGET_SETTINGS_UPDATED, 
           `Widget settings updated for "${clientName}"`, 
           {
             client_name: clientName,
@@ -88,7 +90,8 @@ export default function WidgetSettings() {
         
         const clientName = client?.client_name || settings?.agent_name || "Unknown";
         
-        await logClientActivity("logo_uploaded", 
+        await logClientActivity(
+          ActivityType.LOGO_UPLOADED, 
           `Logo updated for "${clientName}"`, 
           {
             client_name: clientName,
@@ -108,7 +111,7 @@ export default function WidgetSettings() {
     }
   };
 
-  const handleSaveWidgetSettings = async (settings: WidgetSettings) => {
+  const handleSaveWidgetSettings = async (settings: WidgetSettingsType) => {
     setIsSaving(true);
     try {
       await updateWidgetSettings(clientId, settings);
@@ -146,7 +149,8 @@ export default function WidgetSettings() {
   const logActivityWrapper = async (): Promise<void> => {
     const clientName = client?.client_name || settings?.agent_name || "Unknown";
     
-    await logClientActivity("widget_previewed", 
+    await logClientActivity(
+      ActivityType.WIDGET_PREVIEWED, 
       `Widget previewed for "${clientName}"`, 
       {
         client_name: clientName,

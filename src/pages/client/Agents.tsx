@@ -11,7 +11,8 @@ import { toast } from 'sonner';
 import { Agent } from '@/types/agent';
 
 const ClientAgents: React.FC = () => {
-  const { user, clientId } = useAuth();
+  const { user } = useAuth();
+  const clientId = user?.user_metadata?.client_id as string;
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -8,6 +8,7 @@ export type UserRole = 'admin' | 'agent' | 'client' | 'unknown';
 type AuthContextType = {
   user: any;
   isLoading: boolean;
+  session: any; // Added session property
   signIn: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   getUserRole: (userId: string) => Promise<UserRole>;
@@ -20,6 +21,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole>('unknown');
+  const [session, setSession] = useState<any>(null); // Added session state
 
   useEffect(() => {
     // Initialize session
@@ -27,6 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const { data } = await supabase.auth.getSession();
         setUser(data.session?.user || null);
+        setSession(data.session || null); // Set session state
         
         if (data.session?.user) {
           const role = await getUserRole(data.session.user.id);
@@ -44,11 +47,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUser(session?.user || null);
+      async (_event, currentSession) => {
+        setUser(currentSession?.user || null);
+        setSession(currentSession || null); // Update session state on auth change
         
-        if (session?.user) {
-          const role = await getUserRole(session.user.id);
+        if (currentSession?.user) {
+          const role = await getUserRole(currentSession.user.id);
           setUserRole(role);
         } else {
           setUserRole('unknown');
@@ -107,6 +111,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value: AuthContextType = { 
     user, 
     isLoading, 
+    session, // Add session to context value
     signIn, 
     signOut, 
     getUserRole,

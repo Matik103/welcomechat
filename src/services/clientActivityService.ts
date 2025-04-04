@@ -1,11 +1,11 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { ActivityType, ActivityTypeString } from '@/types/activity';
+import { ActivityType } from '@/types/activity';
 
 export const createClientActivity = async (
   clientId: string,
   agentName: string,
-  type: ActivityType | ActivityTypeString,
+  type: ActivityType,
   description: string,
   metadata: Record<string, any> = {}
 ): Promise<boolean> => {

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useClientActivity } from '@/hooks/useClientActivity';
+import { ActivityType } from "@/types/activity";
 import {
   Form,
   FormControl,
@@ -24,10 +25,10 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImageIcon, Upload } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ActivityType } from "@/types/activity";
 import { getWidgetSettings, updateWidgetSettings } from '@/services/widgetSettingsService';
 
-interface WidgetSettings {
+// Define the widget settings interface
+interface WidgetSettingsInterface {
   primaryColor: string;
   secondaryColor: string;
   borderRadius: number;
@@ -65,8 +66,8 @@ export default function WidgetSettingsPage() {
   });
 
   const updateWidgetSettingsMutation = useMutation({
-    mutationFn: async (settings: WidgetSettings) => {
-      return updateWidgetSettings(clientId, settings);
+    mutationFn: async (settings: Partial<WidgetSettingsInterface>) => {
+      return updateWidgetSettings(clientId, settings as any);
     },
     onSuccess: () => {
       toast.success("Widget settings saved successfully!");
@@ -93,10 +94,10 @@ export default function WidgetSettingsPage() {
       form.reset({
         primaryColor: widgetSettings.primary_color || "#000000",
         secondaryColor: widgetSettings.secondary_color || "#FFFFFF",
-        borderRadius: widgetSettings.borderRadius || 8,
+        borderRadius: widgetSettings.border_radius || 8,
         fontFamily: widgetSettings.font_family || "Arial",
         greetingMessage: widgetSettings.greeting_message || "How can I help you?",
-        showAgentAvailability: widgetSettings.is_active || false,
+        showAgentAvailability: widgetSettings.show_agent_availability || false,
       });
       setLogoUrl(widgetSettings.logo_url || null);
     }

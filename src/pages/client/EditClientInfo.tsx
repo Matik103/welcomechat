@@ -14,13 +14,13 @@ import { ClientLayout } from '@/components/layout/ClientLayout';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 import { useClientActivity } from '@/hooks/useClientActivity';
+import { ActivityType } from '@/types/activity';
 
 export default function EditClientInfo() {
   const { user } = useAuth();
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('profile');
   
-  // Get client ID from user metadata
   const clientId = user?.user_metadata?.client_id;
   const { logClientActivity } = useClientActivity(clientId);
 
@@ -32,7 +32,6 @@ export default function EditClientInfo() {
     refetchClient
   } = useClientData(clientId);
 
-  // For debugging - log what we have
   useEffect(() => {
     console.log("User metadata:", user?.user_metadata);
     console.log("Client ID from metadata:", clientId);
@@ -53,7 +52,6 @@ export default function EditClientInfo() {
       
       console.log("Submitting update for client:", clientId);
       
-      // Extract the current widget settings to retain all values
       const currentWidgetSettings = client.widget_settings || {};
       
       await clientMutation.mutateAsync({
@@ -64,7 +62,6 @@ export default function EditClientInfo() {
         agent_description: data.agent_description,
         logo_url: data.logo_url,
         logo_storage_path: data.logo_storage_path,
-        // Update widget settings with new values while keeping other settings
         widget_settings: {
           ...(typeof currentWidgetSettings === 'object' ? currentWidgetSettings : {}),
           agent_name: data.agent_name,
@@ -99,7 +96,6 @@ export default function EditClientInfo() {
     navigation.goBack();
   };
 
-  // Force a refetch if client is null but we have a clientId
   useEffect(() => {
     if (!client && !isLoadingClient && clientId && !error) {
       console.log("No client data but have clientId, forcing refetch for:", clientId);
@@ -107,7 +103,6 @@ export default function EditClientInfo() {
     }
   }, [client, isLoadingClient, clientId, error, refetchClient]);
 
-  // Show error if no client ID in metadata
   if (!clientId) {
     return (
       <ClientLayout>
@@ -121,7 +116,6 @@ export default function EditClientInfo() {
     );
   }
 
-  // Show error if client data failed to load
   if (error && !client) {
     return (
       <ClientLayout>
@@ -139,12 +133,14 @@ export default function EditClientInfo() {
     if (!client) return;
     
     const clientName = client.client_name || client.agent_name || "Unknown";
-    await logClientActivity("client_updated", 
+    await logClientActivity(
+      ActivityType.CLIENT_UPDATED, 
       `Profile information updated for "${clientName}"`, 
       {
         client_name: clientName,
         agent_name: client.agent_name
-      });
+      }
+    );
   };
 
   return (

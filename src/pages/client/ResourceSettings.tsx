@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
 import { useClientActivity } from '@/hooks/useClientActivity';
-import { DocumentType } from '@/types/document-processing';
+import { ActivityType, DocumentType } from '@/types/activity';
 
 const ResourceSettings = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -35,7 +35,7 @@ const ResourceSettings = () => {
       });
       
       // Log activity with safe type
-      await logClientActivity("document_added", "Document link added successfully");
+      await logClientActivity(ActivityType.DOCUMENT_ADDED, "Document link added successfully");
       
       toast.success('Document link added successfully');
       setOpenAddDocumentDialog(false);
@@ -55,7 +55,7 @@ const ResourceSettings = () => {
         clientId={clientId || ''}
         onResourceChange={() => {}}
         logClientActivity={async () => {
-          await logClientActivity("client_updated", "Resources updated");
+          await logClientActivity(ActivityType.CLIENT_UPDATED, "Resources updated");
         }}
       />
     </div>
