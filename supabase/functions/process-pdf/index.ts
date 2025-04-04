@@ -1,12 +1,14 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { serve } from "http/server";
+import { createClient } from "@supabase/supabase-js";
 
-// Declare Deno namespace for TypeScript
-declare const Deno: {
-  env: {
-    get(key: string): string | undefined;
+// Type declarations for Deno environment
+declare global {
+  const Deno: {
+    env: {
+      get(key: string): string | undefined;
+    };
   };
-};
+}
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -57,6 +59,19 @@ async function extractTextFromPdf(buffer: ArrayBuffer): Promise<string> {
   }
 }
 
+async function giveAssistantAccess(documentId: string, assistantId: string): Promise<Response> {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/give-assistant-access`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ document_id: documentId, assistant_id: assistantId })
+  });
+
+  return response;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -82,11 +97,16 @@ serve(async (req) => {
       );
     }
 
-    // Get document details
+    // Get document details and assistant_id
     const { data: doc, error: docError } = await supabase
-      .from('document_content')
-      .select('storage_url')
-      .eq('id', document_id)
+      .from('assistant_documents')
+      .select(`
+        assistant_id,
+        document_content (
+          storage_url
+        )
+      `)
+      .eq('document_id', document_id)
       .single();
 
     if (docError || !doc) {
@@ -104,7 +124,7 @@ serve(async (req) => {
     }
 
     // Download PDF from storage
-    const storagePath = doc.storage_url.split('public/documents/')[1];
+    const storagePath = doc.document_content.storage_url.split('public/documents/')[1];
     const { data: pdfData, error: downloadError } = await supabase.storage
       .from('documents')
       .download(storagePath);
@@ -138,11 +158,14 @@ serve(async (req) => {
         throw updateError;
       }
 
-      // Update assistant_documents status
-      await supabase
-        .from('assistant_documents')
-        .update({ status: 'ready' })
-        .eq('document_id', document_id);
+      // Give assistant access to the processed document
+      const accessResponse = await giveAssistantAccess(document_id, doc.assistant_id);
+      
+      if (!accessResponse.ok) {
+        const errorData = await accessResponse.json();
+        console.error('Failed to give assistant access:', errorData);
+        // Continue despite this error, as the text extraction was successful
+      }
 
       return new Response(
         JSON.stringify({
