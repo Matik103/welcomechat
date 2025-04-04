@@ -21,11 +21,6 @@ function App() {
   const isPublicRoute = useMemo(() => (
     isAuthPage || isClientAuthPage || isAuthCallback || isHomePage || isAboutPage || isContactPage
   ), [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage]);
-
-  // Debug current route for troubleshooting
-  console.log('Current path:', location.pathname);
-  console.log('Is public route:', isPublicRoute);
-  console.log('Auth state:', { user, userRole, isLoading });
   
   // Public route rendering for non-authenticated users
   if (!user && isPublicRoute) {
@@ -48,12 +43,10 @@ function App() {
 
   // If user is authenticated but role not determined yet, redirect to home
   if (user && !userRole) {
-    console.log('User authenticated but role not determined yet, navigating to home page');
     return <Navigate to="/" replace />;
   }
   
   // Default to home page as fallback
-  console.log('No matching route condition, navigating to home page');
   return <Navigate to="/" replace />;
 }
 

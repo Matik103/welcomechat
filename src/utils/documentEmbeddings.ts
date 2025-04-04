@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -151,10 +152,11 @@ const chunkDocument = (content: string, maxChunkSize = 1000): string[] => {
  */
 export const matchDocumentByVector = async (query: string, clientId: string, limit = 5) => {
   try {
-    // Use a stored function for vector matching - use fetch API directly instead of rpc
-    const { data, error } = await supabase.from('document_search')
+    // Use a direct fetch approach instead of from() for better type safety
+    const { data, error } = await supabase
+      .from('document_content')
       .select('*')
-      .filter('client_id', 'eq', clientId)
+      .eq('client_id', clientId)
       .textSearch('content', query)
       .limit(limit);
     
@@ -192,13 +194,13 @@ export const generateAnswerFromDocuments = async (
   maxResults: number = 5
 ): Promise<string> => {
   try {
-    // Use RPC instead of from() for function calls
-    const { data, error } = await supabase.rpc('search_documents', {
-      query_text: query,
-      client_id: clientId,
-      agent_id: agentId || null,
-      max_results: maxResults
-    });
+    // Use direct fetch instead of RPC for better type safety
+    const { data, error } = await supabase
+      .from('document_content')
+      .select('*')
+      .eq('client_id', clientId)
+      .textSearch('content', query)
+      .limit(maxResults);
     
     if (error) {
       console.error('Error searching documents:', error);
@@ -217,7 +219,7 @@ export const generateAnswerFromDocuments = async (
     });
     
     // Generate a response based on the retrieved content
-    return await generateResponse(query, contextText);
+    return await generateResponse(query, contextText, clientId);
   } catch (err) {
     console.error('Error in generateAnswerFromDocuments:', err);
     return "I'm sorry, I encountered an error while searching for information. Please try again later.";
@@ -227,7 +229,7 @@ export const generateAnswerFromDocuments = async (
 /**
  * Generate a response based on a query and context
  */
-const generateResponse = async (query: string, context: string): Promise<string> => {
+const generateResponse = async (query: string, context: string, clientId: string): Promise<string> => {
   try {
     const { data: answerData, error: answerError } = await supabase.functions.invoke(
       'generate-answer',

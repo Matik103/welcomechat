@@ -73,16 +73,20 @@ export function useAuthState() {
               .eq("user_id", data.session.user.id)
               .maybeSingle();
               
-            const adminCheck = await supabase.rpc('check_user_role', {
-              user_id: data.session.user.id
-            });
+            // Use a function instead of RPC to avoid TS errors
+            const adminCheck = await supabase
+              .from("user_roles")
+              .select("*")
+              .eq("user_id", data.session.user.id)
+              .eq("role", "admin")
+              .maybeSingle();
             
             if (clientResult.data) {
               setUserRole("client");
               console.log("User role determined as client");
-            } else if (adminCheck.data === true) {
+            } else if (adminCheck.data) {
               setUserRole("admin");
-              console.log("User role determined as admin via RPC");
+              console.log("User role determined as admin");
             } else {
               // If no specific role found, defaulting to admin temporarily
               console.log("No role found in database, defaulting to admin");
@@ -111,16 +115,12 @@ export function useAuthState() {
 
   // Initialize auth state on component mount
   useEffect(() => {
-    console.log("Initializing auth state");
-    
     // Always initialize auth state to prevent blank screens
     initializeAuthState();
     
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("Auth state change event:", event);
-        
         if (session) {
           setSession(session);
           setUser(session.user);
@@ -150,19 +150,8 @@ export function useAuthState() {
       }
     );
     
-    // Handle page visibility for better state management
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log("Window focused - checking auth state");
-        initializeAuthState();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
     return () => {
       subscription.unsubscribe();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [initializeAuthState]);
 

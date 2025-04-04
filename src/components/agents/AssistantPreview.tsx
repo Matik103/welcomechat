@@ -50,13 +50,23 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
 
       if (error) throw error;
 
-      if (data?.messages && data.messages.length > 0) {
-        const assistantMessage = data.messages[data.messages.length - 1].content;
+      if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+        const assistantMessage = data.messages[data.messages.length - 1]?.content || 
+          "Sorry, I couldn't generate a response.";
         setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: "Sorry, I couldn't generate a response." 
+        }]);
       }
     } catch (error) {
       console.error('Error querying assistant:', error);
       toast.error('Failed to get response from assistant');
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: "Sorry, I encountered an error processing your request." 
+      }]);
     } finally {
       setIsLoading(false);
     }
