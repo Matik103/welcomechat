@@ -20,7 +20,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { AgentDetailsTab } from "./configure-tabs/AgentDetailsTab";
 import { DocumentsTab } from "./configure-tabs/DocumentsTab";
 import { WebsiteUrlsTab } from "./configure-tabs/WebsiteUrlsTab";
@@ -45,6 +45,12 @@ const ConfigureTabs = ({ agent, onClose }: { agent: Agent; onClose: () => void }
     console.log("Agent configuration updated successfully");
   }, []);
 
+  // Add a handler for agent updates
+  const handleAgentUpdated = useCallback(() => {
+    console.log("Agent has been updated");
+    handleSuccess();
+  }, [handleSuccess]);
+
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid grid-cols-4 mb-8">
@@ -56,8 +62,9 @@ const ConfigureTabs = ({ agent, onClose }: { agent: Agent; onClose: () => void }
 
       <TabsContent value="details" className="space-y-4">
         <AgentDetailsTab 
-          agent={agent} 
-          // Either pass handleSuccess directly or adapt it based on your component's requirements
+          agent={agent}
+          onAgentUpdated={handleAgentUpdated}
+          onClose={onClose}
         />
       </TabsContent>
 
