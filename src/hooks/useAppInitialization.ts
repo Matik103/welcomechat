@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { isAdminClientConfigured, initializeBotLogosBucket } from "@/integrations/supabase/client-admin";
 
@@ -10,11 +10,16 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
   const [initializationAttempted, setInitializationAttempted] = useState<boolean>(false);
   const [initializationErrors, setInitializationErrors] = useState<string[]>([]);
   
+  // Use refs to track initialization state without causing rerenders
+  const initializationRef = useRef<boolean>(false);
+  
   // Optimized app initialization
   useEffect(() => {
-    // Only initialize once
-    if (initializationAttempted) return;
+    // Only initialize once and prevent duplicate initialization
+    if (initializationAttempted || initializationRef.current) return;
     
+    // Mark initialization as attempted
+    initializationRef.current = true;
     setInitializationAttempted(true);
     console.log('Starting app initialization...');
     
@@ -23,7 +28,14 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
       
       const isAuthCallback = location.pathname.includes('/auth/callback');
       if (!isAuthCallback) {
+        // Only clear callback flag if we're not on a callback URL
         sessionStorage.removeItem('auth_callback_processed');
+      } else {
+        // On callback URL, don't double-initialize
+        console.log('Skipping initialization on auth callback');
+        setIsInitializing(false);
+        setIsLoading(false);
+        return;
       }
       
       console.log('Current path:', location.pathname);

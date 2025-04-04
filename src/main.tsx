@@ -8,37 +8,49 @@ import App from './App.tsx';
 import './index.css';
 import { initializeRpcFunctions } from './utils/supabaseUtils.ts';
 import { AuthProvider } from './contexts/AuthContext';
+import { CACHE_STALE_TIME } from './config/env.ts';
 
+// Create a client with better caching strategy
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-      refetchOnWindowFocus: false, // Disable automatic refetch on window focus
-      refetchOnMount: true, // Only refetch if stale
-      retry: 1, // Only retry failed requests once
+      staleTime: CACHE_STALE_TIME,
+      gcTime: CACHE_STALE_TIME * 2,
+      refetchOnWindowFocus: false,
+      refetchOnMount: true,
+      retry: 1,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      refetchIntervalInBackground: false, // Don't refetch in the background
-      refetchOnReconnect: true, // Refetch when reconnecting
+      refetchIntervalInBackground: false,
+      refetchOnReconnect: 'always',
     },
   },
 });
 
-// Set up focus tracking for React Query - but make it less aggressive
-const focusHandler = () => {
-  // Only invalidate queries if visibility has been hidden for more than 5 minutes
-  if (document.visibilityState === 'visible') {
-    // We'll handle refetching in individual components
-    console.log('Window focused - not automatically invalidating queries');
-  }
-};
-
-// Add event listener for visibility change
+// Use a more efficient focus management strategy
 if (typeof window !== 'undefined') {
-  document.addEventListener('visibilitychange', focusHandler);
+  // Track last focus time to avoid unnecessary refetches
+  let lastFocusTime = 0;
+  const FOCUS_INTERVAL = 5 * 60 * 1000; // 5 minutes
+  
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      const now = Date.now();
+      if (now - lastFocusTime > FOCUS_INTERVAL) {
+        lastFocusTime = now;
+        console.log('Focus after significant time, selective refetch may occur');
+      }
+    }
+  });
 }
 
-// Initialize RPC functions in the background
-initializeRpcFunctions().catch(console.error);
+// Initialize RPC functions in the background with retry logic
+initializeRpcFunctions().catch(err => {
+  console.error('Failed to initialize RPC functions:', err);
+  // Retry once after a delay
+  setTimeout(() => {
+    initializeRpcFunctions().catch(console.error);
+  }, 3000);
+});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
