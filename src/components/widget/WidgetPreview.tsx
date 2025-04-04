@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { WidgetSettings } from '@/types/widget-settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -18,10 +17,12 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const isInitialized = useRef(false);
 
   // Initialize with a welcome message
   useEffect(() => {
-    if (messages.length === 0) {
+    if (!isInitialized.current && messages.length === 0) {
+      isInitialized.current = true;
       setMessages([
         {
           role: 'assistant',
@@ -29,7 +30,7 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
         }
       ]);
     }
-  }, [settings.agent_name]);
+  }, [messages.length, settings.agent_name]);
   
   const getAnswerFromOpenAIAssistant = async (clientId: string, query: string) => {
     try {
