@@ -56,3 +56,22 @@ export interface AgentDetails {
   created_at: string;
   updated_at: string;
 }
+
+// Adding Agent interface that was missing from types
+export interface Agent {
+  id: string;
+  name: string;
+  status: string;
+  client_id: string;
+  client_name?: string;
+  agent_description?: string;
+  logo_url?: string;
+  total_interactions: number;
+  average_response_time: number;
+  last_active: string;
+  created_at?: string;
+  updated_at?: string;
+  openai_assistant_id?: string;
+  settings?: Json;
+  interaction_type?: string;
+}

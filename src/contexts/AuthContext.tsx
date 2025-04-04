@@ -9,6 +9,7 @@ import { useAuthStateChange } from '@/hooks/useAuthStateChange';
 import { useAuthCallback } from '@/hooks/useAuthCallback';
 import { useAuthState } from '@/hooks/useAuthState';
 
+// Define UserRole type
 export type UserRole = 'admin' | 'client' | null;
 
 type AuthContextType = {
@@ -32,18 +33,12 @@ const AuthContext = createContext<AuthContextType>({
 
 // Define the provider component
 function AuthProviderInner({ children }: { children: React.ReactNode }) {
-  const {
-    session,
-    setSession,
-    user,
-    setUser,
-    userRole,
-    setUserRole,
-    isLoading,
-    setIsLoading,
-    authInitialized,
-    setAuthInitialized
-  } = useAuthState();
+  // Create local state for auth
+  const [authInitialized, setAuthInitialized] = useState<boolean>(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   const location = useLocation();
   const isCallbackUrl = location.pathname.includes('/auth/callback');
@@ -104,7 +99,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       }
       setAuthInitialized(true);
     }
-  }, [authInitialized, isCallbackUrl, user, setSession, setUser, setUserRole, setIsLoading, setAuthInitialized]);
+  }, [authInitialized, isCallbackUrl, user, setIsLoading]);
   
   // Initialize auth - check for existing session
   useAuthInitialize({

@@ -9,7 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { EditAgentDialog } from './EditAgentDialog';
 import { DeleteAgentDialog } from './DeleteAgentDialog';
 import { AgentConfigureDialog } from './AgentConfigureDialog';
-import type { Agent } from '@/services/agentService';
+import { Agent } from '@/types/agent';
 
 interface AgentCardProps {
   agent: Agent;
@@ -89,7 +89,7 @@ export function AgentCard({ agent, onRefresh }: AgentCardProps) {
         open={isConfigureDialogOpen}
         onOpenChange={setIsConfigureDialogOpen}
         agent={agent}
-        onAgentUpdated={onRefresh}
+        onUpdateAgent={() => onRefresh()}
         onDelete={() => {
           setIsConfigureDialogOpen(false);
           setIsDeleteDialogOpen(true);

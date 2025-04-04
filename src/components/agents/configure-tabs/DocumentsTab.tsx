@@ -3,10 +3,10 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/components/ui/use-toast";
 import { DocumentUpload } from "@/components/client/DocumentUpload";
 import { createClientActivity } from "@/services/clientActivityService";
 import { ActivityType } from "@/types/activity";
+import { toast } from "sonner"; // Import toast from sonner
 
 export interface DocumentsTabProps {
   clientId: string;
@@ -15,13 +15,11 @@ export interface DocumentsTabProps {
 
 export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
   const [isUploading, setIsUploading] = useState(false);
-  const { toast } = useToast();
 
   const handleDocumentUploadComplete = async (result: any) => {
     if (result.success) {
-      toast({
-        title: "Document uploaded",
-        description: "Document was successfully uploaded and is being processed.",
+      toast.success("Document uploaded successfully", {
+        description: "Document was successfully uploaded and is being processed."
       });
       
       try {
@@ -44,10 +42,8 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
       setIsUploading(false);
       if (onSuccess) onSuccess();
     } else {
-      toast({
-        title: "Upload failed",
-        description: `Failed to upload document: ${result.error || "Unknown error"}`,
-        variant: "destructive",
+      toast.error("Upload failed", {
+        description: `Failed to upload document: ${result.error || "Unknown error"}`
       });
       setIsUploading(false);
     }

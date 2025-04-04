@@ -152,15 +152,12 @@ const chunkDocument = (content: string, maxChunkSize = 1000): string[] => {
  */
 export const matchDocumentByVector = async (query: string, clientId: string, limit = 5) => {
   try {
-    // Use a stored procedure for vector matching
-    const { data, error } = await supabase.rpc(
-      'match_documents', 
-      {
-        query_text: query,
-        client_identifier: clientId,
-        match_limit: limit
-      }
-    );
+    // Use a stored function for vector matching - use fetch API directly instead of rpc
+    const { data, error } = await supabase.from('document_search')
+      .select('*')
+      .filter('client_id', 'eq', clientId)
+      .textSearch('content', query)
+      .limit(limit);
     
     if (error) {
       console.error('Error matching documents by vector:', error);

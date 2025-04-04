@@ -1,3 +1,4 @@
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,52 +11,39 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
-import { Agent } from "@/types/agent";
-import { useEffect, useState, useCallback } from "react";
-import { Loader2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useCallback } from "react";
 import { AgentDetailsTab } from "./configure-tabs/AgentDetailsTab";
 import { DocumentsTab } from "./configure-tabs/DocumentsTab";
 import { WebsiteUrlsTab } from "./configure-tabs/WebsiteUrlsTab";
 import { GoogleDriveTab } from "./configure-tabs/GoogleDriveTab";
+import { toast } from "sonner"; // Importing toast from sonner instead of useToast hook
+import { Agent } from "@/types/agent";
 
 interface AgentConfigureDialogProps {
   agent: Agent;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdateAgent: (agent: Agent) => void;
+  onDelete?: () => void;
 }
 
 const ConfigureTabs = ({ agent, onClose }: { agent: Agent; onClose: () => void }) => {
   const [activeTab, setActiveTab] = useState<string>("details");
-
+  
+  // Create a unified success handler for all tabs
   const handleSuccess = useCallback(() => {
-    // Refresh the agent data
-    // You might want to refetch the agent data here to ensure it's up-to-date
-    // For example:
-    // refetchAgentData(); // Assuming you have a function to refetch agent data
-  }, [/* dependencies */]);
+    // This function could be used to refetch agent data or perform other actions
+    console.log("Agent configuration updated successfully");
+  }, []);
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -67,22 +55,32 @@ const ConfigureTabs = ({ agent, onClose }: { agent: Agent; onClose: () => void }
       </TabsList>
 
       <TabsContent value="details" className="space-y-4">
-        <AgentDetailsTab agent={agent} onSuccess={handleSuccess} />
+        <AgentDetailsTab 
+          agent={agent} 
+          // Either pass handleSuccess directly or adapt it based on your component's requirements
+        />
       </TabsContent>
 
       <TabsContent value="documents" className="space-y-4">
         <DocumentsTab 
-          clientId={agent.client_id} 
-          onSuccess={handleSuccess}
+          clientId={agent.client_id}
         />
       </TabsContent>
 
       <TabsContent value="websites" className="space-y-4">
-        <WebsiteUrlsTab clientId={agent.client_id} onSuccess={handleSuccess} />
+        <WebsiteUrlsTab 
+          clientId={agent.client_id} 
+          agentName={agent.name}
+          onSuccess={handleSuccess} 
+        />
       </TabsContent>
 
       <TabsContent value="google-drive" className="space-y-4">
-        <GoogleDriveTab clientId={agent.client_id} onSuccess={handleSuccess} />
+        <GoogleDriveTab 
+          clientId={agent.client_id} 
+          agentName={agent.name}
+          onSuccess={handleSuccess} 
+        />
       </TabsContent>
     </Tabs>
   );
@@ -93,9 +91,9 @@ export function AgentConfigureDialog({
   open,
   onOpenChange,
   onUpdateAgent,
+  onDelete
 }: AgentConfigureDialogProps) {
   const [isUpdating, setIsUpdating] = useState(false);
-  const { toast } = useToast();
 
   const handleUpdate = async () => {
     setIsUpdating(true);
@@ -104,19 +102,15 @@ export function AgentConfigureDialog({
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // After successful update
-      toast({
-        title: "Agent updated.",
-        description: "Your agent has been successfully updated.",
-      });
+      toast.success("Agent updated successfully.");
 
+      // Update the parent component with the new agent data
+      onUpdateAgent(agent);
+      
       // Close the dialog
       onOpenChange(false);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: error.message,
-      });
+      toast.error("Update failed: " + (error.message || "Unknown error"));
     } finally {
       setIsUpdating(false);
     }
