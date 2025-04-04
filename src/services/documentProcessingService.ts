@@ -92,8 +92,8 @@ export const uploadDocument = async (
   agentName: string
 ): Promise<DocumentProcessingResult> => {
   try {
-    // Create a unique path for the file
-    const filePath = `documents/${clientId}/${Date.now()}_${file.name}`;
+    // Create a unique path for the file - clientId must be first folder for RLS
+    const filePath = `${clientId}/documents/${Date.now()}_${file.name}`;
     
     // Upload file to storage
     const { data: uploadData, error: uploadError } = await supabase

@@ -19,7 +19,7 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 async function checkBucket() {
-  console.log('Checking document-storage bucket...');
+  console.log('Checking client_documents bucket...');
   
   try {
     const { data: buckets, error } = await supabase.storage.listBuckets();
@@ -31,10 +31,10 @@ async function checkBucket() {
 
     console.log('Found buckets:', buckets.map(b => b.name));
     
-    const documentBucket = buckets.find(b => b.name === 'document-storage');
+    const documentBucket = buckets.find(b => b.name === 'client_documents');
     if (!documentBucket) {
-      console.log('document-storage bucket not found, creating...');
-      const { data, error: createError } = await supabase.storage.createBucket('document-storage', {
+      console.log('client_documents bucket not found, creating...');
+      const { data, error: createError } = await supabase.storage.createBucket('client_documents', {
         public: false,
         fileSizeLimit: 50 * 1024 * 1024, // 50MB
         allowedMimeTypes: ['application/pdf', 'text/plain', 'application/vnd.google-apps.document']
@@ -43,10 +43,10 @@ async function checkBucket() {
       if (createError) {
         console.error('Error creating bucket:', createError.message);
       } else {
-        console.log('Successfully created document-storage bucket');
+        console.log('Successfully created client_documents bucket');
       }
     } else {
-      console.log('document-storage bucket exists');
+      console.log('client_documents bucket exists');
     }
   } catch (err) {
     console.error('Unexpected error:', err);

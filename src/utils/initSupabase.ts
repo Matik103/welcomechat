@@ -12,15 +12,15 @@ export async function initializeSupabaseResources(): Promise<boolean> {
     // Verify document storage bucket is accessible
     try {
       await getDocumentStorageBucket();
-      console.log('Document storage bucket is accessible');
+      console.log('Client documents bucket is accessible');
     } catch (storageError) {
-      console.error('Error accessing document storage bucket:', storageError);
+      console.error('Error accessing client documents bucket:', storageError);
       return false;
     }
     
     // Create RPC functions for document storage
     const rpcResult = await createDocumentStorageRpcFunctions();
-    console.log('Document storage RPC functions creation result:', rpcResult.success);
+    console.log('Client documents RPC functions creation result:', rpcResult.success);
     
     return rpcResult.success;
   } catch (error) {

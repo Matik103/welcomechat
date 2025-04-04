@@ -1,25 +1,30 @@
-
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, File, X, Check, AlertCircle, Loader2 } from 'lucide-react';
-import { DocumentProcessingResult } from '@/types/document-processing';
+import { uploadDocument } from '@/utils/documentStorage';
+
+interface UploadResult {
+  success: boolean;
+  error?: string;
+  documentId?: string;
+  publicUrl?: string;
+}
 
 interface DocumentUploadProps {
-  uploadDocument: (file: File) => Promise<DocumentProcessingResult | null>;
-  isUploading: boolean;
-  uploadProgress: number;
+  clientId: string;
+  onUploadComplete?: (result: UploadResult) => void;
 }
 
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({
-  uploadDocument,
-  isUploading,
-  uploadProgress
+  clientId,
+  onUploadComplete
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -51,27 +56,30 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const handleUpload = async () => {
     if (!selectedFile) return;
     
+    setIsUploading(true);
     setUploadResult(null);
+    
     try {
-      const result = await uploadDocument(selectedFile);
-      if (result) {
-        setUploadResult(result);
-        // Clear the selected file after successful upload
-        if (result.success) {
-          setSelectedFile(null);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
+      const result = await uploadDocument(selectedFile, clientId);
+      setUploadResult(result);
+      
+      if (result.success) {
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
         }
+        onUploadComplete?.(result);
       }
     } catch (error) {
       console.error('Error uploading document:', error);
-      setUploadResult({
+      const errorResult = {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        processed: 0,
-        failed: 1
-      });
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+      setUploadResult(errorResult);
+      onUploadComplete?.(errorResult);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -88,7 +96,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       <CardHeader>
         <CardTitle>Upload Document</CardTitle>
         <CardDescription>
-          Upload a document to be processed and added to your AI agent's knowledge base.
+          Upload a document to be processed and added to your knowledge base.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -113,7 +121,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
               </Button>
             </p>
             <p className="text-xs text-gray-500">
-              Supported formats: PDF, DOCX, TXT, CSV (Max 20MB)
+              Supported formats: PDF, DOCX, TXT, CSV (Max 50MB)
             </p>
             <input 
               type="file" 
@@ -163,15 +171,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 )}
               </Button>
             </div>
-
-            {isUploading && (
-              <div className="mt-3">
-                <Progress value={uploadProgress} className="h-2" />
-                <p className="text-xs text-center mt-1 text-gray-500">
-                  {uploadProgress}% complete
-                </p>
-              </div>
-            )}
           </div>
         )}
 
@@ -193,12 +192,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 </p>
                 {uploadResult.error && (
                   <p className="text-sm text-red-600 mt-1">{uploadResult.error}</p>
-                )}
-                {uploadResult.success && (
-                  <p className="text-sm text-green-700 mt-1">
-                    {uploadResult.processed} pages processed successfully.
-                    {uploadResult.failed > 0 && ` (${uploadResult.failed} pages failed)`}
-                  </p>
                 )}
               </div>
             </div>

@@ -6,8 +6,8 @@ DO $$
 BEGIN
   INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
   VALUES (
-    'document-storage',
-    'document-storage',
+    'client_documents',
+    'client_documents',
     false,
     52428800, -- 50MB limit
     ARRAY['application/pdf', 'text/plain', 'application/vnd.google-apps.document']::text[]
@@ -31,7 +31,7 @@ ON storage.objects
 FOR INSERT
 TO authenticated
 WITH CHECK (
-  bucket_id = 'document-storage' AND
+  bucket_id = 'client_documents' AND
   (storage.foldername(name))[1] = auth.uid()::text
 );
 
@@ -41,7 +41,7 @@ ON storage.objects
 FOR SELECT
 TO authenticated
 USING (
-  bucket_id = 'document-storage' AND
+  bucket_id = 'client_documents' AND
   (storage.foldername(name))[1] = auth.uid()::text
 );
 
@@ -51,11 +51,11 @@ ON storage.objects
 FOR UPDATE
 TO authenticated
 USING (
-  bucket_id = 'document-storage' AND
+  bucket_id = 'client_documents' AND
   (storage.foldername(name))[1] = auth.uid()::text
 )
 WITH CHECK (
-  bucket_id = 'document-storage' AND
+  bucket_id = 'client_documents' AND
   (storage.foldername(name))[1] = auth.uid()::text
 );
 
@@ -65,7 +65,7 @@ ON storage.objects
 FOR DELETE
 TO authenticated
 USING (
-  bucket_id = 'document-storage' AND
+  bucket_id = 'client_documents' AND
   (storage.foldername(name))[1] = auth.uid()::text
 );
 

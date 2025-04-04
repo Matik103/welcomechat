@@ -1,11 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { DocumentUpload } from '@/components/client/DocumentUpload';
-import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import { DocumentProcessingResult } from '@/types/document-processing';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -18,38 +15,24 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   logClientActivity,
   onUploadComplete
 }) => {
-  const { uploadDocument, isUploading, uploadProgress, uploadResult } = useUnifiedDocumentUpload(clientId);
+  const [uploadResult, setUploadResult] = useState<{
+    success: boolean;
+    error?: string;
+    documentId?: string;
+    publicUrl?: string;
+  } | null>(null);
   
-  const handleUpload = async (file: File): Promise<DocumentProcessingResult> => {
-    try {
-      console.log("Starting document upload process for:", file.name);
-      const result = await uploadDocument(file, { 
-        clientId,
-        agentName: 'AI Assistant'
-      });
-
-      if (result.success) {
-        await logClientActivity();
-        if (onUploadComplete) {
-          onUploadComplete();
-        }
-      }
-
-      return {
-        success: result.success,
-        documentId: result.documentId?.toString(),
-        error: result.error,
-        processed: result.processed || 0,
-        failed: result.failed || 0
-      };
-    } catch (error) {
-      console.error('Upload failed:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        processed: 0,
-        failed: 1
-      };
+  const handleUploadComplete = async (result: {
+    success: boolean;
+    error?: string;
+    documentId?: string;
+    publicUrl?: string;
+  }) => {
+    setUploadResult(result);
+    
+    if (result.success) {
+      await logClientActivity();
+      onUploadComplete?.();
     }
   };
   
@@ -63,37 +46,20 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <DocumentUpload
-          uploadDocument={handleUpload}
-          isUploading={isUploading}
-          uploadProgress={uploadProgress}
+          clientId={clientId}
+          onUploadComplete={handleUploadComplete}
         />
-        
-        {isUploading && (
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium flex items-center">
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {uploadProgress < 90 ? 'Uploading document...' : 'Processing document...'}
-              </span>
-              <span className="text-sm text-gray-500">{uploadProgress}%</span>
-            </div>
-            <Progress value={uploadProgress} />
-            <p className="text-xs text-gray-500 mt-1">
-              {uploadProgress < 50 ? 'Uploading your document...' : 'Your document is being processed. This may take a few moments...'}
-            </p>
-          </div>
-        )}
         
         {uploadResult && uploadResult.success && (
           <Alert className="bg-green-50 border-green-200">
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             <AlertTitle className="text-green-800">Document uploaded successfully</AlertTitle>
             <AlertDescription className="text-green-700">
-              Your document "{uploadResult.fileName}" has been uploaded and will be processed shortly.
-              {uploadResult.documentUrl && (
+              Your document has been uploaded successfully.
+              {uploadResult.publicUrl && (
                 <div className="mt-2">
                   <a 
-                    href={uploadResult.documentUrl} 
+                    href={uploadResult.publicUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:text-blue-800 underline"

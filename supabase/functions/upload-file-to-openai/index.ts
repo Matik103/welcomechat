@@ -1,12 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import OpenAI from "https://esm.sh/openai@4.24.1";
 
 // Get environment variables
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
 
 // Create Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+// Create OpenAI client
+const openai = new OpenAI({
+  apiKey: OPENAI_API_KEY
+});
 
 // CORS headers
 const corsHeaders = {
@@ -51,6 +58,7 @@ interface ProcessedContent {
       lastModified: string;
     };
     processingError?: string;
+    openai_file_id?: string;
   };
 }
 
@@ -226,6 +234,71 @@ async function uploadToStorage(storagePath: string, data: Uint8Array, contentTyp
   return { error: new Error('Upload failed after all attempts') };
 }
 
+async function uploadToOpenAI(file: Uint8Array, fileName: string, contentType: string): Promise<string> {
+  try {
+    // Create form data boundary
+    const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
+    
+    // Construct the multipart form-data manually
+    const formDataParts = [];
+    
+    // Add the purpose field
+    formDataParts.push(
+      `--${boundary}\r\n` +
+      'Content-Disposition: form-data; name="purpose"\r\n\r\n' +
+      'assistants\r\n'
+    );
+    
+    // Add the file
+    formDataParts.push(
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+      `Content-Type: ${contentType}\r\n\r\n`
+    );
+    
+    // Convert parts to Uint8Array
+    const encoder = new TextEncoder();
+    const textParts = encoder.encode(formDataParts.join(''));
+    const endBoundary = encoder.encode(`\r\n--${boundary}--\r\n`);
+    
+    // Combine all parts into a single Uint8Array
+    const body = new Uint8Array([
+      ...textParts,
+      ...file,
+      ...endBoundary
+    ]);
+
+    console.log('Uploading file to OpenAI:', {
+      fileName,
+      contentType,
+      fileSize: file.length,
+      boundary
+    });
+
+    const response = await fetch('https://api.openai.com/v1/files', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`
+      },
+      body: body
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('OpenAI API error response:', error);
+      throw new Error(`OpenAI API error: ${error}`);
+    }
+
+    const data = await response.json();
+    console.log('OpenAI upload response:', data);
+    return data.id;
+  } catch (error) {
+    console.error('Error uploading to OpenAI:', error);
+    throw error;
+  }
+}
+
 // Type guard for supported file types
 function isSupportedFileType(fileType: string): fileType is keyof typeof SUPPORTED_FILE_TYPES {
   return fileType in SUPPORTED_FILE_TYPES;
@@ -295,6 +368,19 @@ serve(async (req: Request) => {
     // Process the content based on file type
     const processedContent = await fileHandler.processContent(fileData);
 
+    // Upload to OpenAI first
+    const openaiFileId = await uploadToOpenAI(
+      processedContent.uploadData, 
+      fileName,
+      processedContent.contentType
+    );
+
+    // Associate file with assistant
+    await openai.beta.assistants.files.create(
+      assistant_id,
+      { file_id: openaiFileId }
+    );
+
     // Generate unique file name and storage path
     const uniqueFileName = `${crypto.randomUUID()}-${fileName}`;
     const storagePath = `${client_id}/${uniqueFileName}`;
@@ -325,7 +411,10 @@ serve(async (req: Request) => {
         storage_url: publicUrl,
         file_type: processedContent.contentType,
         content: processedContent.content,
-        metadata: processedContent.metadata
+        metadata: {
+          ...processedContent.metadata,
+          openai_file_id: openaiFileId
+        }
       })
       .select('id')
       .single();
@@ -341,7 +430,8 @@ serve(async (req: Request) => {
         document_id: document.id,
         assistant_id: assistant_id,
         client_id: client_id,
-        status: fileHandler.requiresExtraction ? 'pending_extraction' : 'ready'
+        status: fileHandler.requiresExtraction ? 'pending_extraction' : 'ready',
+        openai_file_id: openaiFileId
       });
 
     if (accessError) {
@@ -385,7 +475,8 @@ serve(async (req: Request) => {
           storage_path: storagePath,
           file_name: fileName,
           content_type: processedContent.contentType,
-          extraction_status: fileHandler.requiresExtraction ? 'pending_extraction' : 'ready'
+          extraction_status: fileHandler.requiresExtraction ? 'pending_extraction' : 'ready',
+          openai_file_id: openaiFileId
         }
       }),
       {

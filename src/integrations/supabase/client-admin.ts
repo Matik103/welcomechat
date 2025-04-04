@@ -34,8 +34,8 @@ export const initializeBotLogosBucket = async (): Promise<boolean> => {
       return false;
     }
     
-    // Also create document-storage bucket
-    const { error: docError } = await supabaseAdmin.storage.createBucket('document-storage', {
+    // Also create client_documents bucket
+    const { error: docError } = await supabaseAdmin.storage.createBucket('client_documents', {
       public: false,
       allowedMimeTypes: [
         'application/pdf',
@@ -47,7 +47,7 @@ export const initializeBotLogosBucket = async (): Promise<boolean> => {
     });
 
     if (docError && !docError.message.includes('already exists')) {
-      console.error('Error creating document-storage bucket:', docError);
+      console.error('Error creating client_documents bucket:', docError);
       // Continue anyway, since we at least created the bot-logos bucket
     }
 
@@ -122,7 +122,7 @@ export const initializeStorage = async () => {
     }
 
     // Create document storage bucket if it doesn't exist
-    const { error: docError } = await supabaseAdmin.storage.createBucket('document-storage', {
+    const { error: docError } = await supabaseAdmin.storage.createBucket('client_documents', {
       public: false,
       allowedMimeTypes: [
         'application/pdf',
@@ -134,7 +134,7 @@ export const initializeStorage = async () => {
     });
 
     if (docError) {
-      console.error('Error creating document storage bucket:', docError);
+      console.error('Error creating client documents bucket:', docError);
     }
 
     console.log('Storage buckets initialized');

@@ -16,7 +16,7 @@ SET
   owner = null,
   created_at = NOW(),
   updated_at = NOW()
-WHERE id = 'document-storage';
+WHERE id = 'client_documents';
 
 -- If the bucket doesn't exist, create it
 INSERT INTO storage.buckets (
@@ -31,8 +31,8 @@ INSERT INTO storage.buckets (
   updated_at
 )
 SELECT
-  'document-storage',
-  'document-storage',
+  'client_documents',
+  'client_documents',
   true,
   52428800,
   ARRAY[
@@ -49,7 +49,7 @@ SELECT
   NOW(),
   NOW()
 WHERE NOT EXISTS (
-  SELECT 1 FROM storage.buckets WHERE id = 'document-storage'
+  SELECT 1 FROM storage.buckets WHERE id = 'client_documents'
 );
 
 -- Grant necessary permissions
