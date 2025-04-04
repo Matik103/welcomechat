@@ -171,7 +171,7 @@ interface StorageBucket {
   public: boolean;
 }
 
-const DOCUMENTS_BUCKET = 'client_documents';
+const DOCUMENTS_BUCKET = 'assistant_documents';
 
 async function downloadFromGoogleDrive(driveLink: string): Promise<{ data: Uint8Array; filename: string }> {
   try {
@@ -206,34 +206,31 @@ async function downloadFromGoogleDrive(driveLink: string): Promise<{ data: Uint8
   }
 }
 
-async function uploadToStorage(storagePath: string, data: Uint8Array, contentType: string): Promise<{ error: Error | null }> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const { error } = await supabase.storage
-        .from(DOCUMENTS_BUCKET)
-        .upload(storagePath, data, {
-          contentType: contentType,
-          upsert: true
-        });
+async function uploadToStorage(
+  file: File,
+  assistantId: string,
+  clientId: string
+): Promise<{ path: string; url: string }> {
+  const timestamp = new Date().getTime();
+  const filePath = `${clientId}/${assistantId}/${timestamp}_${file.name}`;
+  
+  const { data, error } = await supabase.storage
+    .from(DOCUMENTS_BUCKET)
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
 
-      if (!error) {
-        return { error: null };
-      }
+  if (error) throw error;
 
-      // If it's not the last attempt, wait before retrying
-      if (attempt < 2) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-      } else {
-        return { error: new Error(`Upload failed after ${attempt + 1} attempts: ${error.message}`) };
-      }
-    } catch (error) {
-      if (attempt === 2) {
-        return { error: error instanceof Error ? error : new Error('Unknown upload error') };
-      }
-      await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-    }
-  }
-  return { error: new Error('Upload failed after all attempts') };
+  const { data: { publicUrl } } = supabase.storage
+    .from(DOCUMENTS_BUCKET)
+    .getPublicUrl(filePath);
+
+  return {
+    path: filePath,
+    url: publicUrl
+  };
 }
 
 async function uploadToOpenAI(file: Uint8Array, fileName: string, contentType: string): Promise<string> {
@@ -385,105 +382,89 @@ serve(async (req: Request) => {
 
     // Generate unique file name and storage path
     const uniqueFileName = `${crypto.randomUUID()}-${fileName}`;
-    const storagePath = `${client_id}/${uniqueFileName}`;
+    const storagePath = `${client_id}/${assistant_id}/${uniqueFileName}`;
 
     // Upload file to storage with retry logic
-    const { error: uploadError } = await uploadToStorage(
-      storagePath,
-      processedContent.uploadData,
-      processedContent.contentType
+    const { path: storagePath, url: storageUrl } = await uploadToStorage(
+      new File([processedContent.uploadData], fileName),
+      assistant_id,
+      client_id
     );
-
-    if (uploadError) {
-      throw uploadError;
-    }
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from(DOCUMENTS_BUCKET)
       .getPublicUrl(storagePath);
 
-    // Create document record
-    const { data: document, error: documentError } = await supabase
-      .from('document_content')
-      .insert({
-        client_id,
-        document_id: storagePath,
-        filename: fileName,
-        storage_url: publicUrl,
-        file_type: processedContent.contentType,
-        content: processedContent.content,
-        metadata: {
-          ...processedContent.metadata,
-          openai_file_id: openaiFileId
-        }
-      })
+    // Verify assistant ownership and existence
+    const { data: assistant, error: assistantError } = await supabase
+      .from('client_assistants')
       .select('id')
+      .eq('id', assistant_id)
+      .eq('client_id', client_id)
       .single();
 
-    if (documentError) {
-      throw documentError;
+    if (assistantError || !assistant) {
+      return new Response(
+        JSON.stringify({
+          error: "Assistant not found or access denied",
+          details: assistantError?.message || "Invalid assistant ID"
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 404
+        }
+      );
     }
 
-    // Create assistant access record
-    const { error: accessError } = await supabase
+    // Create document record
+    const { data: document, error: docError } = await supabase
       .from('assistant_documents')
       .insert({
-        document_id: document.id,
-        assistant_id: assistant_id,
-        client_id: client_id,
-        status: fileHandler.requiresExtraction ? 'pending_extraction' : 'ready',
-        openai_file_id: openaiFileId
-      });
+        assistant_id: assistant.id,
+        filename: fileName,
+        file_type: processedContent.contentType,
+        content: processedContent.content,
+        storage_path: storagePath,
+        metadata: {
+          ...processedContent.metadata,
+          size: processedContent.uploadData.length,
+          openai_file_id: openaiFileId,
+          storage_url: publicUrl,
+          uploadedAt: new Date().toISOString()
+        },
+        status: fileHandler.requiresExtraction ? 'pending_extraction' : 'ready'
+      })
+      .select()
+      .single();
 
-    if (accessError) {
-      throw accessError;
-    }
-
-    // If PDF, trigger extraction process
-    if (fileHandler.requiresExtraction) {
-      try {
-        const extractionResponse = await fetch(
-          `${SUPABASE_URL}/functions/v1/extract-pdf-content`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
-            },
-            body: JSON.stringify({
-              document_id: document.id.toString(),
-              chunk_size: 1024 * 1024, // 1MB chunks
-              max_chunks: 5
-            })
-          }
-        );
-
-        if (!extractionResponse.ok) {
-          console.error('Extraction request failed:', await extractionResponse.text());
+    if (docError) {
+      return new Response(
+        JSON.stringify({
+          error: "Failed to create document record",
+          details: docError.message
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500
         }
-      } catch (error) {
-        console.error('Failed to trigger extraction:', error);
-        // Don't throw here - the document is uploaded, extraction can be retried
-      }
+      );
     }
 
     return new Response(
       JSON.stringify({
-        status: "success",
         message: fileHandler.message,
         document: {
           id: document.id,
-          storage_path: storagePath,
-          file_name: fileName,
-          content_type: processedContent.contentType,
-          extraction_status: fileHandler.requiresExtraction ? 'pending_extraction' : 'ready',
+          filename: document.filename,
+          status: document.status,
+          storage_path: document.storage_path,
           openai_file_id: openaiFileId
         }
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
+        status: 200
       }
     );
 
