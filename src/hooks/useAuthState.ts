@@ -73,18 +73,17 @@ export function useAuthState() {
               .eq("user_id", data.session.user.id)
               .maybeSingle();
               
-            // Use a function instead of RPC to avoid TS errors
-            const adminCheck = await supabase
-              .from("user_roles")
-              .select("*")
-              .eq("user_id", data.session.user.id)
-              .eq("role", "admin")
-              .maybeSingle();
+            // Use a direct query instead of checking the user_roles table
+            const { data: adminData, error: adminError } = await supabase
+              .rpc('check_user_role', {
+                user_id: data.session.user.id,
+                role_name: 'admin'
+              });
             
             if (clientResult.data) {
               setUserRole("client");
               console.log("User role determined as client");
-            } else if (adminCheck.data) {
+            } else if (adminData) {
               setUserRole("admin");
               console.log("User role determined as admin");
             } else {

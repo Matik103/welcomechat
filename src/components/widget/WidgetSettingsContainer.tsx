@@ -6,7 +6,7 @@ import { WidgetSection } from "@/components/client/settings/WidgetSection";
 import { Button } from "@/components/ui/button";
 import { WidgetPreview } from "./WidgetPreview";
 import { WidgetSettings } from "@/types/widget-settings";
-import { AiAssistantSection } from "../client/settings/AiAssistantSection";
+import { EmbedCodeCard } from "./EmbedCodeCard";
 import { toast } from "sonner";
 
 interface UpdateSettingsMutation {
@@ -36,7 +36,6 @@ export function WidgetSettingsContainer({
   logClientActivity
 }: WidgetSettingsContainerProps) {
   const [activeSettings, setActiveSettings] = useState<WidgetSettings>(settings);
-  const [activeTab, setActiveTab] = useState("branding");
   
   const handleSettingsChange = (partialSettings: Partial<WidgetSettings>) => {
     setActiveSettings((prev) => ({ ...prev, ...partialSettings }));
@@ -64,6 +63,10 @@ export function WidgetSettingsContainer({
     }
   };
 
+  const handleCopyCode = () => {
+    toast.success("Widget code copied to clipboard!");
+  };
+
   return (
     <div className="grid md:grid-cols-[1fr_350px] gap-6">
       <div className="space-y-6">
@@ -78,29 +81,19 @@ export function WidgetSettingsContainer({
           </Button>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="branding">Branding & Appearance</TabsTrigger>
-            <TabsTrigger value="assistant">AI Assistant</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="branding" className="space-y-6">
-            <WidgetSection
-              settings={activeSettings}
-              isUploading={isUploading}
-              onSettingsChange={handleSettingsChange}
-              onLogoUpload={handleLogoUpload}
-            />
-          </TabsContent>
-
-          <TabsContent value="assistant" className="space-y-6">
-            <AiAssistantSection
-              settings={activeSettings}
-              onSettingsChange={handleSettingsChange}
-              clientId={clientId || ""}
-            />
-          </TabsContent>
-        </Tabs>
+        <div className="space-y-6">
+          <WidgetSection
+            settings={activeSettings}
+            isUploading={isUploading}
+            onSettingsChange={handleSettingsChange}
+            onLogoUpload={handleLogoUpload}
+          />
+          
+          <EmbedCodeCard 
+            settings={activeSettings} 
+            onCopy={handleCopyCode}
+          />
+        </div>
       </div>
 
       <div className="space-y-6">

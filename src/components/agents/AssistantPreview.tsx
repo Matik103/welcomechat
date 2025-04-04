@@ -50,7 +50,10 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
 
       if (error) throw error;
 
-      if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+      // Handle the response as a string or object with messages
+      if (typeof data === 'string') {
+        setMessages(prev => [...prev, { role: 'assistant', content: data }]);
+      } else if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
         const assistantMessage = data.messages[data.messages.length - 1]?.content || 
           "Sorry, I couldn't generate a response.";
         setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
