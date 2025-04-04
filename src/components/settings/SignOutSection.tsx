@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientActivity } from '@/hooks/useClientActivity';
-import { ActivityType } from '@/types/activity';
 import { toast } from 'sonner';
 
 export function SignOutSection() {
@@ -14,7 +13,7 @@ export function SignOutSection() {
   const handleSignOut = async () => {
     try {
       // Log the sign out activity
-      await logClientActivity(ActivityType.CLIENT_UPDATED, "User signed out");
+      await logClientActivity("client_updated", "User signed out");
       
       // Sign out
       await signOut();

@@ -66,15 +66,9 @@ export const getDashboardRoute = (role: UserRole | null): string => {
  */
 export const createUserRole = async (userId: string, role: UserRole): Promise<boolean> => {
   try {
-    // Convert our UserRole type to a string that matches the database enum
-    const dbRole = role.toString().toLowerCase();
-    
     const { error } = await supabase
       .from('user_roles')
-      .upsert({ 
-        user_id: userId, 
-        role: dbRole 
-      }, { onConflict: 'user_id' });
+      .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
 
     if (error) {
       console.error('Error creating user role:', error);

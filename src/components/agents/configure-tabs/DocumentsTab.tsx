@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { DocumentUpload } from "@/components/client/DocumentUpload";
 import { createClientActivity } from "@/services/clientActivityService";
 import { ActivityType } from "@/types/activity";
-import { toast } from "sonner";
+import { toast } from "sonner"; // Import toast from sonner
 
 export interface DocumentsTabProps {
   clientId: string;
@@ -27,7 +27,7 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
         await createClientActivity(
           clientId,
           undefined,
-          ActivityType.DOCUMENT_ADDED,
+          ActivityType.DOCUMENT_ADDED, // Using DOCUMENT_ADDED instead of DOCUMENT_UPLOADED
           `Document uploaded: ${result.fileName || "Unknown"}`,
           {
             document_id: result.documentId,

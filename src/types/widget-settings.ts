@@ -22,23 +22,7 @@ export interface WidgetSettings {
   welcome_text: string;
   response_time_text: string;
   display_mode: WidgetDisplayMode;
-  
-  // Add these properties for compatibility with WidgetSettings.tsx
-  primaryColor?: string;
-  secondaryColor?: string;
-  border_radius?: number;
-  borderRadius?: number;
-  font_family?: string;
-  fontFamily?: string;
-  show_agent_availability?: boolean;
-  is_active?: boolean;
-  
-  // Additional properties
-  primary_color?: string;
-  title?: string;
-  subtitle?: string;
-  placeholder?: string;
-  openai_assistant_id?: string;
+  openai_assistant_id?: string; // Add this for OpenAI assistant integration
 }
 
 // Default widget settings
@@ -60,15 +44,5 @@ export const defaultSettings: WidgetSettings = {
   secondary_color: "#6366f1",
   welcome_text: "Welcome to our assistant",
   response_time_text: "Typically responds in a few seconds",
-  display_mode: "standard",
-  // Add default values for the new properties
-  primaryColor: "#4f46e5",
-  secondaryColor: "#6366f1",
-  border_radius: 8,
-  borderRadius: 8,
-  font_family: "Inter, system-ui, sans-serif",
-  fontFamily: "Inter, system-ui, sans-serif",
-  show_agent_availability: false,
-  is_active: true,
-  primary_color: "#4f46e5"
+  display_mode: "standard"
 };

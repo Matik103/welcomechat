@@ -1,133 +1,254 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { PageHeading } from '@/components/dashboard/PageHeading';
+import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'sonner';
-import { updateClient, getClient } from '@/services/administrationService';
+import { ClientFormData } from '@/types/client-form';
+import { useClientData } from '@/hooks/useClientData';
+import { ClientResourceSections } from '@/components/client/ClientResourceSections';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ErrorDisplay from '@/components/ErrorDisplay';
 import { useClientActivity } from '@/hooks/useClientActivity';
-import { ActivityType } from "@/types/activity";
+import { useNavigation } from '@/hooks/useNavigation';
+import { supabase } from '@/integrations/supabase/client';
 
-export default function Profile() {
+export default function ClientProfile() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [clientId, setClientId] = useState<string | null>(null);
-  const { logClientActivity } = useClientActivity(clientId);
+  const [activeTab, setActiveTab] = useState('profile');
+  const navigation = useNavigation();
+  
+  // Get client ID from user metadata
+  const clientId = user?.user_metadata?.client_id;
+  const { logClientActivity } = useClientActivity(clientId || '');
 
+  // Log that we're attempting to fetch client data
+  console.log("Attempting to fetch client data with ID:", clientId);
+  console.log("User metadata:", user?.user_metadata);
+
+  const { 
+    client, 
+    isLoadingClient,
+    error,
+    clientMutation,
+    refetchClient
+  } = useClientData(clientId);
+
+  // For debugging - log what we have
   useEffect(() => {
-    if (user?.user_metadata?.client_id) {
-      setClientId(user.user_metadata.client_id);
-      fetchClientData(user.user_metadata.client_id);
+    console.log("Current client state:", { client, isLoadingClient, error });
+  }, [client, isLoadingClient, error]);
+
+  // If no user found or not authenticated, redirect to auth
+  useEffect(() => {
+    if (!user && !isLoadingClient) {
+      console.log("No user found, redirecting to auth");
+      navigation.goToAuth();
     }
-  }, [user]);
+  }, [user, isLoadingClient, navigation]);
 
-  const fetchClientData = async (clientId: string) => {
-    try {
-      const { data, error } = await getClient(clientId);
-      if (error) {
-        console.error("Error fetching client data:", error);
-        toast.error("Failed to load client data");
-        return;
+  // Enhanced debugging logs
+  useEffect(() => {
+    const logDebugInfo = async () => {
+      console.log("=== Debug Information ===");
+      console.log("Current client state:", { client, isLoadingClient, error });
+      console.log("User object:", user);
+      console.log("User metadata:", user?.user_metadata);
+      console.log("Client ID from metadata:", clientId);
+      
+      // Check current session
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("Current session:", sessionData?.session);
+      
+      // Verify user metadata directly from Supabase
+      const { data: userData } = await supabase.auth.getUser();
+      console.log("User data from Supabase:", userData?.user);
+      
+      if (!clientId) {
+        console.warn("No client ID found in user metadata");
+        if (user?.email) {
+          // Try to find client ID from ai_agents table
+          const { data: clientData, error: clientError } = await supabase
+            .from('ai_agents')
+            .select('id, client_id')
+            .eq('email', user.email)
+            .eq('interaction_type', 'config')
+            .single();
+            
+          if (clientError) {
+            console.error("Error looking up client by email:", clientError);
+          } else if (clientData) {
+            console.log("Found client ID in ai_agents table:", clientData.client_id || clientData.id);
+            // Update user metadata with client ID
+            const { error: updateError } = await supabase.auth.updateUser({
+              data: { 
+                client_id: clientData.client_id || clientData.id,
+                role: 'client'
+              }
+            });
+            
+            if (updateError) {
+              console.error("Error updating user metadata:", updateError);
+            } else {
+              console.log("Updated user metadata with client ID");
+              window.location.reload(); // Reload to get updated metadata
+            }
+          }
+        }
       }
-      if (data) {
-        setFormData({
-          name: data.client_name || '',
-          email: data.email || '',
-        });
-      }
-    } catch (error) {
-      console.error("Exception fetching client data:", error);
-      toast.error("Failed to load client data");
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+    };
     
+    logDebugInfo();
+  }, [user, clientId, client, isLoadingClient, error]);
+
+  const handleSubmit = async (data: ClientFormData) => {
     try {
       if (!clientId) {
-        toast.error("Client ID is missing.");
+        toast.error("Client ID not found in your user profile");
         return;
       }
-
-      const { success, error } = await updateClient(clientId, {
-        name: formData.name,
-        email: formData.email,
-      });
-
-      if (success) {
-        toast.success("Profile updated successfully!");
-        await logClientActivity(
-          ActivityType.PROFILE_UPDATED,
-          "Profile information updated",
-          { updated_fields: Object.keys(formData) }
-        );
-      } else {
-        console.error("Profile update failed:", error);
-        toast.error("Failed to update profile");
+      
+      if (!client) {
+        toast.error("Unable to load your client information");
+        return;
       }
+      
+      console.log("Submitting update for client:", clientId);
+      
+      await clientMutation.mutateAsync({
+        client_id: clientId,
+        client_name: data.client_name,
+        email: data.email,
+        agent_name: data.agent_name,
+        agent_description: data.agent_description,
+        logo_url: data.logo_url,
+        logo_storage_path: data.logo_storage_path,
+        company: client.company || '',
+        description: client.description || '',
+        status: client.status || 'active',
+        widget_settings: client.widget_settings || {},
+        created_at: client.created_at,
+        updated_at: new Date().toISOString(),
+        deleted_at: client.deleted_at,
+        deletion_scheduled_at: client.deletion_scheduled_at,
+        last_active: client.last_active,
+        is_error: false
+      });
+      
+      toast.success("Your information has been updated successfully");
+      await logActivityWrapper();
+      refetchClient();
     } catch (error) {
-      console.error("Exception updating profile:", error);
-      toast.error("Failed to update profile");
-    } finally {
-      setIsSubmitting(false);
+      console.error("Error updating client information:", error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : String(error);
+      toast.error(`Failed to update your information: ${errorMessage}`);
     }
+  };
+
+  // Force a refetch if client is null but we have a clientId
+  useEffect(() => {
+    if (!client && !isLoadingClient && clientId && !error) {
+      console.log("No client data but have clientId, forcing refetch for:", clientId);
+      refetchClient();
+    }
+  }, [client, isLoadingClient, clientId, error, refetchClient]);
+
+  // Show error if no client ID in metadata
+  if (!clientId) {
+    return (
+      <div className="container mx-auto py-8">
+        <ErrorDisplay 
+          title="Access Error"
+          message="Unable to find your client ID. Please make sure you're properly logged in."
+          details="If this issue persists, please contact support."
+          onRetry={() => window.location.reload()}
+        />
+      </div>
+    );
+  }
+
+  // Show error if client data failed to load
+  if (error && !client) {
+    return (
+      <div className="container mx-auto py-8">
+        <ErrorDisplay 
+          title="Error Loading Your Information"
+          message={`Unable to load your information: ${error instanceof Error ? error.message : String(error)}`}
+          details={`Client ID: ${clientId}`}
+          onRetry={refetchClient}
+        />
+      </div>
+    );
+  }
+
+  const logActivityWrapper = async (): Promise<void> => {
+    if (!client) return;
+    
+    const clientName = client.client_name || client.agent_name || "Unknown";
+    await logClientActivity("profile_updated", 
+      `Profile information updated for "${clientName}"`, 
+      {
+        client_name: clientName,
+        agent_name: client.agent_name
+      });
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Edit Profile</h1>
-      <form onSubmit={handleUpdateProfile} className="max-w-md">
-        <div className="grid gap-4 py-4">
-          <div>
-            <Label htmlFor="name">Name</Label>
-            <Input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Your Name"
-            />
-          </div>
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Your Email"
-            />
-          </div>
+    <div className="container mx-auto py-8">
+      <PageHeading>
+        Profile
+        <p className="text-sm font-normal text-muted-foreground">
+          Update your information and manage your resources
+        </p>
+      </PageHeading>
+
+      {isLoadingClient ? (
+        <div className="mt-6 p-8 text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Loading your information...</p>
         </div>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Updating..." : "Update Profile"}
-        </Button>
-      </form>
-      <Button
-        variant="ghost"
-        onClick={() => navigate(-1)}
-        className="mt-4"
-      >
-        Cancel
-      </Button>
+      ) : !client ? (
+        <div className="mt-6 p-8 bg-red-50 border border-red-200 rounded-md">
+          <h3 className="text-lg font-medium text-red-800 mb-2">Information Not Found</h3>
+          <p className="text-red-600">Unable to load your information. Please try again.</p>
+          <button 
+            onClick={refetchClient}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry Loading
+          </button>
+        </div>
+      ) : (
+        <div className="mt-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="profile">Profile Information</TabsTrigger>
+              <TabsTrigger value="resources">Resources</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="profile" className="space-y-6">
+              <ClientForm 
+                initialData={client}
+                onSubmit={handleSubmit}
+                isLoading={isLoadingClient || clientMutation.isPending}
+                error={error ? (error instanceof Error ? error.message : String(error)) : null}
+                submitButtonText="Update Information"
+              />
+            </TabsContent>
+            
+            <TabsContent value="resources">
+              {clientId && (
+                <ClientResourceSections 
+                  clientId={clientId}
+                  logClientActivity={logActivityWrapper}
+                  onResourceChange={refetchClient}
+                />
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
     </div>
   );
 }

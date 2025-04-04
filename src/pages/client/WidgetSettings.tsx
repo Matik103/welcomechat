@@ -4,12 +4,11 @@ import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsConta
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
-import { ActivityType } from "@/types/activity";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettingsService";
 import { handleLogoUpload } from "@/services/uploadService";
 import { defaultSettings } from "@/types/widget-settings";
-import { WidgetSettings as WidgetSettingsType } from "@/types/widget-settings";
+import type { WidgetSettings as WidgetSettingsType } from "@/types/widget-settings";
 import { toast } from "sonner";
 import { useNavigation } from "@/hooks/useNavigation";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
@@ -22,18 +21,20 @@ export default function WidgetSettings() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const { logClientActivity } = useClientActivity(clientId || "");
   const widgetSettingsHook = useWidgetSettings(clientId || "");
 
+  // Use useClientData with proper client ID
   const { client, isLoadingClient, refetchClient } = useClientData(clientId);
 
+  // Fetch widget settings with proper client ID
   const { data: settings, isLoading, refetch } = useQuery({
     queryKey: ["widget-settings", clientId],
     queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
     enabled: !!clientId,
   });
 
+  // Log current data state on load for debugging
   useEffect(() => {
     if (client && settings) {
       console.log("Client view - current data state:", {
@@ -51,8 +52,7 @@ export default function WidgetSettings() {
         
         const clientName = client?.client_name || settings?.agent_name || "Unknown";
         
-        await logClientActivity(
-          ActivityType.WIDGET_SETTINGS_UPDATED, 
+        await logClientActivity("widget_settings_updated", 
           `Widget settings updated for "${clientName}"`, 
           {
             client_name: clientName,
@@ -64,6 +64,7 @@ export default function WidgetSettings() {
     onSuccess: () => {
       refetch();
       if (clientId) {
+        // Invalidate client query to ensure bidirectional sync
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
         refetchClient();
       }
@@ -90,8 +91,7 @@ export default function WidgetSettings() {
         
         const clientName = client?.client_name || settings?.agent_name || "Unknown";
         
-        await logClientActivity(
-          ActivityType.LOGO_UPLOADED, 
+        await logClientActivity("logo_uploaded", 
           `Logo updated for "${clientName}"`, 
           {
             client_name: clientName,
@@ -111,32 +111,6 @@ export default function WidgetSettings() {
     }
   };
 
-  const handleSaveWidgetSettings = async (settings: WidgetSettingsType) => {
-    setIsSaving(true);
-    try {
-      await updateWidgetSettings(clientId, settings);
-      
-      const clientName = client?.client_name || settings?.agent_name || "Unknown";
-      
-      await logClientActivity(
-        ActivityType.WIDGET_SETTINGS_UPDATED,
-        "Widget settings updated",
-        { settings_changed: Object.keys(settings) }
-      );
-    } catch (error) {
-      toast.error(`Failed to update settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handlePreviewClick = async () => {
-    await logClientActivity(
-      ActivityType.WIDGET_PREVIEWED,
-      "Widget preview viewed"
-    );
-  };
-
   if (isLoading) {
     return <ClientViewLoading />;
   }
@@ -149,8 +123,7 @@ export default function WidgetSettings() {
   const logActivityWrapper = async (): Promise<void> => {
     const clientName = client?.client_name || settings?.agent_name || "Unknown";
     
-    await logClientActivity(
-      ActivityType.WIDGET_PREVIEWED, 
+    await logClientActivity("widget_previewed", 
       `Widget previewed for "${clientName}"`, 
       {
         client_name: clientName,

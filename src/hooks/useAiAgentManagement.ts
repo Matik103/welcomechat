@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { createClientActivity } from '@/services/clientActivityService';
-import { ActivityType } from '@/types/activity';
 
 export const useAiAgentManagement = () => {
   const [isCreating, setIsCreating] = useState(false);
@@ -22,7 +21,69 @@ export const useAiAgentManagement = () => {
 
     setIsCreating(true);
     try {
-      // Create settings object
+      // Check if an AI agent for this client already exists
+      const { data: existingAgent, error: checkError } = await supabase
+        .from("ai_agents")
+        .select("*")
+        .eq("client_id", clientId)
+        .eq("interaction_type", "config")
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("Error checking for existing agent:", checkError);
+      }
+
+      // If agent exists, update it
+      if (existingAgent) {
+        console.log("AI agent found, updating:", existingAgent.id);
+        
+        // Create settings object with all the values
+        const existingSettings = existingAgent.settings || {};
+        const settings = {
+          ...(typeof existingSettings === 'object' ? existingSettings : {}),
+          agent_name: agentName,
+          agent_description: agentDescription || "",
+          logo_url: logoUrl || "",
+          logo_storage_path: logoStoragePath || "",
+          client_name: clientName || ""
+        };
+
+        // Update the existing agent
+        const { data: updatedAgent, error: updateError } = await supabase
+          .from("ai_agents")
+          .update({
+            name: agentName,
+            agent_description: agentDescription || "",
+            logo_url: logoUrl || existingAgent.logo_url,
+            logo_storage_path: logoStoragePath || existingAgent.logo_storage_path,
+            client_name: clientName || existingAgent.client_name,
+            settings,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", existingAgent.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        // Log the activity to console only
+        if (!skipActivityLog) {
+          console.log(`[Activity Log] AI agent updated:`, {
+            agent_id: existingAgent.id,
+            client_id: clientId,
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        return { success: true, agent: updatedAgent, error: null };
+      }
+
+      // If agent doesn't exist, create new one
+      console.log("No AI agent found, creating new one with client_id:", clientId);
+      
+      // Create a settings object with all the values
       const settings = {
         agent_name: agentName,
         agent_description: agentDescription || "",
@@ -31,14 +92,11 @@ export const useAiAgentManagement = () => {
         client_name: clientName || ""
       };
 
-      // Create a new agent (no longer checking for existing ones)
-      console.log("Creating new AI agent for client_id:", clientId);
-      
       // Create the new agent
       const { data: newAgent, error: createError } = await supabase
         .from("ai_agents")
         .insert({
-          client_id: clientId,
+          client_id: clientId, // Ensure client_id is explicitly set
           name: agentName,
           agent_description: agentDescription || "",
           logo_url: logoUrl || "",
@@ -57,7 +115,7 @@ export const useAiAgentManagement = () => {
         throw createError;
       }
 
-      // Log activity to console only
+      // Log the activity to console only
       if (!skipActivityLog) {
         console.log(`[Activity Log] AI agent created:`, {
           agent_id: newAgent.id,
@@ -66,12 +124,12 @@ export const useAiAgentManagement = () => {
         });
       }
 
-      // Log client activity if skipActivityLog is false
+      // Log activity if skipActivityLog is false
       if (!skipActivityLog && newAgent) {
         await createClientActivity(
           clientId,
           clientName || agentName,
-          ActivityType.AGENT_CREATED,
+          'agent_created',
           `Created AI agent "${agentName}" for client ${clientName || 'Unknown'}`,
           {
             agent_name: agentName,
@@ -83,7 +141,7 @@ export const useAiAgentManagement = () => {
       
       return { success: true, agent: newAgent, error: null };
     } catch (error) {
-      console.error("Error creating AI agent:", error);
+      console.error("Error ensuring AI agent exists:", error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : "Unknown error occurred" 

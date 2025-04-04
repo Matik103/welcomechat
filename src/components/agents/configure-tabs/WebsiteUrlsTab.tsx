@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -10,7 +9,6 @@ import { WebsiteUrlFormData } from '@/types/website-url';
 import { WebsiteUrls } from '@/components/client/website-urls';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
-import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
 
 interface WebsiteUrlsTabProps {
   clientId: string;
@@ -22,7 +20,6 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
   const [url, setUrl] = useState('');
   const [refreshRate, setRefreshRate] = useState(30); // Default 30 days
   const { addWebsiteUrl, addWebsiteUrlMutation } = useWebsiteUrlsMutation(clientId);
-  const storeWebsiteContent = useStoreWebsiteContent(clientId);
 
   const validateUrl = (url: string) => {
     try {
@@ -60,20 +57,13 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
         }
       };
       
-      // Add the website URL to the database
-      const newUrl = await addWebsiteUrl(websiteUrlData);
-      
-      // Process the website content
-      if (newUrl) {
-        toast.info('Processing website content...');
-        storeWebsiteContent.mutate(newUrl);
-      }
+      await addWebsiteUrl(websiteUrlData);
       
       // Log activity
       await createClientActivity(
         clientId,
         agentName,
-        ActivityType.URL_ADDED,
+        'url_added',
         `Website URL added for agent ${agentName}`,
         {
           url: url,
@@ -97,7 +87,7 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
       await createClientActivity(
         clientId,
         agentName,
-        ActivityType.URL_REMOVED,
+        'url_removed',
         `Website URL deleted for agent ${agentName}`,
         { agent_name: agentName }
       );
@@ -140,12 +130,12 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
         
         <Button 
           type="submit" 
-          disabled={addWebsiteUrlMutation.isPending || storeWebsiteContent.isPending || !url.trim()}
+          disabled={addWebsiteUrlMutation.isPending || !url.trim()}
         >
-          {(addWebsiteUrlMutation.isPending || storeWebsiteContent.isPending) ? (
+          {addWebsiteUrlMutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {storeWebsiteContent.isPending ? 'Processing...' : 'Adding...'}
+              Adding...
             </>
           ) : (
             'Add Website URL'

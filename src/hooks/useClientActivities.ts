@@ -1,5 +1,5 @@
 
-import { ActivityType } from "@/types/activity";
+import { ActivityType, ActivityTypeString } from "@/types/activity";
 import { createClientActivity } from "@/services/clientActivityService";
 
 export const useClientActivities = () => {
@@ -9,7 +9,7 @@ export const useClientActivities = () => {
   const logClientActivity = async (
     clientId?: string,
     clientName?: string,
-    type: ActivityType = ActivityType.CLIENT_UPDATED,
+    type: ActivityType | ActivityTypeString = ActivityType.CLIENT_UPDATED,
     description: string = "Client activity",
     metadata: any = {}
   ) => {
@@ -21,7 +21,7 @@ export const useClientActivities = () => {
     try {
       return await createClientActivity(
         clientId,
-        clientName || "",
+        clientName,
         type,
         description,
         metadata

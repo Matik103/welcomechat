@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,6 @@ import { useDriveLinks } from '@/hooks/useDriveLinks';
 import { createClientActivity } from '@/services/clientActivityService';
 import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ActivityType } from '@/types/activity';
 
 interface GoogleDriveTabProps {
   clientId: string;
@@ -59,7 +59,7 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
       await createClientActivity(
         clientId,
         agentName,
-        ActivityType.URL_ADDED,
+        'url_added',
         `Google Drive link added for agent ${agentName}`,
         {
           url: url,
@@ -95,7 +95,7 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
       await createClientActivity(
         clientId,
         agentName,
-        ActivityType.URL_REMOVED,
+        'url_removed',
         `Google Drive link removed for agent ${agentName}`,
         {
           agent_name: agentName,

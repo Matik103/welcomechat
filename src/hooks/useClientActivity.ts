@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClientActivity } from '@/services/clientActivityService';
 import { toast } from 'sonner';
-import { ActivityType } from '@/types/activity';
 
 export function useClientActivity(clientId?: string) {
   const { user } = useAuth();
@@ -13,7 +12,7 @@ export function useClientActivity(clientId?: string) {
   console.log("Current user metadata:", user?.user_metadata);
 
   const logClientActivity = async (
-    activityType: ActivityType = ActivityType.PAGE_VIEW,
+    activityType: string = 'page_view',
     description: string = 'Client viewed page',
     activityData: Record<string, any> = {}
   ): Promise<void> => {
@@ -36,7 +35,7 @@ export function useClientActivity(clientId?: string) {
     try {
       await createClientActivity(
         effectiveClientId,
-        undefined as any, // Agent name is optional
+        undefined, // Agent name is optional
         activityType,
         description,
         activityData
@@ -46,7 +45,7 @@ export function useClientActivity(clientId?: string) {
     } catch (error) {
       console.error("Failed to log client activity:", error);
       // Don't show toast for every activity log failure
-      if (activityType !== ActivityType.PAGE_VIEW) {
+      if (activityType !== 'page_view') {
         toast.error("Failed to log activity");
       }
     } finally {
