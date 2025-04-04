@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -6,10 +5,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ClientResourceSections } from "../ClientResourceSections";
 import { Loader2 } from "lucide-react";
 import { createOpenAIAssistant } from "@/utils/openAIUtils";
 import { toast } from "sonner";
+import { EmbedCodeCard } from "@/components/widget/EmbedCodeCard";
 
 interface AiAssistantSectionProps {
   settings: WidgetSettings;
@@ -57,6 +56,10 @@ export function AiAssistantSection({
       .finally(() => {
         setIsUpdatingAssistant(false);
       });
+  };
+
+  const handleCopyCode = () => {
+    toast.success("Widget code copied to clipboard!");
   };
   
   return (
@@ -114,20 +117,10 @@ export function AiAssistantSection({
         </CardContent>
       </Card>
       
-      <div className="my-6">
-        <h3 className="text-lg font-medium mb-4">Knowledge Resources</h3>
-        <p className="text-sm text-muted-foreground mb-6">
-          Add documents and resources that your AI assistant will use to answer questions. These resources will be processed and used to generate relevant answers.
-        </p>
-        
-        <ClientResourceSections 
-          clientId={clientId}
-          onResourceChange={() => {
-            // Invalidate any caches if needed
-          }}
-          logClientActivity={async () => {
-            // Log the activity if needed
-          }}
+      <div className="mt-6">
+        <EmbedCodeCard 
+          settings={settings}
+          onCopy={handleCopyCode}
         />
       </div>
     </>
