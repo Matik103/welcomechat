@@ -3,7 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, File, X, Check, AlertCircle, Loader2 } from 'lucide-react';
-import { uploadDocument } from '@/utils/documentStorage';
+import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { CheckCircle2 } from 'lucide-react';
 
 interface UploadResult {
   success: boolean;
@@ -60,15 +62,83 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     setUploadResult(null);
     
     try {
-      const result = await uploadDocument(selectedFile, clientId);
-      setUploadResult(result);
+      // Generate a unique file path
+      const uniqueId = crypto.randomUUID();
+      const filePath = `${clientId}/${uniqueId}-${selectedFile.name}`;
       
-      if (result.success) {
-        setSelectedFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        onUploadComplete?.(result);
+      // Upload file to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client_documents')
+        .upload(filePath, selectedFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+        
+      if (uploadError) throw uploadError;
+      
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('client_documents')
+        .getPublicUrl(filePath);
+
+      // Create a default assistant for the client if one doesn't exist
+      const { data: existingAssistant, error: assistantError } = await supabase
+        .from('client_assistants')
+        .select('id')
+        .eq('client_id', clientId)
+        .eq('name', 'Default Assistant')
+        .single();
+
+      let assistantId;
+      if (assistantError) {
+        // Create default assistant
+        const { data: newAssistant, error: createError } = await supabase
+          .from('client_assistants')
+          .insert({
+            client_id: clientId,
+            name: 'Default Assistant',
+            description: 'Default assistant for document management'
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        assistantId = newAssistant.id;
+      } else {
+        assistantId = existingAssistant.id;
+      }
+
+      // Create document record
+      const { data: document, error: docError } = await supabase
+        .from('assistant_documents')
+        .insert({
+          assistant_id: assistantId,
+          filename: selectedFile.name,
+          file_type: selectedFile.type,
+          storage_path: filePath,
+          metadata: {
+            size: selectedFile.size,
+            storage_url: publicUrl,
+            uploadedAt: new Date().toISOString()
+          },
+          status: selectedFile.type === 'application/pdf' ? 'pending_extraction' : 'ready'
+        })
+        .select()
+        .single();
+
+      if (docError) throw docError;
+
+      const result = {
+        success: true,
+        documentId: document.id,
+        publicUrl
+      };
+      
+      setUploadResult(result);
+      onUploadComplete?.(result);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
     } catch (error) {
       console.error('Error uploading document:', error);
@@ -96,10 +166,10 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       <CardHeader>
         <CardTitle>Upload Document</CardTitle>
         <CardDescription>
-          Upload a document to be processed and added to your knowledge base.
+          Upload documents to be processed by your AI Assistant
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <div 
           className={`border-2 border-dashed rounded-lg p-6 text-center ${
             isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
@@ -173,29 +243,37 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             </div>
           </div>
         )}
-
-        {uploadResult && (
-          <div className={`mt-4 p-3 rounded-md ${
-            uploadResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-          }`}>
-            <div className="flex items-start gap-2">
-              {uploadResult.success ? (
-                <Check className="h-5 w-5 text-green-600 mt-0.5" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+        
+        {uploadResult && uploadResult.success && (
+          <Alert className="bg-green-50 border-green-200">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertTitle className="text-green-800">Document uploaded successfully</AlertTitle>
+            <AlertDescription className="text-green-700">
+              Your document has been uploaded successfully.
+              {uploadResult.publicUrl && (
+                <div className="mt-2">
+                  <a 
+                    href={uploadResult.publicUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    View document
+                  </a>
+                </div>
               )}
-              <div>
-                <p className={`font-medium ${
-                  uploadResult.success ? 'text-green-800' : 'text-red-800'
-                }`}>
-                  {uploadResult.success ? 'Document uploaded successfully' : 'Upload failed'}
-                </p>
-                {uploadResult.error && (
-                  <p className="text-sm text-red-600 mt-1">{uploadResult.error}</p>
-                )}
-              </div>
-            </div>
-          </div>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {uploadResult && !uploadResult.success && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Upload failed</AlertTitle>
+            <AlertDescription>
+              {uploadResult.error || 'There was an error uploading your document. Please try again.'}
+            </AlertDescription>
+          </Alert>
         )}
       </CardContent>
     </Card>
