@@ -26,19 +26,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ImageIcon, Upload } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getWidgetSettings, updateWidgetSettings } from '@/services/widgetSettingsService';
+import { WidgetSettings as WidgetSettingsType } from '@/types/widget-settings';
+import { defaultSettings } from '@/types/widget-settings';
 
-// Define the widget settings interface
-interface WidgetSettingsInterface {
-  primaryColor: string;
-  secondaryColor: string;
-  borderRadius: number;
-  fontFamily: string;
-  greetingMessage: string;
-  agentAvatar: string | null;
-  companyLogo: string | null;
-  showAgentAvailability: boolean;
-}
-
+// Define the form schema
 const formSchema = z.object({
   primaryColor: z.string().regex(/^#([0-9A-Fa-f]{3}){1,2}$/, { message: "Invalid hex code." }),
   secondaryColor: z.string().regex(/^#([0-9A-Fa-f]{3}){1,2}$/, { message: "Invalid hex code." }),
@@ -66,8 +57,8 @@ export default function WidgetSettingsPage() {
   });
 
   const updateWidgetSettingsMutation = useMutation({
-    mutationFn: async (settings: Partial<WidgetSettingsInterface>) => {
-      return updateWidgetSettings(clientId, settings as any);
+    mutationFn: async (settings: Partial<WidgetSettingsType>) => {
+      return updateWidgetSettings(clientId, settings);
     },
     onSuccess: () => {
       toast.success("Widget settings saved successfully!");
@@ -92,10 +83,10 @@ export default function WidgetSettingsPage() {
   useEffect(() => {
     if (widgetSettings) {
       form.reset({
-        primaryColor: widgetSettings.primary_color || "#000000",
-        secondaryColor: widgetSettings.secondary_color || "#FFFFFF",
-        borderRadius: widgetSettings.border_radius || 8,
-        fontFamily: widgetSettings.font_family || "Arial",
+        primaryColor: widgetSettings.primary_color || widgetSettings.primaryColor || "#000000",
+        secondaryColor: widgetSettings.secondary_color || widgetSettings.secondaryColor || "#FFFFFF",
+        borderRadius: widgetSettings.border_radius || widgetSettings.borderRadius || 8,
+        fontFamily: widgetSettings.font_family || widgetSettings.fontFamily || "Arial",
         greetingMessage: widgetSettings.greeting_message || "How can I help you?",
         showAgentAvailability: widgetSettings.show_agent_availability || false,
       });
@@ -111,11 +102,22 @@ export default function WidgetSettingsPage() {
         return;
       }
 
-      await updateWidgetSettingsMutation.mutateAsync({
-        ...settings,
-        agentAvatar: null,
-        companyLogo: logoUrl
-      });
+      // Convert form values to widget settings format
+      const widgetSettingsUpdate: Partial<WidgetSettingsType> = {
+        primary_color: settings.primaryColor,
+        primaryColor: settings.primaryColor,
+        secondary_color: settings.secondaryColor,
+        secondaryColor: settings.secondaryColor,
+        border_radius: settings.borderRadius,
+        borderRadius: settings.borderRadius,
+        font_family: settings.fontFamily,
+        fontFamily: settings.fontFamily,
+        greeting_message: settings.greetingMessage,
+        show_agent_availability: settings.showAgentAvailability,
+        logo_url: logoUrl || ""
+      };
+
+      await updateWidgetSettingsMutation.mutateAsync(widgetSettingsUpdate);
 
       await logClientActivity(
         ActivityType.WIDGET_SETTINGS_UPDATED,

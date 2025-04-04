@@ -26,7 +26,7 @@ const ResourceSettings = () => {
     setIsAddingDocument(true);
     try {
       // Convert string document_type to DocumentType
-      const docType = data.document_type as DocumentType;
+      const docType = data.document_type as keyof typeof DocumentType;
       
       await addDocumentLink.mutateAsync({
         link: data.link,

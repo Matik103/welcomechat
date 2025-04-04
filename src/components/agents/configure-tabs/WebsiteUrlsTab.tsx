@@ -73,7 +73,7 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
       await createClientActivity(
         clientId,
         agentName,
-        'url_added',
+        ActivityType.URL_ADDED,
         `Website URL added for agent ${agentName}`,
         {
           url: url,
@@ -97,7 +97,7 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
       await createClientActivity(
         clientId,
         agentName,
-        'url_removed',
+        ActivityType.URL_REMOVED,
         `Website URL deleted for agent ${agentName}`,
         { agent_name: agentName }
       );
