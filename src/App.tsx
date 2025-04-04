@@ -1,12 +1,11 @@
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { PublicRoutes } from "./components/routes/PublicRoutes";
 import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes";
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
-import { LoadingFallback } from "./components/routes/LoadingFallback";
 
 function App() {
   const { user, userRole, isLoading, session } = useAuth();
@@ -28,12 +27,6 @@ function App() {
   console.log('Is public route:', isPublicRoute);
   console.log('Auth state:', { user, userRole, isLoading });
   
-  // Simplified loading approach - avoid timeout mechanisms that could cause issues
-  // Only show loading for non-authentication routes
-  if (isLoading && !isAuthCallback && !isPublicRoute) {
-    return <LoadingFallback />;
-  }
-
   // Public route rendering for non-authenticated users
   if (!user && isPublicRoute) {
     return <PublicRoutes />;
@@ -53,9 +46,10 @@ function App() {
     return <ClientRoutes />;
   }
 
-  // If user is authenticated but role not determined yet, show loading
+  // If user is authenticated but role not determined yet, redirect to home
   if (user && !userRole) {
-    return <LoadingFallback />;
+    console.log('User authenticated but role not determined yet, navigating to home page');
+    return <Navigate to="/" replace />;
   }
   
   // Default to home page as fallback

@@ -14,9 +14,38 @@ export function useAuthState() {
   // Enhanced auth state initialization with improved caching
   const initializeAuthState = useCallback(async () => {
     try {
-      console.log("Attempting to restore auth state from session storage");
+      // Try to get session from cache first for instant rendering
+      const cachedAuth = sessionStorage.getItem('auth_state');
+      if (cachedAuth) {
+        try {
+          const { user: cachedUser, session: cachedSession, userRole: cachedRole } = JSON.parse(cachedAuth);
+          if (cachedUser && cachedSession) {
+            setUser(cachedUser);
+            setSession(cachedSession);
+            setUserRole(cachedRole as UserRole);
+            // Still verify with Supabase in background but don't block UI
+            setTimeout(() => {
+              supabase.auth.getSession().then(({ data }) => {
+                if (!data.session) {
+                  // Session expired, clear state
+                  setUser(null);
+                  setSession(null);
+                  setUserRole(null);
+                  sessionStorage.removeItem('auth_state');
+                }
+              });
+            }, 0);
+            // Set loading to false immediately for better UX
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Error parsing cached auth:", e);
+          sessionStorage.removeItem('auth_state');
+        }
+      }
       
-      // Try to get session from Supabase
+      // No valid cache, get session from Supabase
       const { data, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -37,29 +66,23 @@ export function useAuthState() {
           console.log("User role set from metadata:", role);
         } else {
           // If role not in metadata, try to determine from client relationship
-          // We need to check if these tables exist first and handle accordingly
           try {
-            // Check for client relationship
             const clientResult = await supabase
               .from("clients")
               .select("id")
               .eq("user_id", data.session.user.id)
               .maybeSingle();
               
-            // Check for admin relationship
-            // Use "administrators" table instead of "admins" which might not exist
-            const adminResult = await supabase
-              .from("administrators")
-              .select("id")
-              .eq("user_id", data.session.user.id)
-              .maybeSingle();
-              
+            const adminCheck = await supabase.rpc('check_user_role', {
+              user_id: data.session.user.id
+            });
+            
             if (clientResult.data) {
               setUserRole("client");
               console.log("User role determined as client");
-            } else if (adminResult.data) {
+            } else if (adminCheck.data === true) {
               setUserRole("admin");
-              console.log("User role determined as admin");
+              console.log("User role determined as admin via RPC");
             } else {
               // If no specific role found, defaulting to admin temporarily
               console.log("No role found in database, defaulting to admin");
@@ -105,11 +128,24 @@ export function useAuthState() {
           const role = session.user?.user_metadata?.role;
           if (role) {
             setUserRole(role as UserRole);
+            
+            // Cache authentication state for faster loading
+            try {
+              sessionStorage.setItem('auth_state', JSON.stringify({
+                user: session.user,
+                session,
+                userRole: role,
+                timestamp: Date.now()
+              }));
+            } catch (e) {
+              console.error("Error caching auth state:", e);
+            }
           }
         } else {
           setSession(null);
           setUser(null);
           setUserRole(null);
+          sessionStorage.removeItem('auth_state');
         }
       }
     );

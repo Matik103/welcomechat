@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -186,28 +185,50 @@ export const matchDocumentByVector = async (query: string, clientId: string, lim
 /**
  * Generate an answer from documents based on a query using vector matching
  */
-export const generateAnswerFromDocuments = async (clientId: string, query: string) => {
+export const generateAnswerFromDocuments = async (
+  query: string,
+  clientId: string,
+  agentId?: string,
+  maxResults: number = 5
+): Promise<string> => {
   try {
-    console.log(`Generating answer for client ${clientId} with query: "${query}"`);
+    // Use RPC instead of from() for function calls
+    const { data, error } = await supabase.rpc('search_documents', {
+      query_text: query,
+      client_id: clientId,
+      agent_id: agentId || null,
+      max_results: maxResults
+    });
     
-    // First, find relevant document chunks using vector matching
-    const { success, matches, error } = await matchDocumentByVector(query, clientId, 5);
-    
-    if (!success || !Array.isArray(matches) || matches.length === 0) {
-      console.log('No relevant documents found for query');
-      return {
-        success: false,
-        answer: "I couldn't find any relevant information to answer your question.",
-        error: error || 'No matching documents found'
-      };
+    if (error) {
+      console.error('Error searching documents:', error);
+      return `I'm sorry, I couldn't search the knowledge base. Error: ${error.message}`;
     }
     
-    // Extract content from matches to create context
-    const context = matches.map(match => match.content).join('\n\n');
+    if (!data || data.length === 0) {
+      return "I don't have any specific information about that in my knowledge base. Can you ask something else?";
+    }
     
-    console.log(`Found ${matches.length} relevant document chunks`);
+    let contextText = '';
+    data.forEach((item: any) => {
+      if (item.content) {
+        contextText += item.content + "\n\n";
+      }
+    });
     
-    // Use the edge function to generate an answer from the context
+    // Generate a response based on the retrieved content
+    return await generateResponse(query, contextText);
+  } catch (err) {
+    console.error('Error in generateAnswerFromDocuments:', err);
+    return "I'm sorry, I encountered an error while searching for information. Please try again later.";
+  }
+};
+
+/**
+ * Generate a response based on a query and context
+ */
+const generateResponse = async (query: string, context: string): Promise<string> => {
+  try {
     const { data: answerData, error: answerError } = await supabase.functions.invoke(
       'generate-answer',
       {
@@ -221,37 +242,16 @@ export const generateAnswerFromDocuments = async (clientId: string, query: strin
     
     if (answerError) {
       console.error('Error generating answer:', answerError);
-      return {
-        success: false,
-        answer: "I'm sorry, I encountered an error while generating an answer.",
-        error: answerError.message
-      };
+      return "I'm sorry, I encountered an error while generating an answer.";
     }
     
     if (!answerData || !answerData.answer) {
-      return {
-        success: false,
-        answer: "I'm sorry, I couldn't generate a proper response.",
-        error: 'No answer returned from function'
-      };
+      return "I'm sorry, I couldn't generate a proper response.";
     }
     
-    return {
-      success: true,
-      answer: answerData.answer,
-      sources: Array.isArray(matches) ? matches.map(match => ({
-        id: match.id,
-        similarity: match.similarity,
-        metadata: match.metadata
-      })) : []
-    };
-    
+    return answerData.answer;
   } catch (error) {
-    console.error('Error generating answer from documents:', error);
-    return {
-      success: false,
-      answer: "I'm sorry, something went wrong while trying to answer your question.",
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    console.error('Error generating response:', error);
+    return "I'm sorry, something went wrong while trying to answer your question.";
   }
 };
