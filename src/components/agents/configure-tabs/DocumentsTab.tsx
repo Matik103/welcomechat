@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { useUnifiedDocumentUpload } from "@/hooks/useUnifiedDocumentUpload";
+import { DocumentUpload } from "@/components/client/DocumentUpload";
 import { uploadDocument } from "@/services/documentService";
 import { createClientActivity } from "@/services/clientActivityService";
 import { ActivityType } from "@/types/activity";
@@ -55,10 +56,7 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
 
     try {
       // Upload document
-      const result = await uploadDocument(file, {
-        clientId,
-        // Remove the assistantId property as it doesn't exist in UploadOptions
-      });
+      const result = await uploadDocument(clientId, file, {});
       
       // Log activity
       await createClientActivity(
@@ -68,7 +66,7 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
         `Document uploaded: ${file.name}`,
         {
           document_name: file.name,
-          document_id: result.id,
+          document_id: result.documentId,
           client_id: clientId,
         }
       );
@@ -79,21 +77,38 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
     }
   };
 
-  // Define upload function with correct return type
-  const onUpload = async (file: File): Promise<void> => {
-    try {
-      await handleUploadDocument();
-    } catch (error) {
-      console.error("Upload error:", error);
+  const handleDocumentUploadComplete = async (result: any) => {
+    if (result.success) {
+      toast({
+        title: "Document uploaded",
+        description: "Document was successfully uploaded and is being processed.",
+      });
+      
+      try {
+        // Log activity
+        await createClientActivity(
+          clientId,
+          undefined,
+          ActivityType.DOCUMENT_UPLOADED,
+          `Document uploaded: ${result.fileName || "Unknown"}`,
+          {
+            document_id: result.documentId,
+            client_id: clientId,
+          }
+        );
+      } catch (activityError) {
+        console.error("Error logging activity:", activityError);
+      }
+      
+      if (onSuccess) onSuccess();
+    } else {
+      toast({
+        title: "Upload failed",
+        description: `Failed to upload document: ${result.error || "Unknown error"}`,
+        variant: "destructive",
+      });
     }
   };
-
-  // Use the unified document upload hook
-  const { upload, isLoading: isProcessing } = useUnifiedDocumentUpload({
-    clientId,
-    onSuccess: handleUploadSuccess,
-    onError: handleUploadError,
-  });
 
   return (
     <div className="space-y-6">
@@ -113,27 +128,10 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
         </TabsList>
 
         <TabsContent value="upload" className="space-y-4 py-4">
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-            <Label htmlFor="document">Document File</Label>
-            <Input
-              id="document"
-              type="file"
-              accept=".pdf,.doc,.docx,.txt"
-              onChange={handleFileChange}
-              disabled={isUploading || isProcessing}
-            />
-            <p className="text-xs text-muted-foreground">
-              Supported formats: PDF, Word, Text (max 10MB)
-            </p>
-          </div>
-
-          <Button
-            onClick={handleUploadDocument}
-            disabled={!file || isUploading || isProcessing}
-            className="mt-2"
-          >
-            {isUploading || isProcessing ? "Uploading..." : "Upload Document"}
-          </Button>
+          <DocumentUpload 
+            clientId={clientId}
+            onUploadComplete={handleDocumentUploadComplete}
+          />
         </TabsContent>
 
         <TabsContent value="website" className="py-4">

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -26,6 +27,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,8 +62,20 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     
     setIsUploading(true);
     setUploadResult(null);
+    setUploadProgress(10);
     
     try {
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+      }, 300);
+
       // Get the client's assistant
       const { data: assistant, error: assistantError } = await supabase
         .from('ai_agents')
@@ -167,6 +181,9 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         throw new Error('Failed to create assistant document record');
       }
 
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
       // If it's a PDF, trigger the extraction process
       if (selectedFile.type === 'application/pdf') {
         try {
@@ -182,10 +199,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
               .from('document_content')
               .update({
                 metadata: {
-                  size: selectedFile.size,
-                  storage_path: filePath,
-                  storage_url: publicUrl,
-                  uploadedAt: new Date().toISOString(),
+                  ...document.metadata,
                   processing_status: 'extraction_failed',
                   error: extractionError.message
                 }
@@ -210,10 +224,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             .from('document_content')
             .update({
               metadata: {
-                size: selectedFile.size,
-                storage_path: filePath,
-                storage_url: publicUrl,
-                uploadedAt: new Date().toISOString(),
+                ...document.metadata,
                 processing_status: 'extraction_failed',
                 error: extractionError instanceof Error ? extractionError.message : 'Unknown error'
               }
@@ -247,6 +258,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       }
     } catch (error) {
       console.error('Error uploading document:', error);
+      setUploadProgress(0);
       const errorResult = {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -267,120 +279,119 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Upload Document</CardTitle>
-        <CardDescription>
-          Upload documents to be processed by your AI Assistant
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div 
-          className={`border-2 border-dashed rounded-lg p-6 text-center ${
-            isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <div className="flex flex-col items-center justify-center gap-2">
-            <Upload className="h-10 w-10 text-gray-400" />
-            <p className="text-sm text-gray-600">
-              Drag and drop a file here, or{' '}
-              <Button 
-                variant="link" 
-                className="p-0 h-auto text-sm text-primary"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                browse
-              </Button>
-            </p>
-            <p className="text-xs text-gray-500">
-              Supported formats: PDF, DOCX, TXT, CSV (Max 50MB)
-            </p>
-            <input 
-              type="file" 
-              ref={fileInputRef}
-              onChange={handleFileChange} 
-              className="hidden" 
-              accept=".pdf,.docx,.txt,.csv"
-            />
+    <>
+      <div 
+        className={`border-2 border-dashed rounded-lg p-6 text-center ${
+          isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <div className="flex flex-col items-center justify-center gap-2">
+          <Upload className="h-10 w-10 text-gray-400" />
+          <p className="text-sm text-gray-600">
+            Drag and drop a file here, or{' '}
+            <Button 
+              variant="link" 
+              className="p-0 h-auto text-sm text-primary"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              browse
+            </Button>
+          </p>
+          <p className="text-xs text-gray-500">
+            Supported formats: PDF, DOCX, TXT, CSV (Max 50MB)
+          </p>
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            onChange={handleFileChange} 
+            className="hidden" 
+            accept=".pdf,.docx,.txt,.csv"
+          />
+        </div>
+      </div>
+
+      {selectedFile && (
+        <div className="mt-4 border rounded-md p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <File className="h-5 w-5 text-blue-500" />
+              <span className="text-sm font-medium truncate max-w-[200px]">
+                {selectedFile.name}
+              </span>
+              <span className="text-xs text-gray-500">
+                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+              </span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleClearFile}
+              disabled={isUploading}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {isUploading && (
+            <div className="mt-3 space-y-2">
+              <Progress value={uploadProgress} className="h-2" />
+              <p className="text-xs text-gray-500 text-right">{uploadProgress}%</p>
+            </div>
+          )}
+
+          <div className="mt-3">
+            <Button 
+              onClick={handleUpload} 
+              disabled={isUploading || !selectedFile}
+              className="w-full"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                'Upload Document'
+              )}
+            </Button>
           </div>
         </div>
-
-        {selectedFile && (
-          <div className="mt-4 border rounded-md p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <File className="h-5 w-5 text-blue-500" />
-                <span className="text-sm font-medium truncate max-w-[200px]">
-                  {selectedFile.name}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                </span>
+      )}
+      
+      {uploadResult && uploadResult.success && (
+        <Alert className="bg-green-50 border-green-200 mt-4">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800">Document uploaded successfully</AlertTitle>
+          <AlertDescription className="text-green-700">
+            Your document has been uploaded successfully.
+            {uploadResult.publicUrl && (
+              <div className="mt-2">
+                <a 
+                  href={uploadResult.publicUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  View document
+                </a>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleClearFile}
-                disabled={isUploading}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="mt-3">
-              <Button 
-                onClick={handleUpload} 
-                disabled={isUploading || !selectedFile}
-                className="w-full"
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  'Upload Document'
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-        
-        {uploadResult && uploadResult.success && (
-          <Alert className="bg-green-50 border-green-200">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <AlertTitle className="text-green-800">Document uploaded successfully</AlertTitle>
-            <AlertDescription className="text-green-700">
-              Your document has been uploaded successfully.
-              {uploadResult.publicUrl && (
-                <div className="mt-2">
-                  <a 
-                    href={uploadResult.publicUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 underline"
-                  >
-                    View document
-                  </a>
-                </div>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        {uploadResult && !uploadResult.success && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Upload failed</AlertTitle>
-            <AlertDescription>
-              {uploadResult.error || 'There was an error uploading your document. Please try again.'}
-            </AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-    </Card>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {uploadResult && !uploadResult.success && (
+        <Alert variant="destructive" className="mt-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Upload failed</AlertTitle>
+          <AlertDescription>
+            {uploadResult.error || 'There was an error uploading your document. Please try again.'}
+          </AlertDescription>
+        </Alert>
+      )}
+    </>
   );
 };

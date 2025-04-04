@@ -18,20 +18,28 @@ interface UploadOptions {
   clientId: string;
   shouldProcessWithOpenAI?: boolean;
   agentName?: string;
+  onSuccess?: (result: UploadResult) => void;
+  onError?: (error: Error) => void;
 }
 
-export const useUnifiedDocumentUpload = (clientId: string) => {
-  const [isUploading, setIsUploading] = useState(false);
+export const useUnifiedDocumentUpload = ({ 
+  clientId, 
+  onSuccess, 
+  onError 
+}: UploadOptions) => {
+  const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
 
-  const handleDocumentUpload = async (file: File, options: UploadOptions = { clientId }) => {
+  const upload = async (file: File, options: Partial<UploadOptions> = {}) => {
     if (!clientId) {
-      toast.error('Client ID is required');
-      return;
+      const error = new Error('Client ID is required');
+      if (onError) onError(error);
+      else toast.error('Client ID is required');
+      return null;
     }
 
-    setIsUploading(true);
+    setIsLoading(true);
     setUploadProgress(0);
     setUploadResult(null);
 
@@ -47,7 +55,7 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         });
       }, 300);
 
-      console.log(`Starting document upload for client ${clientId}`, { options });
+      console.log(`Starting document upload for client ${clientId}`);
       
       // Upload document using the unified service
       const result = await uploadDocument(clientId, file, {
@@ -64,17 +72,10 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
       console.log('Document uploaded successfully:', result);
       
       setUploadProgress(100);
-      setUploadResult({
-        success: true,
-        documentId: result.documentId,
-        processed: result.processed,
-        failed: result.failed,
-        documentUrl: result.documentUrl,
-        fileName: result.fileName,
-        fileType: result.fileType
-      });
+      setUploadResult(result);
       
-      toast.success('Document uploaded successfully');
+      if (onSuccess) onSuccess(result);
+      else toast.success('Document uploaded successfully');
       
       return result;
     } catch (error) {
@@ -85,20 +86,18 @@ export const useUnifiedDocumentUpload = (clientId: string) => {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
       
-      toast.error('Failed to upload document: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      if (onError) onError(error instanceof Error ? error : new Error('Unknown error'));
+      else toast.error('Failed to upload document: ' + (error instanceof Error ? error.message : 'Unknown error'));
       
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
+      return null;
     } finally {
-      setIsUploading(false);
+      setIsLoading(false);
     }
   };
 
   return {
-    uploadDocument: handleDocumentUpload,
-    isUploading,
+    upload,
+    isLoading,
     uploadProgress,
     uploadResult
   };
