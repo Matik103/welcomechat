@@ -81,46 +81,12 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         .from('client_documents')
         .getPublicUrl(filePath);
 
-      // Create a default assistant for the client if one doesn't exist
-      const { data: existingAssistant, error: assistantError } = await supabase
-        .from('client_assistants')
-        .select('id')
-        .eq('client_id', clientId)
-        .eq('name', 'Default Assistant')
-        .single();
-
-      let assistantId;
-      if (assistantError) {
-        // Create default assistant
-        const { data: newAssistant, error: createError } = await supabase
-          .from('client_assistants')
-          .insert({
-            client_id: clientId,
-            name: 'Default Assistant',
-            description: 'Default assistant for document management'
-          })
-          .select()
-          .single();
-
-        if (createError) throw createError;
-        assistantId = newAssistant.id;
-      } else {
-        assistantId = existingAssistant.id;
-      }
-
       // Create document record
       const { data: document, error: docError } = await supabase
         .from('assistant_documents')
         .insert({
-          assistant_id: assistantId,
-          filename: selectedFile.name,
-          file_type: selectedFile.type,
-          storage_path: filePath,
-          metadata: {
-            size: selectedFile.size,
-            storage_url: publicUrl,
-            uploadedAt: new Date().toISOString()
-          },
+          assistant_id: clientId,
+          document_id: parseInt(uniqueId.replace(/-/g, '').slice(0, 9)),
           status: selectedFile.type === 'application/pdf' ? 'pending_extraction' : 'ready'
         })
         .select()
@@ -128,9 +94,9 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
       if (docError) throw docError;
 
-      const result = {
+      const result: UploadResult = {
         success: true,
-        documentId: document.id,
+        documentId: document.id.toString(),
         publicUrl
       };
       
