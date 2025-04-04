@@ -185,3 +185,76 @@ export const matchDocumentByVector = async (query: string, clientId: string, lim
     };
   }
 };
+
+/**
+ * Generate an answer from documents based on a query using vector matching
+ */
+export const generateAnswerFromDocuments = async (clientId: string, query: string) => {
+  try {
+    console.log(`Generating answer for client ${clientId} with query: "${query}"`);
+    
+    // First, find relevant document chunks using vector matching
+    const { success, matches, error } = await matchDocumentByVector(query, clientId, 5);
+    
+    if (!success || !matches.length) {
+      console.log('No relevant documents found for query');
+      return {
+        success: false,
+        answer: "I couldn't find any relevant information to answer your question.",
+        error: error || 'No matching documents found'
+      };
+    }
+    
+    // Extract content from matches to create context
+    const context = matches.map(match => match.content).join('\n\n');
+    
+    console.log(`Found ${matches.length} relevant document chunks`);
+    
+    // Use the edge function to generate an answer from the context
+    const { data: answerData, error: answerError } = await supabase.functions.invoke(
+      'generate-answer',
+      {
+        body: {
+          query,
+          context,
+          client_id: clientId
+        }
+      }
+    );
+    
+    if (answerError) {
+      console.error('Error generating answer:', answerError);
+      return {
+        success: false,
+        answer: "I'm sorry, I encountered an error while generating an answer.",
+        error: answerError.message
+      };
+    }
+    
+    if (!answerData || !answerData.answer) {
+      return {
+        success: false,
+        answer: "I'm sorry, I couldn't generate a proper response.",
+        error: 'No answer returned from function'
+      };
+    }
+    
+    return {
+      success: true,
+      answer: answerData.answer,
+      sources: matches.map(match => ({
+        id: match.id,
+        similarity: match.similarity,
+        metadata: match.metadata
+      }))
+    };
+    
+  } catch (error) {
+    console.error('Error generating answer from documents:', error);
+    return {
+      success: false,
+      answer: "I'm sorry, something went wrong while trying to answer your question.",
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+};

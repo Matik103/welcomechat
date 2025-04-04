@@ -19,7 +19,6 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const isInitialized = useRef(false);
 
-  // Initialize with a welcome message
   useEffect(() => {
     if (!isInitialized.current && messages.length === 0) {
       isInitialized.current = true;
@@ -36,7 +35,6 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
     try {
       console.log(`Getting answer from OpenAI assistant for client ${clientId}: "${query}"`);
       
-      // Call the query-openai-assistant Edge Function
       const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
         body: { client_id: clientId, query }
       });
@@ -73,20 +71,17 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
     if (!query.trim() || isLoading) return;
     
     try {
-      // Add user message to chat
       const userMessage = { role: 'user' as const, content: query };
       setMessages(prev => [...prev, userMessage]);
       setQuery('');
       setIsLoading(true);
       
-      // Log the interaction if requested
       if (onTestInteraction) {
         await onTestInteraction();
       }
       
       console.log("Sending query to assistant:", query);
       
-      // First try to get an answer from the OpenAI assistant
       let response;
       
       try {
@@ -100,7 +95,6 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
         };
       }
       
-      // If the OpenAI assistant fails or doesn't have an answer, fall back to vector search
       if (response.error || !response.answer) {
         console.log('Falling back to vector search for answer generation');
         try {
@@ -115,7 +109,6 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
         }
       }
       
-      // Add assistant response to chat
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: response.answer 
@@ -138,7 +131,6 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
     }
   };
   
-  // Define colors based on settings
   const themeColor = settings.chat_color || '#3b82f6';
   const textColor = settings.text_color || '#ffffff';
   const bgColor = settings.background_color || '#ffffff';
@@ -146,7 +138,6 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
   return (
     <div className="w-full h-[600px] bg-gray-100 p-4 flex items-center justify-center rounded-lg border shadow-sm">
       <div className="relative w-full max-w-[350px] h-full flex flex-col">
-        {/* Widget Button */}
         {!isOpen && (
           <div className="absolute bottom-0 right-0">
             <button
@@ -171,13 +162,11 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
           </div>
         )}
 
-        {/* Chat Widget */}
         {isOpen && (
           <div
             className="h-full w-full flex flex-col rounded-lg shadow-lg overflow-hidden"
             style={{ backgroundColor: bgColor }}
           >
-            {/* Header */}
             <div
               className="p-4 flex items-center gap-3"
               style={{ backgroundColor: themeColor, color: textColor }}
@@ -213,7 +202,6 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
               </button>
             </div>
 
-            {/* Messages Area */}
             <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
               {messages.map((message, i) => (
                 <div
@@ -235,7 +223,6 @@ export function WidgetPreview({ settings, clientId, onTestInteraction }: WidgetP
               )}
             </div>
 
-            {/* Input Area */}
             <div className="p-4 border-t">
               <div className="flex gap-2">
                 <Input

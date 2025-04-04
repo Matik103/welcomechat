@@ -1,155 +1,149 @@
 
+// Update hook to resolve the 'publicUrl' property issue
 import { useState } from 'react';
-import { toast } from 'sonner';
-import { uploadDocument } from '@/services/documentService';
-import { fixDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
+import { supabase } from '@/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
-interface UploadResult {
+export interface UploadResult {
   success: boolean;
   documentId?: string;
   error?: string;
-  processed?: number;
-  failed?: number;
-  documentUrl?: string;
-  publicUrl?: string;
-  fileName?: string;
-  fileType?: string;
+  url?: string;
+  path?: string;
 }
 
-interface UploadOptions {
+interface UseUnifiedDocumentUploadOptions {
   clientId: string;
-  shouldProcessWithOpenAI?: boolean;
-  agentName?: string;
   onSuccess?: (result: UploadResult) => void;
   onError?: (error: Error | string) => void;
+  onProgress?: (progress: number) => void;
 }
 
-export const useUnifiedDocumentUpload = ({ 
-  clientId, 
-  onSuccess, 
-  onError 
-}: UploadOptions) => {
+export const useUnifiedDocumentUpload = ({
+  clientId,
+  onSuccess,
+  onError,
+  onProgress
+}: UseUnifiedDocumentUploadOptions) => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
-  const [isFixingPermissions, setIsFixingPermissions] = useState(false);
 
-  const fixPermissions = async () => {
-    setIsFixingPermissions(true);
-    try {
-      const result = await fixDocumentContentRLS();
-      toast.success('Permissions fixed. Please try uploading again.');
-      return result.success;
-    } catch (error) {
-      console.error('Error fixing permissions:', error);
-      toast.error('Failed to fix permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      return false;
-    } finally {
-      setIsFixingPermissions(false);
-    }
-  };
-
-  const upload = async (file: File, options: Partial<UploadOptions> = {}) => {
+  const upload = async (file: File): Promise<UploadResult> => {
     if (!clientId) {
-      const error = new Error('Client ID is required');
+      const error = new Error("Client ID is required for document upload");
       if (onError) onError(error);
-      else toast.error('Client ID is required');
-      return null;
+      return { success: false, error: error.message };
     }
 
     setIsLoading(true);
     setUploadProgress(0);
-    setUploadResult(null);
-
+    
     try {
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 95) {
-            clearInterval(progressInterval);
-            return prev;
+      // Generate unique ID for the document
+      const documentId = uuidv4();
+      
+      // Create a file path for storage
+      const fileExtension = file.name.split('.').pop() || '';
+      const filePath = `${clientId}/${documentId}.${fileExtension}`;
+      
+      // Upload the file to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client_documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type,
+          onUploadProgress: (progress) => {
+            const percent = Math.round((progress.loaded / progress.total) * 100);
+            setUploadProgress(percent);
+            if (onProgress) onProgress(percent);
           }
-          return prev + 5;
         });
-      }, 300);
-
-      console.log(`Starting document upload for client ${clientId}:`, {
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type
-      });
-      
-      // Upload document using the unified service
-      const result = await uploadDocument(clientId, file, {
-        shouldProcessWithOpenAI: options.shouldProcessWithOpenAI,
-        agentName: options.agentName
-      });
-      
-      clearInterval(progressInterval);
-      
-      if (!result.success) {
-        // Check if it's a permissions issue
-        if (result.error && (result.error.includes('security policy') || result.error.includes('permission denied'))) {
-          toast.error('Permission denied. Attempting to fix permissions...');
-          const fixed = await fixPermissions();
-          
-          if (fixed) {
-            toast.info('Please try uploading the file again.');
-            throw new Error('Permissions fixed. Please try again.');
-          } else {
-            throw new Error(result.error || 'Failed to upload document and fix permissions');
-          }
-        } else {
-          throw new Error(result.error || 'Failed to upload document');
-        }
+        
+      if (uploadError) {
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
       }
       
-      console.log('Document uploaded successfully:', result);
+      // Get the public URL for the uploaded file
+      const { data: urlData } = await supabase.storage
+        .from('client_documents')
+        .getPublicUrl(filePath);
       
-      setUploadProgress(100);
+      const url = urlData?.publicUrl || '';
+        
+      // Create document record in the database
+      const { data: documentData, error: documentError } = await supabase
+        .from('document_content')
+        .insert({
+          client_id: clientId,
+          document_id: documentId,
+          content: '', // Will be filled by the extraction process
+          metadata: {
+            filename: file.name,
+            file_type: file.type,
+            size: file.size,
+            upload_path: filePath,
+            url: url,
+            uploadedAt: new Date().toISOString()
+          },
+          file_type: file.type,
+          filename: file.name
+        })
+        .select('id')
+        .single();
+        
+      if (documentError) {
+        throw new Error(`Document record creation failed: ${documentError.message}`);
+      }
       
-      // Make sure publicUrl is available in the result
-      const enhancedResult = {
-        ...result,
-        // Use documentUrl as publicUrl if publicUrl is not available
-        publicUrl: result.publicUrl || result.documentUrl || '',
-        fileName: file.name,
-        fileType: file.type
+      // Invoke function to process the document
+      const { data: processingData, error: processingError } = await supabase.functions.invoke(
+        'process-pdf',
+        {
+          body: {
+            client_id: clientId,
+            document_id: documentId,
+            file_path: filePath,
+            file_type: file.type,
+            filename: file.name
+          }
+        }
+      );
+      
+      if (processingError) {
+        console.warn('Warning: Document processing function error:', processingError);
+        // This is a non-blocking error - document is uploaded but processing failed
+      }
+      
+      const result: UploadResult = {
+        success: true,
+        documentId,
+        url,
+        path: filePath
       };
       
-      setUploadResult(enhancedResult);
+      if (onSuccess) onSuccess(result);
       
-      if (onSuccess) onSuccess(enhancedResult);
-      else toast.success(`Document "${file.name}" uploaded successfully`);
-      
-      return enhancedResult;
+      return result;
     } catch (error) {
-      console.error('Error uploading document:', error);
+      console.error('Document upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       
-      const errorResult = {
-        success: false,
-        fileName: file.name,
-        fileType: file.type,
-        error: error instanceof Error ? error.message : 'Unknown error'
+      if (onError) onError(errorMessage);
+      
+      return { 
+        success: false, 
+        error: errorMessage
       };
-      
-      setUploadResult(errorResult);
-      
-      if (onError) onError(error instanceof Error ? error : new Error('Unknown error'));
-      else toast.error('Failed to upload document: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      
-      return null;
     } finally {
       setIsLoading(false);
+      setUploadProgress(0);
     }
   };
 
   return {
     upload,
     isLoading,
-    uploadProgress,
-    uploadResult,
-    fixPermissions,
-    isFixingPermissions
+    uploadProgress
   };
 };
