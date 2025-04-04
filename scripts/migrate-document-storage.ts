@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -53,7 +54,7 @@ async function migrateDocumentStorage() {
 
         // Upload to new bucket
         const { error: uploadError } = await supabase.storage
-          .from('document-storage')
+          .from('client_documents')
           .upload(file.name, fileData);
         
         if (uploadError) {
@@ -86,4 +87,4 @@ async function migrateDocumentStorage() {
   }
 }
 
-migrateDocumentStorage(); 
+migrateDocumentStorage();

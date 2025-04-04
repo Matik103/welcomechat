@@ -1,4 +1,6 @@
+
 import { createClient } from '@supabase/supabase-js';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -9,9 +11,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Define bucket name as constant
-const DOCUMENTS_BUCKET = 'client_documents';
 
 interface DocumentMetadata {
   contentType?: string;
@@ -159,4 +158,4 @@ export const deleteDocument = async (documentId: string) => {
     console.error('Error deleting document:', error);
     throw error;
   }
-}; 
+};

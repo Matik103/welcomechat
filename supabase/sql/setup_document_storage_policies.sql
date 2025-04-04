@@ -1,3 +1,4 @@
+
 -- Create RPC function to set up document storage policies
 CREATE OR REPLACE FUNCTION public.setup_document_storage_policies()
 RETURNS boolean

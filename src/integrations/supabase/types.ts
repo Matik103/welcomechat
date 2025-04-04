@@ -1180,7 +1180,7 @@ export type Database = {
       }
       document_storage: {
         Row: {
-          client_id: string
+          agent_id: string
           created_at: string | null
           created_by: string | null
           file_name: string
@@ -1193,7 +1193,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          client_id: string
+          agent_id: string
           created_at?: string | null
           created_by?: string | null
           file_name: string
@@ -1206,7 +1206,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          client_id?: string
+          agent_id?: string
           created_at?: string | null
           created_by?: string | null
           file_name?: string
@@ -1220,10 +1220,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "document_storage_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "document_storage_agent_id_fkey"
+            columns: ["agent_id"]
             isOneToOne: false
-            referencedRelation: "clients"
+            referencedRelation: "ai_agents"
             referencedColumns: ["id"]
           },
         ]
@@ -4111,7 +4111,7 @@ export type Database = {
           p_client_id: string
         }
         Returns: {
-          client_id: string
+          agent_id: string
           created_at: string | null
           created_by: string | null
           file_name: string

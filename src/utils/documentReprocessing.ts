@@ -4,6 +4,7 @@ import { DocumentProcessingResult } from '@/types/document-processing';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { callRpcFunctionSafe } from './rpcUtils';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 // Function to reprocess a document
 export const reprocessDocument = async (

@@ -1,3 +1,4 @@
+
 // Determine if we should add the necessary exports or just check the existing file and add the missing exports
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';

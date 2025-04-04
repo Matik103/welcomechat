@@ -1,3 +1,4 @@
+
 -- First, drop all policies related to the old bucket
 DROP POLICY IF EXISTS "Public Access to document-storage" ON storage.objects;
 DROP POLICY IF EXISTS "Individual User Document Access" ON storage.objects;

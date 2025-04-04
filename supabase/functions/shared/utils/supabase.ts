@@ -1,3 +1,4 @@
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { AppError, errorCodes } from "../middleware/errorHandler.ts";
 import type { DocumentContent } from "../types/index.ts";
@@ -70,7 +71,7 @@ export const storeFile = async (
 ): Promise<string> => {
   try {
     const { data, error } = await supabase.storage
-      .from("document-storage")
+      .from("client_documents")
       .upload(`${clientId}/${fileName}`, fileData);
 
     if (error) throw error;
