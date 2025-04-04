@@ -36,21 +36,21 @@ async function checkBuckets() {
       console.log(`- ${bucket.name} (ID: ${bucket.id}, Public: ${bucket.public})`);
     });
     
-    // Look for document-storage bucket
-    const documentBucket = buckets.find(b => b.name === 'document-storage');
+    // Look for client_documents bucket
+    const documentBucket = buckets.find(b => b.name === 'client_documents');
     if (documentBucket) {
-      console.log('\nFound document-storage bucket:');
+      console.log('\nFound client_documents bucket:');
       console.log(documentBucket);
       
       // List files in the bucket
       const { data: files, error: filesError } = await supabase.storage
-        .from('document-storage')
+        .from('client_documents')
         .list();
         
       if (filesError) {
         console.error('Error listing files:', filesError);
       } else {
-        console.log('\nFiles in document-storage bucket:');
+        console.log('\nFiles in client_documents bucket:');
         if (files.length === 0) {
           console.log('No files found');
         } else {
@@ -60,7 +60,7 @@ async function checkBuckets() {
         }
       }
     } else {
-      console.log('\nWARNING: document-storage bucket not found!');
+      console.log('\nWARNING: client_documents bucket not found!');
     }
   } catch (err) {
     console.error('Unexpected error:', err);

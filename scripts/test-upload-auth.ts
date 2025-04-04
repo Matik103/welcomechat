@@ -56,7 +56,7 @@ async function testUpload() {
     }
     console.log('Available buckets:', buckets.map(b => b.name));
 
-    const BUCKET_NAME = 'document-storage';
+    const BUCKET_NAME = 'client_documents';
 
     // Create test file content
     const fileContent = new Blob(['This is a test document'], { type: 'text/plain' });
@@ -93,4 +93,4 @@ async function testUpload() {
   }
 }
 
-testUpload(); 
+testUpload();

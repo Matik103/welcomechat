@@ -39,7 +39,7 @@ async function testUpload() {
     }
     console.log('Available buckets:', buckets.map(b => b.name));
 
-    const BUCKET_NAME = 'document-storage';
+    const BUCKET_NAME = 'client_documents';
     
     // Upload file
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -69,4 +69,4 @@ async function testUpload() {
   }
 }
 
-testUpload(); 
+testUpload();

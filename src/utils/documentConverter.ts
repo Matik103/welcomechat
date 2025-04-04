@@ -1,7 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { callRpcFunctionSafe } from './rpcUtils';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 /**
  * Converts a document to the specified format
@@ -114,7 +114,7 @@ export async function uploadDocumentToStorage(
     
     // Upload the file to storage
     const { data, error } = await supabase.storage
-      .from('document-storage')
+      .from(DOCUMENTS_BUCKET)
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false,
@@ -131,7 +131,7 @@ export async function uploadDocumentToStorage(
     
     // Get the public URL for the file
     const { data: urlData } = supabase.storage
-      .from('document-storage')
+      .from(DOCUMENTS_BUCKET)
       .getPublicUrl(data.path);
     
     // Extract text from the document
