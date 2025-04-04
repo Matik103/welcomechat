@@ -5,11 +5,16 @@ import { RefreshCw } from 'lucide-react';
 
 interface LoadingFallbackProps {
   onTimeoutAction?: () => void;
+  timeoutSeconds?: number;
 }
 
-export const LoadingFallback: React.FC<LoadingFallbackProps> = ({ onTimeoutAction }) => {
+export const LoadingFallback: React.FC<LoadingFallbackProps> = ({ 
+  onTimeoutAction,
+  timeoutSeconds = 10
+}) => {
   const [showRetry, setShowRetry] = useState(false);
-  const [timeoutCounter, setTimeoutCounter] = useState(10);
+  const [timeoutCounter, setTimeoutCounter] = useState(timeoutSeconds);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
 
   useEffect(() => {
     // Show retry button after 3 seconds
@@ -37,11 +42,15 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({ onTimeoutActio
       clearTimeout(retryTimer);
       if (countdownTimer) clearInterval(countdownTimer);
     };
-  }, [onTimeoutAction]);
+  }, [onTimeoutAction, timeoutSeconds]);
 
   const handleRefresh = () => {
     // Reload the page
     window.location.reload();
+  };
+
+  const toggleDebugInfo = () => {
+    setShowDebugInfo(prev => !prev);
   };
 
   return (
@@ -88,6 +97,24 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({ onTimeoutActio
                   </Button>
                 )}
               </div>
+
+              <Button
+                variant="ghost"
+                onClick={toggleDebugInfo}
+                className="text-xs text-muted-foreground mt-4"
+              >
+                {showDebugInfo ? 'Hide Debug Info' : 'Show Debug Info'}
+              </Button>
+              
+              {showDebugInfo && (
+                <div className="mt-2 p-2 bg-gray-100 rounded text-left w-full">
+                  <p className="text-xs font-mono">
+                    Path: {window.location.pathname}<br />
+                    User Agent: {navigator.userAgent}<br />
+                    Timestamp: {new Date().toISOString()}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

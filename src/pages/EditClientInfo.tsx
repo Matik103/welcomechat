@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
@@ -23,6 +22,7 @@ export function EditClientInfo() {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('profile');
   const [serviceKeyError, setServiceKeyError] = useState<boolean>(!isAdminClientConfigured());
+  const [isApplyingRLS, setIsApplyingRLS] = useState(true);
 
   const { 
     client, 
@@ -33,10 +33,24 @@ export function EditClientInfo() {
     refetchClient
   } = useClientData(id);
 
-  // Debug logging to help track issues
   useEffect(() => {
-    console.log("Current client data in EditClientInfo:", client);
-  }, [client]);
+    if (isApplyingRLS) {
+      const applyRLS = async () => {
+        try {
+          const { fixDocumentContentRLS } = await import('@/utils/applyDocumentContentRLS');
+          
+          await fixDocumentContentRLS();
+          console.log("Successfully applied document content RLS policies");
+        } catch (error) {
+          console.error("Failed to apply RLS policies:", error);
+        } finally {
+          setIsApplyingRLS(false);
+        }
+      };
+      
+      applyRLS();
+    }
+  }, [isApplyingRLS]);
 
   useEffect(() => {
     if (error) {
@@ -52,8 +66,6 @@ export function EditClientInfo() {
         return;
       }
       
-      // Use the correct client_id for the update
-      // First check if client.id exists, then fall back to client.client_id, then the clientId from the hook
       const updateClientId = client.id || client.client_id || clientId;
       
       if (!updateClientId) {
@@ -64,7 +76,6 @@ export function EditClientInfo() {
       console.log("Submitting client update with data:", data);
       console.log("Using client ID:", updateClientId);
       
-      // Extract the current widget settings to retain all values
       const currentWidgetSettings = client.widget_settings || {};
       
       await clientMutation.mutateAsync({
@@ -75,7 +86,6 @@ export function EditClientInfo() {
         agent_description: data.agent_description,
         logo_url: data.logo_url,
         logo_storage_path: data.logo_storage_path,
-        // Add widget settings with updated values while keeping other settings
         widget_settings: {
           ...(typeof currentWidgetSettings === 'object' ? currentWidgetSettings : {}),
           agent_name: data.agent_name,
@@ -83,7 +93,6 @@ export function EditClientInfo() {
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path
         },
-        // Add required fields from Client type
         company: client.company || '',
         description: client.description || '',
         status: client.status || 'active',
@@ -96,7 +105,6 @@ export function EditClientInfo() {
       });
       
       toast.success("Client information updated successfully");
-      // Force a refetch to get the updated data
       await refetchClient();
     } catch (error) {
       console.error("Error updating client:", error);

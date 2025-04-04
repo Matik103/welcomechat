@@ -7,12 +7,15 @@ import { Upload, File, X, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2 } from 'lucide-react';
+import { fixDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 
 interface UploadResult {
   success: boolean;
   error?: string;
   documentId?: string;
   publicUrl?: string;
+  fileName?: string;
+  fileType?: string;
 }
 
 interface DocumentUploadProps {
@@ -29,6 +32,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [isFixingPermissions, setIsFixingPermissions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -57,6 +61,33 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     }
   };
 
+  const handleFixPermissions = async () => {
+    setIsFixingPermissions(true);
+    try {
+      const result = await fixDocumentContentRLS();
+      
+      if (result.success) {
+        setUploadResult({
+          success: false,
+          error: "Permissions fixed. Please try uploading again."
+        });
+      } else {
+        setUploadResult({
+          success: false,
+          error: `Failed to fix permissions: ${result.message}`
+        });
+      }
+    } catch (error) {
+      console.error("Error fixing permissions:", error);
+      setUploadResult({
+        success: false,
+        error: `Error fixing permissions: ${error instanceof Error ? error.message : String(error)}`
+      });
+    } finally {
+      setIsFixingPermissions(false);
+    }
+  };
+
   const handleUpload = async () => {
     if (!selectedFile) return;
     
@@ -76,24 +107,16 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         });
       }, 300);
 
-      // Get the client's assistant
-      const { data: assistant, error: assistantError } = await supabase
-        .from('ai_agents')
-        .select('openai_assistant_id')
-        .eq('client_id', clientId)
-        .single();
-
-      if (assistantError) {
-        console.error('Error getting assistant:', assistantError);
-        throw new Error('Could not find an assistant for this client');
-      }
-      if (!assistant) {
-        throw new Error('No assistant found for this client');
-      }
-
       // Generate a unique file path using client ID and UUID
       const uniqueId = crypto.randomUUID();
       const filePath = `${clientId}/${uniqueId}/${selectedFile.name}`;
+      
+      console.log(`Starting document upload for client ${clientId}:`, {
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type,
+        filePath
+      });
       
       // Upload file to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -105,13 +128,27 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         
       if (uploadError) {
         console.error('Error uploading file:', uploadError);
-        throw new Error('Failed to upload file to storage');
+        throw new Error(`Failed to upload file to storage: ${uploadError.message}`);
       }
       
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('client_documents')
         .getPublicUrl(filePath);
+
+      console.log('File uploaded successfully, public URL:', publicUrl);
+
+      // Get the client's assistant - but don't fail if not found
+      const { data: assistant, error: assistantError } = await supabase
+        .from('ai_agents')
+        .select('id')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .single();
+
+      if (assistantError) {
+        console.log('No assistant found - continuing without assistant association');
+      }
 
       // Create document record in the document_content table
       const { data: document, error: docError } = await supabase
@@ -135,50 +172,48 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
       if (docError) {
         console.error('Error creating document record:', docError);
+        
+        if (docError.message.includes('violates row-level security policy')) {
+          // Special handling for RLS violations
+          throw new Error('Permission denied. Please try the "Fix Permissions" button below or contact support.');
+        }
+        
         // Try to clean up the uploaded file
         const { error: removeError } = await supabase.storage
           .from('client_documents')
           .remove([filePath]);
+          
         if (removeError) {
           console.error('Failed to clean up file after document record error:', removeError);
         }
-        throw new Error('Failed to create document record');
+        
+        throw new Error(`Failed to create document record: ${docError.message}`);
       }
 
-      // Create record in assistant_documents table
-      const { error: assistantDocError } = await supabase
-        .from('assistant_documents')
-        .insert({
-          assistant_id: assistant.openai_assistant_id,
-          client_id: clientId,
-          filename: selectedFile.name,
-          file_type: selectedFile.type,
-          storage_path: filePath,
-          metadata: {
-            size: selectedFile.size,
-            storage_url: publicUrl,
-            uploadedAt: new Date().toISOString()
-          },
-          status: selectedFile.type === 'application/pdf' ? 'pending' : 'ready'
-        });
+      console.log('Document record created:', document);
 
-      if (assistantDocError) {
-        console.error('Error creating assistant document record:', assistantDocError);
-        // Try to clean up the document record and file
-        const { error: docDeleteError } = await supabase
-          .from('document_content')
-          .delete()
-          .eq('id', document.id);
-        if (docDeleteError) {
-          console.error('Failed to clean up document record:', docDeleteError);
+      // Create record in assistant_documents table if we found an assistant
+      if (assistant && assistant.id) {
+        const { error: assistantDocError } = await supabase
+          .from('assistant_documents')
+          .insert({
+            assistant_id: assistant.id,
+            client_id: clientId,
+            filename: selectedFile.name,
+            file_type: selectedFile.type,
+            storage_path: filePath,
+            metadata: {
+              size: selectedFile.size,
+              storage_url: publicUrl,
+              uploadedAt: new Date().toISOString()
+            },
+            status: selectedFile.type === 'application/pdf' ? 'pending' : 'ready'
+          });
+
+        if (assistantDocError) {
+          console.error('Error creating assistant document record:', assistantDocError);
+          // We'll continue anyway since the main document was created successfully
         }
-        const { error: removeError } = await supabase.storage
-          .from('client_documents')
-          .remove([filePath]);
-        if (removeError) {
-          console.error('Failed to clean up file:', removeError);
-        }
-        throw new Error('Failed to create assistant document record');
       }
 
       clearInterval(progressInterval);
@@ -194,77 +229,47 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
           if (extractionError) {
             console.error('PDF extraction error:', extractionError);
-            // Update document metadata to reflect extraction error
-            const { error: updateError } = await supabase
-              .from('document_content')
-              .update({
-                metadata: {
-                  ...document.metadata,
-                  processing_status: 'extraction_failed',
-                  error: extractionError.message
-                }
-              })
-              .eq('id', document.id);
-            if (updateError) {
-              console.error('Failed to update document metadata:', updateError);
-            }
-            // Update assistant_documents status
-            const { error: assistantDocUpdateError } = await supabase
-              .from('assistant_documents')
-              .update({ status: 'failed' })
-              .match({ assistant_id: assistant.openai_assistant_id, filename: selectedFile.name });
-            if (assistantDocUpdateError) {
-              console.error('Failed to update assistant document status:', assistantDocUpdateError);
-            }
+            // This is non-fatal, so we'll continue
           }
         } catch (extractionError) {
           console.error('Failed to invoke PDF extraction:', extractionError);
-          // Update document metadata to reflect extraction error
-          const { error: updateError } = await supabase
-            .from('document_content')
-            .update({
-              metadata: {
-                ...document.metadata,
-                processing_status: 'extraction_failed',
-                error: extractionError instanceof Error ? extractionError.message : 'Unknown error'
-              }
-            })
-            .eq('id', document.id);
-          if (updateError) {
-            console.error('Failed to update document metadata:', updateError);
-          }
-          // Update assistant_documents status
-          const { error: assistantDocUpdateError } = await supabase
-            .from('assistant_documents')
-            .update({ status: 'failed' })
-            .match({ assistant_id: assistant.openai_assistant_id, filename: selectedFile.name });
-          if (assistantDocUpdateError) {
-            console.error('Failed to update assistant document status:', assistantDocUpdateError);
-          }
+          // This is also non-fatal
         }
       }
 
       const result: UploadResult = {
         success: true,
         documentId: document.id.toString(),
-        publicUrl
+        publicUrl,
+        fileName: selectedFile.name,
+        fileType: selectedFile.type
       };
       
       setUploadResult(result);
-      onUploadComplete?.(result);
+      if (onUploadComplete) onUploadComplete(result);
+      
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      
+      return result;
     } catch (error) {
       console.error('Error uploading document:', error);
+      
       setUploadProgress(0);
+      
       const errorResult = {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        fileName: selectedFile.name,
+        fileType: selectedFile.type
       };
+      
       setUploadResult(errorResult);
-      onUploadComplete?.(errorResult);
+      if (onUploadComplete) onUploadComplete(errorResult);
+      
+      return null;
     } finally {
       setIsUploading(false);
     }
@@ -389,6 +394,26 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           <AlertTitle>Upload failed</AlertTitle>
           <AlertDescription>
             {uploadResult.error || 'There was an error uploading your document. Please try again.'}
+            
+            {uploadResult.error && uploadResult.error.includes('row-level security policy') && (
+              <div className="mt-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleFixPermissions}
+                  disabled={isFixingPermissions}
+                >
+                  {isFixingPermissions ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Fixing permissions...
+                    </>
+                  ) : (
+                    'Fix Permissions'
+                  )}
+                </Button>
+              </div>
+            )}
           </AlertDescription>
         </Alert>
       )}

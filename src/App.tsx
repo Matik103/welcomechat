@@ -29,20 +29,34 @@ function App() {
   console.log('Is public route:', isPublicRoute);
   console.log('Auth state:', { user, userRole, isLoading, forceComplete });
   
-  // Force-complete loading after a timeout (safety mechanism)
+  // Enhanced safety mechanism with tiered timeouts
   useEffect(() => {
     if (isLoading && !forceComplete) {
-      const timeoutId = setTimeout(() => {
-        console.log("Safety timeout triggered - forcing end of loading state");
-        setForceComplete(true);
-      }, 5000); // 5 seconds timeout
+      // First timeout - gentle reminder
+      const firstTimeout = setTimeout(() => {
+        console.log("Still loading after 3 seconds...");
+      }, 3000);
       
-      return () => clearTimeout(timeoutId);
+      // Second timeout - warning
+      const secondTimeout = setTimeout(() => {
+        console.log("Loading taking longer than expected (7 seconds)");
+      }, 7000);
+      
+      // Final timeout - force complete
+      const finalTimeout = setTimeout(() => {
+        console.log("Safety timeout triggered after 10 seconds - forcing end of loading state");
+        setForceComplete(true);
+      }, 10000); 
+      
+      return () => {
+        clearTimeout(firstTimeout);
+        clearTimeout(secondTimeout);
+        clearTimeout(finalTimeout);
+      };
     }
   }, [isLoading, forceComplete]);
   
-  // If still loading, show a loading screen to prevent blank page
-  // But skip for auth callback which handles its own loading state
+  // If still loading, show a loading screen with timeout to prevent permanent blank page
   const effectiveIsLoading = isLoading && !forceComplete && !isAuthCallback;
   
   if (effectiveIsLoading) {
