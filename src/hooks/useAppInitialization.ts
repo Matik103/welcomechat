@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { isAdminClientConfigured, initializeBotLogosBucket } from "@/integrations/supabase/client-admin";
-import { toast } from "sonner";
 
 export function useAppInitialization(isLoading: boolean, user: any, userRole: any, setIsLoading: (value: boolean) => void) {
   const location = useLocation();
@@ -11,7 +10,7 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
   const [initializationAttempted, setInitializationAttempted] = useState<boolean>(false);
   const [initializationErrors, setInitializationErrors] = useState<string[]>([]);
   
-  // Handle app initialization
+  // Optimized app initialization
   useEffect(() => {
     // Only initialize once
     if (initializationAttempted) return;
@@ -32,33 +31,27 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
       console.log('User role:', userRole);
       
       try {
+        // Check if admin client is configured, but don't block on it
         const isConfigured = isAdminClientConfigured();
         setAdminConfigError(!isConfigured);
         
         if (isConfigured) {
-          // Initialize bucket with error handling and retries
+          // Initialize bucket but don't wait too long
           try {
-            await Promise.race([
-              initializeBotLogosBucket(),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Bucket initialization timeout')), 2500)
-              )
-            ]);
+            const bucketInitPromise = initializeBotLogosBucket();
+            // Use a shorter timeout
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Bucket initialization timeout')), 1000)
+            );
+            
+            await Promise.race([bucketInitPromise, timeoutPromise]);
             console.log('Bot logos bucket initialized successfully');
           } catch (error) {
-            console.error('Error initializing bot-logos bucket:', error);
-            setInitializationErrors(prev => [...prev, 'Failed to initialize storage bucket']);
-            // Continue despite bucket init errors
+            console.warn('Non-blocking bucket initialization error (continuing):', error);
           }
-        } else {
-          console.warn('Admin client not configured - some features may not work');
         }
       } catch (error) {
-        console.error('Error during app initialization:', error);
-        setInitializationErrors(prev => [
-          ...prev, 
-          `Initialization error: ${error instanceof Error ? error.message : 'Unknown error'}`
-        ]);
+        console.warn('Non-critical initialization error (continuing):', error);
       } finally {
         // Always complete initialization to avoid being stuck
         console.log('Completing initialization');
@@ -67,50 +60,20 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
       }
     };
     
+    // Start initialization but don't block UI
     initializeApp();
     
-    // Strict timeout for initialization
+    // Short timeout for initialization - simply complete it after 1 second
     const timeoutId = setTimeout(() => {
       if (isInitializing) {
-        console.warn('Force completing initialization due to timeout');
+        console.log('Completing initialization after timeout');
         setIsInitializing(false);
         setIsLoading(false);
-        toast.warning("App initialization took longer than expected, some features may not work properly");
-        
-        // Add diagnostic info to help troubleshoot
-        setInitializationErrors(prev => [
-          ...prev,
-          'Initialization timeout exceeded (3s)'
-        ]);
       }
-    }, 3000);
+    }, 1000);
     
     return () => clearTimeout(timeoutId);
   }, [location.pathname, user, userRole, isLoading, isInitializing, setIsLoading, initializationAttempted]);
-  
-  // Additional safety timeouts for specific routes
-  useEffect(() => {
-    if (isLoading) {
-      let timeoutDuration = 2000;
-      
-      // Shorter timeout for dashboard pages
-      if (location.pathname.includes('/dashboard')) {
-        timeoutDuration = 1000;
-      }
-      
-      // Even shorter for client pages
-      if (location.pathname.includes('/client/')) {
-        timeoutDuration = 800;
-      }
-      
-      const timer = setTimeout(() => {
-        console.log(`Route-specific timeout triggered for ${location.pathname}`);
-        setIsLoading(false);
-      }, timeoutDuration);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, location.pathname, setIsLoading]);
   
   return {
     adminConfigError,

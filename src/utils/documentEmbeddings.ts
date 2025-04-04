@@ -152,7 +152,7 @@ const chunkDocument = (content: string, maxChunkSize = 1000): string[] => {
  */
 export const matchDocumentByVector = async (query: string, clientId: string, limit = 5) => {
   try {
-    // Use a custom RPC function that handles vector matching
+    // Use a stored procedure for vector matching
     const { data, error } = await supabase.rpc(
       'match_documents', 
       {
@@ -173,7 +173,7 @@ export const matchDocumentByVector = async (query: string, clientId: string, lim
     
     return {
       success: true,
-      matches: data || []
+      matches: Array.isArray(data) ? data : []
     };
     
   } catch (error) {
@@ -196,7 +196,7 @@ export const generateAnswerFromDocuments = async (clientId: string, query: strin
     // First, find relevant document chunks using vector matching
     const { success, matches, error } = await matchDocumentByVector(query, clientId, 5);
     
-    if (!success || !matches.length) {
+    if (!success || !Array.isArray(matches) || matches.length === 0) {
       console.log('No relevant documents found for query');
       return {
         success: false,
@@ -242,11 +242,11 @@ export const generateAnswerFromDocuments = async (clientId: string, query: strin
     return {
       success: true,
       answer: answerData.answer,
-      sources: matches.map(match => ({
+      sources: Array.isArray(matches) ? matches.map(match => ({
         id: match.id,
         similarity: match.similarity,
         metadata: match.metadata
-      }))
+      })) : []
     };
     
   } catch (error) {

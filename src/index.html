@@ -1,0 +1,73 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WelcomeChat</title>
+    <meta name="description" content="Lovable Generated Project" />
+    <meta name="author" content="Lovable" />
+    <meta property="og:image" content="/og-image.png" />
+    <!-- Preload critical assets -->
+    <link rel="preload" href="/lovable-uploads/53c9d241-4eb7-4ef6-8f3b-7c862819fb48.png" as="image" />
+    <link rel="preload" href="/lovable-uploads/e262d378-49c1-4219-ae37-ce0264b3500c.png" as="image" />
+    <!-- Add cache control for better loading -->
+    <meta http-equiv="Cache-Control" content="max-age=86400" />
+    <style>
+      /* Initial loading state styles */
+      #root:empty {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #f8f9fa;
+      }
+      #root:empty::before {
+        content: "";
+        width: 50px;
+        height: 50px;
+        border: 3px solid #e2e8f0;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+    <script>
+      // Handle page reloads and direct URL access with improved caching
+      (function() {
+        var pathname = window.location.pathname;
+        var search = window.location.search;
+        var hash = window.location.hash;
+        
+        // Store the full URL in session storage
+        sessionStorage.setItem('lastPath', pathname + search + hash);
+        
+        // Add a flag to check if this is a page refresh
+        if (!sessionStorage.getItem('app_initialized')) {
+          sessionStorage.setItem('app_initialized', 'true');
+        } else {
+          // This is a refresh, not first load
+          sessionStorage.setItem('is_page_refresh', 'true');
+        }
+        
+        // Handle base path for lovable.dev deployment
+        if (!window.location.pathname.startsWith('/preview--')) {
+          var basePath = document.querySelector('base')?.getAttribute('href') || '/';
+          if (basePath !== '/' && !window.location.pathname.startsWith(basePath)) {
+            window.location.pathname = basePath + window.location.pathname.slice(1);
+          }
+        }
+      })();
+    </script>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

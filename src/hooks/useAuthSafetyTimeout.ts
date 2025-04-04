@@ -18,45 +18,34 @@ export const useAuthSafetyTimeout = ({
 }: AuthSafetyTimeoutProps) => {
   const navigate = useNavigate();
 
-  // Safety timeout to prevent infinite loading
+  // Improved safety timeout with better caching
   useEffect(() => {
     // Only set a timeout if we're in loading state
     if (!isLoading) return;
     
     console.log("Setting up safety timeout for loading state");
     
-    // Use shorter timeout - 1.5 seconds is plenty for most auth operations
-    const timeoutDuration = 1500;
+    // Store current auth state in session storage to help with page refreshes
+    if (session) {
+      try {
+        const minimalState = {
+          hasSession: true,
+          role: session.user?.user_metadata?.role,
+          timeStamp: Date.now()
+        };
+        sessionStorage.setItem('auth_state_cache', JSON.stringify(minimalState));
+      } catch (err) {
+        console.error("Failed to cache auth state:", err);
+      }
+    }
+    
+    // Use a shorter timeout - 1 second is enough to prevent blank screens
+    const timeoutDuration = 1000;
     
     const safetyTimeout = setTimeout(() => {
-      // Double-check we're still loading before forcing completion
       if (isLoading) {
-        console.warn("Safety timeout triggered - forcing loading state to complete");
-        
-        // Clear loading state
+        console.log("Safety timeout completing - preventing blank screen");
         setIsLoading(false);
-        
-        // Clear callback processing flags
-        sessionStorage.removeItem('auth_callback_processing');
-        sessionStorage.removeItem('auth_callback_processed');
-        
-        // If we've been stuck loading and not on auth page, redirect to auth
-        if (!isAuthPage && !session) {
-          console.log("Redirecting to auth page due to timeout");
-          navigate('/auth', { replace: true });
-        } else if (session) {
-          // If we have a session, check role in session storage and metadata
-          const roleFromMetadata = session.user?.user_metadata?.role;
-          
-          if (roleFromMetadata === 'admin') {
-            navigate('/admin/dashboard', { replace: true });
-          } else if (roleFromMetadata === 'client') {
-            navigate('/client/dashboard', { replace: true });
-          } else {
-            // Default to client dashboard if we have a session but no role
-            navigate('/client/dashboard', { replace: true });
-          }
-        }
       }
     }, timeoutDuration);
     

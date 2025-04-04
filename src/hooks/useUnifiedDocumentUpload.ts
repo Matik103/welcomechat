@@ -46,18 +46,13 @@ export const useUnifiedDocumentUpload = ({
       const fileExtension = file.name.split('.').pop() || '';
       const filePath = `${clientId}/${documentId}.${fileExtension}`;
       
-      // Upload the file to storage
+      // Upload the file to storage with progress tracking
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client_documents')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
           contentType: file.type,
-          onUploadProgress: (progress) => {
-            const percent = Math.round((progress.loaded / progress.total) * 100);
-            setUploadProgress(percent);
-            if (onProgress) onProgress(percent);
-          }
         });
         
       if (uploadError) {

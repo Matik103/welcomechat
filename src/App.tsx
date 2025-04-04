@@ -1,5 +1,5 @@
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { PublicRoutes } from "./components/routes/PublicRoutes";
@@ -11,7 +11,6 @@ import { LoadingFallback } from "./components/routes/LoadingFallback";
 function App() {
   const { user, userRole, isLoading, session } = useAuth();
   const location = useLocation();
-  const [forceComplete, setForceComplete] = useState(false);
   
   // Check if current path is a public route
   const isAuthCallback = useMemo(() => location.pathname.includes('/auth/callback'), [location.pathname]);
@@ -27,40 +26,12 @@ function App() {
   // Debug current route for troubleshooting
   console.log('Current path:', location.pathname);
   console.log('Is public route:', isPublicRoute);
-  console.log('Auth state:', { user, userRole, isLoading, forceComplete });
+  console.log('Auth state:', { user, userRole, isLoading });
   
-  // Enhanced safety mechanism with tiered timeouts
-  useEffect(() => {
-    if (isLoading && !forceComplete) {
-      // First timeout - gentle reminder
-      const firstTimeout = setTimeout(() => {
-        console.log("Still loading after 3 seconds...");
-      }, 3000);
-      
-      // Second timeout - warning
-      const secondTimeout = setTimeout(() => {
-        console.log("Loading taking longer than expected (7 seconds)");
-      }, 7000);
-      
-      // Final timeout - force complete
-      const finalTimeout = setTimeout(() => {
-        console.log("Safety timeout triggered after 10 seconds - forcing end of loading state");
-        setForceComplete(true);
-      }, 10000); 
-      
-      return () => {
-        clearTimeout(firstTimeout);
-        clearTimeout(secondTimeout);
-        clearTimeout(finalTimeout);
-      };
-    }
-  }, [isLoading, forceComplete]);
-  
-  // If still loading, show a loading screen with timeout to prevent permanent blank page
-  const effectiveIsLoading = isLoading && !forceComplete && !isAuthCallback;
-  
-  if (effectiveIsLoading) {
-    return <LoadingFallback onTimeoutAction={() => setForceComplete(true)} />;
+  // Simplified loading approach - avoid timeout mechanisms that could cause issues
+  // Only show loading for non-authentication routes
+  if (isLoading && !isAuthCallback && !isPublicRoute) {
+    return <LoadingFallback />;
   }
 
   // Public route rendering for non-authenticated users
@@ -82,9 +53,9 @@ function App() {
     return <ClientRoutes />;
   }
 
-  // If user is authenticated but role not determined yet, show loading for a brief period
+  // If user is authenticated but role not determined yet, show loading
   if (user && !userRole) {
-    return <LoadingFallback onTimeoutAction={() => setForceComplete(true)} />;
+    return <LoadingFallback />;
   }
   
   // Default to home page as fallback
