@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -7,6 +6,7 @@ import { Upload, File, X, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2 } from 'lucide-react';
+import { Json } from '@/types/document-processing';
 import { fixDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 
 interface UploadResult {
@@ -21,6 +21,15 @@ interface UploadResult {
 interface DocumentUploadProps {
   clientId: string;
   onUploadComplete?: (result: UploadResult) => void;
+}
+
+interface DocumentMetadata {
+  size: number;
+  storage_path: string;
+  storage_url: string;
+  uploadedAt: string;
+  processing_status?: string;
+  error?: string;
 }
 
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({
@@ -151,6 +160,14 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       }
 
       // Create document record in the document_content table
+      const documentMetadata: DocumentMetadata = {
+        size: selectedFile.size,
+        storage_path: filePath,
+        storage_url: publicUrl,
+        uploadedAt: new Date().toISOString(),
+        processing_status: selectedFile.type === 'application/pdf' ? 'pending_extraction' : 'ready'
+      };
+
       const { data: document, error: docError } = await supabase
         .from('document_content')
         .insert({
@@ -159,13 +176,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           content: null, // Will be populated by the PDF extraction process
           filename: selectedFile.name,
           file_type: selectedFile.type,
-          metadata: {
-            size: selectedFile.size,
-            storage_path: filePath,
-            storage_url: publicUrl,
-            uploadedAt: new Date().toISOString(),
-            processing_status: selectedFile.type === 'application/pdf' ? 'pending_extraction' : 'ready'
-          }
+          metadata: documentMetadata
         })
         .select()
         .single();
@@ -194,6 +205,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
       // Create record in assistant_documents table if we found an assistant
       if (assistant && assistant.id) {
+        const assistantMetadata: DocumentMetadata = {
+          size: selectedFile.size,
+          storage_path: filePath,
+          storage_url: publicUrl,
+          uploadedAt: new Date().toISOString()
+        };
+
         const { error: assistantDocError } = await supabase
           .from('assistant_documents')
           .insert({
@@ -202,12 +220,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             filename: selectedFile.name,
             file_type: selectedFile.type,
             storage_path: filePath,
-            metadata: {
-              size: selectedFile.size,
-              storage_url: publicUrl,
-              uploadedAt: new Date().toISOString()
-            },
-            status: selectedFile.type === 'application/pdf' ? 'pending' : 'ready'
+            metadata: assistantMetadata
           });
 
         if (assistantDocError) {
