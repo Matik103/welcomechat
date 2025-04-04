@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
@@ -35,10 +36,19 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({
   } = useDocumentLinks(clientId);
 
   const {
-    uploadDocument,
-    isUploading,
+    upload,
+    isLoading: isUploading,
     uploadProgress
-  } = useUnifiedDocumentUpload(clientId);
+  } = useUnifiedDocumentUpload({
+    clientId,
+    onSuccess: (result) => {
+      if (onUploadComplete) onUploadComplete();
+      toast.success('Document uploaded successfully');
+    },
+    onError: (error) => {
+      toast.error(`Upload failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
 
   const handleAddLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
     try {
@@ -86,22 +96,12 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({
 
   const handleDriveUpload = async (file: File): Promise<void> => {
     try {
-      const result = await uploadDocument(file, {
-        clientId,
-        agentName: 'AI Assistant'
-      });
-
-      if (result.success) {
+      const result = await upload(file);
+      if (result?.success) {
         await logClientActivity();
-        if (onUploadComplete) {
-          onUploadComplete();
-        }
-      } else {
-        toast.error(result.error || 'Failed to upload document');
       }
     } catch (error) {
       console.error('Drive upload failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Unknown error');
     }
   };
 

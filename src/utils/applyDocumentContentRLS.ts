@@ -9,8 +9,8 @@ export const fixDocumentContentRLS = async (): Promise<{ success: boolean; messa
     // Log the attempt for debugging
     console.log('Attempting to fix document content RLS policies...');
     
-    // First attempt to run the migration directly
-    const { error: migrationError } = await supabase.rpc(
+    // First part: Enable RLS and create basic policies
+    const { error: firstPartError } = await supabase.rpc(
       'exec_sql',
       { 
         query: `
@@ -35,55 +35,59 @@ export const fixDocumentContentRLS = async (): Promise<{ success: boolean; messa
       }
     );
     
-    if (migrationError) {
-      console.error('Error applying first part of RLS policies:', migrationError);
-      
-      // Try a different approach for applying policies
-      const { error: secondAttemptError } = await supabase.rpc(
-        'exec_sql',
-        { 
-          query: `
-            -- Create update and delete policies separately
-            DROP POLICY IF EXISTS "Enable update for authenticated users" ON document_content;
-            DROP POLICY IF EXISTS "Enable delete for authenticated users" ON document_content;
-            
-            CREATE POLICY "Enable update for authenticated users" 
-            ON document_content FOR UPDATE 
-            TO authenticated 
-            USING (true) 
-            WITH CHECK (true);
-            
-            CREATE POLICY "Enable delete for authenticated users" 
-            ON document_content FOR DELETE 
-            TO authenticated 
-            USING (true);
-            
-            -- Similar policies for assistant_documents table
-            ALTER TABLE assistant_documents ENABLE ROW LEVEL SECURITY;
-            
-            DROP POLICY IF EXISTS "Enable read for authenticated users" ON assistant_documents;
-            DROP POLICY IF EXISTS "Enable write for authenticated users" ON assistant_documents;
-            
-            CREATE POLICY "Enable read for authenticated users" 
-            ON assistant_documents FOR SELECT 
-            TO authenticated 
-            USING (true);
-            
-            CREATE POLICY "Enable write for authenticated users" 
-            ON assistant_documents FOR ALL 
-            TO authenticated 
-            WITH CHECK (true);
-          `
-        }
-      );
-      
-      if (secondAttemptError) {
-        console.error('Error applying second part of RLS policies:', secondAttemptError);
-        return {
-          success: false,
-          message: `Failed to apply RLS policies: ${secondAttemptError.message}`
-        };
+    if (firstPartError) {
+      console.error('Error applying first part of RLS policies:', firstPartError);
+      return {
+        success: false,
+        message: `Failed to apply first part of RLS policies: ${firstPartError.message}`
+      };
+    }
+    
+    // Second part: Create update and delete policies
+    const { error: secondPartError } = await supabase.rpc(
+      'exec_sql',
+      { 
+        query: `
+          -- Create update and delete policies
+          DROP POLICY IF EXISTS "Enable update for authenticated users" ON document_content;
+          DROP POLICY IF EXISTS "Enable delete for authenticated users" ON document_content;
+          
+          CREATE POLICY "Enable update for authenticated users" 
+          ON document_content FOR UPDATE 
+          TO authenticated 
+          USING (true) 
+          WITH CHECK (true);
+          
+          CREATE POLICY "Enable delete for authenticated users" 
+          ON document_content FOR DELETE 
+          TO authenticated 
+          USING (true);
+          
+          -- Similar policies for assistant_documents table
+          ALTER TABLE assistant_documents ENABLE ROW LEVEL SECURITY;
+          
+          DROP POLICY IF EXISTS "Enable read for authenticated users" ON assistant_documents;
+          DROP POLICY IF EXISTS "Enable write for authenticated users" ON assistant_documents;
+          
+          CREATE POLICY "Enable read for authenticated users" 
+          ON assistant_documents FOR SELECT 
+          TO authenticated 
+          USING (true);
+          
+          CREATE POLICY "Enable write for authenticated users" 
+          ON assistant_documents FOR ALL 
+          TO authenticated 
+          WITH CHECK (true);
+        `
       }
+    );
+      
+    if (secondPartError) {
+      console.error('Error applying second part of RLS policies:', secondPartError);
+      return {
+        success: false,
+        message: `Failed to apply second part of RLS policies: ${secondPartError.message}`
+      };
     }
 
     // Test if policies are working by checking access
@@ -105,60 +109,18 @@ export const checkDocumentContentRLS = async (): Promise<{ success: boolean; mes
     // First, get a client assistant to use for testing
     const { data: assistant, error: assistantError } = await supabase
       .from('ai_agents')
-      .select('id')
+      .select('id, openai_assistant_id')
       .eq('interaction_type', 'config')
       .limit(1)
-      .single();
-
-    if (assistantError) {
-      console.warn('No assistant found for testing permissions:', assistantError);
-      
-      // Try using a client ID directly
-      // Create a test record in document_content
-      const { error: docError } = await supabase
-        .from('document_content')
-        .insert({
-          client_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID
-          document_id: 'test_' + Date.now(),
-          content: 'Test content',
-          metadata: { test: true },
-          file_type: 'text/plain',
-          filename: 'test.txt'
-        });
-        
-      if (!docError) {
-        // Clean up test data
-        await supabase
-          .from('document_content')
-          .delete()
-          .eq('metadata->test', true);
-        
-        return { 
-          success: true, 
-          message: 'Document content RLS policies are working properly' 
-        };
-      } else {
-        if (docError.message.includes('row-level security') || docError.message.includes('permission denied')) {
-          return { 
-            success: false, 
-            message: 'RLS policies still restricting access. Please contact support.' 
-          };
-        } else {
-          // This is likely just a validation error, which means access is working
-          return { 
-            success: true, 
-            message: 'Document content RLS policies appear to be working' 
-          };
-        }
-      }
-    }
+      .maybeSingle();
 
     // Try to insert a test record into document_content
+    const testDocId = 'test_' + Date.now();
     const { error: docError } = await supabase
       .from('document_content')
       .insert({
         client_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID
-        document_id: 'test_' + Date.now(),
+        document_id: testDocId,
         content: 'Test content',
         metadata: { test: true },
         file_type: 'text/plain',
@@ -171,7 +133,7 @@ export const checkDocumentContentRLS = async (): Promise<{ success: boolean; mes
         await supabase
           .from('document_content')
           .delete()
-          .eq('metadata->test', true);
+          .eq('document_id', testDocId);
       }
       
       return { 

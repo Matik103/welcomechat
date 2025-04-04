@@ -1,150 +1,187 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-interface DocumentSearchResult {
-  content: string;
-  similarity: number;
-  documentId: string;
-  metadata?: Record<string, any>;
-}
-
-interface AnswerResult {
-  answer: string;
-  documents?: DocumentSearchResult[];
-  error?: string;
-}
-
 /**
- * Generates an embedding for a given text using the OpenAI API.
+ * Convert a document into chunks and generate embeddings
  */
-export const generateEmbedding = async (text: string): Promise<number[]> => {
+export const processDocumentWithEmbeddings = async (
+  documentId: string,
+  content: string,
+  clientId: string,
+  metadata = {}
+) => {
   try {
-    const { data, error } = await supabase.functions.invoke('generate-embeddings', {
-      body: { text }
-    });
+    // Chunk the document content into manageable pieces
+    const chunks = chunkDocument(content);
     
-    if (error) {
-      console.error('Error generating embedding:', error);
-      throw new Error(`Failed to generate embedding: ${error.message}`);
+    console.log(`Processing document ${documentId} into ${chunks.length} chunks for client ${clientId}`);
+    
+    // Return early if no chunks were created
+    if (!chunks.length) {
+      return {
+        success: false,
+        error: 'No valid content could be extracted from document'
+      };
     }
+
+    // Process each chunk with embeddings
+    const results = await Promise.allSettled(
+      chunks.map(async (chunk, index) => {
+        // Generate embedding through the Supabase function
+        const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke(
+          'generate-embeddings',
+          {
+            body: {
+              input: chunk,
+              client_id: clientId,
+              document_id: documentId,
+              chunk_index: index,
+              metadata: {
+                ...metadata,
+                chunk_index: index,
+                chunk_count: chunks.length
+              }
+            }
+          }
+        );
+        
+        if (embeddingError) {
+          console.error(`Error generating embeddings for chunk ${index}:`, embeddingError);
+          throw embeddingError;
+        }
+        
+        return embeddingData;
+      })
+    );
     
-    if (!data || !data.embedding || !Array.isArray(data.embedding)) {
-      throw new Error('Invalid embedding response format');
-    }
+    // Check results
+    const successful = results.filter(result => result.status === 'fulfilled').length;
+    const failed = results.filter(result => result.status === 'rejected').length;
     
-    return data.embedding;
+    console.log(`Document embedding complete. Successfully processed ${successful} chunks, failed: ${failed}`);
+    
+    return {
+      success: true,
+      processed: successful,
+      failed,
+      total: chunks.length
+    };
+    
   } catch (error) {
-    console.error('Error in generateEmbedding:', error);
-    throw error;
+    console.error('Error processing document with embeddings:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error processing document'
+    };
   }
 };
 
 /**
- * Searches for documents similar to the given query using vector similarity.
+ * Split document into chunks for processing
  */
-export const searchSimilarDocuments = async (
-  clientId: string, 
-  query: string,
-  limit = 5
-): Promise<DocumentSearchResult[]> => {
-  try {
-    // First, generate an embedding for the query
-    const embedResponse = await supabase.functions.invoke('generate-embeddings', {
-      body: { text: query.trim() }
-    });
-    
-    if (embedResponse.error) {
-      console.error('Error generating embeddings:', embedResponse.error);
-      return [];
-    }
-    
-    const embedding = embedResponse.data?.embedding;
-    
-    if (!embedding || !Array.isArray(embedding)) {
-      console.error('Invalid embedding response');
-      return [];
-    }
-    
-    // Then, search for similar documents - fixed parameter name
-    const { data, error } = await supabase.rpc('match_documents', {
-      p_client_id: clientId,
-      p_embedding: JSON.stringify(embedding), // Fixed: Convert array to string and use correct parameter name
-      p_match_threshold: 0.5,
-      p_match_count: limit
-    });
-    
-    if (error) {
-      console.error('Error searching for similar documents:', error);
-      return [];
-    }
-    
-    if (!data || !Array.isArray(data)) {
-      return [];
-    }
-    
-    return data.map(item => ({
-      content: item.content || '',
-      similarity: item.similarity || 0,
-      documentId: item.id || '',
-      metadata: item.metadata || {}
-    }));
-  } catch (error) {
-    console.error('Error in searchSimilarDocuments:', error);
+const chunkDocument = (content: string, maxChunkSize = 1000): string[] => {
+  if (!content || typeof content !== 'string') {
     return [];
   }
+
+  // Clean up content - remove excessive whitespace
+  const cleanedContent = content
+    .replace(/\s+/g, ' ')
+    .trim();
+    
+  if (cleanedContent.length <= maxChunkSize) {
+    return [cleanedContent];
+  }
+  
+  // Split into paragraphs first for more natural chunks
+  const paragraphs = cleanedContent.split(/\n+/);
+  const chunks: string[] = [];
+  let currentChunk = '';
+  
+  for (const paragraph of paragraphs) {
+    if (currentChunk.length + paragraph.length <= maxChunkSize) {
+      currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+    } else {
+      // If adding this paragraph exceeds the chunk size
+      if (currentChunk) {
+        chunks.push(currentChunk);
+        currentChunk = paragraph;
+      } else {
+        // If the paragraph itself is too long, split it by sentences
+        const sentences = paragraph.split(/(?<=[.!?])\s+/);
+        for (const sentence of sentences) {
+          if (currentChunk.length + sentence.length <= maxChunkSize) {
+            currentChunk += (currentChunk ? ' ' : '') + sentence;
+          } else {
+            if (currentChunk) {
+              chunks.push(currentChunk);
+              currentChunk = sentence;
+            } else {
+              // If even the sentence is too long, split by words
+              const words = sentence.split(/\s+/);
+              for (const word of words) {
+                if (currentChunk.length + word.length <= maxChunkSize) {
+                  currentChunk += (currentChunk ? ' ' : '') + word;
+                } else {
+                  if (currentChunk) {
+                    chunks.push(currentChunk);
+                    currentChunk = word;
+                  } else {
+                    // Word is too long, just add it as a chunk (will exceed size)
+                    chunks.push(word);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Add the last chunk if there's anything left
+  if (currentChunk) {
+    chunks.push(currentChunk);
+  }
+  
+  return chunks;
 };
 
 /**
- * Generates an answer based on the given query and related documents.
+ * Match document by vector similarity
  */
-export const generateAnswerFromDocuments = async (
-  clientId: string,
-  query: string
-): Promise<AnswerResult> => {
+export const matchDocumentByVector = async (query: string, clientId: string, limit = 5) => {
   try {
-    // Get similar documents
-    const similarDocuments = await searchSimilarDocuments(clientId, query);
-    
-    if (!similarDocuments || similarDocuments.length === 0) {
-      return {
-        answer: "I don't have enough information to answer that question. Please try uploading some relevant documents first.",
-        documents: []
-      };
-    }
-    
-    // Call the generate-answer function with the query and similar documents
-    const { data, error } = await supabase.functions.invoke('generate-answer', {
-      body: {
-        query,
-        documents: similarDocuments
+    // Use a custom RPC function that handles vector matching
+    const { data, error } = await supabase.rpc(
+      'match_documents', 
+      {
+        query_text: query,
+        client_identifier: clientId,
+        match_limit: limit
       }
-    });
+    );
     
     if (error) {
-      console.error('Error generating answer:', error);
+      console.error('Error matching documents by vector:', error);
       return {
-        answer: "I'm sorry, I encountered an error while trying to answer your question. Please try again later.",
+        success: false,
         error: error.message,
-        documents: similarDocuments
-      };
-    }
-    
-    if (!data || !data.answer) {
-      return {
-        answer: "I couldn't generate a proper answer. Please try asking a different question.",
-        documents: similarDocuments
+        matches: []
       };
     }
     
     return {
-      answer: data.answer,
-      documents: similarDocuments
+      success: true,
+      matches: data || []
     };
+    
   } catch (error) {
-    console.error('Error in generateAnswerFromDocuments:', error);
+    console.error('Error in matchDocumentByVector:', error);
     return {
-      answer: "I'm sorry, I encountered an error while trying to answer your question. Please try again later.",
-      error: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error matching documents',
+      matches: []
     };
   }
 };

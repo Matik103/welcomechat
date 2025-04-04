@@ -33,8 +33,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         if (!result.success) {
           console.log('Document content permissions need fixing, applying automatically...');
           await handleFixPermissions();
-        } else {
-          setPermissionStatus('Permissions verified');
         }
       } catch (err) {
         console.error("Failed to check permissions:", err);
@@ -123,17 +121,19 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {permissionStatus && (
-          <Alert variant={permissionStatus.includes('successful') || permissionStatus.includes('verified') ? 'default' : 'warning'} 
-                className={permissionStatus.includes('successful') || permissionStatus.includes('verified') 
+        {permissionStatus && permissionStatus !== 'Permissions verified' && (
+          <Alert variant={permissionStatus.includes('successful') || permissionStatus.includes('fixed') 
+                  ? "default" 
+                  : "warning"} 
+                className={permissionStatus.includes('successful') || permissionStatus.includes('fixed') 
                   ? "bg-green-50 border border-green-200 mb-4" 
                   : "bg-yellow-50 border border-yellow-200 mb-4"}>
-            {permissionStatus.includes('successful') || permissionStatus.includes('verified') ? (
+            {permissionStatus.includes('successful') || permissionStatus.includes('fixed') ? (
               <CheckCircle2 className="h-4 w-4 text-green-600" />
             ) : (
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
             )}
-            <AlertDescription className={permissionStatus.includes('successful') || permissionStatus.includes('verified') 
+            <AlertDescription className={permissionStatus.includes('successful') || permissionStatus.includes('fixed') 
               ? "text-green-800" 
               : "text-yellow-800"}>
               {permissionStatus}
