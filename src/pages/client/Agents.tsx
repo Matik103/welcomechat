@@ -45,10 +45,9 @@ export default function ClientAgents() {
   );
 
   const handleCreateAgent = async (newAgent: Partial<AgentDetails>) => {
-    // This will be handled by the CreateAgentDialog component
+    // This function will be called after successful agent creation
+    await refetch(); // Explicitly refetch agents after creation
     setIsCreateDialogOpen(false);
-    // Refetch agents after creation
-    refetch();
   };
 
   if (isLoading) {

@@ -84,41 +84,47 @@ export const WidgetPreview = ({
   };
 
   // Calculate dynamic styles based on widget settings
-  const headerBgColor = settings.header_bg_color || '#4F46E5';
-  const chatBgColor = settings.chat_bg_color || '#F9FAFB';
-  const chatTextColor = settings.chat_text_color || '#1F2937';
-  const buttonBgColor = settings.button_bg_color || '#4F46E5';
+  const headerBgColor = settings.primary_color || '#4F46E5';
+  const chatBgColor = settings.background_color || '#F9FAFB';
+  const chatTextColor = settings.text_color || '#1F2937';
+  const buttonBgColor = settings.button_color || '#4F46E5';
   const buttonTextColor = settings.button_text_color || '#FFFFFF';
+
+  // Transform messages to match ChatMessages expected format
+  const formattedMessages = messages.map(msg => ({
+    text: msg.content,
+    isUser: msg.role === 'user'
+  }));
 
   return (
     <div className="flex flex-col overflow-hidden border rounded-lg shadow-sm bg-white h-[500px]">
       {/* Widget Header */}
       <ChatHeader 
-        title={settings.widget_title || "Chat with us"}
-        subtitle={settings.widget_subtitle || "We're here to help"}
+        headerTitle={settings.title || "Chat with us"}
+        headerSubtitle={settings.subtitle || "We're here to help"}
         logoUrl={settings.logo_url}
-        bgColor={headerBgColor}
+        headerBgColor={headerBgColor}
       />
       
       {/* Chat Messages Area */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
         <ChatMessages 
-          messages={messages} 
+          messages={formattedMessages} 
           isLoading={isLoading}
-          userBubbleColor={settings.user_bubble_color || '#4F46E5'}
-          assistantBubbleColor={settings.assistant_bubble_color || '#F3F4F6'}
-          userTextColor={settings.user_text_color || '#FFFFFF'}
-          assistantTextColor={settings.assistant_text_color || '#1F2937'}
+          userBubbleColor={settings.primary_color || '#4F46E5'}
+          assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
+          userTextColor={'#FFFFFF'}
+          assistantTextColor={chatTextColor}
         />
       </div>
       
       {/* Input Area */}
       <ChatInput
         value={inputValue}
-        onChange={setInputValue}
+        onChange={(val) => setInputValue(val)}
         onSubmit={handleSendMessage}
-        placeholder={settings.input_placeholder || "Type your message..."}
-        buttonText={settings.send_button_text || "Send"}
+        placeholder={settings.placeholder || "Type your message..."}
+        buttonText={settings.button_text || "Send"}
         isLoading={isLoading}
         buttonBgColor={buttonBgColor}
         buttonTextColor={buttonTextColor}

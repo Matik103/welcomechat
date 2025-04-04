@@ -73,7 +73,7 @@ export function useAuthState() {
               .eq("user_id", data.session.user.id)
               .maybeSingle();
               
-            // Check if user is an admin
+            // Check if user is an admin using direct RPC call
             const { data: isAdmin } = await supabase.rpc('check_user_role', {
               allowed_roles: ['admin']
             });
@@ -95,6 +95,19 @@ export function useAuthState() {
             console.log("Error determining role, defaulting to admin");
             setUserRole("admin");
           }
+        }
+        
+        // Cache the auth state for faster loading next time
+        try {
+          const authState = {
+            user: data.session.user,
+            session: data.session,
+            userRole: role || "admin", // Default to admin if no role found
+            timestamp: Date.now()
+          };
+          sessionStorage.setItem('auth_state', JSON.stringify(authState));
+        } catch (e) {
+          console.error("Error caching auth state:", e);
         }
       } else {
         // No session from Supabase
@@ -128,12 +141,13 @@ export function useAuthState() {
             
             // Cache authentication state for faster loading
             try {
-              sessionStorage.setItem('auth_state', JSON.stringify({
+              const authState = {
                 user: session.user,
                 session,
                 userRole: role,
                 timestamp: Date.now()
-              }));
+              };
+              sessionStorage.setItem('auth_state', JSON.stringify(authState));
             } catch (e) {
               console.error("Error caching auth state:", e);
             }

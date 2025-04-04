@@ -1,55 +1,40 @@
 
-import { X } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bot } from "lucide-react";
+import React from 'react';
 
-interface ChatHeaderProps {
-  agentName: string;
+export interface ChatHeaderProps {
+  headerTitle: string;
+  headerSubtitle: string;
   logoUrl?: string;
-  backgroundColor: string;
-  textColor: string;
-  onClose: () => void;
+  headerBgColor?: string;
 }
 
-export function ChatHeader({ 
-  agentName, 
-  logoUrl, 
-  backgroundColor, 
-  textColor, 
-  onClose 
-}: ChatHeaderProps) {
-  // Display name logic - use provided name or "Chat" if empty
-  const displayName = agentName || 'Chat';
-  
+export const ChatHeader: React.FC<ChatHeaderProps> = ({
+  headerTitle,
+  headerSubtitle,
+  logoUrl,
+  headerBgColor = '#4F46E5'
+}) => {
   return (
     <div 
-      className="p-3 flex items-center justify-between border-b" 
-      style={{ backgroundColor, color: textColor }}
+      className="p-4 flex items-center space-x-3"
+      style={{ backgroundColor: headerBgColor }}
     >
-      <div className="flex items-center gap-2">
-        <Avatar className="h-8 w-8 flex-shrink-0">
-          {logoUrl ? (
-            <AvatarImage 
-              src={logoUrl} 
-              alt={displayName}
-              onError={(e) => {
-                console.error("Error loading logo in chat header:", e);
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          ) : null}
-          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-            <Bot className="w-5 h-5" />
-          </AvatarFallback>
-        </Avatar>
-        <span className="font-medium truncate max-w-[180px]">{displayName}</span>
+      {logoUrl && (
+        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center overflow-hidden">
+          <img
+            src={logoUrl}
+            alt="Assistant logo"
+            className="max-w-full max-h-full object-contain"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+      <div className="text-white">
+        <h3 className="font-medium text-lg">{headerTitle}</h3>
+        <p className="text-sm opacity-90">{headerSubtitle}</p>
       </div>
-      <button 
-        onClick={onClose}
-        className="text-inherit hover:opacity-75 transition-opacity"
-      >
-        <X className="w-5 h-5" />
-      </button>
     </div>
   );
-}
+};

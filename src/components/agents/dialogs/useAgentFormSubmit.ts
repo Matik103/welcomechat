@@ -68,6 +68,13 @@ export function useAgentFormSubmit({
         logoPath = `/client-logos/${clientId}/${logoFile.name}`;
       }
       
+      console.log('Creating agent with:', {
+        clientId,
+        agentName,
+        agentDescription,
+        clientName
+      });
+      
       // Create or update agent
       const { success, agent, error } = await ensureAiAgentExists(
         clientId,
@@ -82,6 +89,8 @@ export function useAgentFormSubmit({
         throw new Error(error || 'Failed to create agent');
       }
       
+      console.log('Agent created successfully:', agent);
+      
       // Try to create OpenAI assistant
       try {
         await createOpenAIAssistant(clientId, agentName, agentDescription);
@@ -91,7 +100,11 @@ export function useAgentFormSubmit({
       }
       
       toast.success(`Agent "${agentName}" created successfully`);
-      onAgentCreated(agent);
+      
+      if (agent && onAgentCreated) {
+        // Make sure to pass the created agent back to parent component
+        onAgentCreated(agent);
+      }
       
       // Reset form
       resetForm();
