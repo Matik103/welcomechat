@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 interface SyncDocumentResult {
@@ -54,88 +53,59 @@ export const syncDocumentWithOpenAI = async (
     
     console.log(`Found OpenAI assistant ID: ${assistantId}`);
     
-    // Set a timeout for the fetch request
-    const timeoutPromise = new Promise<SyncDocumentResult>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error('Request timeout: OpenAI sync took too long to respond'));
-      }, 30000); // 30 second timeout
-    });
-    
     try {
-      // Create a race between the actual request and the timeout
-      const syncResult = await Promise.race([
-        timeoutPromise,
-        (async () => {
-          // Convert file to base64
-          const fileData = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const base64data = reader.result as string;
-              resolve(base64data.split(',')[1]); // Remove data URL prefix
-            };
-            reader.readAsDataURL(file);
-          });
+      // Read the file content as text
+      const textContent = await file.text();
 
-          // Call the Edge Function with the correct payload format
-          const { data, error } = await supabase.functions.invoke('upload-file-to-openai', {
-            body: {
-              client_id: clientId,
-              file_data: fileData,
-              file_name: file.name,
-              file_type: file.type
-            }
-          });
-          
-          if (error) {
-            console.error('Error uploading file to OpenAI:', error);
-            return { 
-              success: false, 
-              error: `Error uploading to OpenAI: ${error.message}` 
-            };
-          }
-          
-          console.log('File uploaded to OpenAI successfully:', data);
-          
-          if (data.document_id) {
-            // Update the document record with the OpenAI file ID if we have a document ID
-            if (documentId) {
-              const { error: updateError } = await supabase
-                .from('ai_documents')
-                .update({ 
-                  status: 'completed'
-                })
-                .eq('id', documentId);
-              
-              if (updateError) {
-                console.error('Error updating document status:', updateError);
-                // Non-critical error, we still uploaded the file successfully
-              }
-            }
-            
-            return {
-              success: true,
-              fileId: data.document_id,
-              message: 'Document synchronized with OpenAI assistant successfully'
-            };
-          } else {
-            return {
-              success: false,
-              error: data.message || 'Unknown error from OpenAI file upload'
-            };
-          }
-        })()
-      ]);
+      // Call the Edge Function with the text content
+      const { data, error } = await supabase.functions.invoke('upload-file-to-openai', {
+        body: {
+          client_id: clientId,
+          file_data: btoa(textContent), // Convert text to base64
+          file_name: file.name,
+          file_type: file.type
+        }
+      });
       
-      return syncResult;
-    } catch (fetchError) {
-      console.error('Fetch error in syncDocumentWithOpenAI:', fetchError);
-      
-      if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
-        return {
-          success: false,
-          error: 'Request timeout: OpenAI sync took too long to respond'
+      if (error) {
+        console.error('Error uploading file to OpenAI:', error);
+        return { 
+          success: false, 
+          error: `Error uploading to OpenAI: ${error.message}` 
         };
       }
+      
+      console.log('File uploaded to OpenAI successfully:', data);
+      
+      if (data.document_id) {
+        // Update the document record with the OpenAI file ID if we have a document ID
+        if (documentId) {
+          const { error: updateError } = await supabase
+            .from('ai_documents')
+            .update({ 
+              status: 'completed'
+            })
+            .eq('id', documentId);
+          
+          if (updateError) {
+            console.error('Error updating document status:', updateError);
+            // Non-critical error, we still uploaded the file successfully
+          }
+        }
+        
+        return {
+          success: true,
+          fileId: data.document_id,
+          message: 'Document synchronized with OpenAI assistant successfully'
+        };
+      } else {
+        return {
+          success: false,
+          error: data.message || 'Unknown error from OpenAI file upload'
+        };
+      }
+    } catch (fetchError) {
+      console.error('Fetch error in syncDocumentWithOpenAI:', fetchError);
       
       return {
         success: false,
