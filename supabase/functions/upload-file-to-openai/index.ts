@@ -1,12 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import { OpenAI } from "https://esm.sh/openai@4.28.0";
-import { decode as base64Decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import * as pdfjs from "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/+esm";
-import mammoth from "https://esm.sh/mammoth@1.6.0";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 // Get environment variables
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
@@ -19,40 +15,101 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper function to extract text from PDF
-async function extractTextFromPDF(pdfData: Uint8Array): Promise<string> {
-  try {
-    // Initialize PDF.js
-    const loadingTask = pdfjs.getDocument({ data: pdfData });
-    const pdf = await loadingTask.promise;
-    
-    let fullText = '';
-    
-    // Extract text from each page
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      fullText += pageText + '\n';
-    }
-    
-    return fullText.trim();
-  } catch (error) {
-    console.error('Error extracting text from PDF:', error);
-    throw new Error('Failed to extract text from PDF');
+// Supported file types and their content types
+const SUPPORTED_FILE_TYPES = {
+  'text/plain': { 
+    maxSize: 10 * 1024 * 1024, // 10MB
+    storageType: 'text/plain'
+  },
+  'application/pdf': { 
+    maxSize: 20 * 1024 * 1024, // 20MB
+    storageType: 'application/pdf'
+  },
+  'application/vnd.google-apps.document': { 
+    maxSize: 50 * 1024 * 1024, // 50MB for Google Docs
+    storageType: 'text/plain' // Store as plain text
   }
-}
+};
 
-// Helper function to extract text from DOCX
-async function extractTextFromDOCX(docxData: Uint8Array): Promise<string> {
+// File type mappings for content handling
+const FILE_TYPE_HANDLERS = {
+  'text/plain': {
+    requiresExtraction: false,
+    status: 'pending',
+    message: 'Text document uploaded and ready for processing',
+    processContent: (data: Uint8Array) => {
+      return {
+        content: new TextDecoder().decode(data),
+        uploadData: data,
+        contentType: 'text/plain'
+      };
+    }
+  },
+  'application/pdf': {
+    requiresExtraction: true,
+    status: 'pending_extraction',
+    message: 'PDF uploaded and queued for content extraction',
+    processContent: (data: Uint8Array) => {
+      return {
+        content: null,
+        uploadData: data,
+        contentType: 'application/pdf'
+      };
+    }
+  },
+  'application/vnd.google-apps.document': {
+    requiresExtraction: false,
+    status: 'pending',
+    message: 'Google Doc processed and stored',
+    processContent: (data: Uint8Array) => {
+      const docContent = new TextDecoder().decode(data);
+      const parsedContent = JSON.parse(docContent);
+      const extractedText = parsedContent.content || '';
+      return {
+        content: extractedText,
+        uploadData: new TextEncoder().encode(extractedText),
+        contentType: 'text/plain',
+        metadata: {
+          googleDoc: {
+            title: parsedContent.title,
+            mimeType: parsedContent.mimeType,
+            lastModified: new Date().toISOString()
+          }
+        }
+      };
+    }
+  }
+};
+
+async function downloadFromGoogleDrive(driveLink: string): Promise<{ data: Uint8Array; filename: string }> {
   try {
-    const result = await mammoth.extractRawText({ arrayBuffer: docxData });
-    return result.value.trim();
+    // Extract file ID from Google Drive link
+    const fileId = driveLink.match(/[-\w]{25,}/)?.[0];
+    if (!fileId) {
+      throw new Error("Invalid Google Drive link");
+    }
+
+    // Construct direct download link
+    const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    
+    // Get filename from headers
+    const headResponse = await fetch(downloadUrl, { method: 'HEAD' });
+    const contentDisposition = headResponse.headers.get('content-disposition');
+    const filename = contentDisposition?.split('filename=')?.[1]?.replace(/["']/g, '') || 'document.pdf';
+
+    // Download file
+    const response = await fetch(downloadUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return {
+      data: new Uint8Array(arrayBuffer),
+      filename: filename
+    };
   } catch (error) {
-    console.error('Error extracting text from DOCX:', error);
-    throw new Error('Failed to extract text from DOCX');
+    throw new Error(`Failed to download from Google Drive: ${error.message}`);
   }
 }
 
@@ -66,108 +123,114 @@ serve(async (req) => {
   }
 
   try {
-    // Check for API key
-    if (!OPENAI_API_KEY) {
-      throw new Error("OpenAI API key is not configured");
+    const {
+      client_id,
+      file_data,
+      file_type,
+      file_name,
+      assistant_id,
+      drive_link
+    } = await req.json();
+
+    if (!client_id) {
+      throw new Error("Missing required field: client_id");
     }
 
-    // Parse request body
-    const body = await req.json();
-    const { client_id, file_data, file_type, file_name } = body;
-
-    // Validate required fields
-    if (!client_id || !file_data || !file_type || !file_name) {
-      throw new Error("Missing required fields: client_id, file_data, file_type, and file_name are required");
+    if (!assistant_id) {
+      throw new Error("Missing required field: assistant_id");
     }
 
-    console.log(`Processing file "${file_name}" (${file_type}) for client ${client_id}`);
+    let fileData: Uint8Array;
+    let fileName: string;
 
-    // Convert base64 to binary
-    let textContent: string;
-    try {
-      const decodedData = base64Decode(file_data);
-      
-      // Extract text based on file type
-      if (file_type === 'application/pdf' || file_name.toLowerCase().endsWith('.pdf')) {
-        textContent = await extractTextFromPDF(decodedData);
-      } else if (file_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-                 file_name.toLowerCase().endsWith('.docx')) {
-        textContent = await extractTextFromDOCX(decodedData);
-      } else {
-        // For text files and other formats, try to decode as text
-        textContent = new TextDecoder().decode(decodedData);
+    // Handle Google Drive link or direct file upload
+    if (drive_link) {
+      const driveFile = await downloadFromGoogleDrive(drive_link);
+      fileData = driveFile.data;
+      fileName = driveFile.filename;
+    } else {
+      if (!file_data || !file_type || !file_name) {
+        throw new Error("Missing required fields for direct file upload");
       }
-    } catch (error) {
-      console.error('Error processing file:', error);
-      throw new Error(`Failed to process file: ${error.message}`);
+
+      // Decode base64 file data
+      const binaryString = atob(file_data);
+      fileData = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        fileData[i] = binaryString.charCodeAt(i);
+      }
+      fileName = file_name;
     }
 
-    if (!textContent || textContent.trim().length === 0) {
-      throw new Error("No text content could be extracted from the document");
-    }
+    // Generate unique file name
+    const uniqueFileName = `${crypto.randomUUID()}-${fileName}`;
+    const storagePath = `${client_id}/${uniqueFileName}`;
 
-    // Initialize OpenAI
-    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-
-    // Generate embedding for the text content
-    let embedding;
-    try {
-      const embeddingResponse = await openai.embeddings.create({
-        model: "text-embedding-ada-002",
-        input: textContent.trim(),
+    // Upload file to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(storagePath, fileData, {
+        contentType: 'application/pdf',
+        upsert: true
       });
 
-      if (!embeddingResponse.data || embeddingResponse.data.length === 0) {
-        throw new Error("Failed to generate embedding from OpenAI");
-      }
-
-      embedding = embeddingResponse.data[0].embedding;
-    } catch (error) {
-      console.error('Error generating embedding:', error);
-      throw new Error('Failed to generate embedding from OpenAI. Please try again.');
+    if (uploadError) {
+      throw uploadError;
     }
 
-    // Store document content and embedding
-    try {
-      const { data: documentData, error: documentError } = await supabase.rpc(
-        'store_document_content',
-        {
-          p_client_id: client_id,
-          p_content: textContent,
-          p_embedding: embedding,
-          p_file_name: file_name,
-          p_file_type: file_type
-        }
-      );
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('documents')
+      .getPublicUrl(storagePath);
 
-      if (documentError) {
-        throw documentError;
-      }
+    // Create document record
+    const { data: document, error: documentError } = await supabase
+      .from('document_content')
+      .insert({
+        filename: fileName,
+        storage_url: publicUrl,
+        file_type: 'application/pdf',
+        requires_extraction: true
+      })
+      .select()
+      .single();
 
-      // Return success response
-      return new Response(
-        JSON.stringify({
-          status: "success",
-          message: "Document processed and stored successfully",
-          document_id: documentData.id
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        }
-      );
-    } catch (error) {
-      console.error('Error storing document:', error);
-      throw new Error(`Failed to store document content: ${error.message}`);
+    if (documentError) {
+      throw documentError;
     }
+
+    // Create assistant document record
+    const { error: assistantDocError } = await supabase
+      .from('assistant_documents')
+      .insert({
+        assistant_id: assistant_id,
+        document_id: document.id,
+        status: 'pending'
+      });
+
+    if (assistantDocError) {
+      throw assistantDocError;
+    }
+
+    return new Response(
+      JSON.stringify({
+        status: "success",
+        message: "File uploaded and queued for content extraction",
+        document_id: document.id,
+        storage_url: publicUrl,
+        requires_extraction: true
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
 
   } catch (error) {
-    console.error('Error processing document:', error);
-    
     return new Response(
       JSON.stringify({
         status: "error",
-        message: error instanceof Error ? error.message : "An unknown error occurred",
+        message: error.message
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

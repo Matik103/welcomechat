@@ -1,10 +1,11 @@
 import React from 'react';
+import { DocumentUpload } from '@/components/client/DocumentUpload';
 import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import { DocumentUploadForm } from '@/components/client/DocumentUploadForm';
+import { DocumentProcessingResult } from '@/types/document-processing';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -19,23 +20,37 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
 }) => {
   const { uploadDocument, isUploading, uploadProgress, uploadResult } = useUnifiedDocumentUpload(clientId);
   
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (file: File): Promise<DocumentProcessingResult> => {
     try {
       console.log("Starting document upload process for:", file.name);
-      await uploadDocument(file, { 
+      const result = await uploadDocument(file, { 
         clientId,
-        shouldUseAI: true,
-        // Enable OpenAI processing
-        syncToOpenAI: true
+        shouldProcessWithOpenAI: true,
+        agentName: 'AI Assistant'
       });
-      await logClientActivity(); // Log the activity after successful upload
-      
-      if (onUploadComplete) {
-        onUploadComplete();
+
+      if (result.success) {
+        await logClientActivity();
+        if (onUploadComplete) {
+          onUploadComplete();
+        }
       }
+
+      return {
+        success: result.success,
+        documentId: result.documentId?.toString(),
+        error: result.error,
+        processed: result.processed || 0,
+        failed: result.failed || 0
+      };
     } catch (error) {
       console.error('Upload failed:', error);
-      // Error is handled in the hook
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        processed: 0,
+        failed: 1
+      };
     }
   };
   
@@ -48,9 +63,10 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <DocumentUploadForm 
-          onSubmitDocument={handleUpload}
+        <DocumentUpload
+          uploadDocument={handleUpload}
           isUploading={isUploading}
+          uploadProgress={uploadProgress}
         />
         
         {isUploading && (
@@ -74,12 +90,24 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             <AlertTitle className="text-green-800">Document processed successfully</AlertTitle>
             <AlertDescription className="text-green-700">
-              Your document has been uploaded and processed. 
+              Your document "{uploadResult.fileName}" has been uploaded and processed. 
               {uploadResult.processed > 0 && (
                 <span> Successfully processed {uploadResult.processed} sections.</span>
               )}
               {uploadResult.failed > 0 && (
                 <span className="text-amber-600"> Failed to process {uploadResult.failed} sections.</span>
+              )}
+              {uploadResult.documentUrl && (
+                <div className="mt-2">
+                  <a 
+                    href={uploadResult.documentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    View document
+                  </a>
+                </div>
               )}
             </AlertDescription>
           </Alert>

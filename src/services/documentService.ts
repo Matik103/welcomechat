@@ -1,17 +1,31 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DOCUMENTS_BUCKET, ensureDocumentStorageBucket } from '@/utils/supabaseStorage';
 
 interface UploadResult {
   success: boolean;
-  documentId?: number;
+  documentId?: string;
   error?: string;
   processed?: number;
   failed?: number;
+  documentUrl?: string;
+  fileName?: string;
+  fileType?: string;
 }
 
-export const uploadDocument = async (clientId: string, file: File): Promise<UploadResult> => {
+interface UploadOptions {
+  shouldProcessWithOpenAI?: boolean;
+  agentName?: string;
+}
+
+/**
+ * Unified document upload service that handles both storage and OpenAI processing
+ */
+export const uploadDocument = async (
+  clientId: string, 
+  file: File,
+  options: UploadOptions = {}
+): Promise<UploadResult> => {
   try {
     if (!clientId) {
       return { success: false, error: 'Client ID is required' };
@@ -54,8 +68,8 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
           document_url: urlData.publicUrl,
           document_type: file.type,
           document_id: fileName,
-          status: 'pending',
-          agent_name: 'AI Assistant'
+          status: options.shouldProcessWithOpenAI ? 'pending' : 'completed',
+          agent_name: options.agentName || 'AI Assistant'
         }
       ])
       .select('id')
@@ -71,9 +85,54 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
       ? parseInt(documentData.id, 10) 
       : documentData.id;
 
+    // If OpenAI processing is requested, send to Edge Function
+    if (options.shouldProcessWithOpenAI) {
+      try {
+        // Read file as base64
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64 = reader.result as string;
+            // Remove data URL prefix if present
+            const base64Clean = base64.replace(/^data:[^;]+;base64,/, '');
+            resolve(base64Clean);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        // Call Edge Function to process with OpenAI
+        const { data: openAIData, error: openAIError } = await supabase.functions.invoke(
+          'upload-file-to-openai',
+          {
+            body: {
+              client_id: clientId,
+              file_data: base64Data,
+              file_type: file.type,
+              file_name: file.name,
+              document_id: documentId
+            }
+          }
+        );
+
+        if (openAIError) {
+          console.error('Error processing with OpenAI:', openAIError);
+          toast.warning('Document uploaded but AI processing failed');
+        } else {
+          console.log('OpenAI processing successful:', openAIData);
+        }
+      } catch (openAIError) {
+        console.error('Error in OpenAI processing:', openAIError);
+        toast.warning('Document uploaded but AI processing failed');
+      }
+    }
+
     return {
       success: true,
-      documentId: documentId,
+      documentId: documentId.toString(),
+      documentUrl: urlData.publicUrl,
+      fileName: file.name,
+      fileType: file.type,
       processed: 1,
       failed: 0
     };
@@ -81,7 +140,11 @@ export const uploadDocument = async (clientId: string, file: File): Promise<Uplo
     console.error('Unexpected error in uploadDocument:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error during document upload'
+      error: error instanceof Error ? error.message : 'Unknown error during document upload',
+      processed: 0,
+      failed: 1,
+      fileName: file.name,
+      fileType: file.type
     };
   }
 };

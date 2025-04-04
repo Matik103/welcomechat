@@ -5,11 +5,9 @@ import { DocumentLinksList } from './drive-links/DocumentLinksList';
 import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { DocumentType } from '@/types/document-processing';
+import { DocumentType, DocumentProcessingResult } from '@/types/document-processing';
 import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
-import { uploadDocumentToStorage } from '@/utils/documentConverter';
-import { supabase } from '@/integrations/supabase/client';
 
 interface DriveLinksProps {
   clientId: string;
@@ -19,8 +17,6 @@ interface DriveLinksProps {
 export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChange }) => {
   const [activeTab, setActiveTab] = useState('links');
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const {
     documentLinks,
@@ -30,6 +26,12 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
     deleteDocumentLink,
     refetch
   } = useDocumentLinks(clientId);
+
+  const {
+    uploadDocument,
+    isUploading,
+    uploadProgress
+  } = useUnifiedDocumentUpload(clientId);
 
   const handleAddLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
     try {
@@ -75,110 +77,72 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
     }
   };
 
-  const handleUploadDocument = async (file: File) => {
+  const handleUpload = async (file: File): Promise<DocumentProcessingResult> => {
     try {
-      setIsUploading(true);
-      
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          const newProgress = prev + 5;
-          return newProgress > 90 ? 90 : newProgress;
-        });
-      }, 300);
-
-      const uploadResult = await uploadDocumentToStorage(file, clientId);
-      
-      if (!uploadResult.success) {
-        throw new Error(uploadResult.error || 'Upload failed');
-      }
-
-      const fileData = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64data = reader.result as string;
-          resolve(base64data.split(',')[1]);
-        };
-        reader.readAsDataURL(file);
+      const result = await uploadDocument(file, {
+        clientId,
+        shouldProcessWithOpenAI: true,
+        agentName: 'AI Assistant'
       });
 
-      const { data: processResult, error: processError } = await supabase.functions.invoke(
-        'upload-file-to-openai',
-        {
-          body: {
-            client_id: clientId,
-            file_data: fileData,
-            file_name: file.name,
-            file_type: file.type
-          }
-        }
-      );
-
-      if (processError) {
-        throw new Error(`Failed to process document: ${processError.message}`);
-      }
-
-      if (!processResult?.document_id) {
-        throw new Error('Failed to get document ID from processing result');
-      }
-
-      clearInterval(progressInterval);
-      
-      await addDocumentLink.mutateAsync({
-        link: uploadResult.url || '',
-        document_type: (file.type.includes('pdf') ? 'pdf' : 'document') as DocumentType,
-        refresh_rate: 24
-      });
-      
-      setUploadProgress(100);
-      toast.success('Document uploaded and processed successfully');
-      
-      if (refetch) {
-        await refetch();
-      }
-      
-      if (onResourceChange) {
+      if (result.success && onResourceChange) {
         onResourceChange();
       }
-      
-      setTimeout(() => {
-        setUploadProgress(0);
-      }, 1000);
+
+      return {
+        success: result.success,
+        documentId: result.documentId,
+        error: result.error,
+        processed: result.processed || 0,
+        failed: result.failed || 0,
+        documentUrl: result.documentUrl,
+        fileName: result.fileName,
+        fileType: result.fileType
+      };
     } catch (error) {
       console.error('Error uploading document:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to upload document');
-    } finally {
-      setIsUploading(false);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        processed: 0,
+        failed: 1
+      };
     }
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>External Documents</CardTitle>
+        <CardTitle>Document Management</CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
-            <TabsTrigger value="links">Document Links</TabsTrigger>
+            <TabsTrigger value="links">Google Drive Links</TabsTrigger>
             <TabsTrigger value="upload">Upload Document</TabsTrigger>
           </TabsList>
-          <TabsContent value="links" className="space-y-4">
-            <DocumentLinkForm
-              onSubmit={handleAddLink}
-              isSubmitting={addDocumentLink.isPending}
-              agentName="AI Assistant"
-            />
-            <DocumentLinksList
-              links={documentLinks}
-              isLoading={isLoading}
-              onDelete={handleDeleteLink}
-              isDeleting={deleteDocumentLink.isPending}
-              deletingId={deletingId}
-            />
+          
+          <TabsContent value="links">
+            <div className="space-y-6">
+              <DocumentLinkForm
+                onSubmit={handleAddLink}
+                isSubmitting={addDocumentLink.isPending}
+                agentName="AI Assistant"
+              />
+              
+              <DocumentLinksList
+                links={documentLinks || []}
+                onDelete={handleDeleteLink}
+                isLoading={isLoading}
+                isDeleting={deleteDocumentLink.isPending}
+                deletingId={deletingId}
+              />
+            </div>
           </TabsContent>
+          
           <TabsContent value="upload">
             <DocumentUploadForm
-              onSubmitDocument={handleUploadDocument}
+              onSubmitDocument={handleUpload}
               isUploading={isUploading}
               uploadProgress={uploadProgress}
             />
