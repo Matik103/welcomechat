@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
@@ -77,7 +78,8 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
     }
   };
 
-  const handleUpload = async (file: File): Promise<DocumentProcessingResult> => {
+  // Changed the function signature to match what DocumentUploadForm expects
+  const handleUpload = async (file: File): Promise<void> => {
     try {
       const result = await uploadDocument(file, {
         clientId,
@@ -88,25 +90,9 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
       if (result.success && onResourceChange) {
         onResourceChange();
       }
-
-      return {
-        success: result.success,
-        documentId: result.documentId,
-        error: result.error,
-        processed: result.processed || 0,
-        failed: result.failed || 0,
-        documentUrl: result.documentUrl,
-        fileName: result.fileName,
-        fileType: result.fileType
-      };
     } catch (error) {
       console.error('Error uploading document:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        processed: 0,
-        failed: 1
-      };
+      toast.error(`Failed to upload document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

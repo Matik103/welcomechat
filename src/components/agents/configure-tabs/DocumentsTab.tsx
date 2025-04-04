@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -22,14 +21,11 @@ export function DocumentsTab({ clientId, agentName, onSuccess }: DocumentsTabPro
 
   const handleSubmitDocument = async (file: File) => {
     try {
-      // Use the unified document upload with OpenAI sync set to false to prevent errors
+      // Changed shouldUseAI to shouldProcessWithOpenAI to match the expected type
       await uploadDocument(file, {
         clientId,
-        shouldUseAI: true,
-        syncToAgent: true,
-        syncToProfile: true,
-        syncToWidgetSettings: true,
-        syncToOpenAI: false // Don't try to sync with OpenAI by default
+        shouldProcessWithOpenAI: true,
+        agentName: agentName
       });
       
       // Create client activity
