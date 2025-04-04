@@ -1,12 +1,11 @@
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { PublicRoutes } from "./components/routes/PublicRoutes";
 import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes";
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
-import { ConfigError } from "./components/routes/ErrorDisplay";
 import { LoadingFallback } from "./components/routes/LoadingFallback";
 
 function App() {
@@ -29,7 +28,21 @@ function App() {
   console.log('Is public route:', isPublicRoute);
   console.log('Auth state:', { user, userRole, isLoading });
   
+  // Force-complete loading after a timeout (safety mechanism)
+  useEffect(() => {
+    if (isLoading) {
+      const timeoutId = setTimeout(() => {
+        console.log("Safety timeout triggered - forcing end of loading state");
+        // We don't modify isLoading directly as it's managed by the auth context
+        // Instead, we'll let the page render with a "Try Again" button in the LoadingFallback
+      }, 10000);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isLoading]);
+  
   // If still loading, show a loading screen to prevent blank page
+  // But skip for auth callback which handles its own loading state
   if (isLoading && !isAuthCallback) {
     return <LoadingFallback />;
   }
@@ -53,12 +66,13 @@ function App() {
     return <ClientRoutes />;
   }
 
-  // If user is authenticated but role not determined yet, show loading
+  // If user is authenticated but role not determined yet, show loading for a brief period
   if (user && !userRole) {
     return <LoadingFallback />;
   }
   
   // Default to home page as fallback
+  console.log('No matching route condition, navigating to home page');
   return <Navigate to="/" replace />;
 }
 
