@@ -62,29 +62,31 @@ const ClientAgents: React.FC = () => {
       
       if (!data || data.length === 0) {
         console.log('No agents found for client ID:', clientId);
+        setAgents([]);
+      } else {
+        const formattedAgents: Agent[] = (data || []).map(agent => ({
+          id: agent.id,
+          client_id: agent.client_id,
+          client_name: agent.client_name || clientName,
+          name: agent.name,
+          description: agent.description || '',
+          status: agent.status,
+          created_at: agent.created_at,
+          updated_at: agent.updated_at,
+          interaction_type: agent.interaction_type,
+          agent_description: agent.agent_description || '',
+          logo_url: agent.logo_url,
+          logo_storage_path: agent.logo_storage_path,
+          settings: agent.settings,
+          openai_assistant_id: agent.openai_assistant_id,
+          total_interactions: 0,
+          average_response_time: 0,
+          last_active: agent.updated_at // Use updated_at as last_active if not available
+        }));
+
+        setAgents(formattedAgents);
       }
       
-      const formattedAgents: Agent[] = (data || []).map(agent => ({
-        id: agent.id,
-        client_id: agent.client_id,
-        client_name: agent.client_name || '',
-        name: agent.name,
-        description: agent.description || '',
-        status: agent.status,
-        created_at: agent.created_at,
-        updated_at: agent.updated_at,
-        interaction_type: agent.interaction_type,
-        agent_description: agent.agent_description,
-        logo_url: agent.logo_url,
-        logo_storage_path: agent.logo_storage_path,
-        settings: agent.settings,
-        openai_assistant_id: agent.openai_assistant_id,
-        total_interactions: 0,
-        average_response_time: 0,
-        last_active: agent.updated_at // Use updated_at as last_active if not available
-      }));
-
-      setAgents(formattedAgents);
       setError(null);
     } catch (err) {
       console.error('Error fetching agents:', err);
@@ -96,8 +98,10 @@ const ClientAgents: React.FC = () => {
 
   useEffect(() => {
     if (clientId) {
+      console.log('Client ID detected, fetching agents:', clientId);
       fetchAgents();
     } else {
+      console.log('No client ID available, cannot fetch agents');
       setLoading(false);
       setError('No client ID available');
     }
@@ -108,6 +112,10 @@ const ClientAgents: React.FC = () => {
     // Add the new agent to the list or refetch all agents
     fetchAgents();
   };
+
+  console.log('Current agents state:', agents);
+  console.log('Loading state:', loading);
+  console.log('Error state:', error);
 
   if (loading) {
     return (

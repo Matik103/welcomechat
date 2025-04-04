@@ -84,11 +84,11 @@ export const WidgetPreview = ({
   };
 
   // Calculate dynamic styles based on widget settings
-  const headerBgColor = settings.primary_color || '#4F46E5';
+  const headerBgColor = settings.chat_color || '#4F46E5';
   const chatBgColor = settings.background_color || '#F9FAFB';
   const chatTextColor = settings.text_color || '#1F2937';
   const buttonBgColor = settings.button_color || '#4F46E5';
-  const buttonTextColor = settings.button_text_color || '#FFFFFF';
+  const buttonTextColor = settings.chat_font_color || '#FFFFFF';
 
   // Transform messages to match ChatMessages expected format
   const formattedMessages = messages.map(msg => ({
@@ -100,8 +100,8 @@ export const WidgetPreview = ({
     <div className="flex flex-col overflow-hidden border rounded-lg shadow-sm bg-white h-[500px]">
       {/* Widget Header */}
       <ChatHeader 
-        headerTitle={settings.title || "Chat with us"}
-        headerSubtitle={settings.subtitle || "We're here to help"}
+        headerTitle={settings.agent_name || "Chat with us"}
+        headerSubtitle={settings.welcome_text || "We're here to help"}
         logoUrl={settings.logo_url}
         headerBgColor={headerBgColor}
       />
@@ -111,7 +111,7 @@ export const WidgetPreview = ({
         <ChatMessages 
           messages={formattedMessages} 
           isLoading={isLoading}
-          userBubbleColor={settings.primary_color || '#4F46E5'}
+          userBubbleColor={settings.chat_color || '#4F46E5'}
           assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
           userTextColor={'#FFFFFF'}
           assistantTextColor={chatTextColor}
@@ -123,7 +123,7 @@ export const WidgetPreview = ({
         value={inputValue}
         onChange={(val) => setInputValue(val)}
         onSubmit={handleSendMessage}
-        placeholder={settings.placeholder || "Type your message..."}
+        placeholder={settings.greeting_message || "Type your message..."}
         buttonText={settings.button_text || "Send"}
         isLoading={isLoading}
         buttonBgColor={buttonBgColor}

@@ -13,6 +13,7 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   isLoading: boolean;
   userRole: UserRole | null;
+  clientId?: string | null; // Adding the clientId property
 }
 
 /**

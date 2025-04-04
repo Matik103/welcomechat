@@ -19,4 +19,12 @@ export interface WidgetSettings {
   custom_icon_url?: string;
   greeting_message?: string;
   display_mode?: string;
+  agent_name?: string;
+  agent_description?: string;
+  logo_storage_path?: string;
+  chat_font_color?: string;
+  font_color?: string;
+  background_opacity?: number;
+  welcome_text?: string;
+  response_time_text?: string;
 }

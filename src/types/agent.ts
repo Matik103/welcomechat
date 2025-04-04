@@ -57,14 +57,14 @@ export interface AgentDetails {
   updated_at: string;
 }
 
-// Updated Agent interface to match the required properties
+// Updated Agent interface to be fully compatible with agentService.ts Agent interface
 export interface Agent {
   id: string;
   name: string;
   status: string;
   client_id: string;
   client_name: string; // Made required to match agentService.ts Agent interface
-  agent_description?: string;
+  agent_description: string; // Made required to match agentService.ts Agent interface
   logo_url?: string;
   total_interactions: number;
   average_response_time: number;

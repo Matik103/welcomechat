@@ -13,9 +13,9 @@ export interface Agent {
   openai_assistant_id?: string;
   logo_url?: string;
   logo_storage_path?: string;
-  agent_description?: string;
+  agent_description: string; // Making this required to match agentService.ts Agent interface
   // Adding fields that exist in agentService.ts Agent interface
-  total_interactions?: number;
-  average_response_time?: number;
-  last_active?: string;
+  total_interactions: number;
+  average_response_time: number;
+  last_active: string;
 }
