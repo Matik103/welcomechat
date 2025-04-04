@@ -62,9 +62,25 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     setUploadResult(null);
     
     try {
-      // Generate a unique file path
+      // Get the default assistant for this client
+      const { data: assistant, error: assistantError } = await supabase
+        .from('ai_agents')
+        .select('id')
+        .eq('client_id', clientId)
+        .eq('name', 'Default Assistant')
+        .single();
+
+      if (assistantError) {
+        console.error('Error getting default assistant:', assistantError);
+        throw new Error('Could not find the default assistant for this client');
+      }
+      if (!assistant) {
+        throw new Error('No default assistant found for this client');
+      }
+
+      // Generate a unique file path using client ID and UUID
       const uniqueId = crypto.randomUUID();
-      const filePath = `${clientId}/${uniqueId}-${selectedFile.name}`;
+      const filePath = `${clientId}/${uniqueId}/${selectedFile.name}`;
       
       // Upload file to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -74,19 +90,54 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           upsert: false
         });
         
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw new Error('Failed to upload file to storage');
+      }
       
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('client_documents')
         .getPublicUrl(filePath);
 
-      // Create document record
+      // Create document record in the document_content table
       const { data: document, error: docError } = await supabase
+        .from('document_content')
+        .insert({
+          client_id: clientId,
+          document_id: uniqueId,
+          content: null, // Will be populated by the PDF extraction process
+          filename: selectedFile.name,
+          file_type: selectedFile.type,
+          metadata: {
+            size: selectedFile.size,
+            storage_path: filePath,
+            storage_url: publicUrl,
+            uploadedAt: new Date().toISOString(),
+            processing_status: selectedFile.type === 'application/pdf' ? 'pending_extraction' : 'ready'
+          }
+        })
+        .select()
+        .single();
+
+      if (docError) {
+        console.error('Error creating document record:', docError);
+        // Try to clean up the uploaded file
+        const { error: removeError } = await supabase.storage
+          .from('client_documents')
+          .remove([filePath]);
+        if (removeError) {
+          console.error('Failed to clean up file after document record error:', removeError);
+        }
+        throw new Error('Failed to create document record');
+      }
+
+      // Create record in assistant_documents table
+      const { error: assistantDocError } = await supabase
         .from('assistant_documents')
         .insert({
-          assistant_id: clientId,
-          document_id: parseInt(uniqueId.replace(/-/g, '').slice(0, 9)),
+          assistant_id: assistant.id,
+          client_id: clientId,
           filename: selectedFile.name,
           file_type: selectedFile.type,
           storage_path: filePath,
@@ -95,12 +146,27 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             storage_url: publicUrl,
             uploadedAt: new Date().toISOString()
           },
-          status: selectedFile.type === 'application/pdf' ? 'pending_extraction' : 'ready'
-        })
-        .select()
-        .single();
+          status: selectedFile.type === 'application/pdf' ? 'pending' : 'ready'
+        });
 
-      if (docError) throw docError;
+      if (assistantDocError) {
+        console.error('Error creating assistant document record:', assistantDocError);
+        // Try to clean up the document record and file
+        const { error: docDeleteError } = await supabase
+          .from('document_content')
+          .delete()
+          .eq('id', document.id);
+        if (docDeleteError) {
+          console.error('Failed to clean up document record:', docDeleteError);
+        }
+        const { error: removeError } = await supabase.storage
+          .from('client_documents')
+          .remove([filePath]);
+        if (removeError) {
+          console.error('Failed to clean up file:', removeError);
+        }
+        throw new Error('Failed to create assistant document record');
+      }
 
       // If it's a PDF, trigger the extraction process
       if (selectedFile.type === 'application/pdf') {
@@ -112,11 +178,59 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
           if (extractionError) {
             console.error('PDF extraction error:', extractionError);
-            // Don't throw the error, just log it - the document is still uploaded
+            // Update document metadata to reflect extraction error
+            const { error: updateError } = await supabase
+              .from('document_content')
+              .update({
+                metadata: {
+                  size: selectedFile.size,
+                  storage_path: filePath,
+                  storage_url: publicUrl,
+                  uploadedAt: new Date().toISOString(),
+                  processing_status: 'extraction_failed',
+                  error: extractionError.message
+                }
+              })
+              .eq('id', document.id);
+            if (updateError) {
+              console.error('Failed to update document metadata:', updateError);
+            }
+            // Update assistant_documents status
+            const { error: assistantDocUpdateError } = await supabase
+              .from('assistant_documents')
+              .update({ status: 'failed' })
+              .match({ assistant_id: assistant.id, filename: selectedFile.name });
+            if (assistantDocUpdateError) {
+              console.error('Failed to update assistant document status:', assistantDocUpdateError);
+            }
           }
         } catch (extractionError) {
           console.error('Failed to invoke PDF extraction:', extractionError);
-          // Don't throw the error, just log it - the document is still uploaded
+          // Update document metadata to reflect extraction error
+          const { error: updateError } = await supabase
+            .from('document_content')
+            .update({
+              metadata: {
+                size: selectedFile.size,
+                storage_path: filePath,
+                storage_url: publicUrl,
+                uploadedAt: new Date().toISOString(),
+                processing_status: 'extraction_failed',
+                error: extractionError instanceof Error ? extractionError.message : 'Unknown error'
+              }
+            })
+            .eq('id', document.id);
+          if (updateError) {
+            console.error('Failed to update document metadata:', updateError);
+          }
+          // Update assistant_documents status
+          const { error: assistantDocUpdateError } = await supabase
+            .from('assistant_documents')
+            .update({ status: 'failed' })
+            .match({ assistant_id: assistant.id, filename: selectedFile.name });
+          if (assistantDocUpdateError) {
+            console.error('Failed to update assistant document status:', assistantDocUpdateError);
+          }
         }
       }
 

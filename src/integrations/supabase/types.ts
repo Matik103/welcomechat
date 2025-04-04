@@ -518,37 +518,55 @@ export type Database = {
       }
       assistant_documents: {
         Row: {
+          id: string
           assistant_id: string
-          created_at: string | null
-          document_id: number
-          id: number
+          client_id: string
+          filename: string
+          file_type: string | null
+          content: string | null
+          storage_path: string | null
+          metadata: Json | null
           status: string | null
+          created_at: string | null
           updated_at: string | null
+          embedding: string | null
         }
         Insert: {
+          id?: string
           assistant_id: string
-          created_at?: string | null
-          document_id: number
-          id?: number
+          client_id: string
+          filename: string
+          file_type?: string | null
+          content?: string | null
+          storage_path?: string | null
+          metadata?: Json | null
           status?: string | null
+          created_at?: string | null
           updated_at?: string | null
+          embedding?: string | null
         }
         Update: {
+          id?: string
           assistant_id?: string
-          created_at?: string | null
-          document_id?: number
-          id?: number
+          client_id?: string
+          filename?: string
+          file_type?: string | null
+          content?: string | null
+          storage_path?: string | null
+          metadata?: Json | null
           status?: string | null
+          created_at?: string | null
           updated_at?: string | null
+          embedding?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "assistant_documents_document_id_fkey"
-            columns: ["document_id"]
+            foreignKeyName: "assistant_documents_assistant_id_fkey"
+            columns: ["assistant_id"]
             isOneToOne: false
-            referencedRelation: "document_content"
+            referencedRelation: "client_assistants"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       assistant_queries: {
