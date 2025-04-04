@@ -1,4 +1,3 @@
-
 // Determine if we should add the necessary exports or just check the existing file and add the missing exports
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
@@ -26,7 +25,8 @@ export const initializeBotLogosBucket = async (): Promise<boolean> => {
     // Create the bucket if it doesn't exist
     const { error } = await supabaseAdmin.storage.createBucket('bot-logos', {
       public: true,
-      fileSizeLimit: 10485760, // 10MB
+      allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif'],
+      fileSizeLimit: 1024 * 1024 * 2 // 2MB
     });
 
     if (error && !error.message.includes('already exists')) {
@@ -36,8 +36,14 @@ export const initializeBotLogosBucket = async (): Promise<boolean> => {
     
     // Also create document-storage bucket
     const { error: docError } = await supabaseAdmin.storage.createBucket('document-storage', {
-      public: true,
-      fileSizeLimit: 20971520, // 20MB
+      public: false,
+      allowedMimeTypes: [
+        'application/pdf',
+        'text/plain',
+        'application/vnd.google-apps.document',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ],
+      fileSizeLimit: 1024 * 1024 * 20 // 20MB
     });
 
     if (docError && !docError.message.includes('already exists')) {
@@ -98,3 +104,41 @@ export const supabaseAdmin = (() => {
 })();
 
 export default supabaseAdmin;
+
+/**
+ * Initialize storage buckets
+ */
+export const initializeStorage = async () => {
+  try {
+    // Create bot logos bucket if it doesn't exist
+    const { error } = await supabaseAdmin.storage.createBucket('bot-logos', {
+      public: true,
+      allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif'],
+      fileSizeLimit: 1024 * 1024 * 2 // 2MB
+    });
+
+    if (error) {
+      console.error('Error creating bot logos bucket:', error);
+    }
+
+    // Create document storage bucket if it doesn't exist
+    const { error: docError } = await supabaseAdmin.storage.createBucket('document-storage', {
+      public: false,
+      allowedMimeTypes: [
+        'application/pdf',
+        'text/plain',
+        'application/vnd.google-apps.document',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ],
+      fileSizeLimit: 1024 * 1024 * 20 // 20MB
+    });
+
+    if (docError) {
+      console.error('Error creating document storage bucket:', docError);
+    }
+
+    console.log('Storage buckets initialized');
+  } catch (error) {
+    console.error('Error initializing storage:', error);
+  }
+};
