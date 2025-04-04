@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { executeRlsUpdate } from '@/utils/rpcUtils';
 
@@ -88,8 +87,8 @@ export const createDocumentStorageRpcFunctions = async (): Promise<{ success: bo
         new_id INTEGER;
         result JSONB;
       BEGIN
-        -- Insert record into document-storage
-        INSERT INTO "document-storage"
+        -- Insert record into client_documents
+        INSERT INTO "client_documents"
           (client_id, document_name, document_text, storage_path, file_size, mime_type)
         VALUES
           (p_client_id, p_document_name, p_document_text, p_storage_path, p_file_size, p_mime_type)
@@ -134,7 +133,7 @@ export const createDocumentStorageRpcFunctions = async (): Promise<{ success: bo
           'mime_type', mime_type,
           'created_at', created_at
         ) INTO document_data
-        FROM "document-storage"
+        FROM "client_documents"
         WHERE client_id = p_client_id AND storage_path = p_storage_path;
         
         -- Return document data
@@ -167,7 +166,7 @@ export const createDocumentStorageRpcFunctions = async (): Promise<{ success: bo
           'mime_type', mime_type,
           'created_at', created_at
         )) INTO documents_data
-        FROM "document-storage"
+        FROM "client_documents"
         WHERE client_id = p_client_id;
         
         -- Return documents data
@@ -202,7 +201,7 @@ export const createDocumentStorageRpcFunctions = async (): Promise<{ success: bo
           'mime_type', mime_type,
           'created_at', created_at
         ) INTO document_data
-        FROM "document-storage"
+        FROM "client_documents"
         WHERE client_id = p_client_id AND storage_path = p_storage_path;
         
         -- Return document data
