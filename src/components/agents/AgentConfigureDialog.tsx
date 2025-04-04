@@ -25,7 +25,7 @@ import { AgentDetailsTab } from "./configure-tabs/AgentDetailsTab";
 import { DocumentsTab } from "./configure-tabs/DocumentsTab";
 import { WebsiteUrlsTab } from "./configure-tabs/WebsiteUrlsTab";
 import { GoogleDriveTab } from "./configure-tabs/GoogleDriveTab";
-import { toast } from "sonner"; // Importing toast from sonner instead of useToast hook
+import { toast } from "sonner"; 
 import { Agent } from "@/types/agent";
 
 interface AgentConfigureDialogProps {
