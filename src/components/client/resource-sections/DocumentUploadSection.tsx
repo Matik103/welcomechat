@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { DocumentUpload } from '@/components/client/DocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClientActivity } from '@/services/clientActivityService';
@@ -21,6 +21,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     error?: string;
     documentId?: string;
     publicUrl?: string;
+    fileName?: string;
   }) => {
     if (result.success) {
       try {
@@ -29,19 +30,22 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           clientId,
           undefined,
           ActivityType.DOCUMENT_UPLOADED,
-          `Document uploaded successfully`,
+          `Document uploaded: ${result.fileName || 'Unknown document'}`,
           {
             document_id: result.documentId,
             client_id: clientId,
+            file_name: result.fileName
           }
         );
+        
+        // Call the parent's upload complete handler
+        await logClientActivity();
+        if (onUploadComplete) onUploadComplete();
       } catch (activityError) {
         console.error("Error logging activity:", activityError);
       }
-      
-      // Call the parent's upload complete handler
-      await logClientActivity();
-      if (onUploadComplete) onUploadComplete();
+    } else {
+      console.error("Upload failed:", result.error);
     }
   };
   

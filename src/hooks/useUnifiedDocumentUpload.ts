@@ -10,6 +10,7 @@ interface UploadResult {
   processed?: number;
   failed?: number;
   documentUrl?: string;
+  publicUrl?: string;
   fileName?: string;
   fileType?: string;
 }
@@ -55,7 +56,11 @@ export const useUnifiedDocumentUpload = ({
         });
       }, 300);
 
-      console.log(`Starting document upload for client ${clientId}`);
+      console.log(`Starting document upload for client ${clientId}:`, {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type
+      });
       
       // Upload document using the unified service
       const result = await uploadDocument(clientId, file, {
@@ -72,19 +77,32 @@ export const useUnifiedDocumentUpload = ({
       console.log('Document uploaded successfully:', result);
       
       setUploadProgress(100);
-      setUploadResult(result);
       
-      if (onSuccess) onSuccess(result);
-      else toast.success('Document uploaded successfully');
+      // Make sure publicUrl is set in the result
+      const enhancedResult = {
+        ...result,
+        publicUrl: result.documentUrl || result.publicUrl,
+        fileName: file.name,
+        fileType: file.type
+      };
       
-      return result;
+      setUploadResult(enhancedResult);
+      
+      if (onSuccess) onSuccess(enhancedResult);
+      else toast.success(`Document "${file.name}" uploaded successfully`);
+      
+      return enhancedResult;
     } catch (error) {
       console.error('Error uploading document:', error);
       
-      setUploadResult({
+      const errorResult = {
         success: false,
+        fileName: file.name,
+        fileType: file.type,
         error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      };
+      
+      setUploadResult(errorResult);
       
       if (onError) onError(error instanceof Error ? error : new Error('Unknown error'));
       else toast.error('Failed to upload document: ' + (error instanceof Error ? error.message : 'Unknown error'));

@@ -1,13 +1,10 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { DocumentUpload } from "@/components/client/DocumentUpload";
-import { uploadDocument } from "@/services/documentService";
 import { createClientActivity } from "@/services/clientActivityService";
 import { ActivityType } from "@/types/activity";
 
@@ -17,65 +14,8 @@ export interface DocumentsTabProps {
 }
 
 export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
-  const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleUploadSuccess = useCallback(() => {
-    toast({
-      title: "Document uploaded",
-      description: "Document was successfully uploaded and is being processed.",
-    });
-    setFile(null);
-    setIsUploading(false);
-    if (onSuccess) onSuccess();
-  }, [toast, onSuccess]);
-
-  const handleUploadError = useCallback(
-    (error: Error) => {
-      console.error("Document upload error:", error);
-      toast({
-        title: "Upload failed",
-        description: `Failed to upload document: ${error.message}`,
-        variant: "destructive",
-      });
-      setIsUploading(false);
-    },
-    [toast]
-  );
-
-  const handleUploadDocument = async () => {
-    if (!file) return;
-    setIsUploading(true);
-
-    try {
-      // Upload document
-      const result = await uploadDocument(clientId, file, {});
-      
-      // Log activity
-      await createClientActivity(
-        clientId,
-        undefined,
-        ActivityType.DOCUMENT_UPLOADED,
-        `Document uploaded: ${file.name}`,
-        {
-          document_name: file.name,
-          document_id: result.documentId,
-          client_id: clientId,
-        }
-      );
-
-      handleUploadSuccess();
-    } catch (error) {
-      handleUploadError(error as Error);
-    }
-  };
 
   const handleDocumentUploadComplete = async (result: any) => {
     if (result.success) {
@@ -94,12 +34,14 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
           {
             document_id: result.documentId,
             client_id: clientId,
+            file_name: result.fileName
           }
         );
       } catch (activityError) {
         console.error("Error logging activity:", activityError);
       }
       
+      setIsUploading(false);
       if (onSuccess) onSuccess();
     } else {
       toast({
@@ -107,6 +49,7 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
         description: `Failed to upload document: ${result.error || "Unknown error"}`,
         variant: "destructive",
       });
+      setIsUploading(false);
     }
   };
 
