@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const DOCUMENTS_BUCKET = 'document-storage';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -101,7 +102,7 @@ serve(async (req) => {
     // Download PDF from storage
     const storagePath = doc.storage_url.split('public/documents/')[1];
     const { data: pdfData, error: downloadError } = await supabase.storage
-      .from('documents')
+      .from(DOCUMENTS_BUCKET)
       .download(storagePath);
 
     if (downloadError) {

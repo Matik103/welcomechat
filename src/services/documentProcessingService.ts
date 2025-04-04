@@ -1,7 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentProcessingResult, DocumentLink } from '@/types/document-processing';
 import { v4 as uuidv4 } from 'uuid';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 // Create a new document processing job
 export const createDocumentProcessingJob = async (
@@ -98,7 +98,7 @@ export const uploadDocument = async (
     // Upload file to storage
     const { data: uploadData, error: uploadError } = await supabase
       .storage
-      .from('documents')
+      .from(DOCUMENTS_BUCKET)
       .upload(filePath, file);
     
     if (uploadError) throw uploadError;
@@ -106,7 +106,7 @@ export const uploadDocument = async (
     // Get the public URL
     const { data: urlData } = await supabase
       .storage
-      .from('documents')
+      .from(DOCUMENTS_BUCKET)
       .getPublicUrl(filePath);
     
     if (!urlData || !urlData.publicUrl) throw new Error('Failed to get document URL');

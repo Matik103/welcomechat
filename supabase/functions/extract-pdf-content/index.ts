@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 // Get environment variables
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const DOCUMENTS_BUCKET = 'document-storage';
 
 // Create Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -47,7 +48,7 @@ interface TextChunk {
 
 async function downloadPDFFromStorage(storagePath: string): Promise<Uint8Array> {
   const { data, error } = await supabase.storage
-    .from('documents')
+    .from(DOCUMENTS_BUCKET)
     .download(storagePath);
 
   if (error) {
@@ -304,7 +305,8 @@ serve(async (req: Request) => {
     }
 
     // Download and process PDF
-    const pdfData = await downloadPDFFromStorage(document.document_id);
+    const storagePath = document.storage_url.split('public/documents/')[1];
+    const pdfData = await downloadPDFFromStorage(storagePath);
     
     // Get existing metadata if continuing processing
     const existingMetadata = continue_from > 0 && document.metadata

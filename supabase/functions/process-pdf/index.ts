@@ -1,5 +1,5 @@
-import { serve } from "http/server";
-import { createClient } from "@supabase/supabase-js";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 // Type declarations for Deno environment
 declare global {
@@ -12,6 +12,7 @@ declare global {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const DOCUMENTS_BUCKET = 'document-storage';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -102,9 +103,7 @@ serve(async (req) => {
       .from('assistant_documents')
       .select(`
         assistant_id,
-        document_content (
-          storage_url
-        )
+        storage_url
       `)
       .eq('document_id', document_id)
       .single();
@@ -124,9 +123,9 @@ serve(async (req) => {
     }
 
     // Download PDF from storage
-    const storagePath = doc.document_content.storage_url.split('public/documents/')[1];
+    const storagePath = doc.storage_url.split('public/documents/')[1];
     const { data: pdfData, error: downloadError } = await supabase.storage
-      .from('documents')
+      .from(DOCUMENTS_BUCKET)
       .download(storagePath);
 
     if (downloadError) {
