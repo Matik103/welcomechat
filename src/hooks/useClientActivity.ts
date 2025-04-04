@@ -13,7 +13,7 @@ export function useClientActivity(clientId?: string) {
   console.log("Current user metadata:", user?.user_metadata);
 
   const logClientActivity = async (
-    activityType: ActivityType | ActivityTypeString = 'page_view',
+    activityType: ActivityType | ActivityTypeString = ActivityType.PAGE_VIEW,
     description: string = 'Client viewed page',
     activityData: Record<string, any> = {}
   ): Promise<void> => {
@@ -46,7 +46,7 @@ export function useClientActivity(clientId?: string) {
     } catch (error) {
       console.error("Failed to log client activity:", error);
       // Don't show toast for every activity log failure
-      if (activityType !== 'page_view') {
+      if (activityType !== ActivityType.PAGE_VIEW) {
         toast.error("Failed to log activity");
       }
     } finally {

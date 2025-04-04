@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { createClientActivity } from "./clientActivityService";
 import { ActivityType } from "@/types/activity";
@@ -148,5 +147,62 @@ export const getClients = async () => {
   } catch (err) {
     console.error("Exception fetching clients:", err);
     return { success: false, error: err, data: [] };
+  }
+};
+
+export const getAdministrationActivitiesCount = async () => {
+  try {
+    // Get total administration activities (client creations, updates, etc)
+    const { count: totalCount, error: countError } = await supabase
+      .from("client_activities")
+      .select("*", { count: "exact", head: true })
+      .in("activity_type", ["client_created", "client_updated", "client_deleted"]);
+    
+    if (countError) {
+      console.error("Error fetching administration activities count:", countError);
+      return { 
+        total: 0, 
+        recent: 0, 
+        changePercentage: 0 
+      };
+    }
+    
+    // Get recent administration activities (last 24 hours)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const { count: recentCount, error: recentError } = await supabase
+      .from("client_activities")
+      .select("*", { count: "exact", head: true })
+      .in("activity_type", ["client_created", "client_updated", "client_deleted"])
+      .gt("created_at", yesterday.toISOString());
+    
+    if (recentError) {
+      console.error("Error fetching recent administration activities:", recentError);
+      return { 
+        total: totalCount || 0, 
+        recent: 0, 
+        changePercentage: 0 
+      };
+    }
+    
+    // Calculate change percentage
+    const previousCount = (totalCount || 0) - (recentCount || 0);
+    const changePercentage = previousCount > 0 
+      ? ((recentCount || 0) / previousCount) * 100 
+      : (recentCount || 0) > 0 ? 100 : 0;
+    
+    return {
+      total: totalCount || 0,
+      recent: recentCount || 0,
+      changePercentage: Math.round(changePercentage)
+    };
+  } catch (err) {
+    console.error("Exception fetching administration activities count:", err);
+    return { 
+      total: 0, 
+      recent: 0, 
+      changePercentage: 0 
+    };
   }
 };
