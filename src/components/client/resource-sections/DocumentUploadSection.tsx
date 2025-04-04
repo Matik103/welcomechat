@@ -29,7 +29,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         await createClientActivity(
           clientId,
           undefined,
-          ActivityType.DOCUMENT_UPLOADED,
+          ActivityType.DOCUMENT_ADDED, // Using DOCUMENT_ADDED instead of DOCUMENT_UPLOADED
           `Document uploaded: ${result.fileName || 'Unknown document'}`,
           {
             document_id: result.documentId,

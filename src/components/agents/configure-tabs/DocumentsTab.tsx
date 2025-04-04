@@ -29,7 +29,7 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
         await createClientActivity(
           clientId,
           undefined,
-          ActivityType.DOCUMENT_UPLOADED,
+          ActivityType.DOCUMENT_ADDED, // Using DOCUMENT_ADDED instead of DOCUMENT_UPLOADED
           `Document uploaded: ${result.fileName || "Unknown"}`,
           {
             document_id: result.documentId,

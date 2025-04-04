@@ -78,10 +78,11 @@ export const useUnifiedDocumentUpload = ({
       
       setUploadProgress(100);
       
-      // Make sure publicUrl is set in the result
+      // Make sure publicUrl is available in the result
       const enhancedResult = {
         ...result,
-        publicUrl: result.documentUrl || result.publicUrl,
+        // Use documentUrl as publicUrl if publicUrl is not available
+        publicUrl: result.documentUrl || result.publicUrl || '',
         fileName: file.name,
         fileType: file.type
       };

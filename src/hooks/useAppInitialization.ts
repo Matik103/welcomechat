@@ -9,12 +9,15 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
   const [adminConfigError, setAdminConfigError] = useState<boolean>(false);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [initializationAttempted, setInitializationAttempted] = useState<boolean>(false);
+  const [initializationErrors, setInitializationErrors] = useState<string[]>([]);
   
   // Handle app initialization
   useEffect(() => {
     // Only initialize once
     if (initializationAttempted) return;
+    
     setInitializationAttempted(true);
+    console.log('Starting app initialization...');
     
     const initializeApp = async () => {
       if (!isInitializing) return;
@@ -24,48 +27,63 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
         sessionStorage.removeItem('auth_callback_processed');
       }
       
-      console.log('Initializing app...');
       console.log('Current path:', location.pathname);
       console.log('User authenticated:', !!user);
       console.log('User role:', userRole);
       
-      const isConfigured = isAdminClientConfigured();
-      setAdminConfigError(!isConfigured);
-      
-      // Initialize bucket with error handling and retries
-      if (isConfigured) {
-        try {
-          await Promise.race([
-            initializeBotLogosBucket(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Bucket initialization timeout')), 1500))
-          ]);
-        } catch (error) {
-          console.error('Error initializing bot-logos bucket:', error);
-          // Do not block app initialization for bucket errors
+      try {
+        const isConfigured = isAdminClientConfigured();
+        setAdminConfigError(!isConfigured);
+        
+        if (isConfigured) {
+          // Initialize bucket with error handling and retries
+          try {
+            await Promise.race([
+              initializeBotLogosBucket(),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Bucket initialization timeout')), 2500)
+              )
+            ]);
+            console.log('Bot logos bucket initialized successfully');
+          } catch (error) {
+            console.error('Error initializing bot-logos bucket:', error);
+            setInitializationErrors(prev => [...prev, 'Failed to initialize storage bucket']);
+            // Continue despite bucket init errors
+          }
+        } else {
+          console.warn('Admin client not configured - some features may not work');
         }
+      } catch (error) {
+        console.error('Error during app initialization:', error);
+        setInitializationErrors(prev => [
+          ...prev, 
+          `Initialization error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        ]);
+      } finally {
+        // Always complete initialization to avoid being stuck
+        console.log('Completing initialization');
+        setIsInitializing(false);
+        setIsLoading(false);
       }
-      
-      // Finish initialization with aggressive timeout
-      setTimeout(() => {
-        if (isInitializing) {
-          console.log('Completing initialization');
-          setIsInitializing(false);
-          setIsLoading(false);
-        }
-      }, 1000);
     };
     
     initializeApp();
     
-    // Limit initialization time with aggressive timeout
+    // Strict timeout for initialization
     const timeoutId = setTimeout(() => {
       if (isInitializing) {
         console.warn('Force completing initialization due to timeout');
         setIsInitializing(false);
         setIsLoading(false);
-        toast.warning("App initialization took longer than expected");
+        toast.warning("App initialization took longer than expected, some features may not work properly");
+        
+        // Add diagnostic info to help troubleshoot
+        setInitializationErrors(prev => [
+          ...prev,
+          'Initialization timeout exceeded (3s)'
+        ]);
       }
-    }, 2000);
+    }, 3000);
     
     return () => clearTimeout(timeoutId);
   }, [location.pathname, user, userRole, isLoading, isInitializing, setIsLoading, initializationAttempted]);
@@ -97,6 +115,7 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
   return {
     adminConfigError,
     isInitializing,
-    setIsInitializing
+    setIsInitializing,
+    initializationErrors
   };
 }
