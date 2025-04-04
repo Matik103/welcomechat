@@ -518,55 +518,43 @@ export type Database = {
       }
       assistant_documents: {
         Row: {
-          id: string
           assistant_id: string
           client_id: string
-          filename: string
-          file_type: string | null
-          content: string | null
-          storage_path: string | null
-          metadata: Json | null
-          status: string | null
           created_at: string | null
+          document_id: number | null
+          id: number
+          openai_file_id: string | null
+          status: string | null
           updated_at: string | null
-          embedding: string | null
         }
         Insert: {
-          id?: string
           assistant_id: string
           client_id: string
-          filename: string
-          file_type?: string | null
-          content?: string | null
-          storage_path?: string | null
-          metadata?: Json | null
-          status?: string | null
           created_at?: string | null
+          document_id?: number | null
+          id?: number
+          openai_file_id?: string | null
+          status?: string | null
           updated_at?: string | null
-          embedding?: string | null
         }
         Update: {
-          id?: string
           assistant_id?: string
           client_id?: string
-          filename?: string
-          file_type?: string | null
-          content?: string | null
-          storage_path?: string | null
-          metadata?: Json | null
-          status?: string | null
           created_at?: string | null
+          document_id?: number | null
+          id?: number
+          openai_file_id?: string | null
+          status?: string | null
           updated_at?: string | null
-          embedding?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "assistant_documents_assistant_id_fkey"
-            columns: ["assistant_id"]
+            foreignKeyName: "assistant_documents_document_id_fkey"
+            columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "client_assistants"
+            referencedRelation: "document_content"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       assistant_queries: {
@@ -961,10 +949,12 @@ export type Database = {
           content: string | null
           created_at: string | null
           document_id: string
+          embedding: string | null
           file_type: string | null
           filename: string | null
           id: number
           metadata: Json | null
+          openai_file_id: string | null
           storage_url: string | null
           updated_at: string | null
         }
@@ -973,10 +963,12 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           document_id: string
+          embedding?: string | null
           file_type?: string | null
           filename?: string | null
           id?: number
           metadata?: Json | null
+          openai_file_id?: string | null
           storage_url?: string | null
           updated_at?: string | null
         }
@@ -985,10 +977,12 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           document_id?: string
+          embedding?: string | null
           file_type?: string | null
           filename?: string | null
           id?: number
           metadata?: Json | null
+          openai_file_id?: string | null
           storage_url?: string | null
           updated_at?: string | null
         }
@@ -4653,47 +4647,34 @@ export type Database = {
           similarity: number
         }[]
       }
-      match_documents:
+      match_documents_by_embedding:
         | {
             Args: {
               p_client_id: string
-              p_embedding: string
+              p_query_embedding: string
               p_match_threshold?: number
               p_match_count?: number
             }
             Returns: {
-              id: number
-              document_id: string
+              id: string
               content: string
               similarity: number
             }[]
           }
         | {
             Args: {
-              query_embedding: string
-              match_count?: number
-              filter?: Json
+              p_client_id: string
+              p_query_embedding: string
+              p_match_threshold?: number
+              p_match_count?: number
             }
             Returns: {
-              id: number
+              id: string
               content: string
-              metadata: Json
               similarity: number
+              metadata: Json
             }[]
           }
-      match_documents_by_embedding: {
-        Args: {
-          p_client_id: string
-          p_query_embedding: string
-          p_match_threshold?: number
-          p_match_count?: number
-        }
-        Returns: {
-          id: string
-          content: string
-          similarity: number
-        }[]
-      }
       match_frenniy: {
         Args: {
           query_embedding: string

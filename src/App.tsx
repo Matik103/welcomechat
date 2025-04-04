@@ -7,6 +7,7 @@ import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
 import { ConfigError } from "./components/routes/ErrorDisplay";
+import { LoadingFallback } from "./components/routes/LoadingFallback";
 
 function App() {
   const { user, userRole, isLoading, session } = useAuth();
@@ -28,14 +29,9 @@ function App() {
   console.log('Is public route:', isPublicRoute);
   console.log('Auth state:', { user, userRole, isLoading });
   
-  // If there's a configuration error, show it
-  if (false) { // Removed admin config error check to prevent blank screen
-    return (
-      <ConfigError 
-        message="The application is missing required Supabase configuration." 
-        details="The VITE_SUPABASE_SERVICE_ROLE_KEY environment variable is missing or empty. This key is required for admin operations such as bucket management."
-      />
-    );
+  // If still loading, show a loading screen to prevent blank page
+  if (isLoading && !isAuthCallback) {
+    return <LoadingFallback />;
   }
 
   // Public route rendering for non-authenticated users
@@ -57,14 +53,13 @@ function App() {
     return <ClientRoutes />;
   }
 
-  // If user is authenticated but role not determined yet, don't render anything
-  // This prevents the flash of wrong content
+  // If user is authenticated but role not determined yet, show loading
   if (user && !userRole) {
-    return null;
+    return <LoadingFallback />;
   }
   
-  // Default to client view as fallback
-  return <ClientRoutes />;
+  // Default to home page as fallback
+  return <Navigate to="/" replace />;
 }
 
 export default App;
