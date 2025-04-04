@@ -171,6 +171,8 @@ interface StorageBucket {
   public: boolean;
 }
 
+const DOCUMENTS_BUCKET = 'client_documents';
+
 async function downloadFromGoogleDrive(driveLink: string): Promise<{ data: Uint8Array; filename: string }> {
   try {
     // Extract file ID from Google Drive link
@@ -208,7 +210,7 @@ async function uploadToStorage(storagePath: string, data: Uint8Array, contentTyp
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const { error } = await supabase.storage
-        .from('document-storage')
+        .from(DOCUMENTS_BUCKET)
         .upload(storagePath, data, {
           contentType: contentType,
           upsert: true
@@ -398,7 +400,7 @@ serve(async (req: Request) => {
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
-      .from('document-storage')
+      .from(DOCUMENTS_BUCKET)
       .getPublicUrl(storagePath);
 
     // Create document record

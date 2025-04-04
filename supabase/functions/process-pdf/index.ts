@@ -12,7 +12,7 @@ declare global {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const DOCUMENTS_BUCKET = 'document-storage';
+const DOCUMENTS_BUCKET = 'client_documents';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -149,7 +149,7 @@ serve(async (req) => {
 
       // Update document content
       const { error: updateError } = await supabase
-        .from('document_content')
+        .from('document_contentdocument_content')
         .update({ content: extractedText })
         .eq('id', document_id);
 

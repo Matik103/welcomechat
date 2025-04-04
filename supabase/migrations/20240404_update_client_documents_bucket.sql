@@ -1,5 +1,11 @@
+-- Drop old policies
+DROP POLICY IF EXISTS "Public Access to document-storage" ON storage.objects;
+DROP POLICY IF EXISTS "Individual User Document Access" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload to document-storage" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own uploads in document-storage" ON storage.objects;
+DROP POLICY IF EXISTS "Service role has full access" ON storage.objects;
 
--- Update the bucket configuration if it already exists
+-- Update the bucket configuration
 UPDATE storage.buckets
 SET 
   public = true,
@@ -57,68 +63,54 @@ GRANT ALL ON storage.buckets TO postgres;
 GRANT ALL ON storage.buckets TO authenticated;
 GRANT ALL ON storage.buckets TO service_role;
 
--- Ensure the bucket is accessible
+-- Enable RLS on storage.objects and buckets
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
 
--- Create policy to allow public bucket access (but not its contents)
-DROP POLICY IF EXISTS "Allow public client_documents access" ON storage.buckets;
-CREATE POLICY "Allow public client_documents access"
-ON storage.buckets FOR SELECT
-TO public
-USING (id = 'client_documents');
-
--- Create policy to allow authenticated users to access the bucket
-DROP POLICY IF EXISTS "Allow authenticated client_documents access" ON storage.buckets;
-CREATE POLICY "Allow authenticated client_documents access"
-ON storage.buckets FOR ALL 
+-- Create policies for storage.objects
+CREATE POLICY "Users can upload files to their own folder"
+ON storage.objects
+FOR INSERT
 TO authenticated
-USING (id = 'client_documents')
-WITH CHECK (id = 'client_documents');
+WITH CHECK (
+  bucket_id = 'client_documents' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
 
--- Create policy to allow service role to access the bucket
-DROP POLICY IF EXISTS "Allow service role client_documents access" ON storage.buckets;
-CREATE POLICY "Allow service role client_documents access"
-ON storage.buckets FOR ALL
-TO service_role
-USING (id = 'client_documents')
-WITH CHECK (id = 'client_documents');
-
--- Set up RLS policies for objects in this bucket
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
--- Allow authenticated users to read objects in the client_documents bucket
-DROP POLICY IF EXISTS "Allow client_documents read" ON storage.objects;
-CREATE POLICY "Allow client_documents read"
-ON storage.objects FOR SELECT
+CREATE POLICY "Users can view their own files"
+ON storage.objects
+FOR SELECT
 TO authenticated
-USING (bucket_id = 'client_documents');
+USING (
+  bucket_id = 'client_documents' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
 
--- Allow authenticated users to upload objects in the client_documents bucket
-DROP POLICY IF EXISTS "Allow client_documents insert" ON storage.objects;
-CREATE POLICY "Allow client_documents insert"
-ON storage.objects FOR INSERT
+CREATE POLICY "Users can update their own files"
+ON storage.objects
+FOR UPDATE
 TO authenticated
-WITH CHECK (bucket_id = 'client_documents');
+USING (
+  bucket_id = 'client_documents' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+)
+WITH CHECK (
+  bucket_id = 'client_documents' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
 
--- Allow authenticated users to update objects in the client_documents bucket
-DROP POLICY IF EXISTS "Allow client_documents update" ON storage.objects;
-CREATE POLICY "Allow client_documents update"
-ON storage.objects FOR UPDATE
+CREATE POLICY "Users can delete their own files"
+ON storage.objects
+FOR DELETE
 TO authenticated
-USING (bucket_id = 'client_documents')
-WITH CHECK (bucket_id = 'client_documents');
+USING (
+  bucket_id = 'client_documents' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
 
--- Allow authenticated users to delete objects in the client_documents bucket
-DROP POLICY IF EXISTS "Allow client_documents delete" ON storage.objects;
-CREATE POLICY "Allow client_documents delete"
-ON storage.objects FOR DELETE
-TO authenticated
-USING (bucket_id = 'client_documents');
-
--- Allow service role full access to objects in the client_documents bucket
-DROP POLICY IF EXISTS "Allow service role client_documents objects access" ON storage.objects;
-CREATE POLICY "Allow service role client_documents objects access"
-ON storage.objects FOR ALL
+CREATE POLICY "Service role has full access"
+ON storage.objects
+FOR ALL
 TO service_role
 USING (bucket_id = 'client_documents')
 WITH CHECK (bucket_id = 'client_documents');
