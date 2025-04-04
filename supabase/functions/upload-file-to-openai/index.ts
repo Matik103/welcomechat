@@ -30,13 +30,37 @@ const SUPPORTED_FILE_TYPES = {
   }
 };
 
+interface ProcessedContent {
+  content: string | null;
+  uploadData: Uint8Array;
+  contentType: string;
+  metadata?: {
+    size?: number;
+    chunks_processed?: number;
+    total_chunks?: number;
+    current_position?: number;
+    extraction_method?: string;
+    start_time?: string;
+    last_updated?: string;
+    retries?: number;
+    errors?: string[];
+    is_complete?: boolean;
+    googleDoc?: {
+      title: string;
+      mimeType: string;
+      lastModified: string;
+    };
+    processingError?: string;
+  };
+}
+
 // File type handlers for content processing
 const FILE_TYPE_HANDLERS = {
   'text/plain': {
     requiresExtraction: false,
     status: 'ready',
     message: 'Text document uploaded and ready for processing',
-    processContent: (data: Uint8Array) => {
+    processContent: (data: Uint8Array): ProcessedContent => {
       const content = new TextDecoder().decode(data);
       return {
         content,
@@ -49,14 +73,22 @@ const FILE_TYPE_HANDLERS = {
     requiresExtraction: true,
     status: 'pending_extraction',
     message: 'PDF uploaded and queued for content extraction',
-    processContent: (data: Uint8Array) => {
+    processContent: (data: Uint8Array): ProcessedContent => {
       return {
-        content: null, // Content will be extracted by a separate process
+        content: null,
         uploadData: data,
         contentType: 'application/pdf',
         metadata: {
           size: data.length,
-          needsExtraction: true
+          chunks_processed: 0,
+          total_chunks: Math.ceil(data.length / (1024 * 1024)),
+          current_position: 0,
+          extraction_method: 'chunked-text-extraction',
+          start_time: new Date().toISOString(),
+          last_updated: new Date().toISOString(),
+          retries: 0,
+          errors: [],
+          is_complete: false
         }
       };
     }
@@ -65,12 +97,11 @@ const FILE_TYPE_HANDLERS = {
     requiresExtraction: false,
     status: 'ready',
     message: 'Google Doc processed and stored',
-    processContent: (data: Uint8Array) => {
+    processContent: (data: Uint8Array): ProcessedContent => {
       try {
         const docContent = new TextDecoder().decode(data);
         const parsedContent = JSON.parse(docContent);
         
-        // Extract text content from Google Doc format
         let extractedText = '';
         if (parsedContent.body && parsedContent.body.content) {
           extractedText = parsedContent.body.content
@@ -98,9 +129,8 @@ const FILE_TYPE_HANDLERS = {
             }
           }
         };
-      } catch (error) {
-        console.error('Google Doc processing error:', error);
-        // Fallback to treating it as plain text
+      } catch (err) {
+        const error = err as Error;
         const content = new TextDecoder().decode(data);
         return {
           content,
@@ -122,6 +152,15 @@ interface RequestBody {
   file_name?: string;
   drive_link?: string;
   assistant_id: string;
+}
+
+interface StorageBucket {
+  name: string;
+  id: string;
+  owner: string;
+  created_at: string;
+  updated_at: string;
+  public: boolean;
 }
 
 async function downloadFromGoogleDrive(driveLink: string): Promise<{ data: Uint8Array; filename: string }> {
@@ -151,9 +190,50 @@ async function downloadFromGoogleDrive(driveLink: string): Promise<{ data: Uint8
       data: new Uint8Array(arrayBuffer),
       filename: filename
     };
-  } catch (error) {
+  } catch (err) {
+    const error = err as Error;
     throw new Error(`Failed to download from Google Drive: ${error.message}`);
   }
+}
+
+async function uploadToStorage(storagePath: string, data: Uint8Array, contentType: string): Promise<{ error: Error | null }> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const { error } = await supabase.storage
+        .from('document-storage')
+        .upload(storagePath, data, {
+          contentType: contentType,
+          upsert: true
+        });
+
+      if (!error) {
+        return { error: null };
+      }
+
+      // If it's not the last attempt, wait before retrying
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+      } else {
+        return { error: new Error(`Upload failed after ${attempt + 1} attempts: ${error.message}`) };
+      }
+    } catch (error) {
+      if (attempt === 2) {
+        return { error: error instanceof Error ? error : new Error('Unknown upload error') };
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+    }
+  }
+  return { error: new Error('Upload failed after all attempts') };
+}
+
+// Type guard for supported file types
+function isSupportedFileType(fileType: string): fileType is keyof typeof SUPPORTED_FILE_TYPES {
+  return fileType in SUPPORTED_FILE_TYPES;
+}
+
+// Type guard for file type handlers
+function isValidFileHandler(contentType: string): contentType is keyof typeof FILE_TYPE_HANDLERS {
+  return contentType in FILE_TYPE_HANDLERS;
 }
 
 serve(async (req: Request) => {
@@ -192,7 +272,7 @@ serve(async (req: Request) => {
         throw new Error("Missing required fields for direct file upload");
       }
 
-      if (!SUPPORTED_FILE_TYPES[file_type]) {
+      if (!isSupportedFileType(file_type)) {
         throw new Error(`Unsupported file type: ${file_type}`);
       }
 
@@ -207,25 +287,24 @@ serve(async (req: Request) => {
     }
 
     // Get file type handler
-    const fileHandler = FILE_TYPE_HANDLERS[contentType];
-    if (!fileHandler) {
+    if (!isValidFileHandler(contentType)) {
       throw new Error(`No handler found for file type: ${contentType}`);
     }
+    const fileHandler = FILE_TYPE_HANDLERS[contentType];
 
     // Process the content based on file type
     const processedContent = await fileHandler.processContent(fileData);
 
-    // Generate unique file name
+    // Generate unique file name and storage path
     const uniqueFileName = `${crypto.randomUUID()}-${fileName}`;
     const storagePath = `${client_id}/${uniqueFileName}`;
 
-    // Upload file to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(storagePath, processedContent.uploadData, {
-        contentType: processedContent.contentType,
-        upsert: true
-      });
+    // Upload file to storage with retry logic
+    const { error: uploadError } = await uploadToStorage(
+      storagePath,
+      processedContent.uploadData,
+      processedContent.contentType
+    );
 
     if (uploadError) {
       throw uploadError;
@@ -233,7 +312,7 @@ serve(async (req: Request) => {
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
-      .from('documents')
+      .from('document-storage')
       .getPublicUrl(storagePath);
 
     // Create document record
@@ -255,36 +334,74 @@ serve(async (req: Request) => {
       throw documentError;
     }
 
-    // Create assistant document record
-    const { error: assistantDocError } = await supabase
+    // Create assistant access record
+    const { error: accessError } = await supabase
       .from('assistant_documents')
       .insert({
-        assistant_id,
         document_id: document.id,
+        assistant_id: assistant_id,
+        client_id: client_id,
         status: fileHandler.requiresExtraction ? 'pending_extraction' : 'ready'
       });
 
-    if (assistantDocError) {
-      throw assistantDocError;
+    if (accessError) {
+      throw accessError;
+    }
+
+    // If PDF, trigger extraction process
+    if (fileHandler.requiresExtraction) {
+      try {
+        const extractionResponse = await fetch(
+          `${SUPABASE_URL}/functions/v1/extract-pdf-content`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+            },
+            body: JSON.stringify({
+              document_id: document.id.toString(),
+              chunk_size: 1024 * 1024, // 1MB chunks
+              max_chunks: 5
+            })
+          }
+        );
+
+        if (!extractionResponse.ok) {
+          console.error('Extraction request failed:', await extractionResponse.text());
+        }
+      } catch (error) {
+        console.error('Failed to trigger extraction:', error);
+        // Don't throw here - the document is uploaded, extraction can be retried
+      }
     }
 
     return new Response(
       JSON.stringify({
         status: "success",
         message: fileHandler.message,
-        document_id: document.id,
-        storage_url: publicUrl
+        document: {
+          id: document.id,
+          storage_path: storagePath,
+          file_name: fileName,
+          content_type: processedContent.contentType,
+          extraction_status: fileHandler.requiresExtraction ? 'pending_extraction' : 'ready'
+        }
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       }
     );
+
   } catch (error: unknown) {
     console.error("Error in upload-file-to-openai function:", error);
     const errorMessage = error instanceof Error ? error.message : "Internal server error";
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ 
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : undefined
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
