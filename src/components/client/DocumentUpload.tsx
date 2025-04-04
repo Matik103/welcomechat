@@ -87,12 +87,38 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         .insert({
           assistant_id: clientId,
           document_id: parseInt(uniqueId.replace(/-/g, '').slice(0, 9)),
+          filename: selectedFile.name,
+          file_type: selectedFile.type,
+          storage_path: filePath,
+          metadata: {
+            size: selectedFile.size,
+            storage_url: publicUrl,
+            uploadedAt: new Date().toISOString()
+          },
           status: selectedFile.type === 'application/pdf' ? 'pending_extraction' : 'ready'
         })
         .select()
         .single();
 
       if (docError) throw docError;
+
+      // If it's a PDF, trigger the extraction process
+      if (selectedFile.type === 'application/pdf') {
+        try {
+          const { data: extractionResponse, error: extractionError } = await supabase
+            .functions.invoke('extract-pdf-content', {
+              body: { document_id: document.id }
+            });
+
+          if (extractionError) {
+            console.error('PDF extraction error:', extractionError);
+            // Don't throw the error, just log it - the document is still uploaded
+          }
+        } catch (extractionError) {
+          console.error('Failed to invoke PDF extraction:', extractionError);
+          // Don't throw the error, just log it - the document is still uploaded
+        }
+      }
 
       const result: UploadResult = {
         success: true,
