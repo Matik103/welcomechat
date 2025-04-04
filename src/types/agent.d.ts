@@ -2,7 +2,7 @@
 export interface Agent {
   id: string;
   client_id: string;
-  client_name: string;
+  client_name: string; // Making this required to match agentService.ts Agent interface
   name: string;
   description: string;
   status: string;

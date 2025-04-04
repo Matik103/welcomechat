@@ -12,7 +12,7 @@ export interface ChatMessagesProps {
   assistantBubbleColor?: string;
   userTextColor?: string;
   assistantTextColor?: string;
-  isLoading?: boolean; // Added isLoading prop
+  isLoading?: boolean;
 }
 
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
@@ -21,7 +21,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
   assistantBubbleColor = "#F3F4F6",
   userTextColor = "#FFFFFF",
   assistantTextColor = "#1F2937",
-  isLoading = false, // Added default value for isLoading
+  isLoading = false,
 }) => {
   return (
     <div className="space-y-4">

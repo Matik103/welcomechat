@@ -103,8 +103,29 @@ export function useAgentFormSubmit({
       toast.success(`Agent "${agentName}" created successfully`);
       
       if (agent && onAgentCreated) {
+        // Transform agent data to match our Agent interface
+        const formattedAgent: Agent = {
+          id: agent.id,
+          client_id: agent.client_id,
+          client_name: agent.client_name || clientName || '',
+          name: agent.name,
+          description: agent.description || '',
+          status: agent.status,
+          created_at: agent.created_at,
+          updated_at: agent.updated_at,
+          interaction_type: agent.interaction_type,
+          agent_description: agent.agent_description || agentDescription || '',
+          logo_url: agent.logo_url || logoUrl,
+          logo_storage_path: agent.logo_storage_path || logoPath,
+          settings: agent.settings,
+          openai_assistant_id: agent.openai_assistant_id,
+          total_interactions: 0,
+          average_response_time: 0,
+          last_active: agent.updated_at
+        };
+        
         // Make sure to pass the created agent back to parent component
-        onAgentCreated(agent);
+        onAgentCreated(formattedAgent);
       }
       
       // Reset form

@@ -13,6 +13,7 @@ export function useAuthState() {
   // Function to check user role from the user_roles table
   const checkUserRole = async (userId: string) => {
     try {
+      console.log('Checking user role for user ID:', userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, client_id')
@@ -24,6 +25,7 @@ export function useAuthState() {
         return { role: null, clientId: null };
       }
 
+      console.log('Found user role data:', data);
       return { 
         role: data?.role as 'admin' | 'client' | null,
         clientId: data?.client_id
@@ -62,6 +64,7 @@ export function useAuthState() {
             const { role, clientId: userClientId } = await checkUserRole(currentSession.user.id);
             setUserRole(role);
             setClientId(userClientId);
+            console.log(`User role set to: ${role}, client ID: ${userClientId}`);
           }
         } else {
           console.log('No session found');

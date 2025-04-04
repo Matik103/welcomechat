@@ -24,34 +24,45 @@ const ClientAgents: React.FC = () => {
       console.log('Fetching agents for client ID:', clientId);
       
       if (!clientId) {
+        console.error('No client ID available');
         setError('No client ID available');
+        setLoading(false);
         return;
       }
 
+      // First get the client name
       const { data: clientData, error: clientError } = await supabase
-        .from('ai_agents')
+        .from('clients')
         .select('client_name')
-        .eq('client_id', clientId)
-        .limit(1)
+        .eq('id', clientId)
         .single();
 
       if (clientError && clientError.code !== 'PGRST116') {
         console.error('Error fetching client name:', clientError);
       } else if (clientData) {
+        console.log('Found client name:', clientData.client_name);
         setClientName(clientData.client_name || '');
       }
 
+      // Then get all agents for this client
+      console.log('Querying ai_agents table for client_id:', clientId);
       const { data, error: agentsError } = await supabase
         .from('ai_agents')
         .select('*')
         .eq('client_id', clientId)
         .eq('interaction_type', 'config')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
+        .eq('status', 'active');
 
-      if (agentsError) throw agentsError;
+      if (agentsError) {
+        console.error('Error fetching agents:', agentsError);
+        throw agentsError;
+      }
 
       console.log(`Fetched ${data?.length || 0} agents:`, data);
+      
+      if (!data || data.length === 0) {
+        console.log('No agents found for client ID:', clientId);
+      }
       
       const formattedAgents: Agent[] = (data || []).map(agent => ({
         id: agent.id,
@@ -70,10 +81,11 @@ const ClientAgents: React.FC = () => {
         openai_assistant_id: agent.openai_assistant_id,
         total_interactions: 0,
         average_response_time: 0,
-        last_active: agent.last_active
+        last_active: agent.updated_at // Use updated_at as last_active if not available
       }));
 
       setAgents(formattedAgents);
+      setError(null);
     } catch (err) {
       console.error('Error fetching agents:', err);
       setError('Failed to load agents');
@@ -92,10 +104,9 @@ const ClientAgents: React.FC = () => {
   }, [clientId]);
 
   const handleAgentCreated = (agent: Agent) => {
-    console.log('Agent created:', agent);
+    console.log('Agent created, refreshing agent list:', agent);
     // Add the new agent to the list or refetch all agents
     fetchAgents();
-    toast.success(`Agent "${agent.name}" created successfully`);
   };
 
   if (loading) {

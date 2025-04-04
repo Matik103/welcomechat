@@ -18,4 +18,5 @@ export interface WidgetSettings {
   icon_type?: 'chat' | 'message' | 'custom';
   custom_icon_url?: string;
   greeting_message?: string;
+  display_mode?: string;
 }

@@ -57,21 +57,23 @@ export interface AgentDetails {
   updated_at: string;
 }
 
-// Adding Agent interface that was missing from types
+// Updated Agent interface to match the required properties
 export interface Agent {
   id: string;
   name: string;
   status: string;
   client_id: string;
-  client_name?: string;
+  client_name: string; // Made required to match agentService.ts Agent interface
   agent_description?: string;
   logo_url?: string;
   total_interactions: number;
   average_response_time: number;
   last_active: string;
-  created_at?: string;
-  updated_at?: string;
+  created_at: string;
+  updated_at: string;
   openai_assistant_id?: string;
   settings?: Json;
-  interaction_type?: string;
+  interaction_type: string;
+  description?: string;
+  logo_storage_path?: string;
 }
