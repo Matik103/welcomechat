@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -30,9 +31,19 @@ async function testUpload() {
 
     console.log('Uploading file to path:', filePath);
 
+    // Check available buckets
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    if (bucketsError) {
+      console.error('Error listing buckets:', bucketsError);
+      return;
+    }
+    console.log('Available buckets:', buckets.map(b => b.name));
+
+    const BUCKET_NAME = 'document-storage';
+    
     // Upload file
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('document-storage')
+      .from(BUCKET_NAME)
       .upload(filePath, fileContent, {
         contentType: 'text/plain',
         cacheControl: '3600',
@@ -48,7 +59,7 @@ async function testUpload() {
 
     // Get public URL
     const { data: urlData } = supabase.storage
-      .from('document-storage')
+      .from(BUCKET_NAME)
       .getPublicUrl(filePath);
 
     console.log('File URL:', urlData.publicUrl);

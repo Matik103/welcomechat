@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -47,6 +48,16 @@ async function testUpload() {
 
     console.log('Using agent:', agent);
 
+    // List available buckets
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    if (bucketsError) {
+      console.error('Error listing buckets:', bucketsError);
+      return;
+    }
+    console.log('Available buckets:', buckets.map(b => b.name));
+
+    const BUCKET_NAME = 'document-storage';
+
     // Create test file content
     const fileContent = new Blob(['This is a test document'], { type: 'text/plain' });
     const fileName = 'test.txt';
@@ -56,7 +67,7 @@ async function testUpload() {
 
     // Upload file
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('document-storage')
+      .from(BUCKET_NAME)
       .upload(filePath, fileContent, {
         contentType: 'text/plain',
         cacheControl: '3600',
@@ -72,7 +83,7 @@ async function testUpload() {
 
     // Get public URL
     const { data: urlData } = supabase.storage
-      .from('document-storage')
+      .from(BUCKET_NAME)
       .getPublicUrl(filePath);
 
     console.log('File URL:', urlData.publicUrl);

@@ -1,3 +1,4 @@
+
 // Define bucket names as constants
 export const DOCUMENTS_BUCKET = 'document-storage';
 
@@ -18,6 +19,7 @@ export const getDocumentStorageBucket = async () => {
     
     const documentBucket = buckets?.find(b => b.name === DOCUMENTS_BUCKET);
     if (!documentBucket) {
+      console.error(`Storage bucket ${DOCUMENTS_BUCKET} not found, available buckets:`, buckets?.map(b => b.name));
       throw new Error(`Storage bucket ${DOCUMENTS_BUCKET} not found`);
     }
     
@@ -45,6 +47,8 @@ export const uploadToDocumentStorage = async (
     // Generate a unique file path
     const uniqueId = crypto.randomUUID();
     const filePath = `${clientId}/${uniqueId}-${file.name}`;
+    
+    console.log(`Uploading file to bucket: ${DOCUMENTS_BUCKET}, path: ${filePath}`);
     
     // Upload the file
     const { data, error: uploadError } = await supabase.storage

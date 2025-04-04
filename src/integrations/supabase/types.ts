@@ -1178,6 +1178,56 @@ export type Database = {
           },
         ]
       }
+      document_storage: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          created_by: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          metadata: Json | null
+          mime_type: string
+          public_url: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          created_by?: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          metadata?: Json | null
+          mime_type: string
+          public_url: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          metadata?: Json | null
+          mime_type?: string
+          public_url?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_storage_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       "document-storage": {
         Row: {
           client_id: string | null
@@ -4054,6 +4104,24 @@ export type Database = {
           query_text: string
           response_text: string
           response_time_ms: number | null
+        }[]
+      }
+      get_client_documents: {
+        Args: {
+          p_client_id: string
+        }
+        Returns: {
+          client_id: string
+          created_at: string | null
+          created_by: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          metadata: Json | null
+          mime_type: string
+          public_url: string
+          updated_at: string | null
         }[]
       }
       get_common_queries: {
