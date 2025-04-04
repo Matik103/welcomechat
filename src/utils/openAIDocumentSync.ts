@@ -54,14 +54,21 @@ export const syncDocumentWithOpenAI = async (
     console.log(`Found OpenAI assistant ID: ${assistantId}`);
     
     try {
-      // Read the file content as text
-      const textContent = await file.text();
+      // Convert file to base64
+      const fileData = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          resolve(base64data.split(',')[1]); // Remove data URL prefix
+        };
+        reader.readAsDataURL(file);
+      });
 
-      // Call the Edge Function with the text content
+      // Call the Edge Function with the file data
       const { data, error } = await supabase.functions.invoke('upload-file-to-openai', {
         body: {
           client_id: clientId,
-          file_data: btoa(textContent), // Convert text to base64
+          file_data: fileData,
           file_name: file.name,
           file_type: file.type
         }
