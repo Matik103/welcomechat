@@ -1,13 +1,12 @@
+
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, File, X, Check, AlertCircle, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckCircle2 } from 'lucide-react';
-import { Json } from '@/types/document-processing';
+import { Upload, File, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { fixDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
+import { Json } from '@/types/document-processing';
 
 interface UploadResult {
   success: boolean;
@@ -23,6 +22,7 @@ interface DocumentUploadProps {
   onUploadComplete?: (result: UploadResult) => void;
 }
 
+// Type-safe metadata interface
 interface DocumentMetadata {
   size: number;
   storage_path: string;
@@ -30,6 +30,7 @@ interface DocumentMetadata {
   uploadedAt: string;
   processing_status?: string;
   error?: string;
+  [key: string]: any;
 }
 
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({
@@ -59,8 +60,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      setSelectedFile(file);
+      setSelectedFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -137,7 +137,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         
       if (uploadError) {
         console.error('Error uploading file:', uploadError);
-        throw new Error(`Failed to upload file to storage: ${uploadError.message}`);
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
       }
       
       // Get the public URL
@@ -147,10 +147,10 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
       console.log('File uploaded successfully, public URL:', publicUrl);
 
-      // Get the client's assistant - but don't fail if not found
+      // Get the client's assistant
       const { data: assistant, error: assistantError } = await supabase
         .from('ai_agents')
-        .select('id')
+        .select('id, openai_assistant_id')
         .eq('client_id', clientId)
         .eq('interaction_type', 'config')
         .single();
@@ -159,7 +159,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         console.log('No assistant found - continuing without assistant association');
       }
 
-      // Create document record in the document_content table
+      // Create document metadata
       const documentMetadata: DocumentMetadata = {
         size: selectedFile.size,
         storage_path: filePath,
@@ -168,26 +168,22 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         processing_status: selectedFile.type === 'application/pdf' ? 'pending_extraction' : 'ready'
       };
 
+      // Create document record in document_content table
       const { data: document, error: docError } = await supabase
         .from('document_content')
         .insert({
           client_id: clientId,
           document_id: uniqueId,
-          content: null, // Will be populated by the PDF extraction process
+          content: null,
           filename: selectedFile.name,
           file_type: selectedFile.type,
-          metadata: documentMetadata
+          metadata: documentMetadata as Json
         })
         .select()
         .single();
 
       if (docError) {
         console.error('Error creating document record:', docError);
-        
-        if (docError.message.includes('violates row-level security policy')) {
-          // Special handling for RLS violations
-          throw new Error('Permission denied. Please try the "Fix Permissions" button below or contact support.');
-        }
         
         // Try to clean up the uploaded file
         const { error: removeError } = await supabase.storage
@@ -198,34 +194,41 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           console.error('Failed to clean up file after document record error:', removeError);
         }
         
+        if (docError.message.includes('row-level security policy') || 
+            docError.message.includes('permission denied')) {
+          throw new Error('Permission denied. Please try the "Fix Permissions" button below.');
+        }
+        
         throw new Error(`Failed to create document record: ${docError.message}`);
       }
 
       console.log('Document record created:', document);
 
       // Create record in assistant_documents table if we found an assistant
-      if (assistant && assistant.id) {
-        const assistantMetadata: DocumentMetadata = {
-          size: selectedFile.size,
-          storage_path: filePath,
-          storage_url: publicUrl,
-          uploadedAt: new Date().toISOString()
-        };
+      if (assistant && assistant.openai_assistant_id) {
+        try {
+          const { error: assistantDocError } = await supabase
+            .from('assistant_documents')
+            .insert({
+              assistant_id: assistant.openai_assistant_id,
+              client_id: clientId,
+              filename: selectedFile.name,
+              file_type: selectedFile.type,
+              storage_path: filePath,
+              metadata: {
+                size: selectedFile.size,
+                storage_url: publicUrl,
+                uploadedAt: new Date().toISOString()
+              }
+            });
 
-        const { error: assistantDocError } = await supabase
-          .from('assistant_documents')
-          .insert({
-            assistant_id: assistant.id,
-            client_id: clientId,
-            filename: selectedFile.name,
-            file_type: selectedFile.type,
-            storage_path: filePath,
-            metadata: assistantMetadata
-          });
-
-        if (assistantDocError) {
-          console.error('Error creating assistant document record:', assistantDocError);
-          // We'll continue anyway since the main document was created successfully
+          if (assistantDocError) {
+            console.error('Error creating assistant document record:', assistantDocError);
+            // We'll continue anyway since the main document was created successfully
+          }
+        } catch (error) {
+          console.warn('Error linking document to assistant (non-critical):', error);
+          // Non-critical error, continue
         }
       }
 
@@ -408,7 +411,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           <AlertDescription>
             {uploadResult.error || 'There was an error uploading your document. Please try again.'}
             
-            {uploadResult.error && uploadResult.error.includes('row-level security policy') && (
+            {uploadResult.error && (
+              uploadResult.error.includes('row-level security policy') || 
+              uploadResult.error.includes('permission denied') || 
+              uploadResult.error.includes('Fix Permissions')
+            ) && (
               <div className="mt-4">
                 <Button 
                   variant="outline" 
