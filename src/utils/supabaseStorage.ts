@@ -1,5 +1,5 @@
 // Define bucket names as constants
-export const DOCUMENTS_BUCKET = 'document-storage';
+export const DOCUMENTS_BUCKET = 'document_storage';
 
 /**
  * Gets the document storage bucket for uploads
