@@ -11,12 +11,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    // Only use the componentTagger in development mode
-    // And make it conditional to avoid issues in production build
-    mode === 'development' && process.env.USE_TAGGER === 'true' ? 
-      // @ts-ignore - Import it dynamically only when needed
-      import('lovable-tagger').then(module => module.componentTagger()) : null,
-  ].filter(Boolean),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
