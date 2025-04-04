@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { WebsiteUrlFormData } from '@/types/website-url';
 import { WebsiteUrls } from '@/components/client/website-urls';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
+import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
 
 interface WebsiteUrlsTabProps {
   clientId: string;
@@ -20,6 +22,7 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
   const [url, setUrl] = useState('');
   const [refreshRate, setRefreshRate] = useState(30); // Default 30 days
   const { addWebsiteUrl, addWebsiteUrlMutation } = useWebsiteUrlsMutation(clientId);
+  const storeWebsiteContent = useStoreWebsiteContent(clientId);
 
   const validateUrl = (url: string) => {
     try {
@@ -57,7 +60,14 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
         }
       };
       
-      await addWebsiteUrl(websiteUrlData);
+      // Add the website URL to the database
+      const newUrl = await addWebsiteUrl(websiteUrlData);
+      
+      // Process the website content
+      if (newUrl) {
+        toast.info('Processing website content...');
+        storeWebsiteContent.mutate(newUrl);
+      }
       
       // Log activity
       await createClientActivity(
@@ -130,12 +140,12 @@ export function WebsiteUrlsTab({ clientId, agentName, onSuccess }: WebsiteUrlsTa
         
         <Button 
           type="submit" 
-          disabled={addWebsiteUrlMutation.isPending || !url.trim()}
+          disabled={addWebsiteUrlMutation.isPending || storeWebsiteContent.isPending || !url.trim()}
         >
-          {addWebsiteUrlMutation.isPending ? (
+          {(addWebsiteUrlMutation.isPending || storeWebsiteContent.isPending) ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Adding...
+              {storeWebsiteContent.isPending ? 'Processing...' : 'Adding...'}
             </>
           ) : (
             'Add Website URL'
