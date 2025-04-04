@@ -1,48 +1,75 @@
-
 // Define bucket names as constants
 export const DOCUMENTS_BUCKET = 'document-storage';
 
 /**
- * Ensures the document storage bucket exists and has proper permissions
+ * Gets the document storage bucket for uploads
  */
-export const ensureDocumentStorageBucket = async (): Promise<boolean> => {
+export const getDocumentStorageBucket = async () => {
   try {
     const { supabase } = await import('@/integrations/supabase/client');
     
-    // Try to create the bucket if it doesn't exist
-    const { error } = await supabase.storage.createBucket(DOCUMENTS_BUCKET, {
-      public: true,
-      allowedMimeTypes: ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-      fileSizeLimit: 20971520 // 20MB
-    });
+    // Get the bucket
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     
-    if (error && !error.message.includes('already exists')) {
-      console.error(`Error creating ${DOCUMENTS_BUCKET} bucket:`, error);
-      return false;
+    if (listError) {
+      console.error('Error listing buckets:', listError);
+      throw new Error(`Failed to access storage: ${listError.message}`);
+    }
+    
+    const documentBucket = buckets?.find(b => b.name === DOCUMENTS_BUCKET);
+    if (!documentBucket) {
+      throw new Error(`Storage bucket ${DOCUMENTS_BUCKET} not found`);
     }
     
     console.log(`Bucket ${DOCUMENTS_BUCKET} ready for upload`);
+    return documentBucket;
+  } catch (error) {
+    console.error('Error accessing document storage bucket:', error);
+    throw error;
+  }
+};
+
+/**
+ * Uploads a file to the document storage bucket
+ */
+export const uploadToDocumentStorage = async (
+  file: File,
+  clientId: string
+): Promise<{ path: string; url: string }> => {
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
     
-    // Create or run the RPC function to setup storage policies
-    try {
-      // Use callRpcFunctionSafe from rpcUtils to handle RPC calls in a type-safe way
-      const { callRpcFunctionSafe } = await import('@/utils/rpcUtils');
-      const { data, error: rpcError } = await callRpcFunctionSafe('setup_document_storage_policies');
+    // Ensure we can access the bucket
+    await getDocumentStorageBucket();
+    
+    // Generate a unique file path
+    const uniqueId = crypto.randomUUID();
+    const filePath = `${clientId}/${uniqueId}-${file.name}`;
+    
+    // Upload the file
+    const { data, error: uploadError } = await supabase.storage
+      .from(DOCUMENTS_BUCKET)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
       
-      if (rpcError) {
-        console.error('Error setting up storage policies:', rpcError);
-        // Continue anyway, as the bucket was created
-      } else {
-        console.log('Storage policies setup successful:', data);
-      }
-    } catch (rpcError) {
-      console.error('Error calling setup_document_storage_policies RPC:', rpcError);
-      // Continue since the bucket itself might be operational
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError);
+      throw uploadError;
     }
     
-    return true;
+    // Get the public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from(DOCUMENTS_BUCKET)
+      .getPublicUrl(filePath);
+      
+    return {
+      path: filePath,
+      url: publicUrl
+    };
   } catch (error) {
-    console.error('Error ensuring document storage bucket exists:', error);
-    return false;
+    console.error('Error in uploadToDocumentStorage:', error);
+    throw error;
   }
 };

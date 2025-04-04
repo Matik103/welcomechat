@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { DOCUMENTS_BUCKET, ensureDocumentStorageBucket } from '@/utils/supabaseStorage';
+import { uploadToDocumentStorage } from '@/utils/supabaseStorage';
 
 interface UploadResult {
   success: boolean;
@@ -31,33 +31,10 @@ export const uploadDocument = async (
       return { success: false, error: 'Client ID is required' };
     }
 
-    // Create a unique filepath
-    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-    const filePath = `${clientId}/${fileName}`;
-
-    console.log(`Attempting to upload to bucket: ${DOCUMENTS_BUCKET}`);
-    
-    // Ensure bucket exists before upload
-    await ensureDocumentStorageBucket();
+    console.log('Starting document upload for client:', clientId);
 
     // Upload to storage bucket
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from(DOCUMENTS_BUCKET)
-      .upload(filePath, file);
-
-    if (uploadError) {
-      console.error('Error uploading document to storage:', uploadError);
-      return { success: false, error: uploadError.message };
-    }
-
-    // Get the public URL
-    const { data: urlData } = await supabase.storage
-      .from(DOCUMENTS_BUCKET)
-      .getPublicUrl(filePath);
-
-    if (!urlData?.publicUrl) {
-      return { success: false, error: 'Failed to generate public URL for document' };
-    }
+    const { path: filePath, url: publicUrl } = await uploadToDocumentStorage(file, clientId);
 
     // Store document metadata in the database
     const { data: documentData, error: documentError } = await supabase
@@ -65,9 +42,9 @@ export const uploadDocument = async (
       .insert([
         {
           client_id: clientId,
-          document_url: urlData.publicUrl,
+          document_url: publicUrl,
           document_type: file.type,
-          document_id: fileName,
+          document_id: filePath,
           status: options.shouldProcessWithOpenAI ? 'pending' : 'completed',
           agent_name: options.agentName || 'AI Assistant'
         }
@@ -130,7 +107,7 @@ export const uploadDocument = async (
     return {
       success: true,
       documentId: documentId.toString(),
-      documentUrl: urlData.publicUrl,
+      documentUrl: publicUrl,
       fileName: file.name,
       fileType: file.type,
       processed: 1,

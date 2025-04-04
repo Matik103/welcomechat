@@ -1,7 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { fixDocumentLinksRLS } from '@/utils/applyDocumentLinksRLS';
-import { ensureDocumentStorageBucket } from '@/utils/supabaseStorage';
+import { getDocumentStorageBucket } from '@/utils/supabaseStorage';
 
 export const createSqlScriptsBucket = async () => {
   try {
@@ -116,18 +115,23 @@ export const initializeSqlResources = async () => {
     const bucketsResult = await createSqlScriptsBucket();
     console.log("SQL scripts bucket initialization result:", bucketsResult);
     
-    // Ensure document-storage bucket exists
-    const documentStorageResult = await ensureDocumentStorageBucket();
-    console.log("Document storage bucket initialization result:", documentStorageResult);
-    
-    // Also apply the RLS policies right away to ensure they're in place
+    // Verify document-storage bucket is accessible
     try {
-      const { success: rlsSuccess } = await fixDocumentLinksRLS();
-      console.log("Initial RLS policies application result:", rlsSuccess);
-      return bucketsResult && rlsSuccess && documentStorageResult;
-    } catch (rlsError) {
-      console.error("Error applying RLS policies:", rlsError);
-      return bucketsResult && documentStorageResult; // Return true if at least the buckets were created
+      await getDocumentStorageBucket();
+      console.log("Document storage bucket is accessible");
+      
+      // Also apply the RLS policies right away to ensure they're in place
+      try {
+        const { success: rlsSuccess } = await fixDocumentLinksRLS();
+        console.log("Initial RLS policies application result:", rlsSuccess);
+        return bucketsResult && rlsSuccess;
+      } catch (rlsError) {
+        console.error("Error applying RLS policies:", rlsError);
+        return bucketsResult; // Return true if at least the buckets were created
+      }
+    } catch (storageError) {
+      console.error("Error accessing document storage bucket:", storageError);
+      return false;
     }
   } catch (error) {
     console.error("Error initializing SQL resources:", error);
