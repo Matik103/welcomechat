@@ -25,7 +25,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       console.log("Starting document upload process for:", file.name);
       const result = await uploadDocument(file, { 
         clientId,
-        shouldProcessWithOpenAI: true,
         agentName: 'AI Assistant'
       });
 
@@ -88,15 +87,9 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         {uploadResult && uploadResult.success && (
           <Alert className="bg-green-50 border-green-200">
             <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <AlertTitle className="text-green-800">Document processed successfully</AlertTitle>
+            <AlertTitle className="text-green-800">Document uploaded successfully</AlertTitle>
             <AlertDescription className="text-green-700">
-              Your document "{uploadResult.fileName}" has been uploaded and processed. 
-              {uploadResult.processed > 0 && (
-                <span> Successfully processed {uploadResult.processed} sections.</span>
-              )}
-              {uploadResult.failed > 0 && (
-                <span className="text-amber-600"> Failed to process {uploadResult.failed} sections.</span>
-              )}
+              Your document "{uploadResult.fileName}" has been uploaded and will be processed shortly.
               {uploadResult.documentUrl && (
                 <div className="mt-2">
                   <a 
@@ -118,7 +111,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Upload failed</AlertTitle>
             <AlertDescription>
-              {uploadResult.error || 'There was an error processing your document. Please try again.'}
+              {uploadResult.error || 'There was an error uploading your document. Please try again.'}
             </AlertDescription>
           </Alert>
         )}

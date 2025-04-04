@@ -14,12 +14,11 @@ interface UploadResult {
 }
 
 interface UploadOptions {
-  shouldProcessWithOpenAI?: boolean;
   agentName?: string;
 }
 
 /**
- * Unified document upload service that handles both storage and OpenAI processing
+ * Unified document upload service that handles storage and database updates
  */
 export const uploadDocument = async (
   clientId: string, 
@@ -45,7 +44,7 @@ export const uploadDocument = async (
           document_url: publicUrl,
           document_type: file.type,
           document_id: filePath,
-          status: options.shouldProcessWithOpenAI ? 'pending' : 'completed',
+          status: 'pending',
           agent_name: options.agentName || 'AI Assistant'
         }
       ])
@@ -57,56 +56,9 @@ export const uploadDocument = async (
       return { success: false, error: documentError.message };
     }
 
-    // Convert string id to number if needed
-    const documentId = typeof documentData.id === 'string' 
-      ? parseInt(documentData.id, 10) 
-      : documentData.id;
-
-    // If OpenAI processing is requested, send to Edge Function
-    if (options.shouldProcessWithOpenAI) {
-      try {
-        // Read file as base64
-        const base64Data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const base64 = reader.result as string;
-            // Remove data URL prefix if present
-            const base64Clean = base64.replace(/^data:[^;]+;base64,/, '');
-            resolve(base64Clean);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        // Call Edge Function to process with OpenAI
-        const { data: openAIData, error: openAIError } = await supabase.functions.invoke(
-          'upload-file-to-openai',
-          {
-            body: {
-              client_id: clientId,
-              file_data: base64Data,
-              file_type: file.type,
-              file_name: file.name,
-              document_id: documentId
-            }
-          }
-        );
-
-        if (openAIError) {
-          console.error('Error processing with OpenAI:', openAIError);
-          toast.warning('Document uploaded but AI processing failed');
-        } else {
-          console.log('OpenAI processing successful:', openAIData);
-        }
-      } catch (openAIError) {
-        console.error('Error in OpenAI processing:', openAIError);
-        toast.warning('Document uploaded but AI processing failed');
-      }
-    }
-
     return {
       success: true,
-      documentId: documentId.toString(),
+      documentId: documentData.id.toString(),
       documentUrl: publicUrl,
       fileName: file.name,
       fileType: file.type,

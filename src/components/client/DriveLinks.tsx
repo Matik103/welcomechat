@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
@@ -6,16 +5,23 @@ import { DocumentLinksList } from './drive-links/DocumentLinksList';
 import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { DocumentType, DocumentProcessingResult } from '@/types/document-processing';
+import { DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 
 interface DriveLinksProps {
   clientId: string;
   onResourceChange?: () => void;
+  logClientActivity: () => Promise<void>;
+  onUploadComplete?: () => void;
 }
 
-export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChange }) => {
+export const DriveLinks: React.FC<DriveLinksProps> = ({
+  clientId,
+  onResourceChange,
+  logClientActivity,
+  onUploadComplete
+}) => {
   const [activeTab, setActiveTab] = useState('links');
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
@@ -78,21 +84,24 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
     }
   };
 
-  // Changed the function signature to match what DocumentUploadForm expects
-  const handleUpload = async (file: File): Promise<void> => {
+  const handleDriveUpload = async (file: File): Promise<void> => {
     try {
       const result = await uploadDocument(file, {
         clientId,
-        shouldProcessWithOpenAI: true,
         agentName: 'AI Assistant'
       });
 
-      if (result.success && onResourceChange) {
-        onResourceChange();
+      if (result.success) {
+        await logClientActivity();
+        if (onUploadComplete) {
+          onUploadComplete();
+        }
+      } else {
+        toast.error(result.error || 'Failed to upload document');
       }
     } catch (error) {
-      console.error('Error uploading document:', error);
-      toast.error(`Failed to upload document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Drive upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
@@ -128,7 +137,7 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
           
           <TabsContent value="upload">
             <DocumentUploadForm
-              onSubmitDocument={handleUpload}
+              onSubmitDocument={handleDriveUpload}
               isUploading={isUploading}
               uploadProgress={uploadProgress}
             />
