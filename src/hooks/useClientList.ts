@@ -19,6 +19,7 @@ export const useClientList = () => {
   const lastFetchTime = useRef<number>(0);
   const initialLoadDone = useRef<boolean>(false);
   const fetchTimeoutRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchClients = useCallback(async (force = false) => {
     // Don't refetch if we just did within the last 15 seconds unless forced
@@ -40,7 +41,15 @@ export const useClientList = () => {
     try {
       console.log('Fetching clients data...');
       
-      // Set a timeout to show error after 10 seconds
+      // Cancel any existing fetch
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Create a new abort controller for this fetch
+      abortControllerRef.current = new AbortController();
+      
+      // Set a timeout to show error after 15 seconds
       if (fetchTimeoutRef.current) {
         window.clearTimeout(fetchTimeoutRef.current);
       }
@@ -48,20 +57,28 @@ export const useClientList = () => {
       fetchTimeoutRef.current = window.setTimeout(() => {
         if (isLoading) {
           console.error('Client fetch timeout reached');
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+          }
           setError(new Error('Request timed out. Please try again.'));
           setIsLoading(false);
           toast.error('Failed to load clients: Request timed out');
         }
-      }, 10000) as unknown as number;
+      }, 15000) as unknown as number;
       
+      // Optimize the query to be more efficient
       let query = supabase
         .from('ai_agents')
-        .select('*')
-        .eq('interaction_type', 'config');
+        .select('id, client_id, name, client_name, email, agent_description, logo_url, logo_storage_path, settings, status, created_at, updated_at, last_active, deletion_scheduled_at, deleted_at')
+        .eq('interaction_type', 'config')
+        .is('deleted_at', null);
       
       if (searchQuery) {
         query = query.or(`client_name.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
       }
+      
+      // Add limit and order by to improve performance
+      query = query.order('updated_at', { ascending: false }).limit(100);
       
       const { data, error } = await query;
       
@@ -116,10 +133,15 @@ export const useClientList = () => {
       initialLoadDone.current = true;
     } catch (error) {
       console.error('Error fetching clients:', error);
-      setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
-      toast.error(`Failed to load clients: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Only set error if it's not an abort error
+      if (error instanceof Error && error.name !== 'AbortError') {
+        setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
+        toast.error(`Failed to load clients: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     } finally {
       setIsLoading(false);
+      // Clear the abort controller reference
+      abortControllerRef.current = null;
     }
   }, [searchQuery, isLoading]);
   
@@ -128,9 +150,12 @@ export const useClientList = () => {
     fetchClients(true);
     
     return () => {
-      // Clean up timeout if component unmounts
+      // Clean up timeout and abort controller if component unmounts
       if (fetchTimeoutRef.current) {
         window.clearTimeout(fetchTimeoutRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, [fetchClients]);

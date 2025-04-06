@@ -6,10 +6,10 @@ import { useClientList } from '@/hooks/useClientList';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, AlertCircle } from 'lucide-react';
 import { AddClientModal } from '@/components/client/AddClientModal';
 import { Client } from '@/types/client';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function AdminClientsPage() {
   const { clients, isLoading, error, searchQuery, handleSearch, refetch } = useClientList();
@@ -61,8 +61,10 @@ export default function AdminClientsPage() {
           
           {error && (
             <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
               <AlertDescription className="flex items-center justify-between">
-                <span>Error loading clients: {error.message}</span>
+                <span>Failed to load clients: {error.message}</span>
                 <Button variant="outline" size="sm" onClick={handleRetryClick}>
                   Retry
                 </Button>
