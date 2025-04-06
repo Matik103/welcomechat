@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -38,6 +37,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   const handleCopyCode = () => {
     try {
       const chatApiEndpoint = `https://${projectRef}.supabase.co/functions/v1/chat`;
+      const queryAssistantEndpoint = `https://${projectRef}.supabase.co/functions/v1/query-openai-assistant`;
       
       let customCss = '';
       let widgetHtml = '';
@@ -78,7 +78,13 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
       fontColor: "${settings.text_color || "#1F2937"}",
       displayMode: "${settings.display_mode || "floating"}"
     },
-    apiEndpoint: "${chatApiEndpoint}"
+    apiEndpoint: "${chatApiEndpoint}",
+    assistantEndpoint: "${queryAssistantEndpoint}",
+    assistantConfig: {
+      clientId: "${settings.openai_assistant_id ? settings.clientId : ''}",
+      assistantId: "${settings.openai_assistant_id || ''}",
+      greeting: "${settings.greeting_message || 'Hello! How can I help you today?'}"
+    }
   };
 </script>
 
@@ -143,7 +149,7 @@ ${widgetHtml}
       const messagesContainer = widget.querySelector(".chat-messages");
       
       if (input && sendButton && messagesContainer) {
-        const sendMessage = function() {
+        const sendMessage = async function() {
           const message = input.value.trim();
           if (!message) return;
           
@@ -157,20 +163,89 @@ ${widgetHtml}
           input.value = "";
           messagesContainer.scrollTop = messagesContainer.scrollHeight;
           
-          // Simulate assistant response (in a real implementation, this would call your API)
-          setTimeout(function() {
-            const assistantMsg = document.createElement("div");
-            assistantMsg.className = "assistant-message";
-            assistantMsg.textContent = config.branding.welcomeText;
-            messagesContainer.appendChild(assistantMsg);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-          }, 1000);
+          // Show typing indicator
+          const typingIndicator = document.createElement("div");
+          typingIndicator.className = "typing-indicator";
+          typingIndicator.innerHTML = \`
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          \`;
+          messagesContainer.appendChild(typingIndicator);
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          
+          try {
+            // Use the OpenAI assistant if available, otherwise use default response
+            if (config.assistantConfig && config.assistantConfig.assistantId && config.assistantEndpoint) {
+              const response = await fetch(config.assistantEndpoint, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  client_id: config.assistantConfig.clientId,
+                  query: message
+                })
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                
+                // Remove typing indicator
+                messagesContainer.removeChild(typingIndicator);
+                
+                // Add assistant message
+                const assistantMsg = document.createElement("div");
+                assistantMsg.className = "assistant-message";
+                assistantMsg.textContent = data.answer || config.branding.welcomeText;
+                messagesContainer.appendChild(assistantMsg);
+              } else {
+                throw new Error('API request failed');
+              }
+            } else {
+              // Fallback to simple response if no assistant is configured
+              setTimeout(function() {
+                // Remove typing indicator
+                messagesContainer.removeChild(typingIndicator);
+                
+                const assistantMsg = document.createElement("div");
+                assistantMsg.className = "assistant-message";
+                assistantMsg.textContent = config.branding.welcomeText;
+                messagesContainer.appendChild(assistantMsg);
+              }, 1000);
+            }
+          } catch (error) {
+            console.error("Error querying assistant:", error);
+            
+            // Remove typing indicator
+            if (messagesContainer.contains(typingIndicator)) {
+              messagesContainer.removeChild(typingIndicator);
+            }
+            
+            // Show error message
+            const errorMsg = document.createElement("div");
+            errorMsg.className = "assistant-message";
+            errorMsg.textContent = "I'm sorry, I couldn't process your request. Please try again.";
+            messagesContainer.appendChild(errorMsg);
+          }
+          
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
         };
         
         sendButton.addEventListener("click", sendMessage);
         input.addEventListener("keypress", function(e) {
           if (e.key === "Enter") sendMessage();
         });
+        
+        // Add initial greeting if assistant is configured
+        if (config.assistantConfig && config.assistantConfig.greeting) {
+          setTimeout(function() {
+            const assistantMsg = document.createElement("div");
+            assistantMsg.className = "assistant-message";
+            assistantMsg.textContent = config.assistantConfig.greeting;
+            messagesContainer.appendChild(assistantMsg);
+          }, 500);
+        }
       }
     }
     
@@ -183,6 +258,111 @@ ${widgetHtml}
         sidebarTab.addEventListener("click", function() {
           sidebar.classList.toggle("expanded");
         });
+        
+        // Handle sending messages for sidebar
+        const input = sidebar.querySelector("input");
+        const sendButton = sidebar.querySelector("button");
+        const messagesContainer = sidebar.querySelector(".welcome-chat-sidebar-messages");
+        
+        if (input && sendButton && messagesContainer) {
+          const sendMessage = async function() {
+            const message = input.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            const userMsg = document.createElement("div");
+            userMsg.className = "user-message";
+            userMsg.textContent = message;
+            userMsg.style.backgroundColor = config.style.primaryColor;
+            messagesContainer.appendChild(userMsg);
+            
+            input.value = "";
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Show typing indicator
+            const typingIndicator = document.createElement("div");
+            typingIndicator.className = "typing-indicator";
+            typingIndicator.innerHTML = \`
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            \`;
+            messagesContainer.appendChild(typingIndicator);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            try {
+              // Use the OpenAI assistant if available, otherwise use default response
+              if (config.assistantConfig && config.assistantConfig.assistantId && config.assistantEndpoint) {
+                const response = await fetch(config.assistantEndpoint, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    client_id: config.assistantConfig.clientId,
+                    query: message
+                  })
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  
+                  // Remove typing indicator
+                  messagesContainer.removeChild(typingIndicator);
+                  
+                  // Add assistant message
+                  const assistantMsg = document.createElement("div");
+                  assistantMsg.className = "assistant-message";
+                  assistantMsg.textContent = data.answer || config.branding.welcomeText;
+                  messagesContainer.appendChild(assistantMsg);
+                } else {
+                  throw new Error('API request failed');
+                }
+              } else {
+                // Fallback to simple response if no assistant is configured
+                setTimeout(function() {
+                  // Remove typing indicator
+                  messagesContainer.removeChild(typingIndicator);
+                  
+                  const assistantMsg = document.createElement("div");
+                  assistantMsg.className = "assistant-message";
+                  assistantMsg.textContent = config.branding.welcomeText;
+                  messagesContainer.appendChild(assistantMsg);
+                }, 1000);
+              }
+            } catch (error) {
+              console.error("Error querying assistant:", error);
+              
+              // Remove typing indicator
+              if (messagesContainer.contains(typingIndicator)) {
+                messagesContainer.removeChild(typingIndicator);
+              }
+              
+              // Show error message
+              const errorMsg = document.createElement("div");
+              errorMsg.className = "assistant-message";
+              errorMsg.textContent = "I'm sorry, I couldn't process your request. Please try again.";
+              messagesContainer.appendChild(errorMsg);
+            }
+            
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          };
+          
+          sendButton.addEventListener("click", sendMessage);
+          input.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") sendMessage();
+          });
+          
+          // Add initial greeting if assistant is configured
+          if (config.assistantConfig && config.assistantConfig.greeting) {
+            setTimeout(function() {
+              const assistantMsg = document.createElement("div");
+              assistantMsg.className = "assistant-message";
+              assistantMsg.textContent = config.assistantConfig.greeting;
+              messagesContainer.appendChild(assistantMsg);
+            }, 500);
+          }
+        }
       }
     }
     
@@ -194,7 +374,7 @@ ${widgetHtml}
       const messagesContainer = widget?.querySelector(".welcome-chat-inline-messages");
       
       if (input && sendButton && messagesContainer) {
-        const sendMessage = function() {
+        const sendMessage = async function() {
           const message = input.value.trim();
           if (!message) return;
           
@@ -208,22 +388,127 @@ ${widgetHtml}
           input.value = "";
           messagesContainer.scrollTop = messagesContainer.scrollHeight;
           
-          // Simulate assistant response
-          setTimeout(function() {
-            const assistantMsg = document.createElement("div");
-            assistantMsg.className = "assistant-message";
-            assistantMsg.textContent = config.branding.welcomeText;
-            messagesContainer.appendChild(assistantMsg);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-          }, 1000);
+          // Show typing indicator
+          const typingIndicator = document.createElement("div");
+          typingIndicator.className = "typing-indicator";
+          typingIndicator.innerHTML = \`
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          \`;
+          messagesContainer.appendChild(typingIndicator);
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          
+          try {
+            // Use the OpenAI assistant if available, otherwise use default response
+            if (config.assistantConfig && config.assistantConfig.assistantId && config.assistantEndpoint) {
+              const response = await fetch(config.assistantEndpoint, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  client_id: config.assistantConfig.clientId,
+                  query: message
+                })
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                
+                // Remove typing indicator
+                messagesContainer.removeChild(typingIndicator);
+                
+                // Add assistant message
+                const assistantMsg = document.createElement("div");
+                assistantMsg.className = "assistant-message";
+                assistantMsg.textContent = data.answer || config.branding.welcomeText;
+                messagesContainer.appendChild(assistantMsg);
+              } else {
+                throw new Error('API request failed');
+              }
+            } else {
+              // Fallback to simple response if no assistant is configured
+              setTimeout(function() {
+                // Remove typing indicator
+                messagesContainer.removeChild(typingIndicator);
+                
+                const assistantMsg = document.createElement("div");
+                assistantMsg.className = "assistant-message";
+                assistantMsg.textContent = config.branding.welcomeText;
+                messagesContainer.appendChild(assistantMsg);
+              }, 1000);
+            }
+          } catch (error) {
+            console.error("Error querying assistant:", error);
+            
+            // Remove typing indicator
+            if (messagesContainer.contains(typingIndicator)) {
+              messagesContainer.removeChild(typingIndicator);
+            }
+            
+            // Show error message
+            const errorMsg = document.createElement("div");
+            errorMsg.className = "assistant-message";
+            errorMsg.textContent = "I'm sorry, I couldn't process your request. Please try again.";
+            messagesContainer.appendChild(errorMsg);
+          }
+          
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
         };
         
         sendButton.addEventListener("click", sendMessage);
         input.addEventListener("keypress", function(e) {
           if (e.key === "Enter") sendMessage();
         });
+        
+        // Add initial greeting if assistant is configured
+        if (config.assistantConfig && config.assistantConfig.greeting) {
+          setTimeout(function() {
+            const assistantMsg = document.createElement("div");
+            assistantMsg.className = "assistant-message";
+            assistantMsg.textContent = config.assistantConfig.greeting;
+            messagesContainer.appendChild(assistantMsg);
+          }, 500);
+        }
       }
     }
+
+    // Add some extra styles for typing indicators
+    const styleEl = document.createElement('style');
+    styleEl.textContent = \`
+      .typing-indicator {
+        display: flex;
+        padding: 10px;
+        align-self: flex-start;
+      }
+      .typing-indicator .dot {
+        width: 8px;
+        height: 8px;
+        margin: 0 2px;
+        background-color: #aaa;
+        border-radius: 50%;
+        opacity: 0.6;
+        animation: pulse 1.5s infinite;
+      }
+      .typing-indicator .dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .typing-indicator .dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+      @keyframes pulse {
+        0%, 50%, 100% {
+          transform: scale(1);
+          opacity: 0.6;
+        }
+        25% {
+          transform: scale(1.2);
+          opacity: 1;
+        }
+      }
+    \`;
+    document.head.appendChild(styleEl);
   });
 </script>`;
 
@@ -642,6 +927,9 @@ ${widgetHtml}
         break;
     }
     
+    const chatApiEndpoint = `https://${projectRef}.supabase.co/functions/v1/chat`;
+    const queryAssistantEndpoint = `https://${projectRef}.supabase.co/functions/v1/query-openai-assistant`;
+    
     return `<!-- Welcome.Chat Widget Code -->
 <!-- Add this code to your website where you want the chat widget to appear -->
 
@@ -662,7 +950,13 @@ ${widgetHtml}
       fontColor: "${settings.text_color || "#1F2937"}",
       displayMode: "${settings.display_mode || "floating"}"
     },
-    apiEndpoint: "https://${projectRef}.supabase.co/functions/v1/chat"
+    apiEndpoint: "${chatApiEndpoint}",
+    assistantEndpoint: "${queryAssistantEndpoint}",
+    assistantConfig: {
+      clientId: "${settings.openai_assistant_id ? settings.clientId : ''}",
+      assistantId: "${settings.openai_assistant_id || ''}",
+      greeting: "${settings.greeting_message || 'Hello! How can I help you today?'}"
+    }
   };
 </script>
 

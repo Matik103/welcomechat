@@ -27,7 +27,9 @@ export function EmbedCodeCard({ settings, onCopy }: EmbedCodeCardProps) {
     settings.display_mode,
     settings.secondary_color,
     settings.text_color,
-    settings.greeting_message
+    settings.greeting_message,
+    settings.openai_assistant_id,
+    settings.clientId
   ]);
   
   return (
