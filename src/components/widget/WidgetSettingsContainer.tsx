@@ -68,9 +68,9 @@ export function WidgetSettingsContainer({
   };
 
   return (
-    <div className="w-full">
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
-        <div className="space-y-6">
+    <div className="w-full max-w-full overflow-visible">
+      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-6">
+        <div className="space-y-6 w-full">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Widget Settings</h1>
             <Button
@@ -97,7 +97,7 @@ export function WidgetSettingsContainer({
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 w-full">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle>Widget Preview</CardTitle>

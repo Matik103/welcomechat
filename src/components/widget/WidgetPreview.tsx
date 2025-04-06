@@ -9,6 +9,8 @@ import { ChatInput } from "./ChatInput";
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { WidgetSettings } from '@/types/widget-settings';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -29,6 +31,7 @@ export const WidgetPreview = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Handle sending messages
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -41,8 +44,13 @@ export const WidgetPreview = ({
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setInputValue('');
     setIsLoading(true);
+    setError(null); // Clear any previous errors
     
     try {
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
+      
       // Call webhook function
       const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
         body: {
@@ -73,7 +81,8 @@ export const WidgetPreview = ({
       }
     } catch (error) {
       console.error('Error querying assistant:', error);
-      toast.error('Failed to get response');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(`Failed to get response: ${errorMessage}`);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: "Sorry, I encountered an error processing your request." 
@@ -96,6 +105,10 @@ export const WidgetPreview = ({
     isUser: msg.role === 'user'
   }));
 
+  if (error) {
+    console.log('Widget preview error:', error);
+  }
+
   return (
     <div className="flex flex-col overflow-hidden border rounded-lg shadow-sm bg-white h-[500px]">
       {/* Widget Header */}
@@ -105,6 +118,13 @@ export const WidgetPreview = ({
         logoUrl={settings.logo_url}
         headerBgColor={headerBgColor}
       />
+      
+      {error && (
+        <Alert variant="destructive" className="m-3 py-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-xs">{error}</AlertDescription>
+        </Alert>
+      )}
       
       {/* Chat Messages Area */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
