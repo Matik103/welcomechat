@@ -1,6 +1,7 @@
+
 # PDF Processing Service
 
-A Node.js service for extracting text from PDF documents using the `pdf-parse` library. This service works in conjunction with Supabase to process and store PDF content.
+A Node.js service for processing PDF documents that works in conjunction with Supabase. This service provides an API for PDF handling, with text extraction to be implemented with a different approach.
 
 ## Setup
 
@@ -37,47 +38,28 @@ npm start
 
 ### POST /process
 
-Process a PDF document and extract its text content.
+Process a PDF document.
 
 **Request Body:**
 ```json
 {
   "document_id": "required_document_id",
-  "storage_path": "path/to/document.pdf",
-  "chunk_size": 1048576,
-  "max_chunks": 1,
-  "continue_from": 0
+  "storage_path": "path/to/document.pdf"
 }
 ```
 
 **Response:**
 ```json
 {
-  "status": "success",
-  "message": "PDF extraction completed",
+  "message": "PDF processing service ready. Text extraction functionality will be implemented with a different approach.",
+  "document_id": "document_id",
   "metadata": {
-    "page_count": 5,
-    "extraction_method": "pdf-parse-extraction",
-    "size": 15000,
-    "chunks_processed": 1,
-    "total_chunks": 1,
-    "current_position": 15000,
-    "start_time": "2024-03-20T12:00:00.000Z",
-    "last_updated": "2024-03-20T12:00:01.000Z",
-    "retries": 0,
-    "errors": [],
-    "is_complete": true
-  },
-  "text_preview": "First 200 characters of extracted text...",
-  "next_chunk": null
+    "extraction_method": "pending-implementation",
+    "timestamp": "2024-03-20T12:00:00.000Z"
+  }
 }
 ```
 
 ## Integration with Supabase Edge Function
 
-Update your Supabase Edge Function environment variables to include:
-```bash
-PDF_PROCESSOR_URL=http://your-service-url:3000
-```
-
-The Edge Function will forward PDF processing requests to this service. 
+The Edge Function will forward PDF processing requests to this service.

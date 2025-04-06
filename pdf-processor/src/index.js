@@ -1,10 +1,8 @@
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
-import * as fs from 'fs';
-import { promisify } from 'util';
-import extract from 'pdf-extract';
 
 dotenv.config();
 
@@ -40,37 +38,6 @@ async function downloadPDFFromStorage(storagePath) {
   return Buffer.from(await data.arrayBuffer());
 }
 
-const convertPDFToText = async (pdfPath) => {
-  return new Promise((resolve, reject) => {
-    const options = {
-      type: 'text',  // extract the actual text content, not the raw text-content
-      clean: true,   // clean the extracted text content
-    };
-
-    const processor = extract(pdfPath, options, (err) => {
-      if (err) {
-        reject(err);
-      }
-    });
-
-    let text = '';
-    let pageCount = 0;
-
-    processor.on('page', (data) => {
-      text += data.text + '\n';
-      pageCount++;
-    });
-
-    processor.on('complete', () => {
-      resolve({ text, pageCount });
-    });
-
-    processor.on('error', (err) => {
-      reject(err);
-    });
-  });
-};
-
 async function storeTextContent(documentId, text, metadata) {
   console.log('Storing text content for document:', documentId);
   try {
@@ -99,19 +66,18 @@ async function storeTextContent(documentId, text, metadata) {
 
 app.post('/process', async (req, res) => {
   try {
-    const { filePath } = req.body;
+    const { document_id, storage_path } = req.body;
     
-    if (!filePath) {
-      return res.status(400).json({ error: 'No file path provided' });
+    if (!document_id || !storage_path) {
+      return res.status(400).json({ error: 'Missing required parameters' });
     }
 
-    const result = await convertPDFToText(filePath);
-
+    // Instead of extracting the text, return a placeholder response
     return res.json({
-      text: result.text,
+      message: "PDF processing service ready. Text extraction functionality will be implemented with a different approach.",
+      document_id,
       metadata: {
-        extraction_method: 'pdf-extract',
-        pages_processed: result.pageCount,
+        extraction_method: 'pending-implementation',
         timestamp: new Date().toISOString()
       }
     });
@@ -159,4 +125,4 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-startServer(); 
+startServer();
