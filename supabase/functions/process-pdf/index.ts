@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
@@ -21,6 +22,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const RAPIDAPI_KEY = Deno.env.get("RAPIDAPI_KEY") || "109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d";
+const RAPIDAPI_HOST = "pdf-to-text-converter.p.rapidapi.com";
+const RAPIDAPI_URL = "https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert";
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -31,14 +36,14 @@ serve(async (req) => {
   }
 
   try {
-    const { document_id, client_id, file_path, file_type, filename, page_number, pdf_data } = await req.json();
-    console.log("Process PDF function called with params:", { document_id, client_id, file_type, page_number });
+    const { client_id, document_id, file_name, file_type, pdf_data, page_number } = await req.json();
+    console.log("Process PDF function called with params:", { client_id, document_id, file_type, file_name });
 
-    if (!document_id) {
+    if (!pdf_data) {
       return new Response(
         JSON.stringify({
           status: "error",
-          message: "Missing required field: document_id"
+          message: "Missing PDF data"
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -47,87 +52,14 @@ serve(async (req) => {
       );
     }
 
-    // Get document details if they weren't provided
-    let docFileType = file_type;
-    let docFilename = filename;
-    let storagePath = file_path;
-    let pdfData = pdf_data;
-    
-    if (!docFileType || !docFilename || !storagePath) {
-      console.log("Some document details missing, fetching from database");
-      
-      const { data: docData, error: docError } = await supabase
-        .from('document_content')
-        .select('metadata, filename, file_type')
-        .eq('id', document_id)
-        .single();
-        
-      if (docError) {
-        console.error("Failed to get document details:", docError.message);
-        return new Response(
-          JSON.stringify({
-            status: "error",
-            message: "Failed to get document details",
-            details: docError.message
-          }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 500,
-          }
-        );
-      }
-      
-      docFileType = docFileType || docData?.file_type;
-      docFilename = docFilename || docData?.filename;
-      storagePath = storagePath || docData?.metadata?.storage_path || docData?.metadata?.upload_path;
-      
-      console.log("Retrieved document details:", { 
-        docFileType, 
-        docFilename,
-        storagePath
-      });
-    }
-
-    // Update document status to indicate it's queued for processing
-    const { error: updateError } = await supabase
-      .from('document_content')
-      .update({
-        metadata: {
-          processing_status: 'queued_for_extraction',
-          last_updated: new Date().toISOString(),
-          extraction_method: 'rapidapi',
-          queue_timestamp: new Date().toISOString(),
-          processing_version: '1.0.7', // Updated version number to track this change
-          storage_path: storagePath,
-          page_number: page_number || 'all'
-        }
-      })
-      .eq('id', document_id);
-
-    if (updateError) {
-      console.error("Failed to update document status:", updateError.message);
-      return new Response(
-        JSON.stringify({
-          status: "error",
-          message: "Failed to update document status",
-          details: updateError.message
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        }
-      );
-    }
-
-    // Only process PDFs
-    if (docFileType !== 'application/pdf') {
-      console.warn(`Skipping extraction for non-PDF file: ${docFileType}`);
+    if (file_type !== 'application/pdf') {
+      console.warn(`Skipping extraction for non-PDF file: ${file_type}`);
       return new Response(
         JSON.stringify({
           status: "skipped",
           message: "Document is not a PDF file, skipping extraction",
           document_id: document_id,
-          file_type: docFileType
+          file_type: file_type
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -136,50 +68,85 @@ serve(async (req) => {
       );
     }
 
-    // If PDF data was provided directly, use it
-    // Otherwise, we'll need to download it from storage in the extract-pdf-text function
-    if (!pdfData && storagePath) {
-      // We'll download the PDF in the extract-pdf-text function to avoid duplicating the file in memory
-      console.log(`Invoking extract-pdf-text for document ${document_id} with path ${storagePath}${page_number ? ` page ${page_number}` : ''}`);
-    } else {
-      console.log(`Invoking extract-pdf-text for document ${document_id} with provided PDF data${page_number ? ` page ${page_number}` : ''}`);
+    console.log("PDF data received, sending to RapidAPI for extraction");
+    
+    // Extract base64 data from the data URL
+    const base64Data = pdf_data.replace(/^data:application\/pdf;base64,/, '');
+    const pdfBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0)).buffer;
+    
+    // Create FormData and append the PDF file
+    const formData = new FormData();
+    formData.append('file', new Blob([pdfBuffer], { type: 'application/pdf' }), file_name || 'document.pdf');
+    
+    // Add optional page parameter if provided
+    if (page_number) {
+      formData.append('page', page_number.toString());
     }
+    
+    // Call RapidAPI PDF to Text converter with exact headers from curl
+    const response = await fetch(RAPIDAPI_URL, {
+      method: 'POST',
+      headers: {
+        'x-rapidapi-key': RAPIDAPI_KEY,
+        'x-rapidapi-host': RAPIDAPI_HOST,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: formData,
+    });
 
-    // Directly invoke the extract-pdf-text edge function with storage path and optional page number
-    const { data: extractionData, error: extractionError } = await supabase.functions.invoke(
-      'extract-pdf-text',
-      {
-        body: { 
-          document_id,
-          storage_path: storagePath,
-          page_number: page_number || undefined,
-          pdf_data: pdfData || undefined
-        }
-      }
-    );
-
-    if (extractionError) {
-      console.error(`Error invoking text extraction for document ${document_id}:`, extractionError);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`RapidAPI error: ${response.status} ${errorText}`);
+      
       return new Response(
         JSON.stringify({
           status: "error",
-          message: "Failed to invoke text extraction",
-          details: extractionError.message
+          message: "PDF text extraction API error",
+          details: `API returned status ${response.status}: ${errorText}`
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
+          status: response.status,
         }
       );
     }
 
-    console.log(`Successfully processed document ${document_id}`);
+    // Process the API response
+    const result = await response.json();
+    console.log("Text extraction successful, response received");
+    
+    // Extract the text from the API response
+    const extractedText = result.text || 
+                          (typeof result === 'string' ? result : JSON.stringify(result));
+    
+    if (document_id) {
+      // Update document record with the extracted text
+      const { error: updateError } = await supabase
+        .from('document_content')
+        .update({ 
+          content: extractedText,
+          metadata: {
+            processing_status: 'completed',
+            extraction_method: 'rapidapi',
+            extraction_completed: new Date().toISOString(),
+            text_length: extractedText.length,
+            processing_version: '1.0.8' // Updated version number
+          }
+        })
+        .eq('document_id', document_id);
+        
+      if (updateError) {
+        console.error("Failed to update document content:", updateError.message);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         status: "success",
-        message: "Document processed successfully",
+        message: "Text extracted successfully",
         document_id: document_id,
-        extraction_details: extractionData,
+        text: extractedText,
+        text_length: extractedText.length,
         timestamp: new Date().toISOString()
       }),
       {
@@ -187,7 +154,6 @@ serve(async (req) => {
         status: 200,
       }
     );
-
   } catch (error) {
     console.error("Unexpected error in process-pdf function:", error);
     return new Response(

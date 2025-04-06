@@ -46,18 +46,50 @@ export const useUnifiedDocumentUpload = ({
       const fileExtension = file.name.split('.').pop() || '';
       const filePath = `${clientId}/${documentId}.${fileExtension}`;
       
-      let pdfData;
       // If it's a PDF, convert to base64 for direct API submission
+      let pdfData;
+      let extractedText = '';
+      
       if (file.type === 'application/pdf') {
-        // Read the file to send directly to RapidAPI
+        // Read the PDF file as base64
         const reader = new FileReader();
-        pdfData = await new Promise((resolve) => {
-          reader.onload = () => resolve(reader.result);
+        pdfData = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
           reader.readAsDataURL(file);
         });
+        
+        // Simulate progress while processing
+        setUploadProgress(30);
+        
+        try {
+          // Directly invoke function to process the document with the PDF data
+          const { data: processingData, error: processingError } = await supabase.functions.invoke(
+            'process-pdf',
+            {
+              body: {
+                client_id: clientId,
+                document_id: documentId,
+                file_name: file.name,
+                file_type: file.type,
+                pdf_data: pdfData
+              }
+            }
+          );
+          
+          if (processingError) {
+            console.warn('Warning: Document processing function error:', processingError);
+          } else if (processingData?.text) {
+            extractedText = processingData.text;
+            console.log('Successfully extracted text from PDF, length:', extractedText.length);
+          }
+        } catch (error) {
+          console.error('Error during PDF text extraction:', error);
+        }
+        
+        setUploadProgress(70);
       }
       
-      // Upload the file to storage with progress tracking
+      // Upload the file to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client_documents')
         .upload(filePath, file, {
@@ -69,6 +101,8 @@ export const useUnifiedDocumentUpload = ({
       if (uploadError) {
         throw new Error(`Storage upload failed: ${uploadError.message}`);
       }
+      
+      setUploadProgress(90);
       
       // Get the public URL for the uploaded file
       const { data: urlData } = await supabase.storage
@@ -83,14 +117,15 @@ export const useUnifiedDocumentUpload = ({
         .insert({
           client_id: clientId,
           document_id: documentId,
-          content: '', // Will be filled by the extraction process
+          content: extractedText, // Add extracted text directly
           metadata: {
             filename: file.name,
             file_type: file.type,
             size: file.size,
             upload_path: filePath,
             url: url,
-            uploadedAt: new Date().toISOString()
+            uploadedAt: new Date().toISOString(),
+            processing_status: extractedText ? 'completed' : 'pending_extraction' 
           },
           file_type: file.type,
           filename: file.name
@@ -102,25 +137,7 @@ export const useUnifiedDocumentUpload = ({
         throw new Error(`Document record creation failed: ${documentError.message}`);
       }
       
-      // Invoke function to process the document
-      const { data: processingData, error: processingError } = await supabase.functions.invoke(
-        'process-pdf',
-        {
-          body: {
-            client_id: clientId,
-            document_id: documentId,
-            file_path: filePath,
-            file_type: file.type,
-            filename: file.name,
-            pdf_data: pdfData // Pass PDF data directly to the function
-          }
-        }
-      );
-      
-      if (processingError) {
-        console.warn('Warning: Document processing function error:', processingError);
-        // This is a non-blocking error - document is uploaded but processing failed
-      }
+      setUploadProgress(100);
       
       const result: UploadResult = {
         success: true,
@@ -144,7 +161,6 @@ export const useUnifiedDocumentUpload = ({
       };
     } finally {
       setIsLoading(false);
-      setUploadProgress(0);
     }
   };
 
