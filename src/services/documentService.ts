@@ -1,5 +1,4 @@
-
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 
 interface UploadResult {
@@ -16,6 +15,18 @@ interface UploadResult {
 interface UploadOptions {
   agentName?: string;
   shouldProcessWithOpenAI?: boolean;
+}
+
+interface DocumentMetadata {
+  clientId: string;
+  originalName: string;
+  fileType: string;
+  fileSize: number;
+  uploadedAt: string;
+  processing_status?: string;
+  extraction_method?: string;
+  text_length?: number;
+  [key: string]: any;
 }
 
 /**
@@ -173,3 +184,45 @@ export const uploadDocument = async (
     };
   }
 };
+
+export async function getDocumentContent(documentId: string) {
+  const { data, error } = await supabase
+    .from('document_content')
+    .select('*')
+    .eq('id', documentId)
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to fetch document content: ${error.message}`);
+  }
+
+  return data;
+}
+
+export async function updateDocumentContent(documentId: string, content: string, metadata: DocumentMetadata) {
+  const { error } = await supabase
+    .from('document_content')
+    .update({ 
+      content,
+      metadata: {
+        ...metadata,
+        updated_at: new Date().toISOString()
+      }
+    })
+    .eq('id', documentId);
+
+  if (error) {
+    throw new Error(`Failed to update document content: ${error.message}`);
+  }
+}
+
+export async function deleteDocument(documentId: string) {
+  const { error } = await supabase
+    .from('document_content')
+    .delete()
+    .eq('id', documentId);
+
+  if (error) {
+    throw new Error(`Failed to delete document: ${error.message}`);
+  }
+}
