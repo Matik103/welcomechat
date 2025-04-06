@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -7,6 +6,7 @@ import { Upload, File, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-reac
 import { supabase } from '@/integrations/supabase/client';
 import { fixDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 import { Json } from '@/types/document-processing';
+import { toast } from 'react-hot-toast';
 
 interface UploadResult {
   success: boolean;
@@ -422,34 +422,59 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       {uploadResult && !uploadResult.success && (
         <Alert variant="destructive" className="mt-4">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Upload failed</AlertTitle>
-          <AlertDescription>
-            {uploadResult.error || 'There was an error uploading your document. Please try again.'}
-            
-            {uploadResult.error && (
-              uploadResult.error.includes('row-level security policy') || 
-              uploadResult.error.includes('permission denied') || 
-              uploadResult.error.includes('Fix Permissions')
-            ) && (
-              <div className="mt-4">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleFixPermissions}
-                  disabled={isFixingPermissions}
-                >
-                  {isFixingPermissions ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Fixing permissions...
-                    </>
-                  ) : (
-                    'Fix Permissions'
-                  )}
-                </Button>
-              </div>
-            )}
-          </AlertDescription>
+          <AlertTitle>Upload Failed</AlertTitle>
+          <AlertDescription>{uploadResult.error}</AlertDescription>
+          {uploadResult.error?.includes('Permission denied') && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={handleFixPermissions}
+              disabled={isFixingPermissions}
+            >
+              {isFixingPermissions ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Fixing Permissions...
+                </>
+              ) : (
+                'Fix Permissions'
+              )}
+            </Button>
+          )}
+          {uploadResult.error?.includes('extraction failed') && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={async () => {
+                try {
+                  const { data: extractionResponse, error: extractionError } = await supabase
+                    .functions.invoke('process-pdf', {
+                      body: { 
+                        document_id: uploadResult.documentId,
+                        storage_path: uploadResult.fileName,
+                        retry: true
+                      }
+                    });
+
+                  if (extractionError) {
+                    console.error('PDF extraction retry error:', extractionError);
+                    toast.error('Failed to retry PDF extraction');
+                  } else {
+                    toast.success('PDF extraction retried successfully');
+                    // Clear the error state
+                    setUploadResult(prev => prev ? { ...prev, error: undefined } : null);
+                  }
+                } catch (error) {
+                  console.error('Failed to retry PDF extraction:', error);
+                  toast.error('Failed to retry PDF extraction');
+                }
+              }}
+            >
+              Retry PDF Extraction
+            </Button>
+          )}
         </Alert>
       )}
     </>
