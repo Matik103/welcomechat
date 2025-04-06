@@ -3,13 +3,15 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { toast } from 'sonner';
-
-// Supabase configuration - using direct values instead of relying on environment variables
-export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/config/env';
 
 // Create a singleton instance to avoid multiple instances
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
+
+// Check if we have the required configuration
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error("Missing Supabase environment variables");
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
