@@ -45,10 +45,14 @@ export default function WidgetSettings() {
     }
   }, [client, settings, clientId]);
 
+  // Ensure settings has the clientId
+  const enhancedSettings = settings ? { ...settings, clientId } : { ...defaultSettings, clientId };
+
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
       if (clientId) {
-        await updateWidgetSettings(clientId, newSettings);
+        // Ensure clientId is included
+        await updateWidgetSettings(clientId, { ...newSettings, clientId });
         
         const clientName = client?.client_name || settings?.agent_name || "Unknown";
         
@@ -135,7 +139,7 @@ export default function WidgetSettings() {
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-6">
       <WidgetSettingsContainer
         clientId={clientId}
-        settings={settings || defaultSettings}
+        settings={enhancedSettings}
         isClientView={true}
         isUploading={isUploading}
         updateSettingsMutation={updateSettingsWrapper}

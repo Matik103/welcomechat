@@ -37,6 +37,9 @@ export default function WidgetSettings() {
     enabled: !!clientId,
   });
 
+  // Ensure settings has the clientId
+  const enhancedSettings = settings ? { ...settings, clientId } : { ...defaultSettings, clientId };
+
   // Sync agent name from client data when settings load
   useEffect(() => {
     if (!isLoadingClient && client && settings) {
@@ -58,7 +61,8 @@ export default function WidgetSettings() {
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
       if (clientId) {
-        await updateWidgetSettings(clientId, newSettings);
+        // Ensure clientId is included
+        await updateWidgetSettings(clientId, { ...newSettings, clientId });
         
         // Make sure we have a client name for the activity log
         const clientName = client?.client_name || newSettings.agent_name || "Unknown";
@@ -169,7 +173,7 @@ export default function WidgetSettings() {
         
         <WidgetSettingsContainer
           clientId={clientId}
-          settings={settings || defaultSettings}
+          settings={enhancedSettings}
           isClientView={!isAdmin}
           isUploading={isUploading}
           updateSettingsMutation={updateSettingsWrapper}

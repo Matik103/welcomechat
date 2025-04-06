@@ -36,7 +36,13 @@ export function WidgetSettingsContainer({
   handleLogoUpload,
   logClientActivity
 }: WidgetSettingsContainerProps) {
-  const [activeSettings, setActiveSettings] = useState<WidgetSettings>(settings);
+  // Create a copy of settings that includes clientId
+  const initialSettings = {
+    ...settings,
+    clientId: settings.clientId || clientId  // Ensure clientId is set
+  };
+  
+  const [activeSettings, setActiveSettings] = useState<WidgetSettings>(initialSettings);
   
   const handleSettingsChange = (partialSettings: Partial<WidgetSettings>) => {
     setActiveSettings((prev) => ({ ...prev, ...partialSettings }));
@@ -49,7 +55,13 @@ export function WidgetSettingsContainer({
         return;
       }
       
-      await updateSettingsMutation.mutateAsync(activeSettings);
+      // Ensure clientId is included in the settings when submitting
+      const settingsToSubmit = {
+        ...activeSettings,
+        clientId
+      };
+      
+      await updateSettingsMutation.mutateAsync(settingsToSubmit);
     } catch (error) {
       console.error("Error saving settings:", error);
       toast.error("Failed to save settings");
