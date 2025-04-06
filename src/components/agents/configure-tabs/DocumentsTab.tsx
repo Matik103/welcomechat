@@ -62,7 +62,7 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
 
       <Separator />
 
-      <Alert variant="info" className="bg-blue-50 border-blue-200">
+      <Alert variant="default" className="bg-blue-50 border-blue-200">
         <InfoIcon className="h-4 w-4 text-blue-500" />
         <AlertDescription className="text-blue-700">
           Documents will be processed and made available to your AI assistant immediately after upload.
