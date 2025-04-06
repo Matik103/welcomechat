@@ -5,7 +5,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { WidgetSettings } from '@/types/widget-settings';
 import { WidgetPreview } from './WidgetPreview';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface WidgetPreviewCardProps {
   settings: WidgetSettings;
@@ -15,7 +14,6 @@ interface WidgetPreviewCardProps {
 
 export function WidgetPreviewCard({ settings, clientId, onTestInteraction }: WidgetPreviewCardProps) {
   const [error, setError] = useState<string | null>(null);
-  const [displayMode, setDisplayMode] = useState<string>(settings.display_mode || 'floating');
 
   useEffect(() => {
     if (!clientId) {
@@ -25,28 +23,11 @@ export function WidgetPreviewCard({ settings, clientId, onTestInteraction }: Wid
     }
   }, [clientId]);
 
-  // Update display mode when settings change
-  useEffect(() => {
-    setDisplayMode(settings.display_mode || 'floating');
-  }, [settings.display_mode]);
-
-  const handleDisplayModeChange = (mode: string) => {
-    setDisplayMode(mode);
-  };
-
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle>Widget Preview</CardTitle>
         <CardDescription>See how your widget will appear to users</CardDescription>
-        
-        <Tabs value={displayMode} onValueChange={handleDisplayModeChange} className="mt-2">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="floating">Floating Bubble</TabsTrigger>
-            <TabsTrigger value="inline">Inline Widget</TabsTrigger>
-            <TabsTrigger value="sidebar">Sidebar Panel</TabsTrigger>
-          </TabsList>
-        </Tabs>
       </CardHeader>
       <CardContent>
         {error ? (
@@ -55,12 +36,12 @@ export function WidgetPreviewCard({ settings, clientId, onTestInteraction }: Wid
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : (
-          <div className="w-full h-[550px] border border-gray-200 rounded-md overflow-hidden shadow-sm bg-white">
+          <div className="w-full h-[500px] border border-gray-200 rounded-md overflow-hidden">
             <WidgetPreview 
-              settings={{...settings, display_mode: displayMode}} 
+              settings={settings} 
               clientId={clientId || ""} 
               onTestInteraction={onTestInteraction}
-              key={`widget-preview-${clientId}-${displayMode}`}
+              key={`widget-preview-${clientId}-${settings.display_mode}`}
             />
           </div>
         )}
