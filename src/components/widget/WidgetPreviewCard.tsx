@@ -24,7 +24,7 @@ export function WidgetPreviewCard({ settings, clientId, onTestInteraction }: Wid
   }, [clientId]);
 
   return (
-    <Card className="h-full">
+    <Card>
       <CardHeader>
         <CardTitle>Widget Preview</CardTitle>
         <CardDescription>See how your widget will appear to users</CardDescription>
@@ -36,7 +36,7 @@ export function WidgetPreviewCard({ settings, clientId, onTestInteraction }: Wid
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : (
-          <div className="w-full h-[500px] border border-gray-200 rounded-md overflow-hidden shadow-sm">
+          <div className="w-full h-[550px] border border-gray-200 rounded-md overflow-hidden shadow-sm bg-white">
             <WidgetPreview 
               settings={settings} 
               clientId={clientId || ""} 

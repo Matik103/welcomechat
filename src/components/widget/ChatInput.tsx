@@ -51,8 +51,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         style={{
           backgroundColor: buttonBgColor,
           color: buttonTextColor,
-          minWidth: '60px', // Ensure minimum width for the button
-          padding: '0 12px',
+          minWidth: '80px', // Increased minimum width 
+          padding: '0 16px', // Added more horizontal padding
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

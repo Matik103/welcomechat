@@ -8,6 +8,7 @@ import { WidgetPreview } from "./WidgetPreview";
 import { WidgetSettings } from "@/types/widget-settings";
 import { EmbedCodeCard } from "./EmbedCodeCard";
 import { toast } from "sonner";
+import { WidgetPreviewCard } from "./WidgetPreviewCard";
 
 interface UpdateSettingsMutation {
   isPending: boolean;
@@ -68,55 +69,49 @@ export function WidgetSettingsContainer({
   };
 
   return (
-    <div className="w-full">
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left Column - Settings */}
-        <div className="w-full lg:w-2/3 space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">Widget Settings</h1>
-            <Button
-              variant="default"
-              onClick={handleSubmit}
-              disabled={updateSettingsMutation.isPending}
-              className="whitespace-nowrap"
-            >
-              {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
+    <div className="w-full max-w-6xl mx-auto">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Widget Settings</h1>
+        <Button
+          variant="default"
+          onClick={handleSubmit}
+          disabled={updateSettingsMutation.isPending}
+        >
+          {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
+        </Button>
+      </div>
 
-          <div className="space-y-4">
-            <WidgetSection
-              settings={activeSettings}
-              isUploading={isUploading}
-              onSettingsChange={handleSettingsChange}
-              onLogoUpload={handleLogoUpload}
-            />
-            
-            <EmbedCodeCard 
-              settings={activeSettings} 
-              onCopy={handleCopyCode}
-            />
-          </div>
-        </div>
-
-        {/* Right Column - Preview */}
-        <div className="w-full lg:w-1/3 space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Widget Preview</CardTitle>
-              <CardDescription>
-                This is how your widget will look to your users
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <WidgetPreview 
-                settings={activeSettings} 
-                clientId={clientId || ""} 
-                onTestInteraction={handlePreviewInteraction}
+      <div className="grid gap-6">
+        {/* Branding Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Branding</CardTitle>
+            <CardDescription>Configure your widget's appearance</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <WidgetSection
+                settings={activeSettings}
+                isUploading={isUploading}
+                onSettingsChange={handleSettingsChange}
+                onLogoUpload={handleLogoUpload}
               />
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Embed Code Card */}
+        <EmbedCodeCard 
+          settings={activeSettings} 
+          onCopy={handleCopyCode}
+        />
+        
+        {/* Widget Preview Card - Now placed as the third card */}
+        <WidgetPreviewCard
+          settings={activeSettings}
+          clientId={clientId}
+          onTestInteraction={handlePreviewInteraction}
+        />
       </div>
     </div>
   );
