@@ -97,7 +97,7 @@ serve(async (req) => {
           last_updated: new Date().toISOString(),
           extraction_method: 'rapidapi',
           queue_timestamp: new Date().toISOString(),
-          processing_version: '1.0.4', // Updated version number
+          processing_version: '1.0.5', // Updated version number to track this change
           storage_path: storagePath,
           page_number: page_number || 'all'
         }
