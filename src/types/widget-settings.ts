@@ -1,6 +1,6 @@
 
 // Define a common display mode type that can be used across components
-export type WidgetDisplayMode = 'standard' | 'minimal' | 'full' | string;
+export type WidgetDisplayMode = 'floating' | 'inline' | 'sidebar' | string;
 
 // Define the widget settings type that's compatible across the application
 export interface WidgetSettings {
@@ -44,5 +44,5 @@ export const defaultSettings: WidgetSettings = {
   secondary_color: "#6366f1",
   welcome_text: "Welcome to our assistant",
   response_time_text: "Typically responds in a few seconds",
-  display_mode: "standard"
+  display_mode: "floating"
 };

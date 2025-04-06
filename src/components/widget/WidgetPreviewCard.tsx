@@ -22,10 +22,20 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
     }
   }, [clientId]);
 
+  // Get a display name based on the selected mode
+  const getDisplayModeName = () => {
+    switch(settings.display_mode) {
+      case 'inline': return 'Inline Widget';
+      case 'sidebar': return 'Sidebar Panel';
+      case 'floating': return 'Floating Bubble';
+      default: return 'Widget Preview';
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Widget Preview</CardTitle>
+        <CardTitle>Widget Preview - {getDisplayModeName()}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col items-center">
         {error ? (

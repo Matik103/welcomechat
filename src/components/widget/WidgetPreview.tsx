@@ -109,46 +109,166 @@ export const WidgetPreview = ({
     console.log('Widget preview error:', error);
   }
 
-  return (
-    <div className="flex flex-col overflow-hidden border rounded-lg shadow-sm bg-white h-[500px]">
-      {/* Widget Header */}
-      <ChatHeader 
-        headerTitle={settings.agent_name || "Chat with us"}
-        headerSubtitle={settings.welcome_text || "We're here to help"}
-        logoUrl={settings.logo_url}
-        headerBgColor={headerBgColor}
-      />
+  // Render different preview based on display mode
+  switch (settings.display_mode) {
+    case 'inline':
+      return (
+        <div className="w-full border rounded-lg bg-white overflow-hidden shadow-sm">
+          <ChatHeader 
+            headerTitle={settings.agent_name || "Chat with us"}
+            headerSubtitle={settings.welcome_text || "We're here to help"}
+            logoUrl={settings.logo_url}
+            headerBgColor={headerBgColor}
+          />
+          
+          {error && (
+            <Alert variant="destructive" className="m-3 py-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">{error}</AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="h-[300px] overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
+            <ChatMessages 
+              messages={formattedMessages} 
+              isLoading={isLoading}
+              userBubbleColor={settings.chat_color || '#4F46E5'}
+              assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
+              userTextColor={'#FFFFFF'}
+              assistantTextColor={chatTextColor}
+            />
+          </div>
+          
+          <ChatInput
+            value={inputValue}
+            onChange={(val) => setInputValue(val)}
+            onSubmit={handleSendMessage}
+            placeholder={settings.greeting_message || "Type your message..."}
+            buttonText={settings.button_text || "Send"}
+            isLoading={isLoading}
+            buttonBgColor={buttonBgColor}
+            buttonTextColor={buttonTextColor}
+          />
+        </div>
+      );
       
-      {error && (
-        <Alert variant="destructive" className="m-3 py-2">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="text-xs">{error}</AlertDescription>
-        </Alert>
-      )}
-      
-      {/* Chat Messages Area */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
-        <ChatMessages 
-          messages={formattedMessages} 
-          isLoading={isLoading}
-          userBubbleColor={settings.chat_color || '#4F46E5'}
-          assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
-          userTextColor={'#FFFFFF'}
-          assistantTextColor={chatTextColor}
-        />
-      </div>
-      
-      {/* Input Area */}
-      <ChatInput
-        value={inputValue}
-        onChange={(val) => setInputValue(val)}
-        onSubmit={handleSendMessage}
-        placeholder={settings.greeting_message || "Type your message..."}
-        buttonText={settings.button_text || "Send"}
-        isLoading={isLoading}
-        buttonBgColor={buttonBgColor}
-        buttonTextColor={buttonTextColor}
-      />
-    </div>
-  );
+    case 'sidebar':
+      return (
+        <div className="flex h-[500px] border rounded-lg shadow-sm">
+          {/* Sidebar tab */}
+          <div 
+            className="w-8 flex items-center justify-center writing-vertical"
+            style={{ backgroundColor: headerBgColor, color: '#FFFFFF' }}
+          >
+            <div className="transform rotate-180" style={{ writingMode: 'vertical-rl' }}>
+              {settings.agent_name || "Chat with us"}
+            </div>
+          </div>
+          
+          {/* Chat content */}
+          <div className="flex-1 flex flex-col bg-white overflow-hidden">
+            <ChatHeader 
+              headerTitle={settings.agent_name || "Chat with us"}
+              headerSubtitle={settings.welcome_text || "We're here to help"}
+              logoUrl={settings.logo_url}
+              headerBgColor={headerBgColor}
+            />
+            
+            {error && (
+              <Alert variant="destructive" className="m-3 py-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
+              <ChatMessages 
+                messages={formattedMessages} 
+                isLoading={isLoading}
+                userBubbleColor={settings.chat_color || '#4F46E5'}
+                assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
+                userTextColor={'#FFFFFF'}
+                assistantTextColor={chatTextColor}
+              />
+            </div>
+            
+            <ChatInput
+              value={inputValue}
+              onChange={(val) => setInputValue(val)}
+              onSubmit={handleSendMessage}
+              placeholder={settings.greeting_message || "Type your message..."}
+              buttonText={settings.button_text || "Send"}
+              isLoading={isLoading}
+              buttonBgColor={buttonBgColor}
+              buttonTextColor={buttonTextColor}
+            />
+          </div>
+        </div>
+      );
+
+    case 'floating':
+    default:
+      return (
+        <div className="relative h-[500px] bg-gray-100 rounded-lg p-4">
+          {/* Floating chat bubble */}
+          <div className="absolute bottom-4 right-4 flex flex-col items-end">
+            {/* Collapsed bubble state */}
+            {messages.length === 0 && (
+              <button 
+                className="flex items-center justify-center w-14 h-14 rounded-full shadow-md mb-2"
+                style={{ backgroundColor: headerBgColor }}
+                onClick={() => setMessages([{ role: 'assistant', content: settings.greeting_message || "Hello! How can I help you today?" }])}
+              >
+                {settings.logo_url ? (
+                  <img src={settings.logo_url} alt="Chat" className="w-8 h-8 rounded-full" />
+                ) : (
+                  <span className="text-white text-2xl">💬</span>
+                )}
+              </button>
+            )}
+            
+            {/* Expanded chat state */}
+            {messages.length > 0 && (
+              <div className="w-[320px] h-[400px] flex flex-col overflow-hidden border rounded-lg shadow-md bg-white">
+                <ChatHeader 
+                  headerTitle={settings.agent_name || "Chat with us"}
+                  headerSubtitle={settings.welcome_text || "We're here to help"}
+                  logoUrl={settings.logo_url}
+                  headerBgColor={headerBgColor}
+                />
+                
+                {error && (
+                  <Alert variant="destructive" className="m-3 py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">{error}</AlertDescription>
+                  </Alert>
+                )}
+                
+                <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
+                  <ChatMessages 
+                    messages={formattedMessages} 
+                    isLoading={isLoading}
+                    userBubbleColor={settings.chat_color || '#4F46E5'}
+                    assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
+                    userTextColor={'#FFFFFF'}
+                    assistantTextColor={chatTextColor}
+                  />
+                </div>
+                
+                <ChatInput
+                  value={inputValue}
+                  onChange={(val) => setInputValue(val)}
+                  onSubmit={handleSendMessage}
+                  placeholder={settings.greeting_message || "Type your message..."}
+                  buttonText={settings.button_text || "Send"}
+                  isLoading={isLoading}
+                  buttonBgColor={buttonBgColor}
+                  buttonTextColor={buttonTextColor}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      );
+  }
 };
