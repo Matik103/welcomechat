@@ -87,13 +87,13 @@ serve(async (req) => {
     console.log(`Using API key: ${RAPIDAPI_KEY.substring(0, 5)}...`);
     console.log(`Using host: ${RAPIDAPI_HOST}`);
     
-    // Call RapidAPI PDF to Text converter
+    // Call RapidAPI PDF to Text converter - IMPORTANT: use Content-Type: application/x-www-form-urlencoded
     const response = await fetch(RAPIDAPI_URL, {
       method: 'POST',
       headers: {
         'x-rapidapi-key': RAPIDAPI_KEY,
         'x-rapidapi-host': RAPIDAPI_HOST,
-        // Let the browser set content-type with boundary
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: formData,
     });
