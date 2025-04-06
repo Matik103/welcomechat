@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { DocumentLink } from '@/types/document-processing';
 import { Button } from '@/components/ui/button';
-import { Trash, LoaderCircle, ExternalLink, FileText, Sheet, SheetIcon } from 'lucide-react';
+import { Trash, Loader2, ExternalLink, FileText, Sheet, SheetIcon } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 
@@ -24,7 +23,7 @@ export const DocumentLinksList: React.FC<DocumentLinksListProps> = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-4">
-        <LoaderCircle className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
         <span className="ml-2">Loading document links...</span>
       </div>
     );
@@ -109,7 +108,7 @@ export const DocumentLinksList: React.FC<DocumentLinksListProps> = ({
                     className="h-7 w-7"
                   >
                     {isDeleting && deletingId === link.id ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Trash className="h-4 w-4 text-red-500" />
                     )}
