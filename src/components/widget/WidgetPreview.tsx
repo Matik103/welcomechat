@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export const WidgetPreview = ({
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -95,6 +97,10 @@ export const WidgetPreview = ({
     }
   };
 
+  const handleToggleSidebar = () => {
+    setIsSidebarOpen(prev => !prev);
+  };
+
   const headerBgColor = settings.chat_color || '#4F46E5';
   const chatBgColor = settings.background_color || '#F9FAFB';
   const chatTextColor = settings.text_color || '#1F2937';
@@ -154,53 +160,74 @@ export const WidgetPreview = ({
       
     case 'sidebar':
       return (
-        <div className="flex h-[500px] border rounded-lg shadow-sm">
-          <div 
-            className="w-8 flex items-center justify-center writing-vertical"
-            style={{ backgroundColor: headerBgColor, color: '#FFFFFF' }}
-          >
-            <div className="transform rotate-180" style={{ writingMode: 'vertical-rl' }}>
-              {settings.agent_name || "Chat with us"}
+        <div className="relative h-full w-full bg-gray-100 rounded-lg p-4">
+          <div className="flex h-full">
+            {/* Sidebar tab - always visible */}
+            <div 
+              className={`flex items-center justify-center h-full cursor-pointer transition-all ${isSidebarOpen ? 'w-8' : 'w-14'}`}
+              onClick={handleToggleSidebar}
+              style={{ backgroundColor: headerBgColor }}
+            >
+              <div className="transform rotate-180 text-white" style={{ writingMode: 'vertical-rl' }}>
+                {settings.agent_name || "Chat with us"}
+              </div>
             </div>
+            
+            {/* Chat panel - visible when open */}
+            {isSidebarOpen && (
+              <div className="flex-1 flex flex-col bg-white overflow-hidden border-t border-r border-b rounded-tr-lg rounded-br-lg shadow-md">
+                <ChatHeader 
+                  headerTitle={settings.agent_name || "Chat with us"}
+                  headerSubtitle={settings.welcome_text || "We're here to help"}
+                  logoUrl={settings.logo_url}
+                  headerBgColor={headerBgColor}
+                />
+                
+                {error && (
+                  <Alert variant="destructive" className="m-3 py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">{error}</AlertDescription>
+                  </Alert>
+                )}
+                
+                <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
+                  <ChatMessages 
+                    messages={formattedMessages} 
+                    isLoading={isLoading}
+                    userBubbleColor={settings.chat_color || '#4F46E5'}
+                    assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
+                    userTextColor={'#FFFFFF'}
+                    assistantTextColor={chatTextColor}
+                  />
+                </div>
+                
+                <ChatInput
+                  value={inputValue}
+                  onChange={(val) => setInputValue(val)}
+                  onSubmit={handleSendMessage}
+                  placeholder={settings.greeting_message || "Type your message..."}
+                  buttonText={settings.button_text || "Send"}
+                  isLoading={isLoading}
+                  buttonBgColor={buttonBgColor}
+                  buttonTextColor={buttonTextColor}
+                />
+              </div>
+            )}
           </div>
           
-          <div className="flex-1 flex flex-col bg-white overflow-hidden">
-            <ChatHeader 
-              headerTitle={settings.agent_name || "Chat with us"}
-              headerSubtitle={settings.welcome_text || "We're here to help"}
-              logoUrl={settings.logo_url}
-              headerBgColor={headerBgColor}
-            />
-            
-            {error && (
-              <Alert variant="destructive" className="m-3 py-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-xs">{error}</AlertDescription>
-              </Alert>
-            )}
-            
-            <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
-              <ChatMessages 
-                messages={formattedMessages} 
-                isLoading={isLoading}
-                userBubbleColor={settings.chat_color || '#4F46E5'}
-                assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
-                userTextColor={'#FFFFFF'}
-                assistantTextColor={chatTextColor}
-              />
+          {/* Example of showing initial closed state with a button to open */}
+          {!isSidebarOpen && !messages.length && (
+            <div className="absolute top-4 right-4 p-3 bg-white border rounded-lg shadow-md">
+              <p className="text-sm mb-4">This is how the sidebar appears when collapsed. Click the tab on the left to expand it.</p>
+              <Button 
+                onClick={handleToggleSidebar}
+                className="text-white w-full"
+                style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
+              >
+                See expanded view
+              </Button>
             </div>
-            
-            <ChatInput
-              value={inputValue}
-              onChange={(val) => setInputValue(val)}
-              onSubmit={handleSendMessage}
-              placeholder={settings.greeting_message || "Type your message..."}
-              buttonText={settings.button_text || "Send"}
-              isLoading={isLoading}
-              buttonBgColor={buttonBgColor}
-              buttonTextColor={buttonTextColor}
-            />
-          </div>
+          )}
         </div>
       );
 
@@ -267,3 +294,4 @@ export const WidgetPreview = ({
       );
   }
 };
+
