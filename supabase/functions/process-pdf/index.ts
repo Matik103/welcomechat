@@ -13,7 +13,9 @@ declare global {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const DOCUMENTS_BUCKET = 'client_documents';
+const RAPIDAPI_KEY = Deno.env.get("RAPIDAPI_KEY") || "109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d";
+const RAPIDAPI_HOST = "pdf-to-text-converter.p.rapidapi.com";
+const RAPIDAPI_URL = "https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -21,10 +23,6 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const RAPIDAPI_KEY = Deno.env.get("RAPIDAPI_KEY") || "109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d";
-const RAPIDAPI_HOST = "pdf-to-text-converter.p.rapidapi.com";
-const RAPIDAPI_URL = "https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert";
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -83,7 +81,7 @@ serve(async (req) => {
       formData.append('page', page_number.toString());
     }
     
-    // Call RapidAPI PDF to Text converter with exact headers from curl
+    // Call RapidAPI PDF to Text converter with exact headers
     const response = await fetch(RAPIDAPI_URL, {
       method: 'POST',
       headers: {
@@ -130,7 +128,7 @@ serve(async (req) => {
             extraction_method: 'rapidapi',
             extraction_completed: new Date().toISOString(),
             text_length: extractedText.length,
-            processing_version: '1.0.8' // Updated version number
+            processing_version: '1.0.9' // Updated version number
           }
         })
         .eq('document_id', document_id);

@@ -1,5 +1,5 @@
 
-// Update hook to resolve the 'publicUrl' property issue
+// Streamlined document upload hook with direct RapidAPI integration
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,23 +46,22 @@ export const useUnifiedDocumentUpload = ({
       const fileExtension = file.name.split('.').pop() || '';
       const filePath = `${clientId}/${documentId}.${fileExtension}`;
       
-      // If it's a PDF, convert to base64 for direct API submission
-      let pdfData;
+      // For PDFs, directly extract text using RapidAPI
       let extractedText = '';
       
       if (file.type === 'application/pdf') {
         // Read the PDF file as base64
+        setUploadProgress(20);
         const reader = new FileReader();
-        pdfData = await new Promise<string>((resolve) => {
+        const pdfData = await new Promise<string>((resolve) => {
           reader.onload = () => resolve(reader.result as string);
           reader.readAsDataURL(file);
         });
         
-        // Simulate progress while processing
-        setUploadProgress(30);
+        setUploadProgress(40);
         
         try {
-          // Directly invoke function to process the document with the PDF data
+          // Process PDF directly with RapidAPI via Supabase Edge Function
           const { data: processingData, error: processingError } = await supabase.functions.invoke(
             'process-pdf',
             {
@@ -77,7 +76,7 @@ export const useUnifiedDocumentUpload = ({
           );
           
           if (processingError) {
-            console.warn('Warning: Document processing function error:', processingError);
+            console.warn('Warning: PDF processing error:', processingError);
           } else if (processingData?.text) {
             extractedText = processingData.text;
             console.log('Successfully extracted text from PDF, length:', extractedText.length);
@@ -117,7 +116,7 @@ export const useUnifiedDocumentUpload = ({
         .insert({
           client_id: clientId,
           document_id: documentId,
-          content: extractedText, // Add extracted text directly
+          content: extractedText,
           metadata: {
             filename: file.name,
             file_type: file.type,
