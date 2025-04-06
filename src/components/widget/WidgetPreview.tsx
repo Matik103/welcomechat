@@ -209,13 +209,13 @@ export const WidgetPreview = ({
     case 'floating':
     default:
       return (
-        <div className="relative h-[500px] bg-gray-100 rounded-lg p-4">
+        <div className="relative h-[540px] bg-gray-100 rounded-lg p-4">
           {/* Floating chat bubble */}
           <div className="absolute bottom-4 right-4 flex flex-col items-end">
             {/* Collapsed bubble state */}
             {messages.length === 0 && (
               <button 
-                className="flex items-center justify-center w-14 h-14 rounded-full shadow-md mb-2"
+                className="flex items-center justify-center w-14 h-14 rounded-full shadow-md mb-4"
                 style={{ backgroundColor: headerBgColor }}
                 onClick={() => setMessages([{ role: 'assistant', content: settings.greeting_message || "Hello! How can I help you today?" }])}
               >
@@ -229,7 +229,7 @@ export const WidgetPreview = ({
             
             {/* Expanded chat state */}
             {messages.length > 0 && (
-              <div className="w-[320px] h-[400px] flex flex-col overflow-hidden border rounded-lg shadow-md bg-white">
+              <div className="w-[320px] h-[440px] flex flex-col overflow-hidden border rounded-lg shadow-md bg-white">
                 <ChatHeader 
                   headerTitle={settings.agent_name || "Chat with us"}
                   headerSubtitle={settings.welcome_text || "We're here to help"}

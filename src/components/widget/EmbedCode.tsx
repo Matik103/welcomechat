@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -59,9 +60,9 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
       }
       
       const embedCode = `<!-- Welcome.Chat Widget Code -->
-<!-- Add this code to your website where you want the chat widget to appear -->
+<!-- Add this code just before the closing </body> tag of your website -->
 
-<!-- Widget Configuration -->
+<!-- NOTE: Widget Configuration - You can customize these settings -->
 <script>
   window.WelcomeChatConfig = {
     branding: {
@@ -81,7 +82,8 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     apiEndpoint: "${chatApiEndpoint}",
     assistantEndpoint: "${queryAssistantEndpoint}",
     assistantConfig: {
-      clientId: "${settings.openai_assistant_id ? settings.clientId : ''}",
+      // IMPORTANT: Replace empty values with your actual client ID and assistant ID
+      clientId: "${settings.clientId || ''}",
       assistantId: "${settings.openai_assistant_id || ''}",
       greeting: "${settings.greeting_message || 'Hello! How can I help you today?'}"
     }
@@ -94,6 +96,8 @@ ${customCss}
 </style>
 
 <!-- Widget HTML Structure -->
+<!-- NOTE: If you're using "inline" mode, place this div where you want the chat to appear -->
+${settings.display_mode === 'inline' ? '<!-- Add this div where you want the inline chat to appear -->' : ''}
 ${widgetHtml}
 
 <!-- Widget Functionality -->
@@ -176,7 +180,7 @@ ${widgetHtml}
           
           try {
             // Use the OpenAI assistant if available, otherwise use default response
-            if (config.assistantConfig && config.assistantConfig.assistantId && config.assistantEndpoint) {
+            if (config.assistantConfig && config.assistantConfig.clientId && config.assistantEndpoint) {
               const response = await fetch(config.assistantEndpoint, {
                 method: 'POST',
                 headers: {
@@ -292,7 +296,7 @@ ${widgetHtml}
             
             try {
               // Use the OpenAI assistant if available, otherwise use default response
-              if (config.assistantConfig && config.assistantConfig.assistantId && config.assistantEndpoint) {
+              if (config.assistantConfig && config.assistantConfig.clientId && config.assistantEndpoint) {
                 const response = await fetch(config.assistantEndpoint, {
                   method: 'POST',
                   headers: {
@@ -401,7 +405,7 @@ ${widgetHtml}
           
           try {
             // Use the OpenAI assistant if available, otherwise use default response
-            if (config.assistantConfig && config.assistantConfig.assistantId && config.assistantEndpoint) {
+            if (config.assistantConfig && config.assistantConfig.clientId && config.assistantEndpoint) {
               const response = await fetch(config.assistantEndpoint, {
                 method: 'POST',
                 headers: {
@@ -429,50 +433,50 @@ ${widgetHtml}
               }
             } else {
               // Fallback to simple response if no assistant is configured
-              setTimeout(function() {
-                // Remove typing indicator
+                setTimeout(function() {
+                  // Remove typing indicator
+                  messagesContainer.removeChild(typingIndicator);
+                  
+                  const assistantMsg = document.createElement("div");
+                  assistantMsg.className = "assistant-message";
+                  assistantMsg.textContent = config.branding.welcomeText;
+                  messagesContainer.appendChild(assistantMsg);
+                }, 1000);
+              }
+            } catch (error) {
+              console.error("Error querying assistant:", error);
+              
+              // Remove typing indicator
+              if (messagesContainer.contains(typingIndicator)) {
                 messagesContainer.removeChild(typingIndicator);
-                
-                const assistantMsg = document.createElement("div");
-                assistantMsg.className = "assistant-message";
-                assistantMsg.textContent = config.branding.welcomeText;
-                messagesContainer.appendChild(assistantMsg);
-              }, 1000);
-            }
-          } catch (error) {
-            console.error("Error querying assistant:", error);
-            
-            // Remove typing indicator
-            if (messagesContainer.contains(typingIndicator)) {
-              messagesContainer.removeChild(typingIndicator);
+              }
+              
+              // Show error message
+              const errorMsg = document.createElement("div");
+              errorMsg.className = "assistant-message";
+              errorMsg.textContent = "I'm sorry, I couldn't process your request. Please try again.";
+              messagesContainer.appendChild(errorMsg);
             }
             
-            // Show error message
-            const errorMsg = document.createElement("div");
-            errorMsg.className = "assistant-message";
-            errorMsg.textContent = "I'm sorry, I couldn't process your request. Please try again.";
-            messagesContainer.appendChild(errorMsg);
-          }
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          };
           
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        };
-        
-        sendButton.addEventListener("click", sendMessage);
-        input.addEventListener("keypress", function(e) {
-          if (e.key === "Enter") sendMessage();
-        });
-        
-        // Add initial greeting if assistant is configured
-        if (config.assistantConfig && config.assistantConfig.greeting) {
-          setTimeout(function() {
-            const assistantMsg = document.createElement("div");
-            assistantMsg.className = "assistant-message";
-            assistantMsg.textContent = config.assistantConfig.greeting;
-            messagesContainer.appendChild(assistantMsg);
-          }, 500);
+          sendButton.addEventListener("click", sendMessage);
+          input.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") sendMessage();
+          });
+          
+          // Add initial greeting if assistant is configured
+          if (config.assistantConfig && config.assistantConfig.greeting) {
+            setTimeout(function() {
+              const assistantMsg = document.createElement("div");
+              assistantMsg.className = "assistant-message";
+              assistantMsg.textContent = config.assistantConfig.greeting;
+              messagesContainer.appendChild(assistantMsg);
+            }, 500);
+          }
         }
       }
-    }
 
     // Add some extra styles for typing indicators
     const styleEl = document.createElement('style');
@@ -744,7 +748,8 @@ ${widgetHtml}
       `<img src="${settings.logo_url}" alt="${settings.agent_name || 'AI Assistant'}" class="widget-logo" />` : 
       '';
       
-    return `<div class="welcome-chat-inline-container" id="welcome-chat-inline">
+    return `<!-- You need to add this div where you want the chat to appear in your page -->
+<div id="welcome-chat-inline" class="welcome-chat-inline-container">
   <div class="welcome-chat-inline-header">
     ${logoHtml}
     <span>${settings.agent_name || 'AI Assistant'}</span>
@@ -889,7 +894,8 @@ ${widgetHtml}
     
     const tabText = settings.agent_name || 'Chat with us';
       
-    return `<div class="welcome-chat-sidebar" id="welcome-chat-sidebar">
+    return `<!-- You need to add this div to your page for the sidebar widget -->
+<div id="welcome-chat-sidebar" class="welcome-chat-sidebar">
   <div class="welcome-chat-sidebar-tab">${tabText}</div>
   <div class="welcome-chat-sidebar-content">
     <div class="welcome-chat-sidebar-header">
@@ -931,9 +937,9 @@ ${widgetHtml}
     const queryAssistantEndpoint = `https://${projectRef}.supabase.co/functions/v1/query-openai-assistant`;
     
     return `<!-- Welcome.Chat Widget Code -->
-<!-- Add this code to your website where you want the chat widget to appear -->
+<!-- Add this code just before the closing </body> tag of your website -->
 
-<!-- Widget Configuration -->
+<!-- NOTE: Widget Configuration - You can customize these settings -->
 <script>
   window.WelcomeChatConfig = {
     branding: {
@@ -953,7 +959,8 @@ ${widgetHtml}
     apiEndpoint: "${chatApiEndpoint}",
     assistantEndpoint: "${queryAssistantEndpoint}",
     assistantConfig: {
-      clientId: "${settings.openai_assistant_id ? settings.clientId : ''}",
+      // IMPORTANT: Replace empty values with your actual client ID and assistant ID
+      clientId: "${settings.clientId || ''}",
       assistantId: "${settings.openai_assistant_id || ''}",
       greeting: "${settings.greeting_message || 'Hello! How can I help you today?'}"
     }
@@ -966,13 +973,15 @@ ${customCss}
 </style>
 
 <!-- Widget HTML Structure -->
+<!-- NOTE: If you're using "inline" or "sidebar" mode, place this div where you want the chat to appear -->
 ${widgetHtml}
 
 <!-- Widget Functionality Script -->
 <script>
   document.addEventListener("DOMContentLoaded", function() {
-    const config = window.WelcomeChatConfig;
     // Widget initialization logic will run here
+    const config = window.WelcomeChatConfig;
+    // Full initialization code will appear here
   });
 </script>`;
   };

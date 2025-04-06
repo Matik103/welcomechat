@@ -32,6 +32,16 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
     }
   };
 
+  // Determine preview height based on display mode
+  const getPreviewHeight = () => {
+    switch(settings.display_mode) {
+      case 'inline': return 'h-[550px]';
+      case 'sidebar': return 'h-[550px]';
+      case 'floating': return 'h-[600px]'; // Increased height for floating mode
+      default: return 'h-[550px]';
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -44,7 +54,7 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : (
-          <div className="w-full h-[550px] border border-gray-200 rounded-md overflow-hidden">
+          <div className={`w-full ${getPreviewHeight()} border border-gray-200 rounded-md overflow-hidden`}>
             <WidgetPreview 
               settings={settings} 
               clientId={clientId} 
