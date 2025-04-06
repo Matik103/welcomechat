@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useParams } from "react-router-dom";
@@ -155,8 +154,8 @@ export default function WidgetSettings() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-6">
+    <div className="w-full min-h-screen bg-gray-50 py-6">
+      <div className="container mx-auto px-4 max-w-7xl">
         <Button 
           variant="ghost" 
           size="sm" 
