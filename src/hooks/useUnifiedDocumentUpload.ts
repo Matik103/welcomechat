@@ -46,22 +46,72 @@ export const useUnifiedDocumentUpload = ({
       const fileExtension = file.name.split('.').pop() || '';
       const filePath = `${clientId}/${documentId}.${fileExtension}`;
       
-      // For PDFs, directly extract text using RapidAPI
-      let extractedText = '';
+      // For PDFs, prepare to extract text using RapidAPI
+      let extractedText = null;
       
-      if (file.type === 'application/pdf') {
-        // Read the PDF file as base64
-        setUploadProgress(20);
-        const reader = new FileReader();
-        const pdfData = await new Promise<string>((resolve) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
+      setUploadProgress(20);
+      
+      // Upload the file to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client_documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type,
         });
         
-        setUploadProgress(40);
+      if (uploadError) {
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
+      }
+      
+      setUploadProgress(50);
+      
+      // Get the public URL for the uploaded file
+      const { data: urlData } = await supabase.storage
+        .from('client_documents')
+        .getPublicUrl(filePath);
+      
+      const url = urlData?.publicUrl || '';
+      
+      // Create document record in the database
+      const { data: documentData, error: documentError } = await supabase
+        .from('document_content')
+        .insert({
+          client_id: clientId,
+          document_id: documentId,
+          content: null, // Content will be updated after extraction
+          metadata: {
+            filename: file.name,
+            file_type: file.type,
+            size: file.size,
+            upload_path: filePath,
+            url: url,
+            uploadedAt: new Date().toISOString(),
+            processing_status: file.type === 'application/pdf' ? 'pending_extraction' : 'ready'
+          },
+          file_type: file.type,
+          filename: file.name
+        })
+        .select('id')
+        .single();
         
+      if (documentError) {
+        throw new Error(`Document record creation failed: ${documentError.message}`);
+      }
+      
+      setUploadProgress(80);
+      
+      // If it's a PDF, process it with RapidAPI via Supabase Edge Function
+      if (file.type === 'application/pdf') {
         try {
-          // Process PDF directly with RapidAPI via Supabase Edge Function
+          // Read the PDF file as base64 to send to the edge function
+          const reader = new FileReader();
+          const pdfData = await new Promise<string>((resolve) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+          
+          // Process PDF with RapidAPI via Supabase Edge Function
           const { data: processingData, error: processingError } = await supabase.functions.invoke(
             'process-pdf',
             {
@@ -77,12 +127,10 @@ export const useUnifiedDocumentUpload = ({
           
           if (processingError) {
             console.error('Error during PDF text extraction:', processingError);
-            // Continue with upload anyway, extraction can be retried later
           } else {
             console.log('PDF processing response:', processingData);
             if (processingData?.text) {
-              extractedText = processingData.text;
-              console.log('Successfully extracted text from PDF, length:', extractedText.length);
+              console.log('Successfully extracted text from PDF, length:', processingData.text.length);
             } else {
               console.warn('No text extracted from PDF or unexpected response format');
             }
@@ -91,56 +139,6 @@ export const useUnifiedDocumentUpload = ({
           console.error('Error during PDF text extraction:', error);
           // Continue with upload anyway, extraction can be retried later
         }
-        
-        setUploadProgress(70);
-      }
-      
-      // Upload the file to storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client_documents')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type,
-        });
-        
-      if (uploadError) {
-        throw new Error(`Storage upload failed: ${uploadError.message}`);
-      }
-      
-      setUploadProgress(90);
-      
-      // Get the public URL for the uploaded file
-      const { data: urlData } = await supabase.storage
-        .from('client_documents')
-        .getPublicUrl(filePath);
-      
-      const url = urlData?.publicUrl || '';
-        
-      // Create document record in the database
-      const { data: documentData, error: documentError } = await supabase
-        .from('document_content')
-        .insert({
-          client_id: clientId,
-          document_id: documentId,
-          content: extractedText || null, // Make sure it's null if empty
-          metadata: {
-            filename: file.name,
-            file_type: file.type,
-            size: file.size,
-            upload_path: filePath,
-            url: url,
-            uploadedAt: new Date().toISOString(),
-            processing_status: extractedText ? 'completed' : 'pending_extraction' 
-          },
-          file_type: file.type,
-          filename: file.name
-        })
-        .select('id')
-        .single();
-        
-      if (documentError) {
-        throw new Error(`Document record creation failed: ${documentError.message}`);
       }
       
       setUploadProgress(100);

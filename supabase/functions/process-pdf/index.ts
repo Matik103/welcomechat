@@ -70,11 +70,14 @@ serve(async (req) => {
     
     // Extract base64 data from the data URL
     const base64Data = pdf_data.replace(/^data:application\/pdf;base64,/, '');
-    const pdfBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0)).buffer;
+    const pdfBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
     
-    // Create FormData and append the PDF file
+    // Create FormData with the correct content type
     const formData = new FormData();
-    formData.append('file', new Blob([pdfBuffer], { type: 'application/pdf' }), file_name || 'document.pdf');
+    const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+    
+    // Append the file with a name
+    formData.append('file', blob, file_name || 'document.pdf');
     
     // Add optional page parameter if provided
     if (page_number) {
@@ -92,7 +95,7 @@ serve(async (req) => {
       headers: {
         'x-rapidapi-key': RAPIDAPI_KEY,
         'x-rapidapi-host': RAPIDAPI_HOST,
-        // No Content-Type header as it's set automatically by the browser for FormData
+        // Don't set Content-Type as it's automatically set with boundary by the browser
       },
       body: formData,
     });
@@ -122,22 +125,20 @@ serve(async (req) => {
       );
     }
 
-    // Process the API response
-    const textResponse = await response.text();
-    console.log("Raw API response:", textResponse.substring(0, 200) + "...");
+    let extractedText = '';
+    const contentType = response.headers.get('content-type') || '';
     
-    let result;
-    try {
-      result = JSON.parse(textResponse);
-      console.log("Parsed JSON response successfully");
-    } catch (e) {
-      console.log("Response is not JSON, using as plain text");
-      result = { text: textResponse };
+    if (contentType.includes('application/json')) {
+      // Process JSON response
+      const jsonData = await response.json();
+      console.log("Raw API JSON response:", JSON.stringify(jsonData).substring(0, 200) + "...");
+      
+      extractedText = jsonData.text || '';
+    } else {
+      // Assume it's plain text
+      extractedText = await response.text();
+      console.log("Raw API text response:", extractedText.substring(0, 200) + "...");
     }
-    
-    // Extract the text from the API response
-    const extractedText = result.text || 
-                          (typeof result === 'string' ? result : JSON.stringify(result));
     
     console.log(`Extracted text length: ${extractedText.length}`);
     console.log(`Text sample: ${extractedText.substring(0, 100)}...`);
@@ -155,7 +156,7 @@ serve(async (req) => {
             extraction_method: 'rapidapi',
             extraction_completed: new Date().toISOString(),
             text_length: extractedText.length,
-            processing_version: '1.1.0' // Updated version number
+            processing_version: '1.2.0' // Updated version number
           }
         })
         .eq('document_id', document_id);
