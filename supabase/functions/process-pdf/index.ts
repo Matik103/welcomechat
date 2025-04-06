@@ -22,19 +22,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function giveAssistantAccess(documentId: string, assistantId: string): Promise<Response> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/give-assistant-access`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ document_id: documentId, assistant_id: assistantId })
-  });
-
-  return response;
-}
-
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -60,38 +47,15 @@ serve(async (req) => {
       );
     }
 
-    // Get document details and assistant_id
-    const { data: doc, error: docError } = await supabase
-      .from('assistant_documents')
-      .select(`
-        assistant_id,
-        storage_url
-      `)
-      .eq('document_id', document_id)
-      .single();
-
-    if (docError || !doc) {
-      return new Response(
-        JSON.stringify({
-          status: "error",
-          message: "Failed to fetch document",
-          details: docError?.message
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        }
-      );
-    }
-
-    // Update document status to indicate it's queued for processing with new implementation
+    // Update document status to indicate it's queued for processing
     const { error: updateError } = await supabase
       .from('document_content')
       .update({
-        status: 'awaiting_new_extraction_method',
+        status: 'processing',
         metadata: {
+          processing_status: 'queued_for_extraction',
           last_updated: new Date().toISOString(),
-          extraction_note: 'Document queued for processing with new extraction method'
+          extraction_method: 'rapidapi'
         }
       })
       .eq('id', document_id);
@@ -110,11 +74,34 @@ serve(async (req) => {
       );
     }
 
+    // Invoke the actual PDF text extraction function
+    const { data: extractionData, error: extractionError } = await supabase.functions.invoke(
+      'extract-pdf-text',
+      {
+        body: { document_id }
+      }
+    );
+
+    if (extractionError) {
+      return new Response(
+        JSON.stringify({
+          status: "error",
+          message: "Failed to invoke text extraction",
+          details: extractionError.message
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        }
+      );
+    }
+
     return new Response(
       JSON.stringify({
         status: "success",
-        message: "Document is queued for processing with new extraction method",
-        document_id: document_id
+        message: "Document queued for processing",
+        document_id: document_id,
+        extraction_details: extractionData
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
