@@ -153,7 +153,7 @@ export const uploadDocument = async (
       try {
         const { data: extractionResponse, error: extractionError } = await supabase
           .functions.invoke('extract-pdf-content', {
-            body: { document_id: documentData.id }
+            body: { document_id: documentData.id.toString() }
           });
 
         if (extractionError) {
@@ -190,7 +190,7 @@ export async function getDocumentContent(documentId: string) {
   const { data, error } = await supabase
     .from('document_content')
     .select('*')
-    .eq('id', documentId)
+    .eq('id', parseInt(documentId))
     .single();
 
   if (error) {
@@ -210,7 +210,7 @@ export async function updateDocumentContent(documentId: string, content: string,
         updated_at: new Date().toISOString()
       }
     })
-    .eq('id', documentId);
+    .eq('id', parseInt(documentId));
 
   if (error) {
     throw new Error(`Failed to update document content: ${error.message}`);
@@ -221,7 +221,7 @@ export async function deleteDocument(documentId: string) {
   const { error } = await supabase
     .from('document_content')
     .delete()
-    .eq('id', documentId);
+    .eq('id', parseInt(documentId));
 
   if (error) {
     throw new Error(`Failed to delete document: ${error.message}`);

@@ -9,6 +9,7 @@ import { AlertTriangle, RefreshCw, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fixDocumentContentRLS, checkDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 import { toast } from 'sonner';
+import { UploadResult } from '@/hooks/useUnifiedDocumentUpload';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -67,13 +68,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     }
   };
 
-  const handleUploadComplete = async (result: {
-    success: boolean;
-    error?: string;
-    documentId?: string;
-    publicUrl?: string;
-    fileName?: string;
-  }) => {
+  const handleUploadComplete = async (result: UploadResult) => {
     if (result.success) {
       try {
         setLastError(null);

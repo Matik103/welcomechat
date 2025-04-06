@@ -1,3 +1,4 @@
+
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'react-hot-toast';
@@ -5,12 +6,19 @@ import { useUnifiedDocumentUpload } from '../../hooks/useUnifiedDocumentUpload';
 
 interface DocumentUploadProps {
   clientId: string;
-  onUploadComplete?: (documentId: string) => void;
+  onUploadComplete?: (result: { success: boolean; documentId?: string; error?: string; publicUrl?: string; fileName?: string }) => void;
 }
 
 export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
-  const { upload } = useUnifiedDocumentUpload();
+  const { upload } = useUnifiedDocumentUpload({
+    clientId,
+    onSuccess: (result) => {
+      if (onUploadComplete) {
+        onUploadComplete(result);
+      }
+    }
+  });
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!clientId) {
@@ -23,11 +31,13 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
       for (const file of acceptedFiles) {
         toast(`Uploading ${file.name}...`);
         
-        const result = await upload(file, clientId);
+        const result = await upload(file);
         
         if (result.success && result.documentId) {
           toast.success(`${file.name} uploaded successfully!`);
-          onUploadComplete?.(result.documentId);
+          if (onUploadComplete) {
+            onUploadComplete(result);
+          }
         } else {
           toast.error(`Failed to upload ${file.name}: ${result.error}`);
         }

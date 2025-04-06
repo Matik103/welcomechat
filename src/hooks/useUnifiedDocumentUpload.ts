@@ -1,3 +1,4 @@
+
 // Streamlined document upload hook with direct RapidAPI integration
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,86 +10,98 @@ export interface UploadResult {
   documentId?: string;
   error?: string;
   extractedText?: string;
+  publicUrl?: string;
+  fileName?: string;
+  fileType?: string;
 }
 
 interface UseUnifiedDocumentUploadOptions {
-  clientId: string;
+  clientId?: string;
   onSuccess?: (result: UploadResult) => void;
   onError?: (error: Error | string) => void;
   onProgress?: (progress: number) => void;
 }
 
-interface DocumentMetadata {
-  [key: string]: string | number | null | undefined;
-  filename: string;
-  file_type: string;
-  size: number;
-  uploadedAt: string;
-  processing_status: string;
-  extraction_method?: string;
-  text_length?: number;
-  extracted_at?: string;
-  error?: string;
-}
-
-export const useUnifiedDocumentUpload = ({
-  clientId,
-  onSuccess,
-  onError,
-  onProgress
-}: UseUnifiedDocumentUploadOptions) => {
+export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOptions = {}) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  const upload = async (file: File): Promise<UploadResult> => {
-    if (!clientId) {
+  const upload = async (file: File, clientId?: string): Promise<UploadResult> => {
+    // Use the clientId from options if not provided directly
+    const effectiveClientId = clientId || options.clientId;
+    
+    if (!effectiveClientId) {
       const error = new Error("Client ID is required");
-      if (onError) onError(error);
-      return { success: false, error: error.message };
-    }
-
-    if (file.type !== 'application/pdf') {
-      const error = new Error("Only PDF files are supported");
-      if (onError) onError(error);
+      if (options.onError) options.onError(error);
+      toast.error("Client ID is required");
       return { success: false, error: error.message };
     }
 
     setIsLoading(true);
-    if (onProgress) onProgress(0);
+    setUploadProgress(0);
+    if (options.onProgress) options.onProgress(0);
 
     try {
-      if (onProgress) onProgress(20);
-
-      // Create form data for RapidAPI
-      const formData = new FormData();
-      formData.append('file', file);
-
-      if (onProgress) onProgress(40);
-
-      // Extract text using RapidAPI
-      const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
-        method: 'POST',
-        headers: {
-          'x-rapidapi-host': import.meta.env.VITE_RAPIDAPI_HOST,
-          'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error(`Text extraction failed: ${response.status} ${response.statusText}`);
-      }
-
-      const extractedText = await response.text();
-      if (onProgress) onProgress(60);
+      if (options.onProgress) options.onProgress(20);
+      setUploadProgress(20);
 
       // Generate document ID
       const documentId = uuidv4();
+
+      // Upload to storage bucket first
+      const filePath = `${effectiveClientId}/${documentId}/${file.name}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client_documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw new Error(`Error uploading file to storage: ${uploadError.message}`);
+      }
+      
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('client_documents')
+        .getPublicUrl(filePath);
+      
+      setUploadProgress(40);
+      if (options.onProgress) options.onProgress(40);
+
+      // If it's a PDF, extract text using RapidAPI
+      let extractedText = '';
+      if (file.type === 'application/pdf') {
+        // Create form data for RapidAPI
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Extract text using RapidAPI
+        const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
+          method: 'POST',
+          headers: {
+            'x-rapidapi-host': import.meta.env.VITE_RAPIDAPI_HOST,
+            'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error(`Text extraction failed: ${response.status} ${response.statusText}`);
+        }
+
+        extractedText = await response.text();
+      }
+      
+      setUploadProgress(60);
+      if (options.onProgress) options.onProgress(60);
 
       // Store document and extracted text in database
       const { error: documentError } = await supabase
         .from('document_content')
         .insert({
-          client_id: clientId,
+          client_id: effectiveClientId,
           document_id: documentId,
           content: extractedText,
           filename: file.name,
@@ -97,34 +110,47 @@ export const useUnifiedDocumentUpload = ({
             filename: file.name,
             file_type: file.type,
             size: file.size,
+            storage_path: filePath,
+            storage_url: publicUrl,
             uploadedAt: new Date().toISOString(),
-            processing_status: 'extraction_complete',
-            extraction_method: 'rapidapi',
-            text_length: extractedText.length,
-            extracted_at: new Date().toISOString()
-          } as Record<string, string | number | null>
+            processing_status: file.type === 'application/pdf' ? 'extraction_complete' : 'ready',
+            extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
+            text_length: extractedText.length || 0,
+            extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null
+          }
         });
 
       if (documentError) {
         throw new Error(`Failed to store document: ${documentError.message}`);
       }
 
-      if (onProgress) onProgress(100);
+      setUploadProgress(100);
+      if (options.onProgress) options.onProgress(100);
 
       const result: UploadResult = {
         success: true,
         documentId,
-        extractedText
+        extractedText,
+        publicUrl,
+        fileName: file.name,
+        fileType: file.type
       };
 
-      if (onSuccess) onSuccess(result);
+      if (options.onSuccess) options.onSuccess(result);
+      toast.success(`${file.name} uploaded successfully!`);
       return result;
 
     } catch (error) {
       console.error('Document processing error:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (onError) onError(errorMessage);
-      return { success: false, error: errorMessage };
+      if (options.onError) options.onError(errorMessage);
+      toast.error(`Upload failed: ${errorMessage}`);
+      return { 
+        success: false, 
+        error: errorMessage,
+        fileName: file.name,
+        fileType: file.type
+      };
 
     } finally {
       setIsLoading(false);
@@ -133,6 +159,7 @@ export const useUnifiedDocumentUpload = ({
 
   return {
     upload,
-    isLoading
+    isLoading,
+    uploadProgress
   };
 };
