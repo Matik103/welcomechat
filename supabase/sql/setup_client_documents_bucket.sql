@@ -10,6 +10,7 @@ DROP POLICY IF EXISTS "Individual User Document Access" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can upload to client_documents" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete their own uploads in client_documents" ON storage.objects;
 DROP POLICY IF EXISTS "Anyone can download from client_documents" ON storage.objects;
+DROP POLICY IF EXISTS "Service role can access all client_documents" ON storage.objects;
 
 -- Create policies for the client_documents bucket
 -- Allow public select access to the client_documents bucket (anyone can download/view)
@@ -33,6 +34,11 @@ USING (bucket_id = 'client_documents');
 CREATE POLICY "Users can delete their own uploads in client_documents"
 ON storage.objects FOR DELETE
 TO authenticated
+USING (bucket_id = 'client_documents');
+
+-- Allow service role full access to all client documents
+CREATE POLICY "Service role can access all client_documents"
+ON storage.objects
 USING (bucket_id = 'client_documents');
 
 -- Update RLS policies on document_content table

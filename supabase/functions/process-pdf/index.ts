@@ -32,8 +32,8 @@ serve(async (req) => {
   }
 
   try {
-    const { document_id, client_id, file_path, file_type, filename } = await req.json();
-    console.log("Process PDF function called with params:", { document_id, client_id, file_type });
+    const { document_id, client_id, file_path, file_type, filename, page_number } = await req.json();
+    console.log("Process PDF function called with params:", { document_id, client_id, file_type, page_number });
 
     if (!document_id) {
       return new Response(
@@ -97,8 +97,9 @@ serve(async (req) => {
           last_updated: new Date().toISOString(),
           extraction_method: 'rapidapi',
           queue_timestamp: new Date().toISOString(),
-          processing_version: '1.0.3', // Updated version number
-          storage_path: storagePath
+          processing_version: '1.0.4', // Updated version number
+          storage_path: storagePath,
+          page_number: page_number || 'all'
         }
       })
       .eq('id', document_id);
@@ -135,14 +136,15 @@ serve(async (req) => {
       );
     }
 
-    // Directly invoke the extract-pdf-text edge function with storage path
-    console.log(`Invoking extract-pdf-text for document ${document_id} with path ${storagePath}`);
+    // Directly invoke the extract-pdf-text edge function with storage path and optional page number
+    console.log(`Invoking extract-pdf-text for document ${document_id} with path ${storagePath}${page_number ? ` page ${page_number}` : ''}`);
     const { data: extractionData, error: extractionError } = await supabase.functions.invoke(
       'extract-pdf-text',
       {
         body: { 
           document_id,
-          storage_path: storagePath
+          storage_path: storagePath,
+          page_number: page_number || undefined
         }
       }
     );

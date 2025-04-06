@@ -35,8 +35,8 @@ serve(async (req) => {
   }
 
   try {
-    const { document_id, storage_path } = await req.json();
-    console.log("Extract PDF text function called with params:", { document_id, storage_path });
+    const { document_id, storage_path, page_number } = await req.json();
+    console.log("Extract PDF text function called with params:", { document_id, storage_path, page_number });
 
     if (!document_id || !storage_path) {
       return new Response(
@@ -137,6 +137,11 @@ serve(async (req) => {
     formData.append('file', new Blob([pdfBuffer], { type: 'application/pdf' }), 
       docData?.filename || 'document.pdf');
     
+    // Add optional page parameter if provided
+    if (page_number) {
+      formData.append('page', page_number.toString());
+    }
+    
     console.log("Sending PDF directly to RapidAPI for text extraction");
     
     // Call RapidAPI PDF to Text converter with the correct headers
@@ -145,6 +150,7 @@ serve(async (req) => {
       headers: {
         'x-rapidapi-key': RAPIDAPI_KEY,
         'x-rapidapi-host': RAPIDAPI_HOST,
+        // Don't manually set Content-Type here as it will be automatically set with the correct boundary by FormData
       },
       body: formData,
     });
@@ -193,7 +199,8 @@ serve(async (req) => {
           processing_status: 'completed',
           extraction_method: 'rapidapi',
           extraction_completed: new Date().toISOString(),
-          text_length: extractedText.length
+          text_length: extractedText.length,
+          page: page_number || 'all'
         }
       })
       .eq('id', document_id);
