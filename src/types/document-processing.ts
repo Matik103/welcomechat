@@ -35,3 +35,20 @@ export interface DocumentProcessingOptions {
   includeMetadata?: boolean;
   onProgress?: (progress: number) => void;
 }
+
+// Add support for DocumentLink type used in the project
+export interface DocumentLink {
+  id: number;
+  client_id: string;
+  link: string;
+  document_type: DocumentType;
+  access_status: string;
+  created_at: string;
+  updated_at: string;
+  refresh_rate: number;
+  file_name?: string;
+  mime_type?: string;
+  file_size?: number;
+  storage_path?: string;
+  metadata?: Record<string, any>;
+}

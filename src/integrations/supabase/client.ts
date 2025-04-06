@@ -51,3 +51,6 @@ export const refreshSupabaseSession = async () => {
     return false;
   }
 };
+
+// Re-export the SUPABASE_URL for convenience
+export { SUPABASE_URL };
