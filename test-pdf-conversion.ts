@@ -1,13 +1,19 @@
 import axios from 'axios';
-import FormData from 'form-data';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import FormData from 'form-data';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const RAPIDAPI_KEY = '109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d';
+// Get API key from environment variable
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
+if (!RAPIDAPI_KEY) {
+  console.error('Error: RAPIDAPI_KEY environment variable is not set');
+  process.exit(1);
+}
+
 const RAPIDAPI_HOST = 'pdf-to-text-converter.p.rapidapi.com';
 const RAPIDAPI_URL = 'https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert';
 
@@ -27,38 +33,53 @@ async function testPDFConversion() {
     console.log(`PDF file size: ${(pdfBuffer.length / 1024).toFixed(2)} KB`);
 
     // Create form data
-    const formData = new FormData();
-    formData.append('file', pdfBuffer, {
+    const form = new FormData();
+    form.append('file', pdfBuffer, {
       filename: 'large-test.pdf',
       contentType: 'application/pdf'
     });
+    
+    // Optional: Add page parameter
+    // form.append('page', '1');
 
-    console.log('\nSending request to RapidAPI...');
-    console.log('This may take a moment for a large document...\n');
+    console.log('\nSending request to RapidAPI:', {
+      url: RAPIDAPI_URL,
+      fileSize: pdfBuffer.length
+    });
     
     // Make the API request
     const response = await axios({
       method: 'post',
       url: RAPIDAPI_URL,
       headers: {
-        'x-rapidapi-key': RAPIDAPI_KEY,
+        'content-type': 'application/x-www-form-urlencoded',
         'x-rapidapi-host': RAPIDAPI_HOST,
-        'Content-Type': 'application/x-www-form-urlencoded',
-        ...formData.getHeaders()
+        'x-rapidapi-key': RAPIDAPI_KEY,
+        ...form.getHeaders()
       },
-      data: formData,
+      data: form,
+      maxBodyLength: Infinity,
       timeout: 60000 // 60 second timeout for larger document
     });
 
-    console.log('Response status:', response.status);
-    console.log('\nAPI Rate Limits:');
-    console.log('- Remaining requests:', response.headers['x-ratelimit-remaining']);
-    console.log('- Request limit:', response.headers['x-ratelimit-limit']);
-    
-    if (response.status === 200) {
+    console.log('\nResponse Status:', response.status);
+
+    let extractedText = '';
+    if (response.data) {
+      if (typeof response.data === 'string') {
+        extractedText = response.data;
+      } else {
+        try {
+          extractedText = response.data.text || response.data.content || JSON.stringify(response.data);
+        } catch (err) {
+          console.warn('Failed to process response data:', err);
+          extractedText = String(response.data);
+        }
+      }
+    }
+
+    if (extractedText) {
       console.log('\n=== Extracted Text ===\n');
-      
-      const extractedText = response.data.text || response.data;
       
       // Split the text into pages (assuming pages are separated by multiple newlines)
       const pages = extractedText.split(/\n{3,}/);
@@ -81,19 +102,26 @@ async function testPDFConversion() {
       console.log(`- Total words: ${extractedText.split(/\s+/).length}`);
       console.log(`- Total lines: ${extractedText.split('\n').length}`);
     } else {
-      console.error('Error response:', response.data);
+      console.log('\nNo text content in response:', response.data);
     }
+
+    // Check rate limits
+    console.log('\nAPI Rate Limits:');
+    console.log('- Remaining:', response.headers['x-ratelimit-remaining']);
+    console.log('- Limit:', response.headers['x-ratelimit-limit']);
+    console.log('- Reset:', new Date(parseInt(response.headers['x-ratelimit-reset']) * 1000).toLocaleString());
+
   } catch (error) {
-    console.error('Error testing PDF conversion:');
-    if (error.response) {
-      console.error('Response status:', error.response.status);
-      console.error('Response data:', error.response.data);
-      console.error('Response headers:', error.response.headers);
+    console.error('\nError during PDF conversion:');
+    if (axios.isAxiosError(error)) {
+      console.error('Status:', error.response?.status);
+      console.error('Headers:', error.response?.headers);
+      console.error('Response:', error.response?.data);
     } else {
       console.error(error);
     }
+    process.exit(1);
   }
 }
 
-// Run the test
-testPDFConversion().catch(console.error); 
+testPDFConversion(); 
