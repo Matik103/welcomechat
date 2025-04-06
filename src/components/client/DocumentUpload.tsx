@@ -127,6 +127,17 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         filePath
       });
       
+      let pdfData;
+      // If it's a PDF, convert to base64 for direct API submission
+      if (selectedFile.type === 'application/pdf') {
+        // Read the file to send directly to RapidAPI
+        const reader = new FileReader();
+        pdfData = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(selectedFile);
+        });
+      }
+      
       // Upload file to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client_documents')
@@ -160,7 +171,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       }
 
       // Create document metadata
-      const documentMetadata: DocumentMetadata = {
+      const documentMetadata = {
         size: selectedFile.size,
         storage_path: filePath,
         storage_url: publicUrl,
@@ -177,7 +188,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           content: null,
           filename: selectedFile.name,
           file_type: selectedFile.type,
-          metadata: documentMetadata as Json
+          metadata: documentMetadata
         })
         .select()
         .single();
@@ -239,8 +250,12 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       if (selectedFile.type === 'application/pdf') {
         try {
           const { data: extractionResponse, error: extractionError } = await supabase
-            .functions.invoke('extract-pdf-content', {
-              body: { document_id: document.id }
+            .functions.invoke('process-pdf', {
+              body: { 
+                document_id: document.id, 
+                storage_path: filePath,
+                pdf_data: pdfData // Pass PDF data directly to the function
+              }
             });
 
           if (extractionError) {
@@ -253,7 +268,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         }
       }
 
-      const result: UploadResult = {
+      const result = {
         success: true,
         documentId: document.id.toString(),
         publicUrl,

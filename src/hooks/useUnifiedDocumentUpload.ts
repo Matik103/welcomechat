@@ -46,6 +46,17 @@ export const useUnifiedDocumentUpload = ({
       const fileExtension = file.name.split('.').pop() || '';
       const filePath = `${clientId}/${documentId}.${fileExtension}`;
       
+      let pdfData;
+      // If it's a PDF, convert to base64 for direct API submission
+      if (file.type === 'application/pdf') {
+        // Read the file to send directly to RapidAPI
+        const reader = new FileReader();
+        pdfData = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+      }
+      
       // Upload the file to storage with progress tracking
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client_documents')
@@ -100,7 +111,8 @@ export const useUnifiedDocumentUpload = ({
             document_id: documentId,
             file_path: filePath,
             file_type: file.type,
-            filename: file.name
+            filename: file.name,
+            pdf_data: pdfData // Pass PDF data directly to the function
           }
         }
       );

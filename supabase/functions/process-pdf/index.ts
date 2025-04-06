@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
@@ -32,7 +31,7 @@ serve(async (req) => {
   }
 
   try {
-    const { document_id, client_id, file_path, file_type, filename, page_number } = await req.json();
+    const { document_id, client_id, file_path, file_type, filename, page_number, pdf_data } = await req.json();
     console.log("Process PDF function called with params:", { document_id, client_id, file_type, page_number });
 
     if (!document_id) {
@@ -52,6 +51,7 @@ serve(async (req) => {
     let docFileType = file_type;
     let docFilename = filename;
     let storagePath = file_path;
+    let pdfData = pdf_data;
     
     if (!docFileType || !docFilename || !storagePath) {
       console.log("Some document details missing, fetching from database");
@@ -97,7 +97,7 @@ serve(async (req) => {
           last_updated: new Date().toISOString(),
           extraction_method: 'rapidapi',
           queue_timestamp: new Date().toISOString(),
-          processing_version: '1.0.6', // Updated version number to track this change
+          processing_version: '1.0.7', // Updated version number to track this change
           storage_path: storagePath,
           page_number: page_number || 'all'
         }
@@ -136,15 +136,24 @@ serve(async (req) => {
       );
     }
 
+    // If PDF data was provided directly, use it
+    // Otherwise, we'll need to download it from storage in the extract-pdf-text function
+    if (!pdfData && storagePath) {
+      // We'll download the PDF in the extract-pdf-text function to avoid duplicating the file in memory
+      console.log(`Invoking extract-pdf-text for document ${document_id} with path ${storagePath}${page_number ? ` page ${page_number}` : ''}`);
+    } else {
+      console.log(`Invoking extract-pdf-text for document ${document_id} with provided PDF data${page_number ? ` page ${page_number}` : ''}`);
+    }
+
     // Directly invoke the extract-pdf-text edge function with storage path and optional page number
-    console.log(`Invoking extract-pdf-text for document ${document_id} with path ${storagePath}${page_number ? ` page ${page_number}` : ''}`);
     const { data: extractionData, error: extractionError } = await supabase.functions.invoke(
       'extract-pdf-text',
       {
         body: { 
           document_id,
           storage_path: storagePath,
-          page_number: page_number || undefined
+          page_number: page_number || undefined,
+          pdf_data: pdfData || undefined
         }
       }
     );

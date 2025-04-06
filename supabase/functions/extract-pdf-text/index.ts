@@ -35,14 +35,14 @@ serve(async (req) => {
   }
 
   try {
-    const { document_id, storage_path, page_number } = await req.json();
-    console.log("Extract PDF text function called with params:", { document_id, storage_path, page_number });
+    const { document_id, pdf_data, page_number } = await req.json();
+    console.log("Extract PDF text function called with params:", { document_id, page_number });
 
-    if (!document_id || !storage_path) {
+    if (!document_id) {
       return new Response(
         JSON.stringify({
           status: "error",
-          message: "Missing required fields: document_id and storage_path"
+          message: "Missing required fields: document_id"
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -57,8 +57,7 @@ serve(async (req) => {
       .update({ 
         metadata: { 
           processing_status: 'extracting_text',
-          extraction_started: new Date().toISOString(),
-          storage_path: storage_path
+          extraction_started: new Date().toISOString()
         }
       })
       .eq('id', document_id)
@@ -96,41 +95,72 @@ serve(async (req) => {
       );
     }
 
-    // Download PDF directly from Supabase storage
-    console.log("Downloading PDF from storage:", storage_path);
-    const { data: pdfData, error: downloadError } = await supabase.storage
-      .from(DOCUMENTS_BUCKET)
-      .download(storage_path);
-
-    if (downloadError || !pdfData) {
-      console.error("Failed to download PDF:", downloadError?.message || "No data received");
-      
-      await supabase
+    let pdfBuffer;
+    if (pdf_data) {
+      // If PDF data was provided directly, use it
+      console.log("Using provided PDF data");
+      const base64Data = pdf_data.replace(/^data:application\/pdf;base64,/, '');
+      pdfBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0)).buffer;
+    } else {
+      // If no PDF data provided, get storage path from document metadata
+      const { data: docMetadata, error: metadataError } = await supabase
         .from('document_content')
-        .update({ 
-          metadata: { 
-            processing_status: 'extraction_failed',
-            extraction_error: `Download failed: ${downloadError?.message || "No data received"}`,
-            extraction_completed: new Date().toISOString()
+        .select('metadata, filename')
+        .eq('id', document_id)
+        .single();
+        
+      if (metadataError || !docMetadata?.metadata?.storage_path) {
+        console.error("Failed to get document storage path:", metadataError?.message || "No storage path found");
+        return new Response(
+          JSON.stringify({
+            status: "error",
+            message: "Failed to get document storage path",
+            details: metadataError?.message || "No storage path found"
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
           }
-        })
-        .eq('id', document_id);
+        );
+      }
       
-      return new Response(
-        JSON.stringify({
-          status: "error",
-          message: "Failed to download PDF from storage",
-          details: downloadError?.message || "No data received"
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        }
-      );
-    }
+      const storagePath = docMetadata.metadata.storage_path;
+      
+      // Download PDF from Supabase storage
+      console.log("Downloading PDF from storage:", storagePath);
+      const { data: pdfData, error: downloadError } = await supabase.storage
+        .from(DOCUMENTS_BUCKET)
+        .download(storagePath);
 
-    // Convert PDF to array buffer for FormData
-    const pdfBuffer = await pdfData.arrayBuffer();
+      if (downloadError || !pdfData) {
+        console.error("Failed to download PDF:", downloadError?.message || "No data received");
+        
+        await supabase
+          .from('document_content')
+          .update({ 
+            metadata: { 
+              processing_status: 'extraction_failed',
+              extraction_error: `Download failed: ${downloadError?.message || "No data received"}`,
+              extraction_completed: new Date().toISOString()
+            }
+          })
+          .eq('id', document_id);
+        
+        return new Response(
+          JSON.stringify({
+            status: "error",
+            message: "Failed to download PDF from storage",
+            details: downloadError?.message || "No data received"
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
+          }
+        );
+      }
+      
+      pdfBuffer = await pdfData.arrayBuffer();
+    }
     
     // Create FormData and append the PDF file
     const formData = new FormData();
