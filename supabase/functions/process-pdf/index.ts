@@ -97,7 +97,7 @@ serve(async (req) => {
           last_updated: new Date().toISOString(),
           extraction_method: 'rapidapi',
           queue_timestamp: new Date().toISOString(),
-          processing_version: '1.0.2',
+          processing_version: '1.0.3', // Updated version number
           storage_path: storagePath
         }
       })
@@ -135,8 +135,8 @@ serve(async (req) => {
       );
     }
 
-    // Invoke the actual PDF text extraction function
-    console.log(`Invoking extract-pdf-text for document ${document_id}`);
+    // Directly invoke the extract-pdf-text edge function with storage path
+    console.log(`Invoking extract-pdf-text for document ${document_id} with path ${storagePath}`);
     const { data: extractionData, error: extractionError } = await supabase.functions.invoke(
       'extract-pdf-text',
       {
@@ -162,11 +162,11 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Successfully queued document ${document_id} for processing`);
+    console.log(`Successfully processed document ${document_id}`);
     return new Response(
       JSON.stringify({
         status: "success",
-        message: "Document queued for processing",
+        message: "Document processed successfully",
         document_id: document_id,
         extraction_details: extractionData,
         timestamp: new Date().toISOString()
