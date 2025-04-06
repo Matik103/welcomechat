@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,18 +32,16 @@ export const WidgetPreview = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Handle sending messages
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
     if (!inputValue.trim()) return;
     
-    // Add user message to chat
     const userMessage = inputValue;
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setInputValue('');
     setIsLoading(true);
-    setError(null); // Clear any previous errors
+    setError(null);
     
     try {
       if (!clientId) {
@@ -53,7 +50,6 @@ export const WidgetPreview = ({
       
       console.log(`Sending query to assistant for client ${clientId}: "${userMessage}"`);
       
-      // Call webhook function
       const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
         body: {
           client_id: clientId,
@@ -68,9 +64,7 @@ export const WidgetPreview = ({
 
       console.log('Assistant response:', data);
 
-      // Handle the response based on its format
       if (data?.answer) {
-        // New format with direct answer field
         setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
       } else if (typeof data === 'string') {
         setMessages(prev => [...prev, { role: 'assistant', content: data }]);
@@ -85,7 +79,6 @@ export const WidgetPreview = ({
         }]);
       }
 
-      // Log the interaction if callback provided
       if (onTestInteraction) {
         onTestInteraction();
       }
@@ -102,14 +95,12 @@ export const WidgetPreview = ({
     }
   };
 
-  // Calculate dynamic styles based on widget settings
   const headerBgColor = settings.chat_color || '#4F46E5';
   const chatBgColor = settings.background_color || '#F9FAFB';
   const chatTextColor = settings.text_color || '#1F2937';
   const buttonBgColor = settings.button_color || '#4F46E5';
   const buttonTextColor = settings.chat_font_color || '#FFFFFF';
 
-  // Transform messages to match ChatMessages expected format
   const formattedMessages = messages.map(msg => ({
     text: msg.content,
     isUser: msg.role === 'user'
@@ -119,7 +110,6 @@ export const WidgetPreview = ({
     console.log('Widget preview error:', error);
   }
 
-  // Render different preview based on display mode
   switch (settings.display_mode) {
     case 'inline':
       return (
@@ -165,7 +155,6 @@ export const WidgetPreview = ({
     case 'sidebar':
       return (
         <div className="flex h-[500px] border rounded-lg shadow-sm">
-          {/* Sidebar tab */}
           <div 
             className="w-8 flex items-center justify-center writing-vertical"
             style={{ backgroundColor: headerBgColor, color: '#FFFFFF' }}
@@ -175,7 +164,6 @@ export const WidgetPreview = ({
             </div>
           </div>
           
-          {/* Chat content */}
           <div className="flex-1 flex flex-col bg-white overflow-hidden">
             <ChatHeader 
               headerTitle={settings.agent_name || "Chat with us"}
@@ -220,9 +208,7 @@ export const WidgetPreview = ({
     default:
       return (
         <div className="relative h-[600px] bg-gray-100 rounded-lg p-4">
-          {/* Floating chat bubble */}
           <div className="absolute bottom-4 right-4 flex flex-col items-end">
-            {/* Collapsed bubble state */}
             {messages.length === 0 && (
               <button 
                 className="flex items-center justify-center w-14 h-14 rounded-full shadow-md mb-4"
@@ -237,9 +223,8 @@ export const WidgetPreview = ({
               </button>
             )}
             
-            {/* Expanded chat state */}
             {messages.length > 0 && (
-              <div className="w-[350px] h-[500px] flex flex-col overflow-hidden border rounded-lg shadow-md bg-white">
+              <div className="w-[455px] h-[500px] flex flex-col overflow-hidden border rounded-lg shadow-md bg-white">
                 <ChatHeader 
                   headerTitle={settings.agent_name || "Chat with us"}
                   headerSubtitle={settings.welcome_text || "We're here to help"}

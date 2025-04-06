@@ -37,7 +37,7 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
     switch(settings.display_mode) {
       case 'inline': return 'h-[550px]';
       case 'sidebar': return 'h-[550px]';
-      case 'floating': return 'h-[600px]'; // Increased height for floating mode
+      case 'floating': return 'h-[650px]'; // Increased height for floating mode
       default: return 'h-[550px]';
     }
   };
