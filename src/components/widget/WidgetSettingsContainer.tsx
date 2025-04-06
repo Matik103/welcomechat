@@ -68,8 +68,8 @@ export function WidgetSettingsContainer({
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4">
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-6">
+    <div className="w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Widget Settings</h1>
