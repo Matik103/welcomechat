@@ -1,127 +1,92 @@
-import axios from 'axios';
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'fs';
+import path from 'path';
+import fetch from 'node-fetch';
 import FormData from 'form-data';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
 
-// Get API key from environment variable
-const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
-if (!RAPIDAPI_KEY) {
-  console.error('Error: RAPIDAPI_KEY environment variable is not set');
-  process.exit(1);
+// Function to format file size
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' bytes';
+  else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+  else return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 }
 
-const RAPIDAPI_HOST = 'pdf-to-text-converter.p.rapidapi.com';
-const RAPIDAPI_URL = 'https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert';
-
-async function testPDFConversion() {
+// Function to test PDF extraction
+async function testPDFExtraction(filePath: string) {
   try {
-    // Use the large test PDF file
-    const testPdfPath = path.join(__dirname, 'test-assets', 'large-test.pdf');
-    
-    if (!fs.existsSync(testPdfPath)) {
-      console.error('Large test PDF file not found:', testPdfPath);
-      console.log('Please ensure you have created the large-test.pdf file first');
-      return;
-    }
+    console.log(`\nTesting PDF extraction for: ${path.basename(filePath)}`);
+    const fileStats = fs.statSync(filePath);
+    console.log(`File size: ${formatFileSize(fileStats.size)}\n`);
 
-    // Read the PDF file
-    const pdfBuffer = fs.readFileSync(testPdfPath);
-    console.log(`PDF file size: ${(pdfBuffer.length / 1024).toFixed(2)} KB`);
-
-    // Create form data
-    const form = new FormData();
-    form.append('file', pdfBuffer, {
-      filename: 'large-test.pdf',
+    // Create form data with Buffer
+    const formData = new FormData();
+    const buffer = fs.readFileSync(filePath);
+    formData.append('file', buffer, {
+      filename: path.basename(filePath),
       contentType: 'application/pdf'
     });
-    
-    // Optional: Add page parameter
-    // form.append('page', '1');
 
-    console.log('\nSending request to RapidAPI:', {
-      url: RAPIDAPI_URL,
-      fileSize: pdfBuffer.length
-    });
-    
-    // Make the API request
-    const response = await axios({
-      method: 'post',
-      url: RAPIDAPI_URL,
+    console.log('Sending request to RapidAPI...');
+
+    const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
+      method: 'POST',
       headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-        'x-rapidapi-host': RAPIDAPI_HOST,
-        'x-rapidapi-key': RAPIDAPI_KEY,
-        ...form.getHeaders()
+        'X-RapidAPI-Key': RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'pdf-to-text-converter.p.rapidapi.com',
+        ...formData.getHeaders()
       },
-      data: form,
-      maxBodyLength: Infinity,
-      timeout: 60000 // 60 second timeout for larger document
+      // @ts-ignore - FormData is compatible with fetch body
+      body: formData
     });
 
-    console.log('\nResponse Status:', response.status);
-
-    let extractedText = '';
-    if (response.data) {
-      if (typeof response.data === 'string') {
-        extractedText = response.data;
-      } else {
-        try {
-          extractedText = response.data.text || response.data.content || JSON.stringify(response.data);
-        } catch (err) {
-          console.warn('Failed to process response data:', err);
-          extractedText = String(response.data);
-        }
-      }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Response headers:', response.headers);
+      console.error('Response status:', response.status);
+      console.error('Error details:', errorText);
+      throw new Error(`RapidAPI request failed: ${response.status} ${response.statusText}\n${errorText}`);
     }
 
-    if (extractedText) {
-      console.log('\n=== Extracted Text ===\n');
-      
-      // Split the text into pages (assuming pages are separated by multiple newlines)
-      const pages = extractedText.split(/\n{3,}/);
-      
-      pages.forEach((page, index) => {
-        console.log(`\n--- Page ${index + 1} ---\n`);
-        console.log(page.trim());
-        console.log('\n' + '-'.repeat(80));
-      });
-      
-      // Save the extracted text to a file
-      const outputPath = path.join(__dirname, 'test-assets', 'extracted-text.txt');
-      fs.writeFileSync(outputPath, extractedText);
-      console.log(`\nExtracted text has been saved to: ${outputPath}`);
-      
-      // Print some statistics
-      console.log('\nDocument Statistics:');
-      console.log(`- Total pages: ${pages.length}`);
-      console.log(`- Total characters: ${extractedText.length}`);
-      console.log(`- Total words: ${extractedText.split(/\s+/).length}`);
-      console.log(`- Total lines: ${extractedText.split('\n').length}`);
-    } else {
-      console.log('\nNo text content in response:', response.data);
-    }
+    const text = await response.text();
+    console.log('\nExtraction successful!');
+    console.log('Text preview:', text.substring(0, 200) + '...');
+    console.log(`Total text length: ${text.length} characters`);
 
-    // Check rate limits
-    console.log('\nAPI Rate Limits:');
-    console.log('- Remaining:', response.headers['x-ratelimit-remaining']);
-    console.log('- Limit:', response.headers['x-ratelimit-limit']);
-    console.log('- Reset:', new Date(parseInt(response.headers['x-ratelimit-reset']) * 1000).toLocaleString());
+    // Save extracted text to file
+    const outputPath = path.join('test-assets', `extracted-${path.basename(filePath, '.pdf')}.txt`);
+    fs.writeFileSync(outputPath, text);
+    console.log(`Full text saved to: ${outputPath}`);
 
+    return text;
   } catch (error) {
-    console.error('\nError during PDF conversion:');
-    if (axios.isAxiosError(error)) {
-      console.error('Status:', error.response?.status);
-      console.error('Headers:', error.response?.headers);
-      console.error('Response:', error.response?.data);
-    } else {
-      console.error(error);
-    }
-    process.exit(1);
+    console.error('Error during extraction:', error);
+    return null;
   }
 }
 
-testPDFConversion(); 
+// Function to run tests
+async function runTests() {
+  const testFiles = [
+    'test-assets/small-test.pdf',
+    'test-assets/medium-test.pdf',
+    'test-assets/large-test.pdf',
+    'test-assets/xlarge-test.pdf'
+  ];
+
+  console.log('Starting PDF extraction tests...\n');
+
+  for (const file of testFiles) {
+    await testPDFExtraction(file);
+    // Add a delay between requests to respect rate limits
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+
+  console.log('\nAll tests completed!');
+}
+
+// Run the tests
+runTests().catch(error => {
+  console.error('Error running tests:', error);
+  process.exit(1);
+}); 
