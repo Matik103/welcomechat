@@ -81,37 +81,43 @@ export function WidgetSettingsContainer({
         </Button>
       </div>
 
-      <div className="grid gap-6">
-        {/* Branding Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Branding</CardTitle>
-            <CardDescription>Configure your widget's appearance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <WidgetSection
-                settings={activeSettings}
-                isUploading={isUploading}
-                onSettingsChange={handleSettingsChange}
-                onLogoUpload={handleLogoUpload}
-              />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Left Column - Settings */}
+        <div className="w-full lg:w-2/3 space-y-6">
+          {/* Branding Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Branding</CardTitle>
+              <CardDescription>Configure your widget's appearance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <WidgetSection
+                  settings={activeSettings}
+                  isUploading={isUploading}
+                  onSettingsChange={handleSettingsChange}
+                  onLogoUpload={handleLogoUpload}
+                />
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Widget Preview Card - Now placed as the third card */}
+          <WidgetPreviewCard
+            settings={activeSettings}
+            clientId={clientId}
+            onTestInteraction={handlePreviewInteraction}
+          />
+        </div>
         
-        {/* Embed Code Card */}
-        <EmbedCodeCard 
-          settings={activeSettings} 
-          onCopy={handleCopyCode}
-        />
-        
-        {/* Widget Preview Card - Now placed as the third card */}
-        <WidgetPreviewCard
-          settings={activeSettings}
-          clientId={clientId}
-          onTestInteraction={handlePreviewInteraction}
-        />
+        {/* Right Column - Embed Code Card */}
+        <div className="w-full lg:w-1/3">
+          {/* Embed Code Card - Now placed last */}
+          <EmbedCodeCard 
+            settings={activeSettings} 
+            onCopy={handleCopyCode}
+          />
+        </div>
       </div>
     </div>
   );
