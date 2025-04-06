@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
-  clientId: string;
+  clientId?: string;
   onTestInteraction?: () => void;
 }
 
@@ -51,6 +51,8 @@ export const WidgetPreview = ({
         throw new Error('Client ID is required');
       }
       
+      console.log(`Sending query to assistant for client ${clientId}: "${userMessage}"`);
+      
       // Call webhook function
       const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
         body: {
@@ -59,10 +61,18 @@ export const WidgetPreview = ({
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(`Edge function error: ${error.message || 'Unknown error'}`);
+      }
+
+      console.log('Assistant response:', data);
 
       // Handle the response based on its format
-      if (typeof data === 'string') {
+      if (data?.answer) {
+        // New format with direct answer field
+        setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
+      } else if (typeof data === 'string') {
         setMessages(prev => [...prev, { role: 'assistant', content: data }]);
       } else if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
         const assistantMessage = data.messages[data.messages.length - 1]?.content || 
@@ -209,7 +219,7 @@ export const WidgetPreview = ({
     case 'floating':
     default:
       return (
-        <div className="relative h-[540px] bg-gray-100 rounded-lg p-4">
+        <div className="relative h-[600px] bg-gray-100 rounded-lg p-4">
           {/* Floating chat bubble */}
           <div className="absolute bottom-4 right-4 flex flex-col items-end">
             {/* Collapsed bubble state */}
@@ -229,7 +239,7 @@ export const WidgetPreview = ({
             
             {/* Expanded chat state */}
             {messages.length > 0 && (
-              <div className="w-[320px] h-[440px] flex flex-col overflow-hidden border rounded-lg shadow-md bg-white">
+              <div className="w-[350px] h-[500px] flex flex-col overflow-hidden border rounded-lg shadow-md bg-white">
                 <ChatHeader 
                   headerTitle={settings.agent_name || "Chat with us"}
                   headerSubtitle={settings.welcome_text || "We're here to help"}
