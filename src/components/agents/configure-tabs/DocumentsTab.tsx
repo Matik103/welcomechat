@@ -8,7 +8,7 @@ import { createClientActivity } from "@/services/clientActivityService";
 import { ActivityType } from "@/types/activity";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, CheckCircle2 } from "lucide-react";
 
 export interface DocumentsTabProps {
   clientId: string;
@@ -63,9 +63,9 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
       <Separator />
 
       <Alert variant="default" className="bg-blue-50 border-blue-200">
-        <InfoIcon className="h-4 w-4 text-blue-500" />
+        <CheckCircle2 className="h-4 w-4 text-blue-500" />
         <AlertDescription className="text-blue-700">
-          Documents will be processed and made available to your AI assistant immediately after upload.
+          Documents will be securely stored and made available to your AI assistant for knowledge retrieval.
         </AlertDescription>
       </Alert>
 
