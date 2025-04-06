@@ -1,196 +1,82 @@
-import { useState } from 'react';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import { useDriveLinks } from '@/hooks/useDriveLinks';
-import { createClientActivity } from '@/services/clientActivityService';
-import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
+
+import React from 'react';
+import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { DocumentType } from '@/types/document-processing';
+import { Card, CardContent } from '@/components/ui/card';
+import { DocumentLinkForm } from '@/components/client/drive-links/DocumentLinkForm';
+import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
+import { DocumentLinkData, DocumentLinksProps } from '@/components/client/DocumentLinks';
+import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 
-export interface GoogleDriveTabProps {
+interface GoogleDriveTabProps {
   clientId: string;
-  agentName: string;
-  onSuccess: () => void;
+  onResourceChange?: () => void;
+  onUploadComplete?: () => void;
 }
 
-interface DriveLink {
-  link: string;
-  refresh_rate: number;
-  document_type: DocumentType;
-  metadata: {
-    agent_name: string;
-    source: string;
-  };
-}
-
-export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTabProps) {
-  const [url, setUrl] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const { 
-    documentLinks, 
-    addDocumentLink, 
-    isAddingLink, 
+export function GoogleDriveTab({ clientId, onResourceChange, onUploadComplete }: GoogleDriveTabProps) {
+  const {
+    documentLinks,
+    isLoading,
+    addDocumentLink,
     deleteDocumentLink,
-    isDeletingLink,
-    refetch 
-  } = useDriveLinks(clientId);
+    refetch
+  } = useDocumentLinks(clientId);
 
-  const validateDriveUrl = (url: string): boolean => {
-    const googleDriveRegex = /https:\/\/(drive|docs|sheets|slides)\.google\.com\/.+/;
-    return googleDriveRegex.test(url);
+  const logClientActivity = async () => {
+    // This is a placeholder; in a real implementation, you'd log the activity
+    console.log('Document link activity logged for client:', clientId);
+    return Promise.resolve();
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    
-    if (!validateDriveUrl(url)) {
-      setError('Please enter a valid Google Drive, Docs, Sheets, or Slides URL');
-      toast.error('Please enter a valid Google Drive, Docs, Sheets, or Slides URL');
-      return;
-    }
-
+  const handleAddLink = async (data: DocumentLinkData) => {
     try {
-      const driveLink: DriveLink = {
-        link: url,
-        refresh_rate: 24, // Default refresh rate in hours
-        document_type: 'google_drive',
-        metadata: {
-          agent_name: agentName, 
-          source: 'agent_config'
-        }
-      };
-
-      await addDocumentLink.mutateAsync(driveLink);
+      await addDocumentLink.mutateAsync(data);
       
-      // Log activity
-      await createClientActivity(
-        clientId,
-        agentName,
-        'url_added',
-        `Google Drive link added for agent ${agentName}`,
-        {
-          url: url,
-          agent_name: agentName,
-          type: 'google_drive'
-        }
-      );
-      
-      toast.success('Google Drive link added successfully');
-      setUrl('');
-      setError(null);
-      
-      // Refresh the list of drive links
-      if (refetch) {
-        await refetch();
-      }
-      
-      onSuccess();
+      if (refetch) await refetch();
+      if (onResourceChange) onResourceChange();
     } catch (error) {
-      console.error('Error adding Google Drive link:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setError(`Failed to add Google Drive link: ${errorMessage}`);
-      toast.error(`Failed to add Google Drive link: ${errorMessage}`);
+      console.error('Failed to add link:', error);
     }
   };
 
-  // Helper function to log client activity for deletions
-  const handleDeleteLink = async (linkId: number) => {
+  const handleDeleteLink = async (id: number) => {
     try {
-      await deleteDocumentLink.mutateAsync(linkId);
+      await deleteDocumentLink.mutateAsync(id);
       
-      // Log the activity
-      await createClientActivity(
-        clientId,
-        agentName,
-        'url_removed',
-        `Google Drive link removed for agent ${agentName}`,
-        {
-          agent_name: agentName,
-          type: 'google_drive'
-        }
-      );
-      
-      // Refresh the list
-      if (refetch) {
-        await refetch();
-      }
-      
-      onSuccess();
-      toast.success('Google Drive link removed successfully');
+      if (refetch) await refetch();
+      if (onResourceChange) onResourceChange();
     } catch (error) {
-      console.error('Error removing Google Drive link:', error);
-      toast.error(`Failed to remove Google Drive link: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Failed to delete link:', error);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="drive-url">Google Drive URL</Label>
-          <Input
-            id="drive-url"
-            placeholder="https://docs.google.com/..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            required
-          />
-          <p className="text-xs text-muted-foreground">
-            Enter the URL of a Google Drive folder, Google Doc, Google Sheet, or Google Slide.
-          </p>
-        </div>
-        
-        {error && (
-          <Alert variant="destructive" className="mt-2">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        <Button 
-          type="submit" 
-          disabled={isAddingLink || !url.trim()}
-        >
-          {isAddingLink ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Adding...
-            </>
-          ) : (
-            'Add Drive Link'
-          )}
-        </Button>
-      </form>
+    <div className="space-y-4">
+      <Alert variant="info">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Connect a Google Drive document or folder to provide knowledge for the AI agent.
+        </AlertDescription>
+      </Alert>
       
-      {documentLinks && documentLinks.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-sm font-medium mb-2">Added Google Drive Links</h3>
-          <DocumentLinksList
-            links={documentLinks}
-            isLoading={false}
+      <Card>
+        <CardContent className="pt-6">
+          <DocumentLinkForm 
+            onSubmit={handleAddLink} 
+            isSubmitting={addDocumentLink.isPending}
+            agentName="AI Assistant"
+          />
+          <div className="h-4" />
+          <DocumentLinksList 
+            links={documentLinks || []} 
+            isLoading={isLoading}
             onDelete={handleDeleteLink}
-            isDeleting={isDeletingLink}
-            deletingId={isDeletingLink ? documentLinks[0]?.id : undefined}
+            isDeleting={deleteDocumentLink.isPending}
+            deletingId={deleteDocumentLink.variables}
           />
-        </div>
-      )}
-      
-      <div className="text-sm text-muted-foreground">
-        <p>Supported Google links:</p>
-        <ul className="list-disc pl-5 mt-2">
-          <li>Google Drive folders</li>
-          <li>Google Docs</li>
-          <li>Google Sheets</li>
-          <li>Google Slides</li>
-        </ul>
-        <p className="mt-3">
-          Make sure the Google Drive resources are publicly accessible or shared with your service account email.
-        </p>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
