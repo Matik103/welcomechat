@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
 import { safeParseSettings } from '@/utils/clientSettingsUtils';
+import { toast } from 'sonner';
 
 // Helper function to safely get a value from settings or return a default
 const getSettingValue = <T>(settings: Record<string, any>, key: string, defaultValue: T): T => {
@@ -17,6 +18,7 @@ export const useClientList = () => {
   const [error, setError] = useState<Error | null>(null);
   const lastFetchTime = useRef<number>(0);
   const initialLoadDone = useRef<boolean>(false);
+  const fetchTimeoutRef = useRef<number | null>(null);
 
   const fetchClients = useCallback(async (force = false) => {
     // Don't refetch if we just did within the last 15 seconds unless forced
@@ -37,6 +39,21 @@ export const useClientList = () => {
     
     try {
       console.log('Fetching clients data...');
+      
+      // Set a timeout to show error after 10 seconds
+      if (fetchTimeoutRef.current) {
+        window.clearTimeout(fetchTimeoutRef.current);
+      }
+      
+      fetchTimeoutRef.current = window.setTimeout(() => {
+        if (isLoading) {
+          console.error('Client fetch timeout reached');
+          setError(new Error('Request timed out. Please try again.'));
+          setIsLoading(false);
+          toast.error('Failed to load clients: Request timed out');
+        }
+      }, 10000) as unknown as number;
+      
       let query = supabase
         .from('ai_agents')
         .select('*')
@@ -47,6 +64,12 @@ export const useClientList = () => {
       }
       
       const { data, error } = await query;
+      
+      // Clear the timeout since we got a response
+      if (fetchTimeoutRef.current) {
+        window.clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
       
       if (error) {
         throw error;
@@ -94,14 +117,22 @@ export const useClientList = () => {
     } catch (error) {
       console.error('Error fetching clients:', error);
       setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
+      toast.error(`Failed to load clients: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, isLoading]);
   
   // Initial fetch on component mount
   useEffect(() => {
     fetchClients(true);
+    
+    return () => {
+      // Clean up timeout if component unmounts
+      if (fetchTimeoutRef.current) {
+        window.clearTimeout(fetchTimeoutRef.current);
+      }
+    };
   }, [fetchClients]);
   
   // Set up refetch on window focus and auth state restoration

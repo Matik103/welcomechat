@@ -1,11 +1,18 @@
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, Suspense } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { PublicRoutes } from "./components/routes/PublicRoutes";
 import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes";
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
+
+// Simple loading fallback component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+  </div>
+);
 
 function App() {
   const { user, userRole, isLoading, session } = useAuth();
@@ -33,9 +40,9 @@ function App() {
 
   // Use useMemo to avoid unnecessary re-renders of entire route components
   const routeComponent = useMemo(() => {
-    // Skip rendering complex components during loading to avoid flash of incorrect content
+    // Show minimal loading for auth-related operations only
     if (isLoading && !isAuthCallback) {
-      return null; // Return minimal content during loading
+      return <LoadingFallback />;
     }
 
     // Public routes for non-authenticated users
@@ -51,16 +58,24 @@ function App() {
     // Render based on user role - only calculate this when user and userRole are available
     if (user) {
       if (userRole === 'admin') {
-        return <AdminRoutes />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <AdminRoutes />
+          </Suspense>
+        );
       }
       
       if (userRole === 'client') {
-        return <ClientRoutes />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <ClientRoutes />
+          </Suspense>
+        );
       }
       
-      // If user is authenticated but role not determined yet, show minimal UI
+      // If user is authenticated but role not determined yet, show loading
       if (!userRole) {
-        return <Navigate to="/" replace />;
+        return <LoadingFallback />;
       }
     }
     
