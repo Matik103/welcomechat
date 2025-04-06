@@ -36,7 +36,7 @@ export function WidgetPreviewCard({ settings, clientId, onTestInteraction }: Wid
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : (
-          <div className="w-full h-[500px] border border-gray-200 rounded-md overflow-hidden">
+          <div className="w-full h-[500px] border border-gray-200 rounded-md overflow-hidden shadow-sm">
             <WidgetPreview 
               settings={settings} 
               clientId={clientId || ""} 

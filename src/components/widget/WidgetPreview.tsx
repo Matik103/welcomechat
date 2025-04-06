@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 interface WidgetPreviewProps {
   settings: WidgetSettings;
   clientId: string;
-  onTestInteraction?: () => void;
+  onTestInteraction?: () => Promise<void>;
 }
 
 interface Message {
@@ -138,17 +138,19 @@ export const WidgetPreview = ({
         />
       </div>
       
-      {/* Input Area */}
-      <ChatInput
-        value={inputValue}
-        onChange={(val) => setInputValue(val)}
-        onSubmit={handleSendMessage}
-        placeholder={settings.greeting_message || "Type your message..."}
-        buttonText={settings.button_text || "Send"}
-        isLoading={isLoading}
-        buttonBgColor={buttonBgColor}
-        buttonTextColor={buttonTextColor}
-      />
+      {/* Input Area - Ensuring proper spacing and visibility */}
+      <div className="border-t border-gray-200 bg-white">
+        <ChatInput
+          value={inputValue}
+          onChange={(val) => setInputValue(val)}
+          onSubmit={handleSendMessage}
+          placeholder={settings.greeting_message || "Type your message..."}
+          buttonText={settings.button_text || "Send"}
+          isLoading={isLoading}
+          buttonBgColor={buttonBgColor}
+          buttonTextColor={buttonTextColor}
+        />
+      </div>
     </div>
   );
 };

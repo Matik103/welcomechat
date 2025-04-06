@@ -50,7 +50,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         disabled={isLoading || !value.trim()}
         style={{
           backgroundColor: buttonBgColor,
-          color: buttonTextColor
+          color: buttonTextColor,
+          minWidth: '60px', // Ensure minimum width for the button
+          padding: '0 12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '40px',
+          overflow: 'visible',
+          position: 'relative',
+          zIndex: 10 // Ensure button is above other elements
         }}
       >
         {isLoading ? (
