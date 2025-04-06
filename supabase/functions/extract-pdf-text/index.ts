@@ -2,6 +2,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
+// Type declarations for Deno environment
+declare global {
+  const Deno: {
+    env: {
+      get(key: string): string | undefined;
+    };
+  };
+}
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const DOCUMENTS_BUCKET = 'client_documents';
@@ -25,6 +34,7 @@ serve(async (req) => {
 
   try {
     const { document_id } = await req.json();
+    console.log("Extract PDF text function called for document_id:", document_id);
 
     if (!document_id) {
       return new Response(
@@ -42,11 +52,12 @@ serve(async (req) => {
     // Get document details
     const { data: docData, error: docError } = await supabase
       .from('document_content')
-      .select('metadata')
+      .select('metadata, filename, file_type')
       .eq('id', document_id)
       .single();
 
     if (docError || !docData) {
+      console.error("Failed to get document details:", docError?.message || "Document not found");
       return new Response(
         JSON.stringify({
           status: "error",
@@ -60,9 +71,32 @@ serve(async (req) => {
       );
     }
     
+    console.log("Document details retrieved:", {
+      filename: docData.filename,
+      fileType: docData.file_type,
+      metadataKeys: docData.metadata ? Object.keys(docData.metadata) : "none"
+    });
+    
+    // Check if it's a PDF
+    if (docData.file_type !== 'application/pdf') {
+      console.warn("Document is not a PDF, skipping extraction");
+      return new Response(
+        JSON.stringify({
+          status: "error",
+          message: "Document is not a PDF file",
+          details: `File type is ${docData.file_type}`
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
+    }
+    
     const storagePath = docData.metadata?.storage_path;
     
     if (!storagePath) {
+      console.error("Document has no storage path in metadata");
       return new Response(
         JSON.stringify({
           status: "error",
@@ -75,11 +109,14 @@ serve(async (req) => {
       );
     }
     
+    console.log("Storage path found:", storagePath);
+    
     // Update document_content status to indicate pending extraction
     const { error: updateError } = await supabase
       .from('document_content')
       .update({ 
         metadata: { 
+          ...docData.metadata,
           processing_status: 'awaiting_extraction',
           updated_at: new Date().toISOString()
         }
@@ -87,6 +124,7 @@ serve(async (req) => {
       .eq('id', document_id);
 
     if (updateError) {
+      console.error("Failed to update document status:", updateError.message);
       return new Response(
         JSON.stringify({
           status: "error",
@@ -107,22 +145,26 @@ serve(async (req) => {
       .eq('document_id', document_id);
 
     try {
+      console.log("Calling PDF processing service at:", PDF_PROCESSOR_URL);
       // Call the PDF processing service
       const response = await fetch(`${PDF_PROCESSOR_URL}/process`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ document_id, storage_path }),
+        body: JSON.stringify({ document_id, storage_path: storagePath }),
       });
 
+      console.log("PDF processor response status:", response.status);
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`PDF processing service error: ${response.status} ${errorText}`);
-        throw new Error(`PDF processing service returned status ${response.status}`);
+        throw new Error(`PDF processing service returned status ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
+      console.log("PDF processor result:", JSON.stringify(result).substring(0, 200) + "...");
       
       return new Response(
         JSON.stringify({
@@ -137,11 +179,14 @@ serve(async (req) => {
         }
       );
     } catch (processingError) {
+      console.error("Processing error:", processingError.message);
+      
       // Update document status to indicate extraction failed
       await supabase
         .from('document_content')
         .update({ 
           metadata: { 
+            ...docData.metadata,
             processing_status: 'extraction_failed',
             extraction_error: processingError.message,
             updated_at: new Date().toISOString()
@@ -163,6 +208,7 @@ serve(async (req) => {
     }
 
   } catch (error) {
+    console.error("Unexpected error:", error.message);
     return new Response(
       JSON.stringify({
         status: "error",

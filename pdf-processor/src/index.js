@@ -42,11 +42,13 @@ async function downloadPDFFromStorage(storagePath) {
     throw new Error('No data received from storage');
   }
 
+  console.log('PDF downloaded successfully, size:', data.size);
   return Buffer.from(await data.arrayBuffer());
 }
 
 async function convertPDFToText(pdfBuffer, pageNumber = null) {
   console.log('Converting PDF to text using RapidAPI...');
+  console.log('PDF buffer size:', pdfBuffer.length);
   
   try {
     // Create form data for the API request
@@ -58,10 +60,19 @@ async function convertPDFToText(pdfBuffer, pageNumber = null) {
       contentType: 'application/pdf',
     });
     
+    console.log('FormData created with file');
+    
     // Add page parameter if specified
     if (pageNumber) {
+      console.log('Processing specific page:', pageNumber);
       formData.append('page', pageNumber);
     }
+    
+    console.log('Sending request to RapidAPI:', RAPIDAPI_URL);
+    console.log('Using headers:', {
+      'x-rapidapi-key': `${RAPIDAPI_KEY.substring(0, 5)}...`,
+      'x-rapidapi-host': RAPIDAPI_HOST
+    });
     
     // Make the API request
     const response = await axios({
@@ -72,14 +83,26 @@ async function convertPDFToText(pdfBuffer, pageNumber = null) {
         'x-rapidapi-host': RAPIDAPI_HOST,
         ...formData.getHeaders()
       },
-      data: formData
+      data: formData,
+      timeout: 30000 // 30 second timeout
     });
+    
+    console.log('RapidAPI response status:', response.status);
     
     if (response.status === 200) {
       console.log('PDF conversion successful');
+      console.log('Response data structure:', Object.keys(response.data));
+      
+      // Handle both response formats from the API
+      const extractedText = response.data.text || 
+                           (typeof response.data === 'string' ? response.data : JSON.stringify(response.data));
+      
+      console.log('Extracted text length:', extractedText.length);
+      console.log('Text preview:', extractedText.substring(0, 100) + '...');
+      
       return {
         success: true,
-        text: response.data.text || response.data,
+        text: extractedText,
         metadata: {
           extraction_method: 'rapidapi',
           timestamp: new Date().toISOString(),
@@ -92,6 +115,7 @@ async function convertPDFToText(pdfBuffer, pageNumber = null) {
     }
   } catch (error) {
     console.error('Error converting PDF to text:', error);
+    console.error('Error details:', error.response?.data || error.message);
     return {
       success: false,
       error: error.message,
@@ -107,6 +131,19 @@ async function convertPDFToText(pdfBuffer, pageNumber = null) {
 async function storeTextContent(documentId, text, metadata) {
   console.log('Storing text content for document:', documentId);
   try {
+    // First check if the document exists
+    const { data: existingDoc, error: checkError } = await supabase
+      .from('document_content')
+      .select('id')
+      .eq('id', documentId)
+      .single();
+      
+    if (checkError) {
+      console.error('Error checking document existence:', checkError);
+      throw new Error(`Failed to check document existence: ${checkError.message}`);
+    }
+    
+    // Use upsert to handle both update and insert cases
     const { error } = await supabase
       .from('document_content')
       .update({
