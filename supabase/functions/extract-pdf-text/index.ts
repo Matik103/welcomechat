@@ -145,15 +145,15 @@ serve(async (req) => {
     console.log("Sending PDF to RapidAPI for text extraction");
     console.log(`Using headers: x-rapidapi-key: ${RAPIDAPI_KEY.substring(0, 5)}...`);
     console.log(`Using headers: x-rapidapi-host: ${RAPIDAPI_HOST}`);
+    console.log('Using Content-Type: application/x-www-form-urlencoded');
     
-    // Call RapidAPI PDF to Text converter with the specified headers
-    // Note: When sending FormData, do not set Content-Type manually as it will be
-    // automatically set with the correct boundary
+    // Call RapidAPI PDF to Text converter with the exact headers from the curl command
     const response = await fetch(RAPIDAPI_URL, {
       method: 'POST',
       headers: {
         'x-rapidapi-key': RAPIDAPI_KEY,
         'x-rapidapi-host': RAPIDAPI_HOST,
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: formData,
     });
