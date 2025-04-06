@@ -29,21 +29,26 @@ const DOCUMENTS_BUCKET = 'client_documents';
 
 async function downloadPDFFromStorage(storagePath) {
   console.log('Downloading PDF from:', storagePath);
-  const { data, error } = await supabase.storage
-    .from(DOCUMENTS_BUCKET)
-    .download(storagePath);
+  try {
+    const { data, error } = await supabase.storage
+      .from(DOCUMENTS_BUCKET)
+      .download(storagePath);
 
-  if (error) {
-    console.error('Download error:', error);
-    throw new Error(`Failed to download PDF: ${error.message}`);
+    if (error) {
+      console.error('Download error:', error);
+      throw new Error(`Failed to download PDF: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('No data received from storage');
+    }
+
+    console.log('PDF downloaded successfully, size:', data.size);
+    return Buffer.from(await data.arrayBuffer());
+  } catch (error) {
+    console.error('Error in downloadPDFFromStorage:', error.message);
+    throw error;
   }
-
-  if (!data) {
-    throw new Error('No data received from storage');
-  }
-
-  console.log('PDF downloaded successfully, size:', data.size);
-  return Buffer.from(await data.arrayBuffer());
 }
 
 async function convertPDFToText(pdfBuffer, pageNumber = null) {
@@ -134,25 +139,41 @@ async function storeTextContent(documentId, text, metadata) {
     // First check if the document exists
     const { data: existingDoc, error: checkError } = await supabase
       .from('document_content')
-      .select('id')
+      .select('id, metadata')
       .eq('id', documentId)
       .single();
       
-    if (checkError) {
+    if (checkError && !checkError.message.includes('No rows found')) {
       console.error('Error checking document existence:', checkError);
       throw new Error(`Failed to check document existence: ${checkError.message}`);
     }
+    
+    let updatedMetadata = {
+      ...metadata,
+      processing_status: 'completed',
+      storage_time: new Date().toISOString()
+    };
+    
+    if (existingDoc && existingDoc.metadata) {
+      // Merge with existing metadata if available
+      updatedMetadata = {
+        ...existingDoc.metadata,
+        ...updatedMetadata
+      };
+    }
+    
+    console.log('Updating document_content with extracted text and metadata:', {
+      documentId,
+      textLength: text?.length || 0,
+      metadataKeys: Object.keys(updatedMetadata)
+    });
     
     // Use upsert to handle both update and insert cases
     const { error } = await supabase
       .from('document_content')
       .update({
         content: text,
-        metadata: {
-          ...metadata,
-          processing_status: 'completed',
-          storage_time: new Date().toISOString()
-        }
+        metadata: updatedMetadata
       })
       .eq('id', documentId);
 
@@ -162,19 +183,23 @@ async function storeTextContent(documentId, text, metadata) {
     }
 
     // Also update assistant_documents status if applicable
-    const { error: assistantDocError } = await supabase
-      .from('assistant_documents')
-      .update({ status: 'ready' })
-      .eq('document_id', documentId);
-      
-    if (assistantDocError) {
-      console.warn('Warning: Failed to update assistant document status:', assistantDocError);
+    try {
+      const { error: assistantDocError } = await supabase
+        .from('assistant_documents')
+        .update({ status: 'ready' })
+        .eq('document_id', documentId);
+        
+      if (assistantDocError) {
+        console.warn('Warning: Failed to update assistant document status:', assistantDocError);
+      }
+    } catch (err) {
+      console.warn('Error updating assistant_documents:', err.message);
     }
 
     console.log('Text content stored successfully');
     return true;
   } catch (error) {
-    console.error('Storage error:', error);
+    console.error('Storage error in storeTextContent:', error);
     throw error;
   }
 }
@@ -184,39 +209,95 @@ app.post('/process', async (req, res) => {
     const { document_id, storage_path, page_number } = req.body;
     
     if (!document_id || !storage_path) {
-      return res.status(400).json({ error: 'Missing required parameters: document_id and storage_path' });
+      return res.status(400).json({ 
+        error: 'Missing required parameters: document_id and storage_path',
+        received: { document_id, storage_path }
+      });
     }
 
     console.log(`Processing PDF document ${document_id} from path ${storage_path}`);
     
-    // Update document status to indicate it's being processed
-    await supabase
-      .from('document_content')
-      .update({
-        metadata: {
-          processing_status: 'extracting_text',
-          extraction_method: 'rapidapi',
-          extraction_started: new Date().toISOString()
-        }
-      })
-      .eq('id', document_id);
+    try {
+      // Update document status to indicate it's being processed
+      await supabase
+        .from('document_content')
+        .update({
+          metadata: {
+            processing_status: 'extracting_text',
+            extraction_method: 'rapidapi',
+            extraction_started: new Date().toISOString(),
+            storage_path: storage_path
+          }
+        })
+        .eq('id', document_id);
+    } catch (updateError) {
+      console.warn('Warning: Failed to update document status before processing:', updateError);
+    }
     
     // Download the PDF file from storage
-    const pdfBuffer = await downloadPDFFromStorage(storage_path);
+    let pdfBuffer;
+    try {
+      pdfBuffer = await downloadPDFFromStorage(storage_path);
+    } catch (downloadError) {
+      console.error('Failed to download PDF:', downloadError);
+      
+      // Update document status to indicate failure
+      await supabase
+        .from('document_content')
+        .update({
+          metadata: {
+            processing_status: 'extraction_failed',
+            extraction_error: `Download failed: ${downloadError.message}`,
+            extraction_completed: new Date().toISOString()
+          }
+        })
+        .eq('id', document_id);
+        
+      return res.status(500).json({
+        success: false,
+        document_id,
+        error: 'Failed to download PDF file',
+        details: downloadError.message
+      });
+    }
     
     // Convert PDF to text using RapidAPI
     const conversionResult = await convertPDFToText(pdfBuffer, page_number || null);
     
     if (conversionResult.success && conversionResult.text) {
       // Store the extracted text in the database
-      await storeTextContent(document_id, conversionResult.text, conversionResult.metadata);
-      
-      return res.json({
-        success: true,
-        document_id,
-        message: 'PDF processed successfully',
-        metadata: conversionResult.metadata
-      });
+      try {
+        await storeTextContent(document_id, conversionResult.text, conversionResult.metadata);
+        
+        return res.json({
+          success: true,
+          document_id,
+          message: 'PDF processed successfully',
+          metadata: conversionResult.metadata,
+          text_length: conversionResult.text.length
+        });
+      } catch (storageError) {
+        console.error('Failed to store text content:', storageError);
+        
+        // Update document status to indicate storage failed
+        await supabase
+          .from('document_content')
+          .update({
+            metadata: {
+              processing_status: 'extraction_failed',
+              extraction_error: `Storage failed: ${storageError.message}`,
+              extraction_completed: new Date().toISOString()
+            }
+          })
+          .eq('id', document_id);
+          
+        return res.status(500).json({
+          success: false,
+          document_id,
+          error: 'Failed to store text content',
+          details: storageError.message
+        });
+      }
     } else {
       // Update document status to indicate extraction failed
       await supabase
@@ -239,7 +320,10 @@ app.post('/process', async (req, res) => {
     }
   } catch (error) {
     console.error('Error processing PDF:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ 
+      error: error.message,
+      stack: error.stack 
+    });
   }
 });
 
@@ -251,7 +335,16 @@ app.get('/health', (req, res) => {
     version: '1.0.0',
     rapidapi: {
       host: RAPIDAPI_HOST,
-      key_configured: !!RAPIDAPI_KEY
+      key_configured: !!RAPIDAPI_KEY,
+      key_preview: RAPIDAPI_KEY ? `${RAPIDAPI_KEY.substring(0, 5)}...` : 'missing'
+    },
+    supabase: {
+      url: supabaseUrl ? `${supabaseUrl.substring(0, 15)}...` : 'missing',
+      key_configured: !!supabaseKey,
+      client_initialized: !!supabase
+    },
+    environment: {
+      bucket_name: DOCUMENTS_BUCKET
     }
   });
 });

@@ -49,6 +49,39 @@ serve(async (req) => {
       );
     }
     
+    // Check if the storage bucket exists
+    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+    if (bucketError) {
+      console.error("Failed to list storage buckets:", bucketError);
+      return new Response(
+        JSON.stringify({
+          status: "error",
+          message: "Failed to access storage",
+          details: bucketError.message
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        }
+      );
+    }
+
+    const documentsBucket = buckets?.find(b => b.name === DOCUMENTS_BUCKET);
+    if (!documentsBucket) {
+      console.error(`Storage bucket ${DOCUMENTS_BUCKET} not found`);
+      return new Response(
+        JSON.stringify({
+          status: "error",
+          message: `Storage bucket ${DOCUMENTS_BUCKET} not found`,
+          details: `Available buckets: ${buckets?.map(b => b.name).join(', ')}`
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        }
+      );
+    }
+    
     // Get document details
     const { data: docData, error: docError } = await supabase
       .from('document_content')
@@ -93,20 +126,29 @@ serve(async (req) => {
       );
     }
     
-    const storagePath = docData.metadata?.storage_path;
+    let storagePath = docData.metadata?.storage_path;
     
+    // If storage_path is missing, try to find it or generate one
     if (!storagePath) {
-      console.error("Document has no storage path in metadata");
-      return new Response(
-        JSON.stringify({
-          status: "error",
-          message: "Document has no storage path in metadata"
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        }
-      );
+      console.warn("Document has no storage_path in metadata, checking alternative fields");
+      
+      if (docData.metadata?.upload_path) {
+        storagePath = docData.metadata.upload_path;
+        console.log("Found alternative path in upload_path:", storagePath);
+      } else {
+        console.error("Document has no storage path information in metadata");
+        return new Response(
+          JSON.stringify({
+            status: "error",
+            message: "Document has no storage path in metadata",
+            details: "Please ensure upload process sets storage_path or upload_path in metadata"
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          }
+        );
+      }
     }
     
     console.log("Storage path found:", storagePath);
@@ -116,7 +158,7 @@ serve(async (req) => {
       .from('document_content')
       .update({ 
         metadata: { 
-          ...docData.metadata,
+          ...(docData.metadata || {}),
           processing_status: 'awaiting_extraction',
           updated_at: new Date().toISOString()
         }
@@ -158,7 +200,13 @@ serve(async (req) => {
       console.log("PDF processor response status:", response.status);
       
       if (!response.ok) {
-        const errorText = await response.text();
+        let errorText;
+        try {
+          errorText = await response.text();
+        } catch (e) {
+          errorText = "Could not read error response";
+        }
+        
         console.error(`PDF processing service error: ${response.status} ${errorText}`);
         throw new Error(`PDF processing service returned status ${response.status}: ${errorText}`);
       }
@@ -186,7 +234,7 @@ serve(async (req) => {
         .from('document_content')
         .update({ 
           metadata: { 
-            ...docData.metadata,
+            ...(docData.metadata || {}),
             processing_status: 'extraction_failed',
             extraction_error: processingError.message,
             updated_at: new Date().toISOString()
@@ -221,4 +269,4 @@ serve(async (req) => {
       }
     );
   }
-}); 
+});
