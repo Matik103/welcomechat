@@ -15,6 +15,8 @@ interface DocumentUploadProps {
 export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentFileType, setCurrentFileType] = useState<string | null>(null);
+  
   const { upload } = useUnifiedDocumentUpload({
     clientId,
     onSuccess: (result) => {
@@ -37,6 +39,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
     try {
       for (const file of acceptedFiles) {
         setUploadProgress(0);
+        setCurrentFileType(file.type);
         
         // Show appropriate toast based on file type
         if (file.type === 'application/pdf') {
@@ -89,7 +92,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
 
   return (
     <div className="space-y-4">
-      {file.type === 'application/pdf' && !RAPIDAPI_KEY && (
+      {currentFileType === 'application/pdf' && !RAPIDAPI_KEY && (
         <Alert variant="warning" className="bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
@@ -98,7 +101,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
         </Alert>
       )}
 
-      {file.type === 'application/pdf' && RAPIDAPI_KEY && (
+      {currentFileType === 'application/pdf' && RAPIDAPI_KEY && (
         <Alert variant="default" className="bg-blue-50 border-blue-200">
           <CheckCircle className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-700">
