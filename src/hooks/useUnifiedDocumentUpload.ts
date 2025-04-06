@@ -1,3 +1,4 @@
+
 // Streamlined document upload hook with direct RapidAPI integration
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,7 +14,6 @@ export interface UploadResult {
 }
 
 interface UseUnifiedDocumentUploadOptions {
-  clientId: string;
   onSuccess?: (result: UploadResult) => void;
   onError?: (error: Error | string) => void;
   onProgress?: (progress: number) => void;
@@ -38,19 +38,14 @@ interface DocumentData {
   metadata?: DocumentMetadata;
 }
 
-export const useUnifiedDocumentUpload = ({
-  clientId,
-  onSuccess,
-  onError,
-  onProgress
-}: UseUnifiedDocumentUploadOptions) => {
+export const useUnifiedDocumentUpload = (options?: UseUnifiedDocumentUploadOptions) => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const upload = async (file: File): Promise<UploadResult> => {
+  const upload = async (file: File, clientId: string): Promise<UploadResult> => {
     if (!clientId) {
       const error = new Error("Client ID is required for document upload");
-      if (onError) onError(error);
+      if (options?.onError) options.onError(error);
       return { success: false, error: error.message };
     }
 
@@ -185,14 +180,14 @@ export const useUnifiedDocumentUpload = ({
         path: filePath
       };
       
-      if (onSuccess) onSuccess(result);
+      if (options?.onSuccess) options.onSuccess(result);
       
       return result;
     } catch (error) {
       console.error('Document upload error:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      if (onError) onError(errorMessage);
+      if (options?.onError) options.onError(errorMessage);
       
       return { 
         success: false, 
