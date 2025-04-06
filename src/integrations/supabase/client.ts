@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { toast } from 'sonner';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, IS_PRODUCTION } from '@/config/env';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, IS_PRODUCTION, validateEnvironment } from '@/config/env';
 
 // Create a singleton instance to avoid multiple instances
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
@@ -36,32 +36,39 @@ const storage = {
 // import { supabase } from "@/integrations/supabase/client";
 export const supabase = (() => {
   if (!supabaseInstance) {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      const error = new Error('Missing Supabase environment variables');
-      if (IS_PRODUCTION) {
-        // In production, show a user-friendly error
-        toast.error('Configuration error: Unable to connect to the database');
-        throw error;
-      } else {
-        // In development, show more details
-        console.error('Missing required environment variables:');
-        if (!SUPABASE_URL) console.error('- VITE_SUPABASE_URL');
-        if (!SUPABASE_ANON_KEY) console.error('- VITE_SUPABASE_ANON_KEY');
-        throw error;
-      }
-    }
+    try {
+      // Validate environment variables before initializing
+      validateEnvironment();
 
-    console.log("Initializing Supabase client...");
-    supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        storage,
-        persistSession: true,
-        detectSessionInUrl: true,
-        flowType: 'pkce',
-        autoRefreshToken: true,
-        debug: !IS_PRODUCTION
+      console.log("Initializing Supabase client...");
+      supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          storage,
+          persistSession: true,
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+          autoRefreshToken: true,
+          debug: !IS_PRODUCTION
+        }
+      });
+
+      // Test the connection
+      supabaseInstance.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
+        } else if (event === 'SIGNED_IN') {
+          console.log('User signed in');
+        }
+      });
+
+    } catch (error) {
+      if (IS_PRODUCTION) {
+        toast.error('Unable to connect to the database. Please try again later.');
+      } else {
+        console.error('Error initializing Supabase client:', error);
       }
-    });
+      throw error;
+    }
   }
   return supabaseInstance;
 })();
@@ -70,13 +77,26 @@ export const supabase = (() => {
 export const refreshSupabaseSession = async () => {
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) throw error;
+    if (error) {
+      console.error('Error getting session:', error);
+      if (IS_PRODUCTION) {
+        toast.error('Session error. Please try signing in again.');
+      }
+      throw error;
+    }
     if (!session) {
-      await supabase.auth.refreshSession();
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.error('Error refreshing session:', refreshError);
+        if (IS_PRODUCTION) {
+          toast.error('Unable to refresh session. Please sign in again.');
+        }
+        throw refreshError;
+      }
     }
     return session;
   } catch (error) {
-    console.error('Error refreshing session:', error);
+    console.error('Error in refreshSupabaseSession:', error);
     return null;
   }
 };

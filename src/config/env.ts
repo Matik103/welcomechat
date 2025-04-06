@@ -27,27 +27,51 @@ interface ImportMetaEnv {
 }
 
 const requiredEnvVars = {
-  VITE_SUPABASE_URL: SUPABASE_URL,
-  VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
-  VITE_RAPIDAPI_KEY: RAPIDAPI_KEY,
-  VITE_RAPIDAPI_HOST: RAPIDAPI_HOST,
-}
+  VITE_SUPABASE_URL: {
+    value: SUPABASE_URL,
+    description: 'Supabase project URL'
+  },
+  VITE_SUPABASE_ANON_KEY: {
+    value: SUPABASE_ANON_KEY,
+    description: 'Supabase anonymous key'
+  },
+  VITE_RAPIDAPI_KEY: {
+    value: RAPIDAPI_KEY,
+    description: 'RapidAPI key for PDF text extraction'
+  },
+  VITE_RAPIDAPI_HOST: {
+    value: RAPIDAPI_HOST,
+    description: 'RapidAPI host for PDF text extraction'
+  },
+};
 
 // Validate required environment variables
 const missingVars = Object.entries(requiredEnvVars)
-  .filter(([_, value]) => !value)
-  .map(([key]) => key);
+  .filter(([_, config]) => !config.value)
+  .map(([key, config]) => ({ key, description: config.description }));
 
 if (missingVars.length > 0) {
-  const error = new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+  const error = new Error(
+    `Missing required environment variables:\n${missingVars
+      .map(({ key, description }) => `- ${key}: ${description}`)
+      .join('\n')}`
+  );
+
   if (IS_PRODUCTION) {
     // In production, show a user-friendly error
     console.error('Configuration error: Missing required environment variables');
+    console.error('Please check your deployment configuration.');
     throw error;
   } else {
     // In development, show more details
     console.error('Missing required environment variables:');
-    missingVars.forEach(key => console.error(`- ${key}`));
+    missingVars.forEach(({ key, description }) => 
+      console.error(`- ${key}: ${description}`)
+    );
+    console.error('\nPlease add these variables to your .env file:');
+    missingVars.forEach(({ key }) => 
+      console.error(`${key}=your_${key.toLowerCase()}_here`)
+    );
     if (import.meta.env.MODE === 'test') {
       console.warn('Using default values for testing');
     } else {
@@ -59,10 +83,14 @@ if (missingVars.length > 0) {
 // Export environment check function
 export function validateEnvironment(): void {
   const missingVars = Object.entries(requiredEnvVars)
-    .filter(([_, value]) => !value)
-    .map(([key]) => key);
+    .filter(([_, config]) => !config.value)
+    .map(([key, config]) => ({ key, description: config.description }));
 
   if (missingVars.length > 0) {
-    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+    throw new Error(
+      `Missing required environment variables:\n${missingVars
+        .map(({ key, description }) => `- ${key}: ${description}`)
+        .join('\n')}`
+    );
   }
 }
