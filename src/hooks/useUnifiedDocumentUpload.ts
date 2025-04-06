@@ -19,19 +19,23 @@ interface UseUnifiedDocumentUploadOptions {
   onProgress?: (progress: number) => void;
 }
 
+interface DocumentMetadata {
+  [key: string]: string | number | null | undefined;
+  filename?: string;
+  file_type?: string;
+  size?: number;
+  upload_path?: string;
+  url?: string;
+  uploadedAt?: string;
+  processing_status?: string;
+  error?: string;
+  extracted_at?: string;
+  text_length?: number;
+}
+
 interface DocumentData {
   id: number;
-  metadata?: {
-    filename?: string;
-    file_type?: string;
-    size?: number;
-    upload_path?: string;
-    url?: string;
-    uploadedAt?: string;
-    processing_status?: string;
-    error?: string;
-    extracted_at?: string;
-  };
+  metadata?: DocumentMetadata;
 }
 
 export const useUnifiedDocumentUpload = ({
@@ -100,7 +104,7 @@ export const useUnifiedDocumentUpload = ({
             url: url,
             uploadedAt: new Date().toISOString(),
             processing_status: file.type === 'application/pdf' ? 'pending_extraction' : 'ready'
-          },
+          } as DocumentMetadata,
           file_type: file.type,
           filename: file.name
         })
@@ -113,102 +117,62 @@ export const useUnifiedDocumentUpload = ({
       
       setUploadProgress(80);
       
-      // If it's a PDF, process it with RapidAPI via Supabase Edge Function
+      // If it's a PDF, process it with RapidAPI
       if (file.type === 'application/pdf') {
         try {
-          toast('Processing PDF document...', { icon: '📄' });
-          
-          // Read the PDF file as base64 to send to the edge function
-          const reader = new FileReader();
-          const pdfData = await new Promise<string>((resolve, reject) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => reject(new Error('Failed to read PDF file'));
-            reader.readAsDataURL(file);
+          // Create form data
+          const formData = new FormData();
+          formData.append('file', file);
+
+          // Call RapidAPI endpoint
+          const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
+            method: 'POST',
+            headers: {
+              'x-rapidapi-host': 'pdf-to-text-converter.p.rapidapi.com',
+              'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY
+            },
+            body: formData
           });
-          
-          console.log('Sending PDF to edge function for processing...');
-          
-          // Process PDF with RapidAPI via Supabase Edge Function
-          const { data: processingData, error: processingError } = await supabase.functions.invoke(
-            'process-pdf',
-            {
-              body: {
-                client_id: clientId,
-                document_id: documentId,
-                file_name: file.name,
-                file_type: file.type,
-                pdf_data: pdfData
+
+          if (!response.ok) {
+            throw new Error(`RapidAPI request failed: ${response.status} ${response.statusText}`);
+          }
+
+          const extractedText = await response.text();
+
+          // Update document with extracted text
+          const { error: updateError } = await supabase
+            .from('document_content')
+            .update({
+              content: extractedText,
+              metadata: {
+                ...(documentData.metadata as DocumentMetadata),
+                processing_status: 'extraction_complete',
+                extraction_method: 'rapidapi',
+                text_length: extractedText.length,
+                extracted_at: new Date().toISOString()
               }
-            }
-          );
-          
-          if (processingError) {
-            console.error('Error during PDF text extraction:', processingError);
-            toast('PDF text extraction failed. The document was uploaded but text extraction will need to be retried.', { icon: '❌' });
-            
-            // Update document status to indicate failed extraction
-            await supabase
-              .from('document_content')
-              .update({ 
-                metadata: { 
-                  filename: documentData?.metadata?.filename,
-                  file_type: documentData?.metadata?.file_type,
-                  size: documentData?.metadata?.size,
-                  upload_path: documentData?.metadata?.upload_path,
-                  url: documentData?.metadata?.url,
-                  uploadedAt: documentData?.metadata?.uploadedAt,
-                  processing_status: 'extraction_failed',
-                  error: processingError.message 
-                } 
-              })
-              .eq('id', documentData?.id);
-          } else {
-            console.log('PDF processing response:', processingData);
-            if (processingData?.text) {
-              console.log('Successfully extracted text from PDF, length:', processingData.text.length);
-              toast('PDF processed successfully!', { icon: '✅' });
-              
-              // Update document status to indicate successful extraction
-              await supabase
-                .from('document_content')
-                .update({ 
-                  metadata: { 
-                    filename: documentData?.metadata?.filename,
-                    file_type: documentData?.metadata?.file_type,
-                    size: documentData?.metadata?.size,
-                    upload_path: documentData?.metadata?.upload_path,
-                    url: documentData?.metadata?.url,
-                    uploadedAt: documentData?.metadata?.uploadedAt,
-                    processing_status: 'extraction_complete',
-                    extracted_at: new Date().toISOString()
-                  } 
-                })
-                .eq('id', documentData?.id);
-            } else {
-              console.warn('No text extracted from PDF or unexpected response format');
-              toast('PDF uploaded but no text was extracted. The document may be empty or scanned.', { icon: '⚠️' });
-            }
+            })
+            .eq('id', documentData.id);
+
+          if (updateError) {
+            throw new Error(`Failed to update document content: ${updateError.message}`);
           }
         } catch (error) {
-          console.error('Error during PDF text extraction:', error);
-          toast('Failed to process PDF. The document was uploaded but text extraction will need to be retried.', { icon: '❌' });
+          console.error('PDF processing error:', error);
           
-          // Update document status to indicate failed extraction
+          // Update document status to indicate failure
           await supabase
             .from('document_content')
-            .update({ 
-              metadata: { 
-                filename: documentData?.metadata?.filename,
-                file_type: documentData?.metadata?.file_type,
-                size: documentData?.metadata?.size,
-                upload_path: documentData?.metadata?.upload_path,
-                url: documentData?.metadata?.url,
-                uploadedAt: documentData?.metadata?.uploadedAt,
+            .update({
+              metadata: {
+                ...(documentData.metadata as DocumentMetadata),
                 processing_status: 'extraction_failed',
-                error: error instanceof Error ? error.message : 'Unknown error' 
-              } 
+                error: error instanceof Error ? error.message : 'Unknown error',
+                failed_at: new Date().toISOString()
+              }
             })
-            .eq('id', documentData?.id);
+            .eq('id', documentData.id);
         }
       }
       
