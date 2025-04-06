@@ -55,7 +55,9 @@ serve(async (req) => {
         metadata: {
           processing_status: 'queued_for_extraction',
           last_updated: new Date().toISOString(),
-          extraction_method: 'rapidapi'
+          extraction_method: 'rapidapi',
+          queue_timestamp: new Date().toISOString(),
+          processing_version: '1.0.1'  // Added version tracking
         }
       })
       .eq('id', document_id);
@@ -75,6 +77,7 @@ serve(async (req) => {
     }
 
     // Invoke the actual PDF text extraction function
+    console.log(`Invoking extract-pdf-text for document ${document_id}`);
     const { data: extractionData, error: extractionError } = await supabase.functions.invoke(
       'extract-pdf-text',
       {
@@ -83,6 +86,7 @@ serve(async (req) => {
     );
 
     if (extractionError) {
+      console.error(`Error invoking text extraction for document ${document_id}:`, extractionError);
       return new Response(
         JSON.stringify({
           status: "error",
@@ -96,12 +100,14 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Successfully queued document ${document_id} for processing`);
     return new Response(
       JSON.stringify({
         status: "success",
         message: "Document queued for processing",
         document_id: document_id,
-        extraction_details: extractionData
+        extraction_details: extractionData,
+        timestamp: new Date().toISOString()
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -110,6 +116,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    console.error("Unexpected error in process-pdf function:", error);
     return new Response(
       JSON.stringify({
         status: "error",
