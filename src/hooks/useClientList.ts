@@ -19,6 +19,7 @@ export const useClientList = () => {
   const lastFetchTime = useRef<number>(0);
   const initialLoadDone = useRef<boolean>(false);
   const fetchTimeoutRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchClients = useCallback(async (force = false) => {
     // Don't refetch if we just did within the last 15 seconds unless forced
@@ -27,6 +28,12 @@ export const useClientList = () => {
       console.log('Skipping fetch - too soon after last fetch');
       return;
     }
+    
+    // Cancel any ongoing fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
     
     lastFetchTime.current = now;
     
@@ -40,7 +47,7 @@ export const useClientList = () => {
     try {
       console.log('Fetching clients data...');
       
-      // Set a timeout to show error after 10 seconds
+      // Set a timeout to show error after 30 seconds (increased from 10)
       if (fetchTimeoutRef.current) {
         window.clearTimeout(fetchTimeoutRef.current);
       }
@@ -52,7 +59,7 @@ export const useClientList = () => {
           setIsLoading(false);
           toast.error('Failed to load clients: Request timed out');
         }
-      }, 10000) as unknown as number;
+      }, 30000) as unknown as number;
       
       let query = supabase
         .from('ai_agents')
@@ -72,7 +79,16 @@ export const useClientList = () => {
       }
       
       if (error) {
+        console.error('Error fetching clients data:', error);
         throw error;
+      }
+      
+      if (!data) {
+        console.warn('No data returned from clients query');
+        setClients([]);
+        initialLoadDone.current = true;
+        setIsLoading(false);
+        return;
       }
       
       // Convert to Client type
@@ -131,6 +147,10 @@ export const useClientList = () => {
       // Clean up timeout if component unmounts
       if (fetchTimeoutRef.current) {
         window.clearTimeout(fetchTimeoutRef.current);
+      }
+      // Abort any ongoing fetch
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, [fetchClients]);

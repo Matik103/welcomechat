@@ -27,6 +27,25 @@ export const supabase = (() => {
           detectSessionInUrl: true,
           flowType: 'pkce',
           debug: process.env.NODE_ENV === 'development'
+        },
+        global: {
+          // Increase the timeout for all fetch requests to 60 seconds
+          fetch: (url, options) => {
+            return fetch(url, {
+              ...options,
+              signal: options?.signal || (new AbortController().signal),
+              headers: {
+                ...options?.headers,
+                'X-Client-Info': 'welcomechat-web'
+              }
+            });
+          }
+        },
+        db: {
+          schema: 'public'
+        },
+        realtime: {
+          timeout: 60000 // 60 seconds timeout for realtime subscriptions
         }
       }
     );
@@ -46,6 +65,26 @@ export const refreshSupabaseSession = async () => {
     return true;
   } catch (e) {
     console.error("Exception refreshing session:", e);
+    return false;
+  }
+};
+
+// Add a network connectivity helper
+export const checkSupabaseConnectivity = async (): Promise<boolean> => {
+  try {
+    const startTime = Date.now();
+    const { data, error } = await supabase.from('ai_agents').select('id').limit(1).maybeSingle();
+    const endTime = Date.now();
+    
+    console.log(`Connectivity check completed in ${endTime - startTime}ms`);
+    
+    if (error) {
+      console.error("Connectivity check failed:", error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("Exception during connectivity check:", e);
     return false;
   }
 };

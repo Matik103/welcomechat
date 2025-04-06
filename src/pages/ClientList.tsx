@@ -1,25 +1,47 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
 import { toast } from 'sonner';
 import { Client } from '@/types/client';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Loader2, RefreshCw, WifiOff } from 'lucide-react';
 import { AddClientModal } from '@/components/client/AddClientModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { checkSupabaseConnectivity } from '@/integrations/supabase/client';
 
 export default function ClientList() {
   const { clients, isLoading, error, searchQuery, handleSearch, refetch } = useClientList();
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
+  const [isNetworkIssue, setIsNetworkIssue] = useState(false);
+  
+  useEffect(() => {
+    // Check for network connectivity issues when an error occurs
+    if (error) {
+      const checkNetwork = async () => {
+        const isConnected = await checkSupabaseConnectivity();
+        setIsNetworkIssue(!isConnected);
+      };
+      checkNetwork();
+    } else {
+      setIsNetworkIssue(false);
+    }
+  }, [error]);
   
   const handleDeleteClick = (client: Client) => {
     console.log('Delete clicked for client:', client.client_name);
   };
 
-  const handleRetry = () => {
+  const handleRetry = async () => {
     toast.info("Refreshing client data...");
+    if (isNetworkIssue) {
+      const isConnected = await checkSupabaseConnectivity();
+      if (!isConnected) {
+        toast.error("Still having connectivity issues. Please check your network connection.");
+        return;
+      }
+    }
     refetch(true);
   };
 
@@ -38,7 +60,11 @@ export default function ClientList() {
               disabled={isLoading}
               className="sm:ml-auto"
             >
-              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
               Refresh
             </Button>
             <Button 
@@ -51,9 +77,16 @@ export default function ClientList() {
         </div>
         
         {error && (
-          <Alert variant="destructive">
+          <Alert variant={isNetworkIssue ? "destructive" : "warning"}>
             <AlertDescription className="flex items-center justify-between">
-              <span>Error: {error.message}</span>
+              {isNetworkIssue ? (
+                <span className="flex items-center">
+                  <WifiOff className="mr-2 h-4 w-4" /> 
+                  Network connectivity issue. Please check your internet connection.
+                </span>
+              ) : (
+                <span>Error: {error.message}</span>
+              )}
               <Button variant="outline" size="sm" onClick={handleRetry}>
                 Retry
               </Button>
