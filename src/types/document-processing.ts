@@ -1,6 +1,5 @@
 
 // Document and processing related types
-import { DocumentProcessingStatus, DocumentProcessingResult, AccessStatus, ValidationResult, DocumentLinkFormData } from './document-processing.d';
 
 export type DocumentType = 'document' | 'google_drive' | 'google_sheet' | 'google_doc' | 'website';
 
@@ -55,5 +54,5 @@ export interface DocumentLink {
   metadata?: Record<string, any>;
 }
 
-// Re-export types from document-processing.d.ts to make them available
-export { DocumentProcessingStatus, DocumentProcessingResult, AccessStatus, ValidationResult, DocumentLinkFormData };
+// Re-export types as type to fix isolatedModules issue
+export type { DocumentProcessingStatus, DocumentProcessingResult, AccessStatus, ValidationResult, DocumentLinkFormData } from './document-processing.d';
