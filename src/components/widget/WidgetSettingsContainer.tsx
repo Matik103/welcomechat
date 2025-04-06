@@ -8,6 +8,7 @@ import { WidgetPreview } from "./WidgetPreview";
 import { WidgetSettings } from "@/types/widget-settings";
 import { EmbedCodeCard } from "./EmbedCodeCard";
 import { toast } from "sonner";
+import { WidgetPreviewCard } from "./WidgetPreviewCard";
 
 interface UpdateSettingsMutation {
   isPending: boolean;
@@ -90,6 +91,12 @@ export function WidgetSettingsContainer({
               onLogoUpload={handleLogoUpload}
             />
             
+            {/* Widget Preview Card - Moved to be the 3rd card */}
+            <WidgetPreviewCard
+              settings={activeSettings}
+              clientId={clientId}
+            />
+            
             <EmbedCodeCard 
               settings={activeSettings} 
               onCopy={handleCopyCode}
@@ -100,7 +107,7 @@ export function WidgetSettingsContainer({
         <div className="space-y-6 w-full">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle>Widget Preview</CardTitle>
+              <CardTitle>Live Preview</CardTitle>
               <CardDescription>
                 This is how your widget will look to your users
               </CardDescription>
