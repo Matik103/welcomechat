@@ -68,15 +68,17 @@ export function WidgetSettingsContainer({
   };
 
   return (
-    <div className="w-full max-w-full">
-      <div className="grid grid-cols-1 md:grid-cols-[1fr] lg:grid-cols-[1.5fr_1fr] gap-4">
-        <div className="space-y-4">
+    <div className="w-full">
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Left Column - Settings */}
+        <div className="w-full lg:w-2/3 space-y-4">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">Widget Settings</h1>
             <Button
               variant="default"
               onClick={handleSubmit}
               disabled={updateSettingsMutation.isPending}
+              className="whitespace-nowrap"
             >
               {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
@@ -97,7 +99,8 @@ export function WidgetSettingsContainer({
           </div>
         </div>
 
-        <div className="space-y-4">
+        {/* Right Column - Preview */}
+        <div className="w-full lg:w-1/3 space-y-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle>Widget Preview</CardTitle>
