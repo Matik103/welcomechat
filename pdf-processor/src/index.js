@@ -109,14 +109,15 @@ async function storeTextContent(documentId, text, metadata) {
   try {
     const { error } = await supabase
       .from('document_content')
-      .upsert({
-        id: documentId,
+      .update({
         content: text,
         metadata: {
           ...metadata,
+          processing_status: 'completed',
           storage_time: new Date().toISOString()
         }
-      });
+      })
+      .eq('id', documentId);
 
     if (error) {
       console.error('Storage error:', error);
