@@ -139,7 +139,7 @@ serve(async (req) => {
     
     console.log("Sending PDF directly to RapidAPI for text extraction");
     
-    // Call RapidAPI PDF to Text converter
+    // Call RapidAPI PDF to Text converter with the correct headers
     const response = await fetch(RAPIDAPI_URL, {
       method: 'POST',
       headers: {
