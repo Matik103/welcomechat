@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
@@ -8,9 +7,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
-import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
+import { useUnifiedDocumentUpload, UploadProgress } from '@/hooks/useUnifiedDocumentUpload';
 
-interface DocumentLinksProps {
+export interface DocumentLinkData {
+  link: string;
+  refresh_rate: number;
+  document_type: DocumentType;
+}
+
+export interface DocumentLinksProps {
   clientId: string;
   onResourceChange?: () => void;
   logClientActivity: () => Promise<void>;
@@ -46,13 +51,9 @@ export function DocumentLinks({
     }
   });
 
-  const handleAddLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
+  const handleAddLink = async (data: DocumentLinkData) => {
     try {
-      const enhancedData = {
-        ...data,
-        document_type: (data.document_type || 'google_drive') as DocumentType
-      };
-      await addDocumentLink.mutateAsync(enhancedData);
+      await addDocumentLink.mutateAsync(data);
       
       if (refetch) await refetch();
       if (onResourceChange) onResourceChange();
@@ -80,6 +81,7 @@ export function DocumentLinks({
       }
     } catch (error) {
       console.error('Upload failed:', error);
+      toast.error(`Upload failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 

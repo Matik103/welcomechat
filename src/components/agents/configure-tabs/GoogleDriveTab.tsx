@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -9,11 +8,22 @@ import { useDriveLinks } from '@/hooks/useDriveLinks';
 import { createClientActivity } from '@/services/clientActivityService';
 import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DocumentType } from '@/types/document-processing';
 
-interface GoogleDriveTabProps {
+export interface GoogleDriveTabProps {
   clientId: string;
   agentName: string;
   onSuccess: () => void;
+}
+
+interface DriveLink {
+  link: string;
+  refresh_rate: number;
+  document_type: DocumentType;
+  metadata: {
+    agent_name: string;
+    source: string;
+  };
 }
 
 export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTabProps) {
@@ -28,12 +38,12 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
     refetch 
   } = useDriveLinks(clientId);
 
-  const validateDriveUrl = (url: string) => {
+  const validateDriveUrl = (url: string): boolean => {
     const googleDriveRegex = /https:\/\/(drive|docs|sheets|slides)\.google\.com\/.+/;
     return googleDriveRegex.test(url);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     
@@ -44,16 +54,17 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
     }
 
     try {
-      await addDocumentLink({
+      const driveLink: DriveLink = {
         link: url,
         refresh_rate: 24, // Default refresh rate in hours
         document_type: 'google_drive',
-        // Add agent-specific metadata
         metadata: {
           agent_name: agentName, 
           source: 'agent_config'
         }
-      });
+      };
+
+      await addDocumentLink.mutateAsync(driveLink);
       
       // Log activity
       await createClientActivity(
@@ -89,7 +100,7 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
   // Helper function to log client activity for deletions
   const handleDeleteLink = async (linkId: number) => {
     try {
-      await deleteDocumentLink(linkId);
+      await deleteDocumentLink.mutateAsync(linkId);
       
       // Log the activity
       await createClientActivity(
@@ -163,6 +174,7 @@ export function GoogleDriveTab({ clientId, agentName, onSuccess }: GoogleDriveTa
             isLoading={false}
             onDelete={handleDeleteLink}
             isDeleting={isDeletingLink}
+            deletingId={isDeletingLink ? documentLinks[0]?.id : undefined}
           />
         </div>
       )}

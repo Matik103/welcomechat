@@ -5,13 +5,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 import { RAPIDAPI_KEY, RAPIDAPI_HOST } from '@/config/env';
 
-interface UploadProgress {
+export interface UploadProgress {
   uploadedBytes: number;
   totalBytes: number;
   percentage: number;
 }
 
-interface UploadResult {
+export interface UploadResult {
   success: boolean;
   documentId?: string;
   error?: string;
@@ -21,14 +21,20 @@ interface UploadResult {
   fileType?: string;
 }
 
-interface UseUnifiedDocumentUploadOptions {
+export interface UseUnifiedDocumentUploadOptions {
   clientId?: string;
   onSuccess?: (result: UploadResult) => void;
   onError?: (error: Error | string) => void;
   onProgress?: (progress: number) => void;
 }
 
-export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOptions = {}) => {
+export interface UseUnifiedDocumentUpload {
+  upload: (file: File, clientId?: string) => Promise<UploadResult>;
+  isLoading: boolean;
+  uploadProgress: UploadProgress | null;
+}
+
+export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOptions = {}): UseUnifiedDocumentUpload => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
@@ -55,19 +61,11 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
       // Upload to storage bucket first
       const filePath = `${effectiveClientId}/${documentId}/${file.name}`;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('client_documents')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false,
-          onUploadProgress: (progress) => {
-            const percentage = (progress.loaded / progress.total) * 100;
-            setUploadProgress({
-              uploadedBytes: progress.loaded,
-              totalBytes: progress.total,
-              percentage
-            });
-          }
+          upsert: false
         });
 
       if (uploadError) {
@@ -79,17 +77,15 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
         .from('client_documents')
         .getPublicUrl(filePath);
       
-      if (options.onProgress) options.onProgress(100);
+      if (options.onProgress) options.onProgress(50);
 
       // If it's a PDF, extract text using RapidAPI
       let extractedText = '';
       if (file.type === 'application/pdf') {
-        // Create form data for RapidAPI
         const formData = new FormData();
         formData.append('file', file);
 
         try {
-          // Extract text using RapidAPI
           const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
             method: 'POST',
             headers: {
@@ -110,9 +106,10 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
           }
         } catch (extractionError) {
           console.warn("Text extraction failed but will continue with document upload:", extractionError);
-          // Don't throw here - we want to continue even if text extraction fails
         }
       }
+
+      if (options.onProgress) options.onProgress(75);
       
       // Store document and extracted text in database
       const { error: documentError } = await supabase
@@ -141,6 +138,8 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
       if (documentError) {
         throw new Error(`Failed to store document: ${documentError.message}`);
       }
+
+      if (options.onProgress) options.onProgress(100);
 
       const result: UploadResult = {
         success: true,

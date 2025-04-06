@@ -1,9 +1,10 @@
 import * as React from 'react'
+import { ReactNode } from 'react'
 
 // Common props that should be available on all components
 interface CommonProps {
   className?: string
-  children?: React.ReactNode
+  children?: ReactNode
 }
 
 // Extend component props with common props
@@ -16,6 +17,7 @@ declare module '@/components/ui/accordion' {
     value?: string
     defaultValue?: string
     collapsible?: boolean
+    onValueChange?: (value: string) => void
   }
 }
 
@@ -31,13 +33,13 @@ declare module '@/components/ui/avatar' {
   export interface AvatarProps extends CommonProps {
     src?: string
     alt?: string
-    fallback?: React.ReactNode
+    fallback?: ReactNode
   }
   
   export interface AvatarImageProps extends CommonProps {
     src?: string
     alt?: string
-    onError?: React.ReactEventHandler<HTMLImageElement>
+    onLoadingStatusChange?: (status: 'loading' | 'loaded' | 'error') => void
   }
   
   export interface AvatarFallbackProps extends CommonProps {
@@ -56,6 +58,9 @@ declare module '@/components/ui/tabs' {
     defaultValue?: string
     value?: string
     onValueChange?: (value: string) => void
+    orientation?: 'horizontal' | 'vertical'
+    dir?: 'ltr' | 'rtl'
+    activationMode?: 'automatic' | 'manual'
   }
 }
 
@@ -63,11 +68,14 @@ declare module '@/components/ui/progress' {
   export interface ProgressProps extends CommonProps {
     value?: number
     max?: number
+    getValueLabel?: (value: number, max: number) => string
   }
 }
 
 declare module '@/components/ui/card' {
-  export interface CardProps extends CommonProps {}
+  export interface CardProps extends CommonProps {
+    asChild?: boolean
+  }
   export interface CardHeaderProps extends CommonProps {}
   export interface CardTitleProps extends CommonProps {}
   export interface CardDescriptionProps extends CommonProps {}
@@ -79,8 +87,10 @@ declare module '@/components/ui/button' {
   export interface ButtonProps extends CommonProps {
     variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
     size?: 'default' | 'sm' | 'lg' | 'icon'
-    onClick?: () => void
+    asChild?: boolean
+    type?: 'button' | 'submit' | 'reset'
     disabled?: boolean
+    onClick?: () => void
   }
 }
 
@@ -96,6 +106,8 @@ declare module '@/components/ui/select' {
     defaultValue?: string
     onValueChange?: (value: string) => void
     disabled?: boolean
+    required?: boolean
+    name?: string
   }
   
   export interface SelectTriggerProps extends CommonProps {}
@@ -103,6 +115,17 @@ declare module '@/components/ui/select' {
   export interface SelectContentProps extends CommonProps {}
   export interface SelectItemProps extends CommonProps {
     value: string
+    disabled?: boolean
+    textValue?: string
+  }
+}
+
+declare module '@/components/ui/dialog' {
+  export interface DialogProps extends CommonProps {
+    open?: boolean
+    defaultOpen?: boolean
+    onOpenChange?: (open: boolean) => void
+    modal?: boolean
   }
 }
 
