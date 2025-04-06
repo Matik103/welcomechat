@@ -3,7 +3,9 @@ import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '../../hooks/useUnifiedDocumentUpload';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { RAPIDAPI_KEY } from '@/config/env';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface DocumentUploadProps {
   clientId: string;
@@ -38,7 +40,11 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
         
         // Show appropriate toast based on file type
         if (file.type === 'application/pdf') {
-          toast.info(`Uploading ${file.name}... PDF text will be extracted automatically`);
+          if (!RAPIDAPI_KEY) {
+            toast.info(`Uploading ${file.name}... PDF text extraction disabled (API key missing)`);
+          } else {
+            toast.info(`Uploading ${file.name}... PDF text will be extracted automatically`);
+          }
         } else {
           toast.info(`Uploading ${file.name}...`);
         }
@@ -82,38 +88,58 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
   });
 
   return (
-    <div 
-      {...getRootProps()} 
-      className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer
-        ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-        ${isUploading ? 'opacity-70 cursor-not-allowed' : ''}`}
-    >
-      <input {...getInputProps()} />
-      {isUploading ? (
-        <div className="flex flex-col items-center justify-center space-y-2">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-          <p>Uploading... {uploadProgress > 0 ? `${uploadProgress}%` : ''}</p>
-          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-blue-500 transition-all duration-300 ease-in-out" 
-              style={{ width: `${uploadProgress}%` }}
-            />
-          </div>
-          {uploadProgress >= 40 && uploadProgress < 60 && (
-            <p className="text-xs text-gray-500">
-              {uploadProgress === 40 ? "Processing PDF text..." : "Finalizing..."}
-            </p>
-          )}
-        </div>
-      ) : isDragActive ? (
-        <p>Drop the files here...</p>
-      ) : (
-        <div>
-          <p>Drag and drop files here, or click to select files</p>
-          <p className="text-sm text-gray-500 mt-2">Supports: PDF, Word, Excel, and Text files</p>
-          <p className="text-xs text-blue-600 mt-1">PDF files will have their text automatically extracted</p>
-        </div>
+    <div className="space-y-4">
+      {file.type === 'application/pdf' && !RAPIDAPI_KEY && (
+        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            PDF text extraction is unavailable (API key missing). PDFs will be uploaded without text extraction.
+          </AlertDescription>
+        </Alert>
       )}
+
+      {file.type === 'application/pdf' && RAPIDAPI_KEY && (
+        <Alert variant="default" className="bg-blue-50 border-blue-200">
+          <CheckCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-700">
+            PDF text extraction is enabled and will run automatically.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div 
+        {...getRootProps()} 
+        className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer
+          ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+          ${isUploading ? 'opacity-70 cursor-not-allowed' : ''}`}
+      >
+        <input {...getInputProps()} />
+        {isUploading ? (
+          <div className="flex flex-col items-center justify-center space-y-2">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+            <p>Uploading... {uploadProgress > 0 ? `${uploadProgress}%` : ''}</p>
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-500 transition-all duration-300 ease-in-out" 
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            {uploadProgress >= 40 && uploadProgress < 60 && (
+              <p className="text-xs text-gray-500">
+                {uploadProgress === 40 ? "Processing PDF text..." : "Finalizing..."}
+              </p>
+            )}
+          </div>
+        ) : isDragActive ? (
+          <p>Drop the files here...</p>
+        ) : (
+          <div>
+            <p>Drag and drop files here, or click to select files</p>
+            <p className="text-sm text-gray-500 mt-2">Supports: PDF, Word, Excel, and Text files</p>
+            <p className="text-xs text-blue-600 mt-1">PDF files will have their text automatically extracted</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

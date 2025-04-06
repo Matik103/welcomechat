@@ -80,6 +80,8 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
 
         try {
           console.log("Preparing to send PDF to RapidAPI for text extraction");
+          console.log("Using RapidAPI key:", RAPIDAPI_KEY ? `${RAPIDAPI_KEY.substring(0, 5)}...` : 'Not set');
+          console.log("Using RapidAPI host:", RAPIDAPI_HOST);
           
           if (!RAPIDAPI_KEY) {
             console.warn("No RapidAPI key found. Please set VITE_RAPIDAPI_KEY environment variable.");
@@ -147,7 +149,8 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
             extraction_method: file.type === 'application/pdf' ? (RAPIDAPI_KEY ? 'rapidapi' : 'skipped') : null,
             text_length: extractedText.length || 0,
             extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
-            extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null
+            extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null,
+            rapidapi_key_present: !!RAPIDAPI_KEY
           }
         });
 

@@ -13,7 +13,8 @@ export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'http://localho
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // RapidAPI configuration
-export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
+// Using a hardcoded fallback key for development if environment variable is not set
+export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d';
 export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
 
 // App settings
@@ -29,9 +30,7 @@ if (!IS_PRODUCTION) {
   if (missingVars.length > 0) {
     console.warn(`Missing environment variables: ${missingVars.join(', ')}`);
   }
-  
-  // Check for RapidAPI key specifically but don't fail
-  if (!RAPIDAPI_KEY) {
-    console.warn('VITE_RAPIDAPI_KEY is missing - PDF text extraction will not work');
-  }
 }
+
+// Log RapidAPI configuration status for debugging
+console.log(`RapidAPI configuration - Key ${RAPIDAPI_KEY ? 'is set' : 'is missing'}, Host: ${RAPIDAPI_HOST}`);
