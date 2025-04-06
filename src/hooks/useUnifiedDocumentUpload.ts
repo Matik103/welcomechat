@@ -74,35 +74,52 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
       // If it's a PDF, extract text using RapidAPI
       let extractedText = '';
       if (file.type === 'application/pdf') {
-        // Create form data for RapidAPI
-        const formData = new FormData();
-        formData.append('file', file);
+        // Create a specific FormData instance for RapidAPI
+        const rapidApiFormData = new FormData();
+        rapidApiFormData.append('file', file);
 
         try {
-          if (RAPIDAPI_KEY) {
-            // Extract text using RapidAPI
+          console.log("Preparing to send PDF to RapidAPI for text extraction");
+          
+          if (!RAPIDAPI_KEY) {
+            console.warn("No RapidAPI key found. Please set VITE_RAPIDAPI_KEY environment variable.");
+            toast.warning("Text extraction unavailable: API key missing");
+          } else {
+            console.log("Sending PDF to RapidAPI endpoint...");
+            
+            // Extract text using RapidAPI with proper error handling
             const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
               method: 'POST',
               headers: {
                 'x-rapidapi-host': RAPIDAPI_HOST,
                 'x-rapidapi-key': RAPIDAPI_KEY
               },
-              body: formData
+              body: rapidApiFormData
             });
 
+            console.log(`RapidAPI response status: ${response.status}`);
+            
             if (!response.ok) {
               console.warn(`Text extraction API responded with status: ${response.status}. Will continue without text extraction.`);
+              
               if (response.status === 401 || response.status === 403) {
+                toast.error('RapidAPI authentication failed. Please check your API key.');
                 console.error('RapidAPI authentication failed. Please check your API key.');
+              } else if (response.status === 429) {
+                toast.error('RapidAPI rate limit exceeded. Try again later.');
+                console.error('RapidAPI rate limit exceeded.');
+              } else {
+                toast.warning(`Text extraction failed with status ${response.status}. Document uploaded without text.`);
               }
             } else {
               extractedText = await response.text();
+              console.log(`Text extraction successful. Extracted ${extractedText.length} characters`);
+              toast.success("PDF text extraction completed successfully");
             }
-          } else {
-            console.warn("No RapidAPI key found. Skipping text extraction.");
           }
         } catch (extractionError) {
           console.warn("Text extraction failed but will continue with document upload:", extractionError);
+          toast.warning("PDF text extraction failed. Document uploaded but without extracted text.");
           // Don't throw here - we want to continue even if text extraction fails
         }
       }
