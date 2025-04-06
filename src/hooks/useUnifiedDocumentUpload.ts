@@ -46,9 +46,6 @@ export const useUnifiedDocumentUpload = ({
       const fileExtension = file.name.split('.').pop() || '';
       const filePath = `${clientId}/${documentId}.${fileExtension}`;
       
-      // For PDFs, prepare to extract text using RapidAPI
-      let extractedText = null;
-      
       setUploadProgress(20);
       
       // Upload the file to storage
@@ -110,6 +107,8 @@ export const useUnifiedDocumentUpload = ({
             reader.onload = () => resolve(reader.result as string);
             reader.readAsDataURL(file);
           });
+          
+          console.log('Sending PDF to edge function for processing...');
           
           // Process PDF with RapidAPI via Supabase Edge Function
           const { data: processingData, error: processingError } = await supabase.functions.invoke(

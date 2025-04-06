@@ -72,11 +72,9 @@ serve(async (req) => {
     const base64Data = pdf_data.replace(/^data:application\/pdf;base64,/, '');
     const pdfBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
     
-    // Create FormData with the correct content type
+    // Create FormData with the PDF file
     const formData = new FormData();
     const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
-    
-    // Append the file with a name
     formData.append('file', blob, file_name || 'document.pdf');
     
     // Add optional page parameter if provided
@@ -95,7 +93,7 @@ serve(async (req) => {
       headers: {
         'x-rapidapi-key': RAPIDAPI_KEY,
         'x-rapidapi-host': RAPIDAPI_HOST,
-        // Don't set Content-Type as it's automatically set with boundary by the browser
+        // Let the browser set content-type with boundary
       },
       body: formData,
     });
