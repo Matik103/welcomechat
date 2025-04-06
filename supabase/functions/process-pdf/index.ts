@@ -114,19 +114,19 @@ serve(async (req: Request) => {
 
     // Update document content with extracted text
     const { error: updateError } = await supabase
-      .from('document_content')
-      .update({ 
+        .from('document_content')
+        .update({ 
         content: result,
-        metadata: {
+          metadata: {
           processing_status: 'extraction_complete',
           extracted_at: new Date().toISOString(),
-          extraction_method: 'rapidapi',
+            extraction_method: 'rapidapi',
           text_length: result.length
-        }
-      })
+          }
+        })
       .eq('id', document_id);
-
-    if (updateError) {
+        
+      if (updateError) {
       throw new Error(`Failed to update document content: ${updateError.message}`);
     }
 
