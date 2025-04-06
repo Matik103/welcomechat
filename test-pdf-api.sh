@@ -12,12 +12,6 @@ echo "VITE_SUPABASE_ANON_KEY: $VITE_SUPABASE_ANON_KEY"
 echo "VITE_RAPIDAPI_HOST: $VITE_RAPIDAPI_HOST"
 echo "VITE_RAPIDAPI_KEY: $VITE_RAPIDAPI_KEY"
 
-# Verify required environment variables
-if [ -z "$VITE_RAPIDAPI_KEY" ] || [ -z "$VITE_RAPIDAPI_HOST" ]; then
-  echo "Error: RapidAPI credentials not set in environment"
-  exit 1
-fi
-
 # Sign in to Supabase
 echo "Signing in to Supabase..."
 AUTH_RESPONSE=$(curl -s -X POST "$VITE_SUPABASE_URL/auth/v1/token?grant_type=password" \
@@ -37,57 +31,105 @@ fi
 
 echo "Successfully authenticated with Supabase"
 
-# Create a large test PDF file
+# Create a large test PDF file with complex content
 echo "Creating large test content..."
+cat << 'EOF' > test.txt
+Large PDF Document Test
+======================
 
-# Create test content with a single section first
-cat << 'EOF' > test_section.txt
-1. Regular Text
-   This is a test section of the document. It contains regular text with numbers like 12,345.67 
-   and special characters like © ® ™ — – " ' 
+Executive Summary
+----------------
+This is a comprehensive test document designed to verify the PDF text extraction capabilities of our system. It includes various types of content and formatting to ensure robust extraction.
 
-2. Lists and Formatting
-   • Item 1 with symbols: ∑ π ∆ ≤ ≥
-   • Item 2 with currency: $100.00, €50.00, ¥500
-   • Item 3 with math: E = mc², (x + y)² = x² + 2xy + y²
+1. Introduction
+--------------
+1.1 Purpose
+This document serves as a test case for our PDF processing system. It contains multiple sections, lists, and formatted text to simulate real-world documents.
 
-3. Technical Content
-   function example() {
-       console.log("Testing section");
-       return Math.pow(2, 10);
-   }
+1.2 Scope
+The test covers:
+- Basic text extraction
+- Multi-line content
+- Special characters
+- Numbers and symbols
+- Formatted text
 
-4. Table Example
-   | ID | Name   | Value  |
-   |----|--------|--------|
-   | 1  | Test 1 | $100   |
+2. Technical Details
+-------------------
+2.1 System Requirements
+• Processing capability: High
+• Memory usage: Optimized
+• Response time: < 2 seconds
 
-5. Lorem Ipsum
-   Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt 
-   ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation 
-   ullamco laboris nisi ut aliquip ex ea commodo consequat.
+2.2 Test Cases
+[Test Case 1]
+Input: PDF document
+Output: Extracted text
+Status: Testing
 
-----------------------------------------
+[Test Case 2]
+Input: Large content
+Output: Formatted text
+Status: Verification
+
+3. Sample Data
+-------------
+3.1 Text Examples
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+3.2 Special Characters
+• Em dash — and en dash –
+• Quotes "double" and 'single'
+• Symbols: ©®™
+• Numbers: 12,345.67
+• Currency: $100.00, €50.00, ¥500
+
+4. Formatting Tests
+------------------
+4.1 Lists
+1. First item
+   a. Sub-item one
+   b. Sub-item two
+2. Second item
+   - Bullet point
+   - Another point
+3. Third item
+
+4.2 Tables (Text Format)
+| Column 1 | Column 2 | Column 3 |
+|----------|----------|----------|
+| Data 1   | Data 2   | Data 3   |
+| Test A   | Test B   | Test C   |
+
+5. Complex Content
+-----------------
+5.1 Code Snippet
+function testFunction() {
+    console.log("Testing PDF extraction");
+    return true;
+}
+
+5.2 Mathematical Expressions
+E = mc²
+(a + b)² = a² + 2ab + b²
+∑(x_i) from i=1 to n
+
+6. Additional Test Data
+----------------------
+6.1 Random Text
+The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump!
+
+6.2 Numbers and Calculations
+• Binary: 1010 1111 0000
+• Hex: 0xAF40
+• Decimal: 44,864
+• Percentage: 87.5%
+
+7. Conclusion
+------------
+This test document includes various types of content to verify the extraction capabilities of our PDF processing system. The successful processing of this document will indicate robust text extraction functionality.
+
 EOF
-
-# Create the main document
-echo "LARGE PDF TEST DOCUMENT" > test.txt
-echo "======================" >> test.txt
-echo "" >> test.txt
-echo "This is a large test document containing repeated sections to verify PDF text extraction capabilities." >> test.txt
-echo "Each section contains various types of content including special characters, formatting, and symbols." >> test.txt
-echo "" >> test.txt
-
-# Add multiple copies of the section
-for i in {1..50}; do
-    echo "Section $i" >> test.txt
-    echo "----------" >> test.txt
-    echo "" >> test.txt
-    cat test_section.txt >> test.txt
-    echo "" >> test.txt
-done
-
-rm test_section.txt
 
 echo "Creating PDF from text..."
 cupsfilter test.txt > test.pdf
@@ -107,20 +149,16 @@ echo "Using Document ID: $DOCUMENT_ID"
 # Extract text using RapidAPI
 echo "Sending request to RapidAPI..."
 
-# Create temporary file
+# Create a temporary file for the curl output
 CURL_OUTPUT=$(mktemp)
 
-# Send the request with the PDF file and capture verbose output
-curl -v --request POST \
-  --url "https://$VITE_RAPIDAPI_HOST/api/pdf-to-text/convert" \
-  --header "Content-Type: multipart/form-data" \
+# Send the request with the PDF file
+curl -s --request POST \
+  --url 'https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert' \
   --header "x-rapidapi-host: $VITE_RAPIDAPI_HOST" \
   --header "x-rapidapi-key: $VITE_RAPIDAPI_KEY" \
-  -F "file=@test.pdf" \
-  --output "$CURL_OUTPUT" 2>&1
-
-echo "Curl verbose output:"
-cat "$CURL_OUTPUT"
+  --form "file=@test.pdf;type=application/pdf" \
+  --output "$CURL_OUTPUT"
 
 # Read the response
 EXTRACTED_TEXT=$(cat "$CURL_OUTPUT")
@@ -139,9 +177,6 @@ if [ -z "$EXTRACTED_TEXT" ]; then
   echo "Error: No text extracted from PDF"
   exit 1
 fi
-
-# Get file size in a cross-platform way
-FILE_SIZE=$(wc -c < test.pdf)
 
 echo "Extracted text length: ${#EXTRACTED_TEXT} characters"
 echo "First 200 characters of extracted text:"
@@ -166,7 +201,7 @@ SUPABASE_RESPONSE=$(curl -s -X POST "$VITE_SUPABASE_URL/rest/v1/document_content
     \"metadata\": {
       \"filename\": \"$FILENAME\",
       \"file_type\": \"$FILE_TYPE\",
-      \"size\": $FILE_SIZE,
+      \"size\": $(stat -f%z test.pdf),
       \"uploadedAt\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\",
       \"processing_status\": \"extraction_complete\",
       \"extraction_method\": \"rapidapi\",

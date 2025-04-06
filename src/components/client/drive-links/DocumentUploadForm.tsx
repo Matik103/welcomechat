@@ -3,18 +3,17 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { File, Upload, X } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { UploadProgress } from '@/hooks/useUnifiedDocumentUpload';
 
-export interface DocumentUploadFormProps {
+interface DocumentUploadFormProps {
   onSubmitDocument: (file: File) => Promise<void>;
   isUploading: boolean;
-  uploadProgress: UploadProgress | null;
+  uploadProgress?: number;
 }
 
 export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
   onSubmitDocument,
   isUploading,
-  uploadProgress
+  uploadProgress = 0
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -26,17 +25,17 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
     }
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     
@@ -68,10 +67,6 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
       fileInputRef.current.value = '';
     }
   };
-
-  const progressPercentage = uploadProgress 
-    ? Math.round((uploadProgress.uploadedBytes / uploadProgress.totalBytes) * 100)
-    : 0;
 
   return (
     <div className="space-y-4">
@@ -136,13 +131,13 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
         />
       </div>
       
-      {isUploading && uploadProgress && (
+      {isUploading && uploadProgress > 0 && (
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span>{progressPercentage < 100 ? 'Uploading...' : 'Upload complete!'}</span>
-            <span>{progressPercentage}%</span>
+            <span>{uploadProgress < 100 ? 'Uploading...' : 'Upload complete!'}</span>
+            <span>{uploadProgress}%</span>
           </div>
-          <Progress value={progressPercentage} />
+          <Progress value={uploadProgress} />
         </div>
       )}
       
@@ -157,4 +152,4 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
       )}
     </div>
   );
-};
+}

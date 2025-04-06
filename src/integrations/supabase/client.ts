@@ -4,68 +4,32 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { toast } from 'sonner';
 
-// Import environment variables with fallbacks
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://example.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'public-anon-key';
-const IS_PRODUCTION = import.meta.env.PROD;
+// Supabase configuration - using direct values instead of relying on environment variables
+export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is";
 
 // Create a singleton instance to avoid multiple instances
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
-
-const storage = {
-  getItem: (key: string): string | null => {
-    try {
-      return localStorage.getItem(key);
-    } catch (error) {
-      console.error('Error accessing localStorage:', error);
-      return null;
-    }
-  },
-  setItem: (key: string, value: string): void => {
-    try {
-      localStorage.setItem(key, value);
-    } catch (error) {
-      console.error('Error setting localStorage:', error);
-    }
-  },
-  removeItem: (key: string): void => {
-    try {
-      localStorage.removeItem(key);
-    } catch (error) {
-      console.error('Error removing from localStorage:', error);
-    }
-  }
-};
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 export const supabase = (() => {
   if (!supabaseInstance) {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      const error = new Error('Missing Supabase environment variables');
-      if (IS_PRODUCTION) {
-        // In production, show a user-friendly error
-        toast.error('Configuration error: Unable to connect to the database');
-        console.error('Missing Supabase environment variables. Using fallbacks for development.');
-      } else {
-        // In development, show more details but don't throw
-        console.warn('Using fallback Supabase configuration for development:');
-        if (!SUPABASE_URL) console.warn('- Missing VITE_SUPABASE_URL');
-        if (!SUPABASE_ANON_KEY) console.warn('- Missing VITE_SUPABASE_ANON_KEY');
-      }
-    }
-
     console.log("Initializing Supabase client...");
-    supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        storage,
-        persistSession: true,
-        detectSessionInUrl: true,
-        flowType: 'pkce',
-        autoRefreshToken: true,
-        debug: !IS_PRODUCTION
+    supabaseInstance = createClient<Database>(
+      SUPABASE_URL, 
+      SUPABASE_ANON_KEY, 
+      {
+        auth: {
+          persistSession: true,
+          storageKey: 'welcomechat_auth_token',
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+          debug: process.env.NODE_ENV === 'development'
+        }
       }
-    });
+    );
   }
   return supabaseInstance;
 })();
@@ -73,14 +37,15 @@ export const supabase = (() => {
 // Export a function to force refresh the session if needed
 export const refreshSupabaseSession = async () => {
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    if (!session) {
-      await supabase.auth.refreshSession();
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.error("Error refreshing session:", error);
+      return false;
     }
-    return session;
-  } catch (error) {
-    console.error('Error refreshing session:', error);
-    return null;
+    console.log("Session refreshed successfully");
+    return true;
+  } catch (e) {
+    console.error("Exception refreshing session:", e);
+    return false;
   }
 };

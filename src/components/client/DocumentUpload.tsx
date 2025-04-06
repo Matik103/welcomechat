@@ -30,7 +30,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
       toast.error('Client ID is required');
       return;
     }
-    
+
     setIsUploading(true);
     try {
       for (const file of acceptedFiles) {
@@ -86,9 +86,9 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
             <div 
               className="h-full bg-blue-500 transition-all duration-300 ease-in-out" 
               style={{ width: `${uploadProgress}%` }}
-          />
+            />
+          </div>
         </div>
-      </div>
       ) : isDragActive ? (
         <p>Drop the files here...</p>
       ) : (
@@ -97,6 +97,6 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
           <p className="text-sm text-gray-500 mt-2">Supports: PDF, Word, Excel, and Text files</p>
         </div>
       )}
-              </div>
+    </div>
   );
 }

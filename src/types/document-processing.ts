@@ -30,7 +30,7 @@ export interface DocumentLink {
   id: number;
   client_id: string;
   link: string;
-  document_type: DocumentType;
+  document_type: string;
   created_at: string;
   refresh_rate: number;
   notified_at?: string;
@@ -39,14 +39,12 @@ export interface DocumentLink {
   file_size?: number;
   mime_type?: string;
   storage_path?: string;
-  metadata?: Record<string, any>;
 }
 
 export interface DocumentLinkFormData {
   link: string;
   refresh_rate: number;
-  document_type: DocumentType;
-  metadata?: Record<string, any>;
+  document_type: string;
 }
 
 export interface DriveLinksProps {
@@ -87,12 +85,12 @@ export interface DocumentProcessingResult {
 export interface DocumentProcessingRequest {
   client_id: string;
   document_url: string;
-  document_type: DocumentType;
+  document_type: string;
 }
 
 export interface DocumentProcessingOptions {
   clientId: string;
-  documentType?: DocumentType;
+  documentType?: string;
   agentName?: string;
   shouldUseAI?: boolean;
   maxPages?: number;
@@ -119,11 +117,6 @@ export interface ValidationResult {
 export interface DocumentUploadFormProps {
   onSubmitDocument: (file: File) => Promise<void>;
   isUploading: boolean;
-  uploadProgress?: {
-    uploadedBytes: number;
-    totalBytes: number;
-    percentage: number;
-  };
 }
 
 export interface ParseResponse {

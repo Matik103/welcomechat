@@ -1,3 +1,4 @@
+
 // Environment variables and configuration
 
 // Cache settings
@@ -5,64 +6,27 @@ export const CACHE_STALE_TIME = 5 * 60 * 1000; // 5 minutes
 export const CACHE_REFETCH_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
 // Get the Supabase URL for edge functions
-export const EDGE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL;
+export const EDGE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
 
 // Export other environment variables as needed
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // RapidAPI configuration
-export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY;
-export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST;
+export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
+export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
 
 // App settings
 export const APP_VERSION = '1.0.0';
 export const IS_PRODUCTION = import.meta.env.PROD;
 
-interface ImportMetaEnv {
-  VITE_SUPABASE_URL: string
-  VITE_SUPABASE_ANON_KEY: string
-  VITE_RAPIDAPI_KEY: string
-  VITE_RAPIDAPI_HOST: string
-}
-
-const requiredEnvVars = {
-  VITE_SUPABASE_URL: SUPABASE_URL,
-  VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
-  VITE_RAPIDAPI_KEY: RAPIDAPI_KEY,
-  VITE_RAPIDAPI_HOST: RAPIDAPI_HOST,
-}
-
-// Validate required environment variables
-const missingVars = Object.entries(requiredEnvVars)
-  .filter(([_, value]) => !value)
-  .map(([key]) => key);
-
-if (missingVars.length > 0) {
-  const error = new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
-  if (IS_PRODUCTION) {
-    // In production, show a user-friendly error
-    console.error('Configuration error: Missing required environment variables');
-    throw error;
-  } else {
-    // In development, show more details
-    console.error('Missing required environment variables:');
-    missingVars.forEach(key => console.error(`- ${key}`));
-    if (import.meta.env.MODE === 'test') {
-      console.warn('Using default values for testing');
-    } else {
-      throw error;
-    }
-  }
-}
-
-// Export environment check function
-export function validateEnvironment(): void {
-  const missingVars = Object.entries(requiredEnvVars)
-    .filter(([_, value]) => !value)
-    .map(([key]) => key);
-
+// Validate required environment variables in development
+if (!IS_PRODUCTION) {
+  const missingVars = [];
+  if (!SUPABASE_URL) missingVars.push('VITE_SUPABASE_URL');
+  if (!SUPABASE_ANON_KEY) missingVars.push('VITE_SUPABASE_ANON_KEY');
+  
   if (missingVars.length > 0) {
-    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+    console.warn(`Missing environment variables: ${missingVars.join(', ')}`);
   }
 }

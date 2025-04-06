@@ -12,7 +12,7 @@ A chat application with document processing capabilities.
 ## Setup
 
 1. Install dependencies:
-   ```bash
+```bash
 npm install
 ```
 
