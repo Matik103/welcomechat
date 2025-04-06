@@ -68,50 +68,52 @@ export function WidgetSettingsContainer({
   };
 
   return (
-    <div className="grid md:grid-cols-[1fr_350px] gap-6">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Widget Settings</h1>
-          <Button
-            variant="default"
-            onClick={handleSubmit}
-            disabled={updateSettingsMutation.isPending}
-          >
-            {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
-          </Button>
+    <div className="w-full max-w-7xl mx-auto px-4">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-6">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">Widget Settings</h1>
+            <Button
+              variant="default"
+              onClick={handleSubmit}
+              disabled={updateSettingsMutation.isPending}
+            >
+              {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+
+          <div className="space-y-6">
+            <WidgetSection
+              settings={activeSettings}
+              isUploading={isUploading}
+              onSettingsChange={handleSettingsChange}
+              onLogoUpload={handleLogoUpload}
+            />
+            
+            <EmbedCodeCard 
+              settings={activeSettings} 
+              onCopy={handleCopyCode}
+            />
+          </div>
         </div>
 
         <div className="space-y-6">
-          <WidgetSection
-            settings={activeSettings}
-            isUploading={isUploading}
-            onSettingsChange={handleSettingsChange}
-            onLogoUpload={handleLogoUpload}
-          />
-          
-          <EmbedCodeCard 
-            settings={activeSettings} 
-            onCopy={handleCopyCode}
-          />
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Widget Preview</CardTitle>
+              <CardDescription>
+                This is how your widget will look to your users
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <WidgetPreview 
+                settings={activeSettings} 
+                clientId={clientId || ""} 
+                onTestInteraction={handlePreviewInteraction}
+              />
+            </CardContent>
+          </Card>
         </div>
-      </div>
-
-      <div className="space-y-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Widget Preview</CardTitle>
-            <CardDescription>
-              This is how your widget will look to your users
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <WidgetPreview 
-              settings={activeSettings} 
-              clientId={clientId || ""} 
-              onTestInteraction={handlePreviewInteraction}
-            />
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
