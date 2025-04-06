@@ -44,10 +44,10 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : (
-          <div className="w-full h-[550px] border border-gray-200 rounded-md overflow-hidden">
+          <div className="w-full h-[600px] border border-gray-200 rounded-md overflow-hidden">
             <WidgetPreview 
               settings={settings} 
-              clientId={clientId} 
+              clientId={clientId || ''}
               key={`widget-preview-${clientId}-${settings.display_mode}`}
             />
           </div>

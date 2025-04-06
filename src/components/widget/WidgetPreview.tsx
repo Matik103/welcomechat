@@ -209,27 +209,28 @@ export const WidgetPreview = ({
     case 'floating':
     default:
       return (
-        <div className="relative h-[500px] bg-gray-100 rounded-lg p-4">
+        <div className="relative h-[550px] bg-gray-100 rounded-lg p-4">
           {/* Floating chat bubble */}
           <div className="absolute bottom-4 right-4 flex flex-col items-end">
             {/* Collapsed bubble state */}
             {messages.length === 0 && (
-              <button 
-                className="flex items-center justify-center w-14 h-14 rounded-full shadow-md mb-2"
-                style={{ backgroundColor: headerBgColor }}
-                onClick={() => setMessages([{ role: 'assistant', content: settings.greeting_message || "Hello! How can I help you today?" }])}
-              >
-                {settings.logo_url ? (
-                  <img src={settings.logo_url} alt="Chat" className="w-8 h-8 rounded-full" />
-                ) : (
-                  <span className="text-white text-2xl">💬</span>
-                )}
-              </button>
+              <div className="mb-3">
+                <button 
+                  className="flex items-center justify-center gap-2 py-2 px-4 rounded-md shadow-md text-white"
+                  style={{ backgroundColor: headerBgColor }}
+                  onClick={() => setMessages([{ role: 'assistant', content: settings.greeting_message || "Hello! How can I help you today?" }])}
+                >
+                  {settings.logo_url && (
+                    <img src={settings.logo_url} alt="Chat" className="w-6 h-6 rounded-full" />
+                  )}
+                  <span>{settings.button_text || "Chat with Us"}</span>
+                </button>
+              </div>
             )}
             
             {/* Expanded chat state */}
             {messages.length > 0 && (
-              <div className="w-[320px] h-[400px] flex flex-col overflow-hidden border rounded-lg shadow-md bg-white">
+              <div className="w-[350px] h-[450px] flex flex-col overflow-hidden border rounded-lg shadow-lg bg-white">
                 <ChatHeader 
                   headerTitle={settings.agent_name || "Chat with us"}
                   headerSubtitle={settings.welcome_text || "We're here to help"}
@@ -272,3 +273,4 @@ export const WidgetPreview = ({
       );
   }
 };
+
