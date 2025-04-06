@@ -35,12 +35,23 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
     try {
       for (const file of acceptedFiles) {
         setUploadProgress(0);
-        toast.info(`Uploading ${file.name}...`);
+        
+        // Show appropriate toast based on file type
+        if (file.type === 'application/pdf') {
+          toast.info(`Uploading ${file.name}... PDF text will be extracted automatically`);
+        } else {
+          toast.info(`Uploading ${file.name}...`);
+        }
         
         const result = await upload(file);
         
         if (result.success && result.documentId) {
-          toast.success(`${file.name} uploaded successfully!`);
+          if (file.type === 'application/pdf' && result.extractedText) {
+            toast.success(`${file.name} uploaded and text extracted successfully!`);
+          } else {
+            toast.success(`${file.name} uploaded successfully!`);
+          }
+          
           if (onUploadComplete) {
             onUploadComplete(result);
           }
@@ -88,6 +99,11 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
+          {uploadProgress >= 40 && uploadProgress < 60 && (
+            <p className="text-xs text-gray-500">
+              {uploadProgress === 40 ? "Processing PDF text..." : "Finalizing..."}
+            </p>
+          )}
         </div>
       ) : isDragActive ? (
         <p>Drop the files here...</p>
@@ -95,6 +111,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
         <div>
           <p>Drag and drop files here, or click to select files</p>
           <p className="text-sm text-gray-500 mt-2">Supports: PDF, Word, Excel, and Text files</p>
+          <p className="text-xs text-blue-600 mt-1">PDF files will have their text automatically extracted</p>
         </div>
       )}
     </div>

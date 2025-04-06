@@ -29,4 +29,9 @@ if (!IS_PRODUCTION) {
   if (missingVars.length > 0) {
     console.warn(`Missing environment variables: ${missingVars.join(', ')}`);
   }
+  
+  // Check for RapidAPI key specifically but don't fail
+  if (!RAPIDAPI_KEY) {
+    console.warn('VITE_RAPIDAPI_KEY is missing - PDF text extraction will not work');
+  }
 }
