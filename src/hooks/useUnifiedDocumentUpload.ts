@@ -76,13 +76,20 @@ export const useUnifiedDocumentUpload = ({
           );
           
           if (processingError) {
-            console.warn('Warning: PDF processing error:', processingError);
-          } else if (processingData?.text) {
-            extractedText = processingData.text;
-            console.log('Successfully extracted text from PDF, length:', extractedText.length);
+            console.error('Error during PDF text extraction:', processingError);
+            // Continue with upload anyway, extraction can be retried later
+          } else {
+            console.log('PDF processing response:', processingData);
+            if (processingData?.text) {
+              extractedText = processingData.text;
+              console.log('Successfully extracted text from PDF, length:', extractedText.length);
+            } else {
+              console.warn('No text extracted from PDF or unexpected response format');
+            }
           }
         } catch (error) {
           console.error('Error during PDF text extraction:', error);
+          // Continue with upload anyway, extraction can be retried later
         }
         
         setUploadProgress(70);
@@ -116,7 +123,7 @@ export const useUnifiedDocumentUpload = ({
         .insert({
           client_id: clientId,
           document_id: documentId,
-          content: extractedText,
+          content: extractedText || null, // Make sure it's null if empty
           metadata: {
             filename: file.name,
             file_type: file.type,

@@ -81,16 +81,29 @@ serve(async (req) => {
       formData.append('page', page_number.toString());
     }
     
-    // Call RapidAPI PDF to Text converter with exact headers
+    // Log API call details for debugging
+    console.log(`Calling RapidAPI with URL: ${RAPIDAPI_URL}`);
+    console.log(`Using API key: ${RAPIDAPI_KEY.substring(0, 5)}...`);
+    console.log(`Using host: ${RAPIDAPI_HOST}`);
+    
+    // Call RapidAPI PDF to Text converter
     const response = await fetch(RAPIDAPI_URL, {
       method: 'POST',
       headers: {
         'x-rapidapi-key': RAPIDAPI_KEY,
         'x-rapidapi-host': RAPIDAPI_HOST,
-        'Content-Type': 'application/x-www-form-urlencoded'
+        // No Content-Type header as it's set automatically by the browser for FormData
       },
       body: formData,
     });
+
+    console.log(`RapidAPI response status: ${response.status}`);
+    
+    // Log response headers for debugging
+    console.log("Response headers:");
+    for (const [key, value] of response.headers.entries()) {
+      console.log(`${key}: ${value}`);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -110,16 +123,30 @@ serve(async (req) => {
     }
 
     // Process the API response
-    const result = await response.json();
-    console.log("Text extraction successful, response received");
+    const textResponse = await response.text();
+    console.log("Raw API response:", textResponse.substring(0, 200) + "...");
+    
+    let result;
+    try {
+      result = JSON.parse(textResponse);
+      console.log("Parsed JSON response successfully");
+    } catch (e) {
+      console.log("Response is not JSON, using as plain text");
+      result = { text: textResponse };
+    }
     
     // Extract the text from the API response
     const extractedText = result.text || 
                           (typeof result === 'string' ? result : JSON.stringify(result));
     
-    if (document_id) {
+    console.log(`Extracted text length: ${extractedText.length}`);
+    console.log(`Text sample: ${extractedText.substring(0, 100)}...`);
+    
+    if (document_id && extractedText) {
+      console.log(`Updating document content for document_id: ${document_id}`);
+      
       // Update document record with the extracted text
-      const { error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('document_content')
         .update({ 
           content: extractedText,
@@ -128,14 +155,27 @@ serve(async (req) => {
             extraction_method: 'rapidapi',
             extraction_completed: new Date().toISOString(),
             text_length: extractedText.length,
-            processing_version: '1.0.9' // Updated version number
+            processing_version: '1.1.0' // Updated version number
           }
         })
         .eq('document_id', document_id);
         
       if (updateError) {
         console.error("Failed to update document content:", updateError.message);
+        return new Response(
+          JSON.stringify({
+            status: "error",
+            message: "Failed to store extracted text",
+            details: updateError.message
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
+          }
+        );
       }
+      
+      console.log("Document content updated successfully");
     }
 
     return new Response(
