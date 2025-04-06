@@ -1,4 +1,17 @@
-import { ValidationResult, DocumentChunk } from '@/types/document-processing';
+
+// Define missing types
+interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  message?: string;
+  status?: 'success' | 'error' | 'warning' | 'info';
+}
+
+interface DocumentChunk {
+  content: string;
+  metadata?: Record<string, any>;
+  id?: string;  // Added id as an optional property
+}
 
 // Utility function to validate document links
 export const validateDocumentLink = (url: string): ValidationResult => {
@@ -102,7 +115,7 @@ export const chunkTextContent = (text: string, maxChunkSize: number = 1000): Doc
       if (currentChunk !== '') {
         chunks.push({ 
           content: currentChunk.trim(),
-          id: `chunk-${chunks.length + 1}`
+          id: `chunk-${chunks.length + 1}`  // Using id property correctly
         });
       }
       currentChunk = paragraph + '\n\n';
@@ -113,7 +126,7 @@ export const chunkTextContent = (text: string, maxChunkSize: number = 1000): Doc
   if (currentChunk !== '') {
     chunks.push({ 
       content: currentChunk.trim(),
-      id: `chunk-${chunks.length + 1}`
+      id: `chunk-${chunks.length + 1}`  // Using id property correctly
     });
   }
   

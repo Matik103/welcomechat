@@ -1,6 +1,14 @@
 
 import { useState } from 'react';
-import { DocumentProcessingStatus } from '@/types/document-processing';
+import { DocumentStatus } from '@/types/document-processing';
+
+interface DocumentProcessingStatus {
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  stage?: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed' | 'init' | 'storing' | 'syncing';
+  progress?: number;
+  message?: string;
+  error?: string;
+}
 
 // Hook to manage document processing status
 export function useDocumentUrlProcessing() {

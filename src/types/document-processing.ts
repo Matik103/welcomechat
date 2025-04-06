@@ -1,5 +1,6 @@
 
 // Document and processing related types
+import { DocumentProcessingStatus, DocumentProcessingResult, AccessStatus, ValidationResult, DocumentLinkFormData } from './document-processing.d';
 
 export type DocumentType = 'document' | 'google_drive' | 'google_sheet' | 'google_doc' | 'website';
 
@@ -27,6 +28,7 @@ export interface DocumentProcessingJob {
 export interface DocumentChunk {
   content: string;
   metadata: Record<string, any>;
+  id?: string; // Add id as optional property to match usage
 }
 
 export interface DocumentProcessingOptions {
@@ -52,3 +54,6 @@ export interface DocumentLink {
   storage_path?: string;
   metadata?: Record<string, any>;
 }
+
+// Re-export types from document-processing.d.ts to make them available
+export { DocumentProcessingStatus, DocumentProcessingResult, AccessStatus, ValidationResult, DocumentLinkFormData };
