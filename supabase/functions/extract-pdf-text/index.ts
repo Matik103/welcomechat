@@ -142,15 +142,18 @@ serve(async (req) => {
       formData.append('page', page_number.toString());
     }
     
-    console.log("Sending PDF directly to RapidAPI for text extraction");
+    console.log("Sending PDF to RapidAPI for text extraction");
+    console.log(`Using headers: x-rapidapi-key: ${RAPIDAPI_KEY.substring(0, 5)}...`);
+    console.log(`Using headers: x-rapidapi-host: ${RAPIDAPI_HOST}`);
     
-    // Call RapidAPI PDF to Text converter with the correct headers
+    // Call RapidAPI PDF to Text converter with the specified headers
+    // Note: When sending FormData, do not set Content-Type manually as it will be
+    // automatically set with the correct boundary
     const response = await fetch(RAPIDAPI_URL, {
       method: 'POST',
       headers: {
         'x-rapidapi-key': RAPIDAPI_KEY,
         'x-rapidapi-host': RAPIDAPI_HOST,
-        // Don't manually set Content-Type here as it will be automatically set with the correct boundary by FormData
       },
       body: formData,
     });
@@ -158,6 +161,7 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`RapidAPI error: ${response.status} ${errorText}`);
+      console.error('Response headers:', [...response.headers.entries()]);
       
       await supabase
         .from('document_content')
