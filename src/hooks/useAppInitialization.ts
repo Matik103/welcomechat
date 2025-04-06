@@ -5,7 +5,7 @@ import { isAdminClientConfigured, initializeBotLogosBucket } from "@/integration
 
 export function useAppInitialization(isLoading: boolean, user: any, userRole: any, setIsLoading: (value: boolean) => void) {
   const location = useLocation();
-  const [adminConfigError, setAdminConfigError] = useState<boolean>(false);
+  const [adminConfigError, setAdminConfigError] = useState<boolean>(!isAdminClientConfigured());
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [initializationAttempted, setInitializationAttempted] = useState<boolean>(false);
   const [initializationErrors, setInitializationErrors] = useState<string[]>([]);

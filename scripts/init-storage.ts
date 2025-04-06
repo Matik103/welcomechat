@@ -1,3 +1,4 @@
+
 import { initializeStorage } from '../src/integrations/supabase/client-admin';
 
 async function main() {
