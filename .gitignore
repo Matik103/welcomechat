@@ -66,3 +66,6 @@ Thumbs.db
 # Docker
 Docker.dmg
 test.pdf
+
+# Test assets
+test-assets/
