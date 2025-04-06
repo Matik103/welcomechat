@@ -2,13 +2,10 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { toast } from 'sonner';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, IS_PRODUCTION } from '@/config/env';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+// Create a singleton instance to avoid multiple instances
+let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 
 const storage = {
   getItem: (key: string): string | null => {
@@ -35,22 +32,34 @@ const storage = {
   }
 };
 
-// Create a singleton instance to avoid multiple instances
-let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
-
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 export const supabase = (() => {
   if (!supabaseInstance) {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      const error = new Error('Missing Supabase environment variables');
+      if (IS_PRODUCTION) {
+        // In production, show a user-friendly error
+        toast.error('Configuration error: Unable to connect to the database');
+        throw error;
+      } else {
+        // In development, show more details
+        console.error('Missing required environment variables:');
+        if (!SUPABASE_URL) console.error('- VITE_SUPABASE_URL');
+        if (!SUPABASE_ANON_KEY) console.error('- VITE_SUPABASE_ANON_KEY');
+        throw error;
+      }
+    }
+
     console.log("Initializing Supabase client...");
-    supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         storage,
         persistSession: true,
         detectSessionInUrl: true,
         flowType: 'pkce',
         autoRefreshToken: true,
-        debug: import.meta.env.DEV
+        debug: !IS_PRODUCTION
       }
     });
   }
