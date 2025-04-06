@@ -148,15 +148,30 @@ echo "Using Document ID: $DOCUMENT_ID"
 
 # Extract text using RapidAPI
 echo "Sending request to RapidAPI..."
-EXTRACTED_TEXT=$(curl -s --request POST \
+
+# Create a temporary file for the curl output
+CURL_OUTPUT=$(mktemp)
+
+# Send the request with the PDF file
+curl -s --request POST \
   --url 'https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert' \
   --header "x-rapidapi-host: $VITE_RAPIDAPI_HOST" \
   --header "x-rapidapi-key: $VITE_RAPIDAPI_KEY" \
-  --header 'Content-Type: multipart/form-data' \
-  -F "file=@test.pdf;type=application/pdf")
+  --form "file=@test.pdf;type=application/pdf" \
+  --output "$CURL_OUTPUT"
+
+# Read the response
+EXTRACTED_TEXT=$(cat "$CURL_OUTPUT")
+rm "$CURL_OUTPUT"
 
 echo "RapidAPI Response (raw):"
 echo "$EXTRACTED_TEXT"
+
+# Debug the response
+echo "Response type:"
+echo "$EXTRACTED_TEXT" | file -
+echo "Response length:"
+echo "$EXTRACTED_TEXT" | wc -c
 
 if [ -z "$EXTRACTED_TEXT" ]; then
   echo "Error: No text extracted from PDF"
