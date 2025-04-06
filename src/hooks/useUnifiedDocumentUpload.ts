@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 export interface UploadResult {
   success: boolean;
@@ -77,21 +77,26 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
         const formData = new FormData();
         formData.append('file', file);
 
-        // Extract text using RapidAPI
-        const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
-          method: 'POST',
-          headers: {
-            'x-rapidapi-host': import.meta.env.VITE_RAPIDAPI_HOST,
-            'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY
-          },
-          body: formData
-        });
+        try {
+          // Extract text using RapidAPI
+          const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
+            method: 'POST',
+            headers: {
+              'x-rapidapi-host': import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com',
+              'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY || ''
+            },
+            body: formData
+          });
 
-        if (!response.ok) {
-          throw new Error(`Text extraction failed: ${response.status} ${response.statusText}`);
+          if (!response.ok) {
+            console.warn(`Text extraction API responded with status: ${response.status}. Will continue without text extraction.`);
+          } else {
+            extractedText = await response.text();
+          }
+        } catch (extractionError) {
+          console.warn("Text extraction failed but will continue with document upload:", extractionError);
+          // Don't throw here - we want to continue even if text extraction fails
         }
-
-        extractedText = await response.text();
       }
       
       setUploadProgress(60);
@@ -113,10 +118,11 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
             storage_path: filePath,
             storage_url: publicUrl,
             uploadedAt: new Date().toISOString(),
-            processing_status: file.type === 'application/pdf' ? 'extraction_complete' : 'ready',
+            processing_status: file.type === 'application/pdf' ? (extractedText ? 'extraction_complete' : 'extraction_failed') : 'ready',
             extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
             text_length: extractedText.length || 0,
-            extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null
+            extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
+            extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null
           }
         });
 
@@ -137,14 +143,12 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
       };
 
       if (options.onSuccess) options.onSuccess(result);
-      toast.success(`${file.name} uploaded successfully!`);
       return result;
 
     } catch (error) {
       console.error('Document processing error:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (options.onError) options.onError(errorMessage);
-      toast.error(`Upload failed: ${errorMessage}`);
       return { 
         success: false, 
         error: errorMessage,

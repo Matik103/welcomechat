@@ -112,7 +112,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       <CardHeader>
         <CardTitle>Document Upload</CardTitle>
         <CardDescription>
-          Upload documents to be processed by your AI Assistant
+          Upload documents to be processed and stored for your assistant
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
