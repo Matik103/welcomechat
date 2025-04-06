@@ -132,19 +132,17 @@ export default function WidgetSettings() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-gray-50 py-6">
-      <div className="container mx-auto px-4 max-w-6xl">
-        <WidgetSettingsContainer
-          clientId={clientId}
-          settings={settings || defaultSettings}
-          isClientView={true}
-          isUploading={isUploading}
-          updateSettingsMutation={updateSettingsWrapper}
-          handleBack={handleNavigateBack}
-          handleLogoUpload={handleLogoUploadChange}
-          logClientActivity={logActivityWrapper}
-        />
-      </div>
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-6">
+      <WidgetSettingsContainer
+        clientId={clientId}
+        settings={settings || defaultSettings}
+        isClientView={true}
+        isUploading={isUploading}
+        updateSettingsMutation={updateSettingsWrapper}
+        handleBack={handleNavigateBack}
+        handleLogoUpload={handleLogoUploadChange}
+        logClientActivity={logActivityWrapper}
+      />
     </div>
   );
 }

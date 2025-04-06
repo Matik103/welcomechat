@@ -68,23 +68,21 @@ export function WidgetSettingsContainer({
   };
 
   return (
-    <div className="w-full">
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left Column - Settings */}
-        <div className="w-full lg:w-2/3 space-y-4">
-          <div className="flex items-center justify-between mb-4">
+    <div className="w-full max-w-full overflow-visible">
+      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-6">
+        <div className="space-y-6 w-full">
+          <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Widget Settings</h1>
             <Button
               variant="default"
               onClick={handleSubmit}
               disabled={updateSettingsMutation.isPending}
-              className="whitespace-nowrap"
             >
               {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             <WidgetSection
               settings={activeSettings}
               isUploading={isUploading}
@@ -99,8 +97,7 @@ export function WidgetSettingsContainer({
           </div>
         </div>
 
-        {/* Right Column - Preview */}
-        <div className="w-full lg:w-1/3 space-y-4">
+        <div className="space-y-6 w-full">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle>Widget Preview</CardTitle>
