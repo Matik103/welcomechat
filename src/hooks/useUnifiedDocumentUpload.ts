@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-import { RAPIDAPI_KEY, RAPIDAPI_HOST } from '@/config/env';
+import { RAPIDAPI_KEY, RAPIDAPI_HOST, PDF_PROCESSING } from '@/config/env';
 
 export interface UploadResult {
   success: boolean;
@@ -43,8 +43,13 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
     if (options.onProgress) options.onProgress(0);
 
     try {
-      if (options.onProgress) options.onProgress(20);
-      setUploadProgress(20);
+      // Validate file size
+      if (file.size > PDF_PROCESSING.maxFileSize) {
+        throw new Error(`File is too large. Maximum allowed size is ${PDF_PROCESSING.maxFileSize / (1024 * 1024)}MB`);
+      }
+
+      if (options.onProgress) options.onProgress(10);
+      setUploadProgress(10);
 
       // Generate document ID
       const documentId = uuidv4();
@@ -77,6 +82,9 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
         // Create form data for RapidAPI
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('ocr', 'true'); // Enable OCR for better text extraction
+        formData.append('language', 'eng'); // Set language for OCR
+        formData.append('quality', 'high'); // Request high quality extraction
 
         // Always use the hardcoded API key as fallback
         const rapidApiKey = RAPIDAPI_KEY;
@@ -89,19 +97,29 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
         }
 
         try {
-          // Extract text using RapidAPI
-          console.log("Sending request to RapidAPI for text extraction");
-          console.log("Using host:", rapidApiHost);
-          console.log("API key present:", rapidApiKey ? "Yes" : "No");
+          // Extract text using RapidAPI with increased timeout
+          console.log(`Processing PDF (${(file.size / (1024 * 1024)).toFixed(2)}MB): ${file.name}`);
+          
+          // Set longer timeout for large files
+          const timeoutDuration = Math.min(900000, Math.max(120000, file.size / 1024)); // Min 2 minutes, max 15 minutes, scaled by file size
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
           
           const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
             method: 'POST',
             headers: {
               'x-rapidapi-host': rapidApiHost,
-              'x-rapidapi-key': rapidApiKey
+              'x-rapidapi-key': rapidApiKey,
+              'x-pdf-optimization': 'high',
+              'x-processing-priority': 'high',
+              'x-large-file': file.size > 10 * 1024 * 1024 ? 'true' : 'false', // Indicate large file to API
             },
-            body: formData
+            body: formData,
+            signal: controller.signal
           });
+          
+          clearTimeout(timeoutId);
 
           if (!response.ok) {
             const statusCode = response.status;
@@ -126,12 +144,18 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
           console.log("Text extraction successful, extracted length:", extractedText.length);
         } catch (extractionError) {
           console.error("Text extraction failed:", extractionError);
+          
+          // Check for specific error types
+          if (extractionError.name === 'AbortError') {
+            throw new Error(`PDF processing timed out after ${timeoutDuration/1000} seconds. The file may be too large or complex.`);
+          }
+          
           throw new Error(`Failed to extract text from PDF: ${extractionError instanceof Error ? extractionError.message : String(extractionError)}`);
         }
       }
       
-      setUploadProgress(60);
-      if (options.onProgress) options.onProgress(60);
+      setUploadProgress(80);
+      if (options.onProgress) options.onProgress(80);
 
       // Store document and extracted text in database
       const { error: documentError } = await supabase
@@ -153,7 +177,8 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
             extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
             text_length: extractedText.length || 0,
             extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
-            extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null
+            extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null,
+            file_size_mb: (file.size / (1024 * 1024)).toFixed(2)
           }
         });
 

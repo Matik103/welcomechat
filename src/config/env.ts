@@ -30,8 +30,8 @@ export const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
 
 // PDF Processing Configuration
 export const PDF_PROCESSING = {
-  maxFileSize: 100 * 1024 * 1024, // 100MB
-  optimalChunkSize: 10 * 1024 * 1024, // 10MB
+  maxFileSize: 250 * 1024 * 1024, // 250MB (increased from 100MB)
+  optimalChunkSize: 20 * 1024 * 1024, // 20MB (increased from 10MB)
   supportedTypes: ['application/pdf'],
   maxRetries: IS_PRODUCTION ? 5 : 3, // More retries in production
   retryDelay: 1000, // 1 second
@@ -42,7 +42,7 @@ export const API_CONFIG = {
   endpoints: {
     pdfToText: 'https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert',
   },
-  timeout: IS_PRODUCTION ? 600000 : 300000, // 10 minutes in production, 5 minutes in development
+  timeout: IS_PRODUCTION ? 900000 : 600000, // 15 minutes in production (increased from 10), 10 minutes in development (increased from 5)
   headers: {
     'Content-Type': 'multipart/form-data',
   },

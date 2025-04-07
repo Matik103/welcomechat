@@ -62,6 +62,7 @@ npm run build
 - [ ] Test PDF file upload with small file (< 1MB)
 - [ ] Test PDF file upload with medium file (~ 10MB)
 - [ ] Test PDF file upload with large file (~ 50MB)
+- [ ] Test PDF file upload with very large file (~ 200MB)
 - [ ] Verify error handling works
 - [ ] Check database logging is working
 - [ ] Monitor RapidAPI quota usage
@@ -107,3 +108,24 @@ supabase db reset --db-url=your-production-db-url
 - Configure CDN for large file uploads
 - Set up proper CORS headers in Supabase Storage
 - Enable compression in hosting platform
+
+## Large PDF Processing
+
+When processing large PDF files (over 50MB), keep these considerations in mind:
+
+- API timeouts are set to 15 minutes in production for processing large files
+- Maximum file size is set to 250MB
+- Progress indicators may stay at the "Processing PDF text" stage for several minutes with large files
+- The RapidAPI service may have its own limitations - monitor usage and rate limits
+- Consider splitting very large PDFs into smaller chunks if processing consistently fails
+- For production use with many large files, consider upgrading the RapidAPI plan
+
+To test large PDF processing capabilities:
+
+```bash
+# Run the test script for large PDFs
+./scripts/test-large-pdf.sh
+```
+
+This will generate and process a large test PDF to verify the system's capacity.
+
