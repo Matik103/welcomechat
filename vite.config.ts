@@ -6,8 +6,13 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: true, // Listen on all addresses
     port: 8080,
+    strictPort: true,
+    hmr: {
+      clientPort: 443, // Use 443 for HTTPS or use 'auto'
+      overlay: false, // Disable the error overlay which might cause rendering issues
+    },
     allowedHosts: [
       'localhost',
       '127.0.0.1',
