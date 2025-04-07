@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Client } from '@/types/client';
-import { WidgetSettings } from '@/types/widget-settings';
 
 interface AiAssistantSectionProps {
   client: Client | null;
@@ -20,7 +19,7 @@ export const AiAssistantSection = ({ client, onAssistantSetup }: AiAssistantSect
   const [setupError, setSetupError] = useState<string | null>(null);
   
   const hasDeepSeekAssistant = client?.deepseek_assistant_id || 
-                              (client?.widget_settings && (client.widget_settings as WidgetSettings)?.deepseek_assistant_id);
+                              (client?.widget_settings && client.widget_settings.deepseek_assistant_id);
   
   const handleSetupAssistant = async () => {
     if (!client?.id) {
@@ -33,10 +32,9 @@ export const AiAssistantSection = ({ client, onAssistantSetup }: AiAssistantSect
     setSetupError(null);
     
     try {
-      const widgetSettings = client?.widget_settings as WidgetSettings;
-      const clientName = client?.client_name || widgetSettings?.agent_name || 'Client';
-      const agentName = client?.agent_name || widgetSettings?.agent_name || 'AI Assistant';
-      const agentDescription = client?.agent_description || widgetSettings?.agent_description || '';
+      const clientName = client?.client_name || client?.widget_settings?.client_name || 'Client';
+      const agentName = client?.agent_name || client?.widget_settings?.agent_name || 'AI Assistant';
+      const agentDescription = client?.agent_description || client?.widget_settings?.agent_description || '';
       
       const result = await setupDeepSeekAssistant(
         client.id,
