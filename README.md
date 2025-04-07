@@ -78,3 +78,80 @@ src/
 ## License
 
 This project is proprietary and confidential. All rights reserved by [lovable.dev](https://lovable.dev).
+
+# PDF Processing Test Suite
+
+This repository contains tools for testing large-scale PDF text extraction capabilities using the RapidAPI PDF-to-Text converter service.
+
+## Features
+
+- Generates large PDF files with structured content
+- Tests PDF-to-text conversion with files of various sizes
+- Provides detailed conversion metrics and content verification
+- Supports files up to 50MB with proper formatting
+
+## Requirements
+
+- bash
+- enscript
+- ghostscript (ps2pdf)
+- curl
+- RapidAPI account with PDF-to-Text converter API key
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/pdf-processing-tests.git
+cd pdf-processing-tests
+```
+
+2. Install required tools:
+```bash
+# macOS
+brew install enscript ghostscript
+
+# Ubuntu/Debian
+sudo apt-get install enscript ghostscript
+```
+
+3. Set up your RapidAPI key in the script or as an environment variable:
+```bash
+export RAPIDAPI_KEY="your_api_key_here"
+```
+
+## Usage
+
+1. Make the script executable:
+```bash
+chmod +x test-pdf-api.sh
+```
+
+2. Run the test:
+```bash
+./test-pdf-api.sh
+```
+
+The script will:
+- Generate a large PDF file with 500 chapters
+- Convert the PDF to text using RapidAPI
+- Show samples of the extracted text
+- Provide conversion metrics
+
+## Output
+
+The script creates a `test-assets` directory containing:
+- `large-test.pdf`: The generated test PDF
+- `large-test_response.txt`: The extracted text from the PDF
+
+## Configuration
+
+You can modify these variables in the script:
+- Number of chapters (default: 500)
+- Content per chapter
+- PDF formatting settings
+- Output directory
+
+## License
+
+MIT License - feel free to use and modify as needed.

@@ -86,3 +86,6 @@ test.pdf
 
 # Test assets
 test-assets/
+*.pdf
+*.txt
+*.ps
