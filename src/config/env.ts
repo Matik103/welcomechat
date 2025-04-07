@@ -12,12 +12,12 @@ export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'http://localho
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // RapidAPI settings
-export const RAPIDAPI_KEY = process.env.NEXT_PUBLIC_RAPIDAPI_KEY || '';
+export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
 export const RAPIDAPI_HOST = 'pdf-to-text-converter.p.rapidapi.com';
 
 // Validate required environment variables
 if (!RAPIDAPI_KEY) {
-  console.error('Missing required environment variable: NEXT_PUBLIC_RAPIDAPI_KEY');
+  console.warn('Missing required environment variable: VITE_RAPIDAPI_KEY');
 }
 
 // App settings
