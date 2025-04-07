@@ -1,6 +1,6 @@
 
 import { useMemo, useCallback, Suspense, useState, useEffect } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { PublicRoutes } from "./components/routes/PublicRoutes";
 import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes";
@@ -8,6 +8,7 @@ import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
 import { LoadingFallback } from "./components/routes/LoadingFallback";
 import { toast } from "sonner";
+import { routes } from "./routes";
 
 function App() {
   const { user, userRole, isLoading, session, refreshUserRole } = useAuth();
@@ -36,7 +37,7 @@ function App() {
           refreshUserRole();
         }
       }
-    }, 3000); // 3 seconds timeout
+    }, 2000); // Reduced from 3 seconds to 2 seconds
     
     return () => clearTimeout(loadingTimeout);
   }, [isLoading, user, userRole, refreshUserRole]);
@@ -71,28 +72,16 @@ function App() {
       setLoadError(null);
     }
   }, [isLoading]);
-
-  // Use useMemo to avoid unnecessary re-renders of entire route components
-  const routeComponent = useMemo(() => {
-    // If we're in auth callback, short-circuit to show minimal loading UI
-    if (isAuthCallback) {
-      return <LoadingFallback message="Processing authentication..." />;
-    }
-    
-    // Show loading only if in global loading state and not on public routes
-    const shouldShowLoading = (isLoading || localLoadingState) && !isPublicRoute();
-    
-    if (shouldShowLoading) {
-      return (
+  
+  // Use Routes component directly instead of memo for better reliability
+  return (
+    <Suspense fallback={<LoadingFallback message="Loading application..." />}>
+      {(isLoading || localLoadingState) && !isPublicRoute() ? (
         <LoadingFallback 
           onTimeoutAction={handleLoadingComplete}
           message={isAuthPage ? "Authenticating..." : "Loading application..."}
         />
-      );
-    }
-
-    if (loadError) {
-      return (
+      ) : loadError ? (
         <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
           <div className="bg-red-50 border border-red-200 p-6 rounded-lg max-w-md text-center">
             <h2 className="text-red-700 text-xl mb-2">Application Error</h2>
@@ -105,49 +94,17 @@ function App() {
             </button>
           </div>
         </div>
-      );
-    }
-
-    // Public routes for non-authenticated users
-    if (!user && isPublicRoute()) {
-      return <PublicRoutes />;
-    }
-
-    // Non-authenticated user routes
-    if (!user) {
-      return <UnauthenticatedRoutes />;
-    }
-
-    // Render based on user role - only calculate this when user and userRole are available
-    if (user) {
-      if (userRole === 'admin') {
-        return (
-          <Suspense fallback={<LoadingFallback message="Loading admin dashboard..." />}>
-            <AdminRoutes />
-          </Suspense>
-        );
-      }
-      
-      if (userRole === 'client') {
-        return (
-          <Suspense fallback={<LoadingFallback message="Loading client dashboard..." />}>
-            <ClientRoutes />
-          </Suspense>
-        );
-      }
-      
-      // If user is authenticated but role not determined yet, treat as loading
-      if (!userRole) {
-        return <LoadingFallback message="Determining user access..." timeoutSeconds={5} />;
-      }
-    }
-    
-    // Default to home page as fallback
-    return <Navigate to="/" replace />;
-  }, [user, userRole, isLoading, isPublicRoute, isAuthCallback, localLoadingState, loadError, isAuthPage, handleLoadingComplete]);
-  
-  // Return the memoized route component
-  return routeComponent;
+      ) : !user ? (
+        isPublicRoute() ? <PublicRoutes /> : <UnauthenticatedRoutes />
+      ) : userRole === 'admin' ? (
+        <AdminRoutes />
+      ) : userRole === 'client' ? (
+        <ClientRoutes />
+      ) : (
+        <LoadingFallback message="Determining user access..." timeoutSeconds={5} />
+      )}
+    </Suspense>
+  );
 }
 
 export default App;

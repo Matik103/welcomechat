@@ -1,203 +1,275 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Session } from '@supabase/supabase-js';
-import { getUserRole, checkAndRefreshAuth } from '@/services/authService';
+import { Session, User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { UserRole, AuthContextType } from '@/types/auth';
+import { useNavigate } from 'react-router-dom';
+import { CACHE_STALE_TIME } from '@/config/env';
+import { refreshSupabaseSession } from '@/integrations/supabase/client';
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  userRole: null,
-  session: null,
-  isLoading: true,
-  clientId: null,
-  signOut: async () => {},
-  refreshUserRole: async () => {},
-});
+export type UserRole = 'admin' | 'client' | null;
 
-export const useAuth = () => useContext(AuthContext);
-
-interface AuthProviderProps {
-  children: React.ReactNode;
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  userRole: UserRole;
+  isLoading: boolean;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signOut: () => Promise<void>;
+  refreshUserRole: () => Promise<UserRole>;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  session: null,
+  userRole: null,
+  isLoading: true,
+  signIn: async () => ({ success: false }),
+  signOut: async () => {},
+  refreshUserRole: async () => null,
+});
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [authInitialized, setAuthInitialized] = useState<boolean>(false);
-  const [clientId, setClientId] = useState<string | null>(null);
-  
-  // Function to refresh user role
-  const refreshUserRole = async (): Promise<void> => {
-    console.log("Refreshing user role");
-    if (user) {
-      try {
-        const role = await getUserRole();
-        console.log("User role refreshed:", role);
-        setUserRole(role);
-        
-        // Check if the role has an associated client ID
-        if (role === 'client') {
-          try {
-            const { data, error } = await supabase
-              .from('user_roles')
-              .select('client_id')
-              .eq('user_id', user.id)
-              .maybeSingle();
-              
-            if (!error && data && data.client_id) {
-              setClientId(data.client_id);
-              console.log("Client ID set:", data.client_id);
-            }
-          } catch (err) {
-            console.error("Error fetching client ID:", err);
-          }
-        }
-      } catch (err) {
-        console.error("Error refreshing user role:", err);
-      }
+  const [lastRoleCheck, setLastRoleCheck] = useState<number>(0);
+  const navigate = useNavigate();
+
+  // Check user role based on metadata or database
+  const checkUserRole = useCallback(async (user: User | null): Promise<UserRole> => {
+    if (!user) {
+      console.log("No user to check role for");
+      return null;
     }
-  };
 
-  // Handle auth state changes
-  useEffect(() => {
-    console.log("Setting up auth state listener");
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log("Auth state changed:", event);
-        
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          // Wait a moment before fetching the role to ensure auth is fully processed
-          setTimeout(async () => {
-            await refreshUserRole();
-          }, 100);
-        }
-        
-        if (event === 'SIGNED_OUT') {
-          setUserRole(null);
-          setClientId(null);
-        }
+    try {
+      // First check if role is in user metadata (fastest)
+      if (user.user_metadata && user.user_metadata.role) {
+        console.info("Role found in user metadata:", user.user_metadata.role);
+        return user.user_metadata.role as UserRole;
       }
-    );
 
-    // Check for existing session on initial load
-    const initializeAuth = async () => {
-      try {
-        console.log("Initializing auth");
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        if (currentSession?.user) {
-          try {
-            console.log("User found in session, fetching role");
-            const role = await getUserRole();
-            console.log("User role determined:", role);
-            setUserRole(role);
-            
-            // Fetch client ID if the user is a client
-            if (role === 'client') {
-              try {
-                const { data, error } = await supabase
-                  .from('user_roles')
-                  .select('client_id')
-                  .eq('user_id', currentSession.user.id)
-                  .maybeSingle();
-                  
-                if (!error && data && data.client_id) {
-                  setClientId(data.client_id);
-                  console.log("Client ID set:", data.client_id);
-                }
-              } catch (err) {
-                console.error("Error fetching client ID:", err);
-              }
-            }
-          } catch (error) {
-            console.error("Error fetching user role:", error);
-          }
-        }
-      } catch (error) {
-        console.error("Error initializing auth:", error);
-      } finally {
-        setIsLoading(false);
-        setAuthInitialized(true);
+      // If not in metadata, check database role
+      console.info("Getting user role from database...");
+      
+      // Check if user is admin
+      const { data: isAdmin, error: adminError } = await supabase
+        .rpc('check_user_role', { allowed_roles: ['admin'] });
+
+      if (adminError) {
+        console.error("Error checking admin role:", adminError);
+        throw adminError;
       }
-    };
-    
-    initializeAuth();
 
-    // Periodically check and refresh auth if needed (every 5 minutes)
-    const authCheckInterval = setInterval(async () => {
-      if (user) {
-        const isValid = await checkAndRefreshAuth();
-        if (!isValid) {
-          console.warn("Auth token is invalid, signing out");
-          await supabase.auth.signOut();
-        }
+      if (isAdmin === true) {
+        console.info("User is admin");
+        return 'admin';
       }
-    }, 5 * 60 * 1000);
 
-    // Cleanup function
-    return () => {
-      subscription.unsubscribe();
-      clearInterval(authCheckInterval);
-    };
+      // Check if user is client
+      const { data: isClient, error: clientError } = await supabase
+        .rpc('check_user_role', { allowed_roles: ['client'] });
+
+      if (clientError) {
+        console.error("Error checking client role:", clientError);
+        throw clientError;
+      }
+
+      if (isClient === true) {
+        console.info("User is client");
+        return 'client';
+      }
+
+      console.info("User has no specific role");
+      return null;
+    } catch (error) {
+      console.error("Error checking user role:", error);
+      return null;
+    }
   }, []);
 
-  // Set a timeout to stop loading if auth initialization takes too long
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn("Auth initialization timeout reached, forcing loading state to complete");
-        setIsLoading(false);
-      }
-    }, 5000); // 5 second timeout
+  const refreshUserRole = useCallback(async (): Promise<UserRole> => {
+    console.log("Getting user role...");
     
-    return () => clearTimeout(timeout);
-  }, [isLoading]);
-  
-  // Track user role changes
-  useEffect(() => {
-    if (authInitialized && user && !userRole) {
-      console.log("Auth initialized but no role, fetching user role");
-      refreshUserRole();
-    }
-  }, [authInitialized, user, userRole]);
-
-  // Sign out function
-  const signOut = async () => {
-    setIsLoading(true);
     try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setSession(null);
-      setUserRole(null);
-      setClientId(null);
+      // Get current user to ensure it's up to date
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (!currentUser) {
+        console.log("No user found during role refresh");
+        setUserRole(null);
+        return null;
+      }
+      
+      const role = await checkUserRole(currentUser);
+      console.log("Role refresh completed:", role);
+      
+      // Update state only if role has changed or was previously null
+      if (role !== userRole) {
+        setUserRole(role);
+      }
+      
+      // Update last check timestamp
+      setLastRoleCheck(Date.now());
+      
+      return role;
     } catch (error) {
-      console.error("Error signing out:", error);
-      toast.error("Error signing out. Please try again.");
+      console.error("Error refreshing user role:", error);
+      return userRole; // Return current role on error
+    }
+  }, [checkUserRole, userRole]);
+
+  const handleAuthStateChange = useCallback(async () => {
+    console.info("Auth state changed:", isLoading ? "INITIAL_SESSION" : "SIGNED_IN");
+    
+    try {
+      // Get the current session
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        throw sessionError;
+      }
+      
+      if (!currentSession) {
+        // User is not signed in
+        setUser(null);
+        setSession(null);
+        setUserRole(null);
+        setIsLoading(false);
+        return;
+      }
+      
+      // User is signed in
+      setSession(currentSession);
+      setUser(currentSession.user);
+      
+      // No need to check role if already loaded recently (cache for CACHE_STALE_TIME)
+      const shouldRefreshRole = !userRole || (Date.now() - lastRoleCheck) > CACHE_STALE_TIME;
+      
+      if (shouldRefreshRole) {
+        const role = await checkUserRole(currentSession.user);
+        setUserRole(role);
+        setLastRoleCheck(Date.now());
+      }
+    } catch (error) {
+      console.error("Error handling auth state change:", error);
     } finally {
       setIsLoading(false);
     }
+  }, [checkUserRole, isLoading, lastRoleCheck, userRole]);
+  
+  useEffect(() => {
+    handleAuthStateChange();
+    
+    // Set up subscription
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+          // Get user role
+          const role = await checkUserRole(session.user);
+          setUserRole(role);
+          setLastRoleCheck(Date.now());
+        } else {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+        }
+        setIsLoading(false);
+      }
+    );
+    
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, [checkUserRole, handleAuthStateChange]);
+
+  // Email/Password Login
+  const signIn = async (email: string, password: string) => {
+    try {
+      console.info("Starting email login for:", email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error("Email login error:", error.message);
+        throw error;
+      }
+
+      setSession(data.session);
+      setUser(data.user);
+      
+      // Check user role after login
+      const role = await checkUserRole(data.user);
+      setUserRole(role);
+      setLastRoleCheck(Date.now());
+
+      console.info("Email login successful for:", email);
+      
+      // Redirect based on user role
+      if (role === 'admin') {
+        navigate("/admin/dashboard");
+      } else if (role === 'client') {
+        navigate("/client/dashboard");
+      } else {
+        navigate("/"); // Default redirect if no role
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Sign in error:", error.message);
+      return {
+        success: false,
+        error: error.message || "An error occurred during login",
+      };
+    }
   };
 
-  const value = {
-    user,
-    userRole,
-    session,
-    isLoading,
-    clientId,
-    signOut,
-    refreshUserRole,
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Clear auth state
+      setUser(null);
+      setSession(null);
+      setUserRole(null);
+      
+      navigate("/auth");
+    } catch (error: any) {
+      console.error("Sign out error:", error);
+      toast.error(`Failed to sign out: ${error.message}`);
+    }
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        userRole,
+        isLoading,
+        signIn,
+        signOut,
+        refreshUserRole,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
+
+export const useAuth = () => useContext(AuthContext);

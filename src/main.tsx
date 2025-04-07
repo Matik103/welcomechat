@@ -26,7 +26,7 @@ const queryClient = new QueryClient({
   },
 });
 
-// Don't initialize RPC functions immediately to prevent blocking the app load
+// Initialize RPC functions with a slight delay to prevent blocking the app load
 setTimeout(() => {
   initializeRpcFunctions().catch(err => {
     console.error('Failed to initialize RPC functions:', err);
@@ -35,7 +35,7 @@ setTimeout(() => {
       initializeRpcFunctions().catch(console.error);
     }, 5000);
   });
-}, 2000);
+}, 1000); // Reduced from 2000ms to 1000ms for faster initialization
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -31,7 +31,7 @@ export default function WidgetSettings() {
   const { client, isLoadingClient, refetchClient } = useClientData(clientId);
 
   // Fetch widget settings
-  const { data: settings, isLoading, refetch } = useQuery({
+  const { data: settings, isLoading, error, refetch } = useQuery({
     queryKey: ["widget-settings", clientId],
     queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
     enabled: !!clientId,
@@ -173,7 +173,7 @@ export default function WidgetSettings() {
         
         <WidgetSettingsContainer
           clientId={clientId}
-          settings={enhancedSettings}
+          settings={enhancedSettings as WidgetSettingsType}
           isClientView={!isAdmin}
           isUploading={isUploading}
           updateSettingsMutation={updateSettingsWrapper}

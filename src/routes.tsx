@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { RouteObject } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -20,6 +21,7 @@ const DocumentExtractionPage = React.lazy(() => import('./pages/admin/DocumentEx
 const ClientViewPage = React.lazy(() => import('./pages/ClientView'));
 const EditClientInfoPage = React.lazy(() => import('./pages/EditClientInfo'));
 const WidgetSettingsPage = React.lazy(() => import('./pages/WidgetSettings'));
+const ClientWidgetSettingsPage = React.lazy(() => import('./pages/client/WidgetSettings'));
 const ClientResourceSettingsPage = React.lazy(() => import('./pages/client/ResourceSettings'));
 const ClientSettingsPage = React.lazy(() => import('./pages/client/Settings'));
 const ClientAccountSettingsPage = React.lazy(() => import('./pages/client/AccountSettings'));
@@ -119,7 +121,7 @@ export const routes: RouteObject[] = [
   },
   {
     path: '/client/widget-settings',
-    element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><WidgetSettingsPage /></React.Suspense></ProtectedRoute>,
+    element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><ClientWidgetSettingsPage /></React.Suspense></ProtectedRoute>,
   },
   {
     path: '/client/resource-settings',
