@@ -26,6 +26,7 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
+  const [lastRequestTime, setLastRequestTime] = useState<number>(0);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when messages change
@@ -51,6 +52,14 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
     setError(null);
+    
+    // Rate limiting - prevent rapid-fire requests
+    const now = Date.now();
+    if (now - lastRequestTime < 1000) {
+      // If less than 1 second since last request, add a small delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    setLastRequestTime(now);
 
     try {
       console.log(`Sending message to assistant (${clientId}): ${userMessage}`);
@@ -58,23 +67,8 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
       // Add debug info to help track network issues
       console.log(`AssistantPreview request details: timestamp=${new Date().toISOString()}, clientId=${clientId}, assistantId=${assistantId}`);
       
-      // Make the request with timeout handling
-      const fetchTimeout = setTimeout(() => {
-        setError('Request timed out. The server might be temporarily unavailable.');
-        setIsLoading(false);
-        
-        // Add assistant response indicating the timeout
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: "I'm sorry, but the request timed out. Please try again in a few moments." 
-        }]);
-        
-        setConnectionAttempts(prev => prev + 1);
-      }, 15000); // 15 seconds timeout
-      
-      // Use the improved error handling approach
+      // Make the request with timeout handling built into the getAnswerFromOpenAIAssistant function
       const result = await getAnswerFromOpenAIAssistant(clientId, userMessage);
-      clearTimeout(fetchTimeout);
       
       if (result.error) {
         console.error('Assistant query error:', result.error);
@@ -83,7 +77,9 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
         // Give more specific messages based on the error
         let errorMessage = "I'm sorry, I couldn't process that request due to a technical issue.";
         
-        if (result.error.includes("send a request to the Edge Function")) {
+        if (result.error.includes("send a request to the Edge Function") || 
+            result.error.includes("network") || 
+            result.error.includes("timeout")) {
           errorMessage = "I'm currently having trouble connecting to my knowledge base. This might be due to a temporary network issue. Please try again shortly.";
           setConnectionAttempts(prev => prev + 1);
         }
@@ -111,7 +107,10 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
       let userFriendlyMessage = "Sorry, I encountered an error processing your request. Please try again later.";
       
       // Give more specific error messages for common issues
-      if (errorMessage.includes("network") || errorMessage.includes("Failed to fetch")) {
+      if (errorMessage.includes("network") || 
+          errorMessage.includes("Failed to fetch") || 
+          errorMessage.includes("timeout") ||
+          errorMessage.includes("Edge function")) {
         userFriendlyMessage = "I'm having trouble connecting to my knowledge base right now. This might be due to network connectivity issues. Please try again in a few moments.";
       }
       
@@ -136,6 +135,7 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
           <li>Refreshing the page</li>
           <li>Checking your internet connection</li>
           <li>Waiting a few minutes and trying again</li>
+          <li>Verifying that Supabase Edge Functions are properly configured</li>
         </ul>
       </AlertDescription>
     </Alert>

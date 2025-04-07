@@ -34,17 +34,24 @@ export const WidgetPreview = ({
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
+  const [lastRequestTime, setLastRequestTime] = useState<number>(0);
   
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isLoading) return;
     
     const userMessage = inputValue;
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setInputValue('');
     setIsLoading(true);
     setError(null);
+    
+    const now = Date.now();
+    if (now - lastRequestTime < 1000) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    setLastRequestTime(now);
     
     try {
       if (!clientId) {
@@ -53,31 +60,18 @@ export const WidgetPreview = ({
       
       console.log(`Sending query to assistant for client ${clientId}: "${userMessage}"`);
       
-      const timeoutPromise = new Promise<{error: string}>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('Request timed out after 15 seconds'));
-        }, 15000);
-      });
+      const result = await getAnswerFromOpenAIAssistant(clientId, userMessage);
       
-      let result;
-      try {
-        result = await Promise.race([
-          getAnswerFromOpenAIAssistant(clientId, userMessage),
-          timeoutPromise
-        ]);
-      } catch (raceError) {
-        console.error('Race promise error:', raceError);
-        throw raceError;
-      }
-      
-      if ('error' in result) {
+      if (result.error) {
         console.error('Assistant query error:', result.error);
         setError(`Failed to get response: ${result.error}`);
         setConnectionAttempts(prev => prev + 1);
         
         let errorMessage = "Sorry, I encountered an error processing your request.";
         
-        if (result.error.includes("Edge function") || result.error.includes("network")) {
+        if (result.error.includes("Edge function") || 
+            result.error.includes("network") || 
+            result.error.includes("timeout")) {
           errorMessage = "I'm having trouble connecting to my knowledge base right now. Please try again shortly.";
         }
         
