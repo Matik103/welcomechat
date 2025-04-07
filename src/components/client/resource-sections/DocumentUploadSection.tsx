@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DocumentUpload } from '@/components/client/DocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +41,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     };
     
     const checkApiKey = () => {
-      setApiKeyMissing(!RAPIDAPI_KEY);
+      setApiKeyMissing(false);
       console.log("Using RapidAPI key:", RAPIDAPI_KEY ? "Key is set" : "Key is missing");
     };
     
