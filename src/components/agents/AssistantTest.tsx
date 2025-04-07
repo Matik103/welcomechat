@@ -28,9 +28,6 @@ export function AssistantTest() {
         <WidgetPreview 
           settings={settings}
           clientId={clientId}
-          onTestInteraction={async () => {
-            console.log('Test interaction triggered');
-          }}
         />
       </div>
     </div>

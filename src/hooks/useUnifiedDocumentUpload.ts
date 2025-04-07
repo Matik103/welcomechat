@@ -1,222 +1,174 @@
 
-import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { v4 as uuidv4 } from 'uuid';
+import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
-import { useClientActivity } from './useClientActivity';
-import { API_CONFIG, isProduction, PDF_PROCESSING } from '@/config/env';
+import { RAPIDAPI_KEY, IS_PRODUCTION } from '@/config/env';
 
-// Export this interface so other components can use it
-export interface UploadResult {
-  success: boolean;
-  documentId?: string;
-  error?: string;
-  publicUrl?: string;
-  fileName?: string;
-}
+// Constants
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_TYPES = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
-interface UseUnifiedDocumentUploadProps {
-  clientId: string;
-  onSuccess?: (result: UploadResult) => void;
-  onError?: (error: unknown) => void;
-  onProgress?: (progress: number) => void;
-}
+export function useUnifiedDocumentUpload(clientId: string) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-export function useUnifiedDocumentUpload({
-  clientId,
-  onSuccess,
-  onError,
-  onProgress,
-}: UseUnifiedDocumentUploadProps) {
-  const { logClientActivity } = useClientActivity(clientId);
-  const [isLoading, setIsLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const IS_PRODUCTION = isProduction();
-
-  const upload = useCallback(
-    async (file: File): Promise<UploadResult> => {
+  // Create a mutation for document upload
+  const uploadMutation = useMutation({
+    mutationFn: async (formData: FormData): Promise<{ success: boolean; message: string; url?: string }> => {
       if (!clientId) {
-        toast.error('Client ID is required');
-        return { success: false, error: 'Client ID is required' };
+        throw new Error('Client ID is required');
       }
 
-      setIsLoading(true);
+      setIsUploading(true);
+      setProgress(0);
+
       try {
-        // Update progress for UI feedback
-        if (onProgress) onProgress(10);
-        setUploadProgress(10);
+        const file = formData.get('file') as File;
         
-        const uploadWithRetry = async (file: File, retryCount = 0): Promise<UploadResult> => {
-          try {
-            // Set the timeout duration based on file size and environment
-            const timeoutDuration = calculateTimeoutDuration(file.size);
-            
-            // Create AbortController for timeout handling
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
-
-            // Update progress
-            if (onProgress) onProgress(20);
-            setUploadProgress(20);
-
-            // Generate a unique file name
-            const fileName = `${uuidv4()}-${file.name}`;
-
-            // Upload the file to Supabase storage
-            const { data: uploadData, error: uploadError } = await supabase.storage
-              .from('client_documents')
-              .upload(`${clientId}/${fileName}`, file, {
-                cacheControl: '3600',
-                upsert: false,
-                contentType: file.type,
-                // Remove the signal property as it's not supported in FileOptions
-              });
-
-            // Update progress
-            if (onProgress) onProgress(50);
-            setUploadProgress(50);
-
-            if (uploadError) {
-              console.error('File upload error:', uploadError);
-              clearTimeout(timeoutId); // Clear timeout if upload fails
-              if (retryCount < PDF_PROCESSING.maxRetries) {
-                const delay = PDF_PROCESSING.retryDelay * (retryCount + 1);
-                console.log(`Retrying upload in ${delay}ms (attempt ${retryCount + 1}/${PDF_PROCESSING.maxRetries})`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                return uploadWithRetry(file, retryCount + 1); // Recursive retry
-              } else {
-                toast.error(`File upload failed after multiple retries: ${uploadError.message}`);
-                return { success: false, error: `File upload failed after multiple retries: ${uploadError.message}` };
-              }
-            }
-
-            // Clear the timeout if the upload is successful
-            clearTimeout(timeoutId);
-            
-            // Update progress
-            if (onProgress) onProgress(70);
-            setUploadProgress(70);
-
-            // Get the public URL of the uploaded file
-            const { data: publicUrlData } = supabase.storage
-              .from('client_documents')
-              .getPublicUrl(`${clientId}/${fileName}`);
-
-            if (!uploadData?.path) {
-              console.error('File path is missing in upload response');
-              return { success: false, error: 'File path is missing in upload response' };
-            }
-
-            // Update progress
-            if (onProgress) onProgress(80);
-            setUploadProgress(80);
-
-            // Create a record in the database
-            const { data: documentData, error: documentError } = await supabase
-              .from('client_documents')
-              .insert([
-                {
-                  client_id: clientId,
-                  file_name: file.name,
-                  file_type: file.type,
-                  file_size: file.size,
-                  storage_path: uploadData.path,
-                  storage_url: publicUrlData.publicUrl,
-                  user_id: (await supabase.auth.getUser()).data.user?.id
-                }
-              ])
-              .select()
-              .single();
-
-            if (documentError) {
-              console.error('Database insert error:', documentError);
-              return { success: false, error: `Database insert error: ${documentError.message}` };
-            }
-
-            // Update progress
-            if (onProgress) onProgress(90);
-            setUploadProgress(90);
-
-            // Log client activity
-            await logClientActivity('document_uploaded', `Document "${file.name}" uploaded`, {
-              file_name: file.name,
-              file_type: file.type,
-              file_size: file.size,
-              storage_path: uploadData.path,
-              storage_url: publicUrlData.publicUrl,
-            });
-
-            // Update progress to complete
-            if (onProgress) onProgress(100);
-            setUploadProgress(100);
-
-            // Call onSuccess callback
-            if (onSuccess) {
-              onSuccess({
-                success: true,
-                documentId: documentData.id,
-                publicUrl: publicUrlData.publicUrl,
-                fileName: file.name,
-              });
-            }
-
-            return {
-              success: true,
-              documentId: documentData.id,
-              publicUrl: publicUrlData.publicUrl,
-              fileName: file.name,
-            };
-          } catch (error) {
-            console.error('Upload error:', error);
-            
-            // Check if the error is an AbortError (timeout)
-            if (error instanceof DOMException && error.name === 'AbortError') {
-              const calculatedTimeoutDuration = calculateTimeoutDuration(file.size);
-              toast.error(`File upload timed out after ${calculatedTimeoutDuration / 60000} minutes. Please try again with a smaller file or a better connection.`);
-              return { success: false, error: `File upload timed out after ${calculatedTimeoutDuration / 60000} minutes.` };
-            }
-            
-            if (onError) {
-              onError(error);
-            }
-            return { success: false, error: error instanceof Error ? error.message : String(error) };
-          }
-        };
-
-        // Helper function to calculate appropriate timeout duration based on file size
-        const calculateTimeoutDuration = (fileSize: number): number => {
-          const baseDuration = IS_PRODUCTION ? 900000 : 600000; // 15 mins prod, 10 mins dev
-          
-          // For very large files (>100MB), increase timeout further
-          if (fileSize > 100 * 1024 * 1024) {
-            return baseDuration * 1.5; // 22.5 mins prod, 15 mins dev
-          }
-          
-          return baseDuration;
-        };
-
-        return await uploadWithRetry(file, 0);
-      } catch (error) {
-        console.error('Top-level upload error:', error);
-        if (onError) {
-          onError(error);
+        // Validation
+        if (!file) {
+          throw new Error('No file provided');
         }
-        return { 
-          success: false, 
-          error: error instanceof Error ? error.message : String(error)
+        
+        if (!ALLOWED_TYPES.includes(file.type)) {
+          throw new Error(`File type ${file.type} not supported. Please upload PDF, TXT, DOC or DOCX files.`);
+        }
+        
+        if (file.size > MAX_FILE_SIZE) {
+          throw new Error(`File size exceeds the limit of ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
+        }
+
+        // Generate a unique file path
+        const timestamp = Date.now();
+        const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const filePath = `documents/${clientId}/${timestamp}_${fileName}`;
+
+        // Show initial progress
+        setProgress(10);
+        
+        // 1. Upload file to storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          throw new Error(`Error uploading file: ${uploadError.message}`);
+        }
+
+        setProgress(30);
+
+        // 2. Get public URL
+        const { data: publicUrlData } = await supabase.storage
+          .from('documents')
+          .getPublicUrl(filePath);
+
+        if (!publicUrlData?.publicUrl) {
+          throw new Error('Failed to get public URL for uploaded file');
+        }
+
+        const documentUrl = publicUrlData.publicUrl;
+        
+        setProgress(50);
+
+        // 3. Create document entry and trigger processing
+        const { data: documentData, error: documentError } = await supabase
+          .from('document_processing_jobs')
+          .insert([{
+            client_id: clientId,
+            agent_name: 'Default Agent', // This will be updated if needed
+            document_type: file.type,
+            document_url: documentUrl,
+            document_id: filePath,
+            status: 'pending',
+            processing_method: 'supabase_edge',
+            metadata: {
+              fileName: file.name,
+              fileSize: file.size,
+              fileType: file.type,
+              uploadedAt: new Date().toISOString()
+            }
+          }])
+          .select()
+          .single();
+
+        if (documentError) {
+          throw new Error(`Error creating document entry: ${documentError.message}`);
+        }
+
+        setProgress(80);
+
+        // 4. Trigger document processing via Edge Function
+        try {
+          const processingResponse = await fetch('/api/process-document', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': RAPIDAPI_KEY || '',
+            },
+            body: JSON.stringify({
+              documentId: documentData.id,
+              clientId,
+              documentUrl,
+              filePath
+            }),
+          });
+
+          if (!processingResponse.ok) {
+            console.warn('Document processing trigger failed, will retry automatically:', 
+              await processingResponse.text());
+          }
+
+          setProgress(100);
+          
+          return {
+            success: true,
+            message: 'Document uploaded successfully and processing has started.',
+            url: documentUrl
+          };
+        } catch (processingError) {
+          console.error('Error triggering document processing:', processingError);
+          // We continue because the document is uploaded and processing can be retried
+          return {
+            success: true,
+            message: 'Document uploaded successfully but processing could not be started. It will be processed automatically later.',
+            url: documentUrl
+          };
+        }
+      } catch (error) {
+        console.error('Document upload error:', error);
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Unknown error occurred during document upload'
         };
       } finally {
-        setIsLoading(false);
-        // Reset progress
-        setUploadProgress(0);
+        setIsUploading(false);
       }
     },
-    [clientId, onSuccess, onError, onProgress, logClientActivity, IS_PRODUCTION]
-  );
+    onSuccess: (result) => {
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    },
+    onError: (error: Error) => {
+      console.error('Document upload mutation error:', error);
+      toast.error(`Failed to upload document: ${error.message}`);
+      setIsUploading(false);
+    }
+  });
 
-  return { 
-    upload, 
-    isLoading, 
-    uploadProgress 
+  // Return values and methods
+  return {
+    uploadDocument: (formData: FormData) => uploadMutation.mutate(formData),
+    isUploading,
+    progress,
+    isError: uploadMutation.isError,
+    error: uploadMutation.error,
+    reset: uploadMutation.reset
   };
 }

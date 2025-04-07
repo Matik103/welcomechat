@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import { WidgetSettings } from '@/types/widget-settings';
+import { WidgetSettings, defaultSettings } from '@/types/widget-settings';
 
 interface WidgetSettingsContainerProps {
   widgetSettings?: WidgetSettings | null;
@@ -39,11 +39,11 @@ export const WidgetSettingsContainer = ({
             clientId: clientId || widgetSettings.clientId || widgetSettings.client_id,
             agentName: widgetSettings.agent_name || 'AI Assistant',
             agentDescription: widgetSettings.agent_description || '',
-            primaryColor: widgetSettings.color || '#4F46E5',
+            primaryColor: widgetSettings.chat_color || widgetSettings.color || '#4F46E5',
             fontFamily: widgetSettings.fontFamily || 'Inter',
             fontSize: widgetSettings.fontSize || 'md',
-            welcomeMessage: widgetSettings.welcome_message || 'Hello! How can I help you today?',
-            logoUrl: widgetSettings.logo_path || widgetSettings.logo || null,
+            welcomeMessage: widgetSettings.greeting_message || widgetSettings.welcome_message || 'Hello! How can I help you today?',
+            logoUrl: widgetSettings.logo_url || widgetSettings.logo_path || widgetSettings.logo || null,
             deepseekEnabled: widgetSettings.deepseek_enabled || false,
             deepseekModel: widgetSettings.deepseek_model || 'deepseek-chat',
             deepseekAssistantId: widgetSettings.deepseek_assistant_id || null
