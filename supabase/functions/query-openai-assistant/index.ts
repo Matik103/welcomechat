@@ -32,11 +32,12 @@ serve(async (req) => {
       console.error("Missing OpenAI API key");
       return new Response(
         JSON.stringify({
-          error: "OpenAI API key is not configured. Please contact your administrator."
+          error: "OpenAI API key is not configured. Please contact your administrator.",
+          answer: "I'm sorry, I can't process queries right now because the AI service is not properly configured."
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
+          status: 200, // Return 200 but with error info
         }
       );
     }
@@ -159,11 +160,12 @@ serve(async (req) => {
     console.error("Error in query-openai-assistant function:", error);
     return new Response(
       JSON.stringify({
+        answer: "Sorry, I encountered an error processing your request. Please try again later.",
         error: error instanceof Error ? error.message : "An unknown error occurred"
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
+        status: 200, // Return 200 but include error in payload for better user experience
       }
     );
   }

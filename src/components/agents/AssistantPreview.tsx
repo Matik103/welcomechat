@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +41,7 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
     setIsLoading(true);
 
     try {
-      console.log(`Sending message to assistant: ${userMessage}`);
+      console.log(`Sending message to assistant (${clientId}): ${userMessage}`);
       
       // Use the improved error handling approach
       const result = await getAnswerFromOpenAIAssistant(clientId, userMessage);
@@ -48,18 +49,22 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
       if (result.error) {
         console.error('Error getting answer:', result.error);
         toast.error('Failed to get response from assistant');
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: `Sorry, I encountered an error: ${result.error}. Please try again later.` 
+        }]);
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: result.answer || "I'm sorry, I couldn't process that request."
+        }]);
       }
-      
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: result.answer 
-      }]);
     } catch (error) {
       console.error('Error querying assistant:', error);
       toast.error('Failed to get response from assistant');
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: "Sorry, I encountered an error processing your request." 
+        content: "Sorry, I encountered an error processing your request. Please try again later." 
       }]);
     } finally {
       setIsLoading(false);
