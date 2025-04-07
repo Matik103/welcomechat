@@ -2,6 +2,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { RAPIDAPI_KEY, RAPIDAPI_HOST } from '@/config/env';
 
+// Constants for file processing
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+const MAX_PARALLEL_CHUNKS = 3;
+
 interface UploadResult {
   success: boolean;
   documentId?: string;
@@ -16,6 +21,7 @@ interface UploadResult {
 interface UploadOptions {
   agentName?: string;
   shouldProcessWithOpenAI?: boolean;
+  onProgress?: (progress: number) => void;
 }
 
 interface DocumentMetadata {
@@ -28,6 +34,146 @@ interface DocumentMetadata {
   extraction_method?: string;
   text_length?: number;
   [key: string]: any;
+}
+
+/**
+ * Splits a PDF file into chunks for processing
+ */
+async function splitPDFIntoChunks(file: File, maxChunkSize: number): Promise<Blob[]> {
+  const chunks: Blob[] = [];
+  let offset = 0;
+  
+  while (offset < file.size) {
+    const chunk = file.slice(offset, offset + maxChunkSize);
+    chunks.push(chunk);
+    offset += maxChunkSize;
+  }
+  
+  return chunks;
+}
+
+/**
+ * Process a single chunk with retries
+ */
+async function processChunkWithRetry(
+  chunk: Blob,
+  chunkIndex: number,
+  totalChunks: number,
+  retries = MAX_RETRIES
+): Promise<string | null> {
+  try {
+    console.log(`Processing chunk ${chunkIndex + 1}/${totalChunks} (${chunk.size} bytes)`);
+    
+    const formData = new FormData();
+    // Create a new File with PDF extension to ensure proper processing
+    const chunkFile = new File([chunk], `chunk-${chunkIndex + 1}.pdf`, { type: 'application/pdf' });
+    formData.append('file', chunkFile);
+    
+    const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
+      method: 'POST',
+      headers: {
+        'x-rapidapi-host': RAPIDAPI_HOST,
+        'x-rapidapi-key': RAPIDAPI_KEY
+      },
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Chunk ${chunkIndex + 1} failed with status:`, response.status, errorText);
+      
+      if (retries > 0) {
+        console.log(`Retrying chunk ${chunkIndex + 1} (${retries} retries left)`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return processChunkWithRetry(chunk, chunkIndex, totalChunks, retries - 1);
+      }
+      
+      throw new Error(`Failed to process chunk ${chunkIndex + 1} after ${MAX_RETRIES} retries`);
+    }
+    
+    const extractedText = await response.text();
+    console.log(`Chunk ${chunkIndex + 1} processed successfully, length:`, extractedText.length);
+    return extractedText;
+  } catch (error) {
+    if (retries > 0) {
+      console.log(`Retrying chunk ${chunkIndex + 1} after error (${retries} retries left)`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      return processChunkWithRetry(chunk, chunkIndex, totalChunks, retries - 1);
+    }
+    console.error(`Failed to process chunk ${chunkIndex + 1}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Process a PDF file and extract its text content
+ * Handles files of any size through chunking and parallel processing
+ */
+async function processPDF(file: File, onProgress?: (progress: number) => void): Promise<string | null> {
+  try {
+    console.log(`Processing PDF file: ${file.name} (${file.size} bytes)`);
+    
+    // For small files, process directly
+    if (file.size <= 5 * 1024 * 1024) { // 5MB threshold for direct processing
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
+        method: 'POST',
+        headers: {
+          'x-rapidapi-host': RAPIDAPI_HOST,
+          'x-rapidapi-key': RAPIDAPI_KEY
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`PDF extraction failed with status: ${response.status}`);
+      }
+      
+      const extractedText = await response.text();
+      console.log('PDF text extraction successful, length:', extractedText.length);
+      onProgress?.(100);
+      return extractedText;
+    }
+    
+    // For large files, use chunking
+    console.log('Large PDF detected, using chunked processing');
+    const chunks = await splitPDFIntoChunks(file, 5 * 1024 * 1024); // 5MB chunks
+    const totalChunks = chunks.length;
+    let processedChunks = 0;
+    let results: string[] = [];
+    
+    // Process chunks in parallel with limited concurrency
+    for (let i = 0; i < chunks.length; i += MAX_PARALLEL_CHUNKS) {
+      const chunkGroup = chunks.slice(i, i + MAX_PARALLEL_CHUNKS);
+      const chunkPromises = chunkGroup.map((chunk, index) => 
+        processChunkWithRetry(chunk, i + index, totalChunks)
+      );
+      
+      const chunkResults = await Promise.all(chunkPromises);
+      processedChunks += chunkGroup.length;
+      
+      // Update progress
+      const progress = Math.round((processedChunks / totalChunks) * 100);
+      onProgress?.(progress);
+      
+      // Check for failed chunks
+      if (chunkResults.some(result => result === null)) {
+        throw new Error('Some chunks failed to process');
+      }
+      
+      results = results.concat(chunkResults as string[]);
+    }
+    
+    const combinedText = results.join('\n');
+    console.log('All chunks processed successfully, total length:', combinedText.length);
+    return combinedText;
+    
+  } catch (error) {
+    console.error('Error processing PDF:', error);
+    return null;
+  }
 }
 
 /**
@@ -92,37 +238,15 @@ export const uploadDocument = async (
       processingStatus = 'pending_extraction';
       
       try {
-        // Process the PDF with RapidAPI directly
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        // Get RapidAPI key from env, with hardcoded fallback
-        const rapidApiKey = RAPIDAPI_KEY;
-        const rapidApiHost = RAPIDAPI_HOST;
-        
-        if (!rapidApiKey) {
+        if (!RAPIDAPI_KEY) {
           console.error('RapidAPI key is missing. PDF text extraction cannot be performed.');
           processingStatus = 'extraction_failed';
           throw new Error('RapidAPI key is missing');
         }
         
-        const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
-          method: 'POST',
-          headers: {
-            'x-rapidapi-host': rapidApiHost,
-            'x-rapidapi-key': rapidApiKey
-          },
-          body: formData
-        });
+        extractedText = await processPDF(file);
+        processingStatus = extractedText ? 'extraction_complete' : 'extraction_failed';
         
-        if (response.ok) {
-          extractedText = await response.text();
-          processingStatus = 'extraction_complete';
-          console.log('PDF text extraction successful, length:', extractedText.length);
-        } else {
-          console.error('PDF extraction failed with status:', response.status);
-          processingStatus = 'extraction_failed';
-        }
       } catch (extractError) {
         console.error('Error extracting PDF text:', extractError);
         processingStatus = 'extraction_failed';
