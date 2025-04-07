@@ -139,9 +139,6 @@ export const getAnswerFromOpenAIAssistant = async (
   try {
     console.log(`Getting answer from OpenAI assistant for client ${clientId}: "${query}"`);
     
-    // Add debug info to help track network issues
-    console.log(`Request details: timestamp=${new Date().toISOString()}, clientId=${clientId}`);
-    
     // Call the query-openai-assistant Edge Function with improved error handling
     const response = await supabase.functions.invoke('query-openai-assistant', {
       body: { client_id: clientId, query },
@@ -154,12 +151,11 @@ export const getAnswerFromOpenAIAssistant = async (
       console.error('Edge function error:', response.error);
       return { 
         answer: "I'm sorry, I encountered an error while processing your question.", 
-        error: `Edge function error: ${response.error.message || JSON.stringify(response.error)}` 
+        error: `Edge function error: ${response.error.message || response.error}` 
       };
     }
     
     const data = response.data;
-    console.log('Response data from Edge Function:', data);
     
     // Handle different response formats from the edge function
     if (data?.answer) {
@@ -175,13 +171,6 @@ export const getAnswerFromOpenAIAssistant = async (
       const lastMessage = data.messages[data.messages.length - 1]?.content;
       return {
         answer: lastMessage || "I couldn't generate a proper response."
-      };
-    } else if (data?.error) {
-      // Handle explicit error in the response
-      console.error('Error in OpenAI response:', data.error);
-      return {
-        answer: "I'm sorry, I encountered a specific error: " + data.error,
-        error: data.error
       };
     } else if (!data) {
       return {
