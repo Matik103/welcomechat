@@ -1,318 +1,107 @@
-import { useState } from 'react';
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ChatHeader } from "./ChatHeader";
-import { ChatMessages } from "./ChatMessages";
-import { ChatInput } from "./ChatInput";
-import { toast } from "sonner";
-import { supabase } from '@/integrations/supabase/client';
+
+import React, { useEffect, useState } from 'react';
 import { WidgetSettings } from '@/types/widget-settings';
-import { AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getAnswerFromOpenAIAssistant } from '@/utils/openAIDocumentSync';
 
 interface WidgetPreviewProps {
-  settings: WidgetSettings;
+  settings?: WidgetSettings;
   clientId?: string;
-  onTestInteraction?: () => void;
 }
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-export const WidgetPreview = ({ 
-  settings, 
-  clientId,
-  onTestInteraction
-}: WidgetPreviewProps) => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [connectionAttempts, setConnectionAttempts] = useState(0);
-  const [lastRequestTime, setLastRequestTime] = useState<number>(0);
+export const WidgetPreview = ({ settings, clientId }: WidgetPreviewProps) => {
+  const [isOpen, setIsOpen] = useState(false);
   
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  // Get stylesheet variables from settings
+  const getStyleVariables = () => {
+    if (!settings) return {};
     
-    if (!inputValue.trim() || isLoading) return;
+    const primaryColor = settings.chat_color || settings.color || '#4F46E5';
     
-    const userMessage = inputValue;
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-    setInputValue('');
-    setIsLoading(true);
-    setError(null);
-    
-    const now = Date.now();
-    if (now - lastRequestTime < 1000) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    setLastRequestTime(now);
-    
-    try {
-      if (!clientId) {
-        throw new Error('Client ID is required');
-      }
-      
-      console.log(`Sending query to assistant for client ${clientId}: "${userMessage}"`);
-      
-      const result = await getAnswerFromOpenAIAssistant(clientId, userMessage);
-      
-      if (result.error) {
-        console.error('Assistant query error:', result.error);
-        setError(`Failed to get response: ${result.error}`);
-        setConnectionAttempts(prev => prev + 1);
-        
-        let errorMessage = "Sorry, I encountered an error processing your request.";
-        
-        if (result.error.includes("Edge function") || 
-            result.error.includes("network") || 
-            result.error.includes("timeout")) {
-          errorMessage = "I'm having trouble connecting to my knowledge base right now. Please try again shortly.";
-        }
-        
-        setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
-      } else {
-        if (connectionAttempts > 0) {
-          setConnectionAttempts(0);
-        }
-        
-        setMessages(prev => [...prev, { role: 'assistant', content: result.answer }]);
-
-        if (onTestInteraction) {
-          onTestInteraction();
-        }
-      }
-    } catch (error) {
-      console.error('Error querying assistant:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setError(`Failed to get response: ${errorMessage}`);
-      setConnectionAttempts(prev => prev + 1);
-      
-      let userFriendlyMessage = "Sorry, I encountered an error processing your request.";
-      
-      if (errorMessage.includes("timeout")) {
-        userFriendlyMessage = "I'm sorry, the request took too long to complete. The service might be busy right now. Please try again shortly.";
-      } else if (errorMessage.includes("network") || errorMessage.includes("Edge function")) {
-        userFriendlyMessage = "I'm having trouble connecting to my knowledge base right now. This might be due to network issues. Please try again in a few moments.";
-      }
-      
-      setMessages(prev => [...prev, { role: 'assistant', content: userFriendlyMessage }]);
-    } finally {
-      setIsLoading(false);
-    }
+    return {
+      '--primary-color': primaryColor,
+      '--button-color': settings.button_color || primaryColor,
+      '--text-color': settings.text_color || settings.font_color || '#111827',
+      '--bg-color': settings.background_color || '#FFFFFF',
+      '--font-family': settings.fontFamily || 'Inter, system-ui, sans-serif'
+    } as React.CSSProperties;
   };
-
-  const handleToggleSidebar = () => {
-    setIsSidebarOpen(prev => !prev);
+  
+  // Handle toggle chat
+  const handleToggle = () => {
+    setIsOpen(!isOpen);
   };
-
-  const headerBgColor = settings.chat_color || '#4F46E5';
-  const chatBgColor = settings.background_color || '#F9FAFB';
-  const chatTextColor = settings.text_color || '#1F2937';
-  const buttonBgColor = settings.button_color || '#4F46E5';
-  const buttonTextColor = settings.chat_font_color || '#FFFFFF';
-
-  const formattedMessages = messages.map(msg => ({
-    text: msg.content,
-    isUser: msg.role === 'user'
-  }));
-
-  if (error) {
-    console.log('Widget preview error:', error);
-  }
-
-  const connectionTroubleshooting = connectionAttempts >= 2 ? (
-    <Alert variant="warning" className="m-3 py-2">
-      <AlertCircle className="h-4 w-4" />
-      <AlertDescription className="text-xs">
-        Having trouble connecting? Try refreshing the page or checking your internet connection.
-      </AlertDescription>
-    </Alert>
-  ) : null;
-
-  switch (settings.display_mode) {
-    case 'inline':
-      return (
-        <div className="w-full border rounded-lg bg-white overflow-hidden shadow-sm">
-          <ChatHeader 
-            headerTitle={settings.agent_name || "Chat with us"}
-            headerSubtitle={settings.welcome_text || "We're here to help"}
-            logoUrl={settings.logo_url}
-            headerBgColor={headerBgColor}
-          />
-          
-          {error && (
-            <Alert variant="destructive" className="m-3 py-2">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-xs">{error}</AlertDescription>
-            </Alert>
-          )}
-          
-          {connectionTroubleshooting}
-          
-          <div className="h-[300px] overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
-            <ChatMessages 
-              messages={formattedMessages} 
-              isLoading={isLoading}
-              userBubbleColor={settings.chat_color || '#4F46E5'}
-              assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
-              userTextColor={'#FFFFFF'}
-              assistantTextColor={chatTextColor}
-            />
-          </div>
-          
-          <ChatInput
-            value={inputValue}
-            onChange={(val) => setInputValue(val)}
-            onSubmit={handleSendMessage}
-            placeholder={settings.greeting_message || "Type your message..."}
-            buttonText={settings.button_text || "Send"}
-            isLoading={isLoading}
-            buttonBgColor={buttonBgColor}
-            buttonTextColor={buttonTextColor}
-          />
-        </div>
-      );
-      
-    case 'sidebar':
-      return (
-        <div className="relative h-full w-full bg-gray-100 rounded-lg p-4">
-          <div className="flex h-full">
-            <div 
-              className={`flex items-center justify-center h-full cursor-pointer transition-all ${isSidebarOpen ? 'w-8' : 'w-14'}`}
-              onClick={handleToggleSidebar}
-              style={{ backgroundColor: headerBgColor }}
-            >
-              <div className="transform rotate-180 text-white" style={{ writingMode: 'vertical-rl' }}>
-                {settings.agent_name || "Chat with us"}
-              </div>
-            </div>
-            
-            {isSidebarOpen && (
-              <div className="flex-1 flex flex-col bg-white overflow-hidden border-t border-r border-b rounded-tr-lg rounded-br-lg shadow-md">
-                <ChatHeader 
-                  headerTitle={settings.agent_name || "Chat with us"}
-                  headerSubtitle={settings.welcome_text || "We're here to help"}
-                  logoUrl={settings.logo_url}
-                  headerBgColor={headerBgColor}
-                />
-                
-                {error && (
-                  <Alert variant="destructive" className="m-3 py-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-xs">{error}</AlertDescription>
-                  </Alert>
-                )}
-                
-                {connectionTroubleshooting}
-                
-                <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
-                  <ChatMessages 
-                    messages={formattedMessages} 
-                    isLoading={isLoading}
-                    userBubbleColor={settings.chat_color || '#4F46E5'}
-                    assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
-                    userTextColor={'#FFFFFF'}
-                    assistantTextColor={chatTextColor}
-                  />
-                </div>
-                
-                <ChatInput
-                  value={inputValue}
-                  onChange={(val) => setInputValue(val)}
-                  onSubmit={handleSendMessage}
-                  placeholder={settings.greeting_message || "Type your message..."}
-                  buttonText={settings.button_text || "Send"}
-                  isLoading={isLoading}
-                  buttonBgColor={buttonBgColor}
-                  buttonTextColor={buttonTextColor}
-                />
-              </div>
+  
+  return (
+    <div className="widget-preview" style={getStyleVariables()}>
+      {/* Chat Window */}
+      {isOpen && (
+        <div className="widget-window bg-white shadow-lg rounded-lg border overflow-hidden flex flex-col" style={{maxWidth: '350px', height: '450px'}}>
+          {/* Chat Header */}
+          <div className="chat-header p-4 flex items-center space-x-2" style={{background: getStyleVariables()['--primary-color']}}>
+            {settings?.logo_url && (
+              <img 
+                src={settings.logo_url} 
+                alt="Logo" 
+                className="h-8 w-8 rounded" 
+              />
             )}
+            <div className="flex-1">
+              <h3 className="text-white font-medium">{settings?.agent_name || 'AI Assistant'}</h3>
+              <p className="text-white text-xs opacity-80">{settings?.agent_description || 'Ready to help'}</p>
+            </div>
+            <button onClick={handleToggle} className="text-white hover:bg-white/10 rounded-full p-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
           
-          {!isSidebarOpen && !messages.length && (
-            <div className="absolute top-4 right-4 p-3 bg-white border rounded-lg shadow-md">
-              <p className="text-sm mb-4">This is how the sidebar appears when collapsed. Click the tab on the left to expand it.</p>
-              <Button 
-                onClick={handleToggleSidebar}
-                className="text-white w-full"
-                style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
-              >
-                See expanded view
-              </Button>
+          {/* Chat Messages */}
+          <div className="flex-1 p-4 overflow-y-auto">
+            <div className="mb-4">
+              <div className="bg-gray-100 rounded-lg p-3 inline-block max-w-[80%]">
+                <p className="text-gray-800">{settings?.greeting_message || settings?.welcome_message || 'Hello! How can I help you today?'}</p>
+              </div>
             </div>
-          )}
-        </div>
-      );
-
-    case 'floating':
-    default:
-      return (
-        <div className="relative h-[600px] bg-gray-100 rounded-lg p-4">
-          <div className="absolute bottom-4 right-4 flex flex-col items-end">
-            {messages.length === 0 && (
+          </div>
+          
+          {/* Chat Input */}
+          <div className="p-3 border-t">
+            <div className="flex">
+              <input 
+                type="text" 
+                placeholder="Type your message..." 
+                className="flex-1 border rounded-l-lg p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
               <button 
-                className="flex items-center justify-center w-14 h-14 rounded-full shadow-md mb-4"
-                style={{ backgroundColor: headerBgColor }}
-                onClick={() => setMessages([{ role: 'assistant', content: settings.greeting_message || "Hello! How can I help you today?" }])}
+                style={{background: getStyleVariables()['--primary-color']}} 
+                className="px-4 py-2 rounded-r-lg text-white"
               >
-                {settings.logo_url ? (
-                  <img src={settings.logo_url} alt="Chat" className="w-8 h-8 rounded-full" />
-                ) : (
-                  <span className="text-white text-2xl">💬</span>
-                )}
+                Send
               </button>
-            )}
-            
-            {messages.length > 0 && (
-              <div className="w-[455px] h-[500px] flex flex-col overflow-hidden border rounded-lg shadow-md bg-white">
-                <ChatHeader 
-                  headerTitle={settings.agent_name || "Chat with us"}
-                  headerSubtitle={settings.welcome_text || "We're here to help"}
-                  logoUrl={settings.logo_url}
-                  headerBgColor={headerBgColor}
-                />
-                
-                {error && (
-                  <Alert variant="destructive" className="m-3 py-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-xs">{error}</AlertDescription>
-                  </Alert>
-                )}
-                
-                {connectionTroubleshooting}
-                
-                <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
-                  <ChatMessages 
-                    messages={formattedMessages} 
-                    isLoading={isLoading}
-                    userBubbleColor={settings.chat_color || '#4F46E5'}
-                    assistantBubbleColor={settings.secondary_color || '#F3F4F6'}
-                    userTextColor={'#FFFFFF'}
-                    assistantTextColor={chatTextColor}
-                  />
-                </div>
-                
-                <ChatInput
-                  value={inputValue}
-                  onChange={(val) => setInputValue(val)}
-                  onSubmit={handleSendMessage}
-                  placeholder={settings.greeting_message || "Type your message..."}
-                  buttonText={settings.button_text || "Send"}
-                  isLoading={isLoading}
-                  buttonBgColor={buttonBgColor}
-                  buttonTextColor={buttonTextColor}
-                />
-              </div>
-            )}
+            </div>
           </div>
         </div>
-      );
-  }
+      )}
+      
+      {/* Chat Button */}
+      {!isOpen && (
+        <button 
+          onClick={handleToggle}
+          className="chat-button text-white rounded-full p-3 shadow-lg flex items-center justify-center"
+          style={{
+            background: getStyleVariables()['--button-color'],
+            width: '60px',
+            height: '60px'
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+      )}
+    </div>
+  );
 };
+
+export default WidgetPreview;

@@ -47,4 +47,16 @@ export const PDF_PROCESSING = {
 export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
 export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
 
+// Export commonly used environment variables
+export const DEEPSEEK_MODEL = DEEPSEEK_CONFIG.defaultModel;
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+export const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
+export const IS_PRODUCTION = import.meta.env.VITE_NODE_ENV === 'production';
+export const EDGE_FUNCTIONS_URL = import.meta.env.VITE_EDGE_FUNCTIONS_URL || '';
+export const CACHE_STALE_TIME = parseInt(import.meta.env.VITE_CACHE_STALE_TIME || '300000', 10); // 5 minutes default
+export const validateEnvironment = () => {
+  // Implement environment validation if needed
+  return true;
+};
+
 export default env;
