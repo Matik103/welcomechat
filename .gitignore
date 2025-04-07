@@ -89,3 +89,9 @@ test-assets/
 *.pdf
 *.txt
 *.ps
+!README.txt
+
+# Environment variables
+.env
+.env.*
+!.env.example
