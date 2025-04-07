@@ -62,7 +62,7 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
 
       <Separator />
 
-      <Alert variant="default" className="bg-blue-50 border-blue-200">
+      <Alert className="bg-blue-50 border-blue-200">
         <CheckCircle2 className="h-4 w-4 text-blue-500" />
         <AlertDescription className="text-blue-700">
           Documents will be securely stored and made available to your AI assistant for knowledge retrieval.

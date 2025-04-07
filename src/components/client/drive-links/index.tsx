@@ -2,7 +2,7 @@
 import React from 'react';
 import { DocumentLinkForm } from './DocumentLinkForm';
 import { DocumentLinksList } from './DocumentLinksList';
-import { DocumentLink } from '@/types/document-processing';
+import { DocumentLink, DocumentLinkFormData } from '@/types/document-processing';
 
 export interface DriveLinksProps {
   links: DocumentLink[];
@@ -34,7 +34,7 @@ const DriveLinks: React.FC<DriveLinksProps> = ({
         </p>
         
         <DocumentLinkForm
-          onSubmit={async (data: { link: string; refresh_rate: number; document_type?: string }) => {
+          onSubmit={async (data: DocumentLinkFormData) => {
             await addDocumentLink({
               link: data.link,
               refresh_rate: data.refresh_rate,

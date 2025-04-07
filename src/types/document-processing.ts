@@ -1,58 +1,181 @@
+/**
+ * Types for document processing functionality
+ */
 
-// Document and processing related types
-
-export type DocumentType = 'document' | 'google_drive' | 'google_sheet' | 'google_doc' | 'website';
-
-export interface DocumentStatus {
-  id: string;
-  status: string;
+export interface DocumentProcessingStatus {
+  id?: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   error?: string;
-  metadata: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string;
+  stage?: 'uploading' | 'processing' | 'parsing' | 'analyzing' | 'complete' | 'failed' | 'init' | 'storing' | 'syncing';
+  progress?: number;
+  message?: string;
 }
 
-export interface DocumentProcessingJob {
-  id: string;
-  document_id: string;
-  document_url: string;
-  document_type: DocumentType;
-  agent_name: string;
-  client_id: string;
-  status: string;
-  error?: string;
-  content?: string;
-  created_at: string;
-  updated_at: string;
-}
+export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
 
-export interface DocumentChunk {
-  content: string;
-  metadata: Record<string, any>;
-  id?: string; // Add id as optional property to match usage
-}
+export type DocumentType = 
+  | 'pdf' 
+  | 'text' 
+  | 'google_doc' 
+  | 'google_drive' 
+  | 'docx' 
+  | 'html' 
+  | 'url' 
+  | 'web_page';
 
-export interface DocumentProcessingOptions {
-  chunkSize?: number;
-  chunkOverlap?: number;
-  includeMetadata?: boolean;
-  onProgress?: (progress: number) => void;
-}
-
-// Add support for DocumentLink type used in the project
 export interface DocumentLink {
   id: number;
   client_id: string;
   link: string;
-  document_type: DocumentType;
-  access_status: string;
+  document_type: string;
   created_at: string;
-  updated_at: string;
   refresh_rate: number;
+  notified_at?: string;
+  access_status?: AccessStatus;
   file_name?: string;
-  mime_type?: string;
   file_size?: number;
+  mime_type?: string;
   storage_path?: string;
-  metadata?: Record<string, any>;
 }
 
-// Re-export types as type to fix isolatedModules issue
-export type { DocumentProcessingStatus, DocumentProcessingResult, AccessStatus, ValidationResult, DocumentLinkFormData } from './document-processing.d';
+export interface DocumentLinkFormData {
+  link: string;
+  refresh_rate: number;
+  document_type: string;
+}
+
+export interface DriveLinksProps {
+  documents?: DocumentLink[];
+  isLoading?: boolean;
+  isUploading?: boolean;
+  addDocumentLink?: (data: DocumentLinkFormData) => Promise<void>;
+  deleteDocumentLink?: (linkId: number) => Promise<void>;
+  uploadDocument?: (file: File) => Promise<void>;
+  isClientView?: boolean;
+  isValidating?: boolean;
+  deletingId?: number | null;
+  isDeleteLoading?: boolean;
+}
+
+export interface DocumentProcessingResult {
+  success: boolean;
+  error?: string;
+  documentId?: string;
+  jobId?: string;
+  status?: string;
+  documentUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  url?: string;
+  uploadDate?: string;
+  extractedText?: string;
+  aiProcessed?: boolean;
+  downloadUrl?: string;
+  processed: number;
+  failed: number;
+  urlsScraped?: number;
+  contentStored?: number;
+  message?: string;
+}
+
+export interface DocumentProcessingRequest {
+  client_id: string;
+  document_url: string;
+  document_type: string;
+}
+
+export interface DocumentProcessingOptions {
+  clientId: string;
+  documentType?: string;
+  agentName?: string;
+  shouldUseAI?: boolean;
+  maxPages?: number;
+  syncToAgent?: boolean;
+  syncToProfile?: boolean;
+  syncToWidgetSettings?: boolean;
+  folder?: string;
+  description?: string;
+}
+
+export interface DocumentChunk {
+  content: string;
+  metadata?: Record<string, any>;
+  id?: string;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  message?: string;
+  status?: 'success' | 'error' | 'warning' | 'info';
+}
+
+export interface DocumentUploadFormProps {
+  onSubmitDocument: (file: File) => Promise<void>;
+  isUploading: boolean;
+}
+
+export interface ParseResponse {
+  success: boolean;
+  text?: string;
+  chunks?: DocumentChunk[];
+  error?: string;
+}
+
+// Updated LlamaIndex types to ensure they're JSON serializable
+export interface LlamaIndexJobResponse {
+  job_id: string;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LlamaIndexParsingResult {
+  job_id: string;
+  status: string;
+  parsed_content?: string;
+  error?: string;
+}
+
+export interface DocumentMetadata {
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string[];
+  creationDate?: string;
+  modificationDate?: string;
+  pageCount?: number;
+  [key: string]: any;
+}
+
+// LlamaIndex specific types
+export interface LlamaIndexProcessingOptions {
+  shouldUseAI?: boolean;
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export interface LlamaIndexDocumentChunk {
+  text: string;
+  metadata?: {
+    page_number?: number;
+    source?: string;
+    [key: string]: any;
+  };
+}
+
+// This type ensures LlamaIndex responses can be serialized as JSON in metadata
+export type JsonSerializable = 
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonSerializable }
+  | JsonSerializable[];
+
+// Helper type for Supabase JSON column
+export type Json = JsonSerializable;

@@ -1,8 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-
-export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
+import { AccessStatus } from '@/types/document-processing';
 
 export interface DriveAccessResult {
   accessLevel: 'public' | 'private' | 'unknown';

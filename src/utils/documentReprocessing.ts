@@ -1,32 +1,10 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { DocumentProcessingResult } from '@/types/document-processing';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { callRpcFunctionSafe } from './rpcUtils';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
-
-// Define DocumentProcessingResult
-interface DocumentProcessingResult {
-  success: boolean;
-  error?: string;
-  documentId?: string;
-  jobId?: string;
-  status?: string;
-  documentUrl?: string;
-  fileName?: string;
-  fileSize?: number;
-  fileType?: string;
-  url?: string;
-  uploadDate?: string;
-  extractedText?: string;
-  aiProcessed?: boolean;
-  downloadUrl?: string;
-  processed: number;
-  failed: number;
-  urlsScraped?: number;
-  contentStored?: number;
-  message?: string;
-}
 
 // Function to reprocess a document
 export const reprocessDocument = async (

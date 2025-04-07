@@ -60,7 +60,6 @@
     "input-otp": "^1.1.0",
     "jspdf": "^3.0.1",
     "llamaindex": "^0.1.10",
-    "lovable-tagger": "^1.1.8",
     "lucide-react": "^0.344.0",
     "mammoth": "^1.7.0",
     "next-themes": "^0.2.1",
@@ -92,7 +91,7 @@
     "@tailwindcss/typography": "^0.5.10",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
-    "@types/node": "^20.17.30",
+    "@types/node": "^20.11.20",
     "@types/react": "^18.2.58",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "^4.3.4",
@@ -107,7 +106,7 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
     "typescript-eslint": "^7.0.2",
-    "vite": "^5.4.17",
+    "vite": "^5.1.4",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.1.1"
   }

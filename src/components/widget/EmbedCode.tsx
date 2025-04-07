@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { toast } from "sonner";
-import { SUPABASE_URL } from "@/config/env";
+import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { useEffect, useRef, useState } from "react";
 
 interface EmbedCodeProps {

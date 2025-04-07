@@ -1,10 +1,9 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { DocumentLink, DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
-import { SUPABASE_URL } from '@/config/env';
 
 export interface DocumentLinkFormData {
   link: string;

@@ -1,31 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { DocumentLink } from '@/types/document-processing';
+import { DocumentProcessingResult, DocumentLink } from '@/types/document-processing';
 import { v4 as uuidv4 } from 'uuid';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
-
-// Define the missing types
-interface DocumentProcessingResult {
-  success: boolean;
-  error?: string;
-  documentId?: string;
-  jobId?: string;
-  status?: string;
-  documentUrl?: string;
-  fileName?: string;
-  fileSize?: number;
-  fileType?: string;
-  url?: string;
-  uploadDate?: string;
-  extractedText?: string;
-  aiProcessed?: boolean;
-  downloadUrl?: string;
-  processed: number;
-  failed: number;
-  urlsScraped?: number;
-  contentStored?: number;
-  message?: string;
-}
 
 // Create a new document processing job
 export const createDocumentProcessingJob = async (

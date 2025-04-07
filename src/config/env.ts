@@ -6,14 +6,15 @@ export const CACHE_STALE_TIME = 5 * 60 * 1000; // 5 minutes
 export const CACHE_REFETCH_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
 // Get the Supabase URL for edge functions
-export const EDGE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL || 'https://mgjodiqecnnltsgorife.supabase.co';
+export const EDGE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
 
 // Export other environment variables as needed
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://mgjodiqecnnltsgorife.supabase.co';
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is';
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // RapidAPI configuration
-export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
+// Using a hardcoded fallback key for development if environment variable is not set
+export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d';
 export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
 
 // App settings
@@ -29,9 +30,7 @@ if (!IS_PRODUCTION) {
   if (missingVars.length > 0) {
     console.warn(`Missing environment variables: ${missingVars.join(', ')}`);
   }
-  
-  // Check for RapidAPI key specifically but don't fail
-  if (!RAPIDAPI_KEY) {
-    console.warn('VITE_RAPIDAPI_KEY is missing - PDF text extraction will not work');
-  }
 }
+
+// Log RapidAPI configuration status for debugging
+console.log(`RapidAPI configuration - Key ${RAPIDAPI_KEY ? 'is set' : 'is missing'}, Host: ${RAPIDAPI_HOST}`);
