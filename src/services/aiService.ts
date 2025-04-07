@@ -1,31 +1,33 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { sanitizeForXSS } from '@/utils/inputSanitizer';
-import { toast } from 'sonner';
 import { DEEPSEEK_MODEL } from '@/config/env';
+import { createDeepSeekAssistant, updateDeepSeekAssistant } from '@/utils/deepseekUtils';
 
 /**
  * Send a query to DeepSeek via Supabase Edge Function
- * @param clientId - The client ID
- * @param query - The user query
- * @returns The response with answer or error
  */
 export const sendQueryToDeepSeek = async (
   clientId: string,
-  query: string
-): Promise<{
-  answer?: string;
-  error?: string;
-  processingTimeMs?: number;
-}> => {
+  query: string,
+  model: string = DEEPSEEK_MODEL || 'deepseek-chat'
+) => {
   try {
     console.log(`Sending query to DeepSeek for client ${clientId}`);
     
-    // Add request timestamp for tracking
-    const timestamp = new Date().toISOString();
-    
+    // Get the assistant ID for this client
+    const { data: agentData, error: agentError } = await supabase
+      .from('ai_agents')
+      .select('deepseek_assistant_id')
+      .eq('client_id', clientId)
+      .eq('interaction_type', 'config')
+      .single();
+
+    if (agentError || !agentData?.deepseek_assistant_id) {
+      console.error('No DeepSeek assistant found for client:', clientId);
+      throw new Error('No DeepSeek assistant configured for this client');
+    }
+
     // Set up a timeout for the edge function call
-    const timeoutMs = 60000; // Increase timeout to 60 seconds
+    const timeoutMs = 60000; // 60 second timeout
     let timeoutId: number | null = null;
     
     // Create a promise that will reject after the timeout
@@ -34,100 +36,83 @@ export const sendQueryToDeepSeek = async (
         reject(new Error("Request timed out"));
       }, timeoutMs);
     });
-    
-    // Sanitize the input query
-    const sanitizedQuery = sanitizeForXSS(query);
-    
-    console.log("Preparing DeepSeek request with payload:", {
-      client_id: clientId,
-      query: sanitizedQuery.length,
-      model: DEEPSEEK_MODEL || 'deepseek-chat',
-      timestamp
-    });
-    
+
     // Create the actual request promise
     const requestPromise = supabase.functions.invoke('query-deepseek', {
       body: {
         client_id: clientId,
-        query: sanitizedQuery,
-        model: DEEPSEEK_MODEL || 'deepseek-chat',
-        timestamp
+        query,
+        model,
+        assistant_id: agentData.deepseek_assistant_id,
+        timestamp: new Date().toISOString()
       }
     });
-    
+
     // Race between the timeout and the actual request
-    const result = await Promise.race([
-      requestPromise,
-      timeoutPromise
-    ]);
-    
+    const result = await Promise.race([requestPromise, timeoutPromise]);
+
     // Clear the timeout if it hasn't fired yet
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
     }
-    
-    // If we got undefined or null result
-    if (!result) {
-      console.error('No result received from DeepSeek edge function');
-      return { 
-        error: 'No response received from the AI service' 
-      };
-    }
-    
-    const { data, error } = result as { data: any, error: any };
-    
-    if (error) {
-      console.error('Error calling DeepSeek edge function:', error);
-      return { 
-        error: `Failed to send a request to the AI service: ${error.message || 'Unknown error'}` 
-      };
-    }
-    
-    if (!data) {
+
+    if (!result || !result.data) {
       console.error('No data returned from DeepSeek edge function');
-      return { 
-        error: 'No response received from the AI service' 
-      };
+      throw new Error('No response from AI service');
     }
-    
-    console.log('Response received from DeepSeek edge function:', {
-      hasAnswer: !!data.answer,
-      answerLength: data.answer?.length || 0,
-      hasError: !!data.error,
-      processingTimeMs: data.processing_time_ms
+
+    console.log('Response from DeepSeek edge function:', {
+      clientId,
+      queryLength: query.length,
+      responseLength: result.data.answer?.length || 0,
+      processingTimeMs: result.data.processing_time_ms
     });
-    
-    if (data.error) {
-      return {
-        answer: data.answer, // May still have a fallback answer even with error
-        error: data.error
-      };
-    }
-    
-    return {
-      answer: data.answer,
-      processingTimeMs: data.processing_time_ms
-    };
-  } catch (error: any) {
+
+    return result.data;
+  } catch (error) {
     console.error('Exception in sendQueryToDeepSeek:', error);
     
-    // Special handling for timeout errors
-    if (error.message === "Request timed out") {
-      return {
-        error: 'The request timed out. The service might be busy or experiencing issues.'
-      };
-    }
-    
     // Enhanced error message for network issues
-    if (error.message && error.message.includes('Failed to fetch') || 
-        error.message && error.message.includes('NetworkError')) {
-      return {
-        error: 'Network error: Unable to connect to the AI service. Please check your internet connection and try again.'
-      };
+    if (error instanceof Error && 
+        (error.message.includes('Failed to fetch') || 
+         error.message.includes('NetworkError'))) {
+      throw new Error('Network error: Unable to connect to the AI service. Please check your internet connection and try again.');
     }
     
+    throw error;
+  }
+};
+
+/**
+ * Create or update a DeepSeek assistant for a client
+ */
+export const setupDeepSeekAssistant = async (
+  clientId: string,
+  agentName: string,
+  agentDescription: string,
+  clientName: string
+) => {
+  try {
+    // Check if an assistant already exists
+    const { data: existingAgent } = await supabase
+      .from('ai_agents')
+      .select('deepseek_assistant_id')
+      .eq('client_id', clientId)
+      .eq('interaction_type', 'config')
+      .single();
+
+    if (existingAgent?.deepseek_assistant_id) {
+      // Update existing assistant
+      return await updateDeepSeekAssistant(clientId, agentName, agentDescription);
+    } else {
+      // Create new assistant
+      return await createDeepSeekAssistant(clientId, agentName, agentDescription, clientName);
+    }
+  } catch (error) {
+    console.error('Error in setupDeepSeekAssistant:', error);
     return {
-      error: error instanceof Error ? error.message : 'Unknown error in AI service'
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to set up DeepSeek assistant'
     };
   }
 };
