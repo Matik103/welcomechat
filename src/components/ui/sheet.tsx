@@ -14,7 +14,6 @@ const SheetClose = SheetPrimitive.Close
 
 // Remove className from SheetPortal - it doesn't accept this prop
 const SheetPortal = ({
-  className,
   ...props
 }: SheetPrimitive.DialogPortalProps) => (
   <SheetPrimitive.Portal {...props} />
