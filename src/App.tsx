@@ -1,5 +1,5 @@
 
-import { useMemo, useCallback, Suspense, useState } from "react";
+import { useMemo, useCallback, Suspense, useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { PublicRoutes } from "./components/routes/PublicRoutes";
@@ -10,9 +10,10 @@ import { LoadingFallback } from "./components/routes/LoadingFallback";
 import { toast } from "sonner";
 
 function App() {
-  const { user, userRole, isLoading, session } = useAuth();
+  const { user, userRole, isLoading, session, refreshUserRole } = useAuth();
   const location = useLocation();
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [localLoadingState, setLocalLoadingState] = useState<boolean>(true);
   
   // Memoize route checks to prevent unnecessary re-renders
   const isAuthCallback = useMemo(() => location.pathname.includes('/auth/callback'), [location.pathname]);
@@ -21,6 +22,33 @@ function App() {
   const isHomePage = useMemo(() => location.pathname === '/', [location.pathname]);
   const isAboutPage = useMemo(() => location.pathname === '/about', [location.pathname]);
   const isContactPage = useMemo(() => location.pathname === '/contact', [location.pathname]);
+  
+  // Use effect to prevent getting stuck in loading state
+  useEffect(() => {
+    // Set a maximum timeout for the loading state
+    const loadingTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.log("App loading timeout triggered, forcing state update");
+        setLocalLoadingState(false);
+        
+        // Try to refresh user role again if we have a user but no role
+        if (user && !userRole && refreshUserRole) {
+          refreshUserRole();
+        }
+      }
+    }, 3000); // 3 seconds timeout
+    
+    return () => clearTimeout(loadingTimeout);
+  }, [isLoading, user, userRole, refreshUserRole]);
+  
+  // Clear loading state when we have definitive answers
+  useEffect(() => {
+    if (user && userRole) {
+      setLocalLoadingState(false);
+    } else if (!isLoading && !user) {
+      setLocalLoadingState(false);
+    }
+  }, [user, userRole, isLoading]);
   
   // Create a stable isPublicRoute value with useCallback to prevent unnecessary recalculations
   const isPublicRoute = useCallback(() => {
@@ -47,8 +75,15 @@ function App() {
 
   // Use useMemo to avoid unnecessary re-renders of entire route components
   const routeComponent = useMemo(() => {
-    // Show minimal loading for auth-related operations only
-    if (isLoading && !isAuthCallback) {
+    // If we're in auth callback, short-circuit to show minimal loading UI
+    if (isAuthCallback) {
+      return <LoadingFallback message="Processing authentication..." />;
+    }
+    
+    // Show loading only if in global loading state and not on public routes
+    const shouldShowLoading = (isLoading || localLoadingState) && !isPublicRoute();
+    
+    if (shouldShowLoading) {
       return (
         <LoadingFallback 
           onTimeoutAction={handleLoadingComplete}
@@ -103,9 +138,9 @@ function App() {
           );
         }
         
-        // If user is authenticated but role not determined yet, show loading
+        // If user is authenticated but role not determined yet, treat as loading
         if (!userRole) {
-          return <LoadingFallback message="Determining user access..." />;
+          return <LoadingFallback message="Determining user access..." timeoutSeconds={5} />;
         }
       } catch (error) {
         console.error("Error rendering routes:", error);
@@ -117,7 +152,7 @@ function App() {
     
     // Default to home page as fallback
     return <Navigate to="/" replace />;
-  }, [user, userRole, isLoading, isPublicRoute, isAuthCallback, loadError, isAuthPage, handleLoadingComplete]);
+  }, [user, userRole, isLoading, isPublicRoute, isAuthCallback, localLoadingState, loadError, isAuthPage, handleLoadingComplete]);
   
   // Return the memoized route component
   return routeComponent;
