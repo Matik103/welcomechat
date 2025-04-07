@@ -89,7 +89,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
 
   return (
     <div className="space-y-4">
-      {file.type === 'application/pdf' && !RAPIDAPI_KEY && (
+      {!RAPIDAPI_KEY && (
         <Alert variant="warning" className="bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
@@ -98,7 +98,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
         </Alert>
       )}
 
-      {file.type === 'application/pdf' && RAPIDAPI_KEY && (
+      {RAPIDAPI_KEY && (
         <Alert variant="default" className="bg-blue-50 border-blue-200">
           <CheckCircle className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-700">
