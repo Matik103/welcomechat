@@ -3,7 +3,7 @@ import { DocumentLink } from '@/types/document-processing';
 import { Button } from '@/components/ui/button';
 import { Trash, Loader2, ExternalLink, FileText, Sheet, SheetIcon } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import Badge from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 
 interface DocumentLinksListProps {
   links: DocumentLink[];

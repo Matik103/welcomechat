@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Badge from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { EditAgentDialog } from './EditAgentDialog';
 import { DeleteAgentDialog } from './DeleteAgentDialog';

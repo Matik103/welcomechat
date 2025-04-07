@@ -1,6 +1,6 @@
 
 import React from "react";
-import InteractionStats from "@/components/client-dashboard/InteractionStats";
+import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
 import { QueryList } from "@/components/client-dashboard/QueryList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -32,7 +32,10 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
       {/* Stats section */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <InteractionStats
-          stats={stats}
+          totalQueries={stats?.total_interactions}
+          activeUsers={stats?.active_days}
+          responseRate={stats?.response_rate || "0%"}
+          averageTime={stats?.average_response_time ? `${stats.average_response_time.toFixed(2)}s` : "0s"}
           isLoading={isLoading}
         />
       </div>

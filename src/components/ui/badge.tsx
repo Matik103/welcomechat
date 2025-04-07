@@ -39,4 +39,4 @@ function Badge({ className, variant, children, ...props }: BadgeProps) {
 }
 
 export { Badge, badgeVariants }
-export default Badge;
+// Remove the default export to avoid confusion

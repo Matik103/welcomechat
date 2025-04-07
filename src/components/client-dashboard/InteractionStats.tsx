@@ -26,13 +26,15 @@ export function StatCard({ title, value, isLoading }: StatCardProps) {
   );
 }
 
-export function InteractionStats({ totalQueries, activeUsers, responseRate, averageTime, isLoading }: {
+export interface InteractionStatsProps {
   totalQueries?: number;
   activeUsers?: number;
   responseRate?: string;
   averageTime?: string;
   isLoading: boolean;
-}) {
+}
+
+export function InteractionStats({ totalQueries, activeUsers, responseRate, averageTime, isLoading }: InteractionStatsProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
@@ -59,4 +61,5 @@ export function InteractionStats({ totalQueries, activeUsers, responseRate, aver
   );
 }
 
+// Export as default as well to maintain compatibility with existing imports
 export default InteractionStats;
