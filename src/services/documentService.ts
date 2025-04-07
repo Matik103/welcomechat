@@ -84,13 +84,48 @@ export const uploadDocument = async (
       // Continue anyway, we'll just store the document without associating with assistant
     }
 
+    // Extract text if it's a PDF file
+    let extractedText = null;
+    let processingStatus = 'ready';
+    
+    if (file.type === 'application/pdf') {
+      processingStatus = 'pending_extraction';
+      
+      try {
+        // Process the PDF with RapidAPI directly
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
+          method: 'POST',
+          headers: {
+            'x-rapidapi-host': 'pdf-to-text-converter.p.rapidapi.com',
+            'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY || ''
+          },
+          body: formData
+        });
+        
+        if (response.ok) {
+          extractedText = await response.text();
+          processingStatus = 'extraction_complete';
+          console.log('PDF text extraction successful, length:', extractedText.length);
+        } else {
+          console.error('PDF extraction failed with status:', response.status);
+          processingStatus = 'extraction_failed';
+        }
+      } catch (extractError) {
+        console.error('Error extracting PDF text:', extractError);
+        processingStatus = 'extraction_failed';
+      }
+    }
+
     // Store document metadata in the document_content table
     const { data: documentData, error: documentError } = await supabase
       .from('document_content')
       .insert({
         client_id: clientId,
         document_id: uniqueId,
-        content: null,
+        content: extractedText,
         filename: file.name,
         file_type: file.type,
         metadata: {
@@ -98,7 +133,10 @@ export const uploadDocument = async (
           storage_path: filePath,
           storage_url: publicUrl,
           uploadedAt: new Date().toISOString(),
-          processing_status: file.type === 'application/pdf' ? 'pending_extraction' : 'ready'
+          processing_status: processingStatus,
+          extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
+          text_length: extractedText ? extractedText.length : 0,
+          extracted_at: extractedText ? new Date().toISOString() : null
         }
       })
       .select()
@@ -137,30 +175,15 @@ export const uploadDocument = async (
           metadata: {
             size: file.size,
             storage_url: publicUrl,
-            uploadedAt: new Date().toISOString()
+            uploadedAt: new Date().toISOString(),
+            has_extracted_text: extractedText !== null
           },
-          status: file.type === 'application/pdf' ? 'pending' : 'ready'
+          status: processingStatus === 'extraction_complete' ? 'ready' : processingStatus
         });
 
       if (assistantDocError) {
         console.error('Error associating document with assistant:', assistantDocError);
         // Continue anyway, the document is already stored
-      }
-    }
-
-    // If it's a PDF, trigger the extraction process
-    if (file.type === 'application/pdf') {
-      try {
-        const { data: extractionResponse, error: extractionError } = await supabase
-          .functions.invoke('extract-pdf-content', {
-            body: { document_id: documentData.id.toString() }
-          });
-
-        if (extractionError) {
-          console.error('PDF extraction error:', extractionError);
-        }
-      } catch (extractionError) {
-        console.error('Failed to invoke PDF extraction:', extractionError);
       }
     }
 

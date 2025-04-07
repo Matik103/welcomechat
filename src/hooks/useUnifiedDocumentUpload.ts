@@ -89,13 +89,17 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
           });
 
           if (!response.ok) {
-            console.warn(`Text extraction API responded with status: ${response.status}. Will continue without text extraction.`);
-          } else {
-            extractedText = await response.text();
+            throw new Error(`Text extraction API responded with status: ${response.status}`);
+          }
+
+          extractedText = await response.text();
+          
+          if (!extractedText || extractedText.trim().length === 0) {
+            throw new Error('API returned empty text content');
           }
         } catch (extractionError) {
-          console.warn("Text extraction failed but will continue with document upload:", extractionError);
-          // Don't throw here - we want to continue even if text extraction fails
+          console.error("Text extraction failed:", extractionError);
+          throw new Error(`Failed to extract text from PDF: ${extractionError instanceof Error ? extractionError.message : String(extractionError)}`);
         }
       }
       
@@ -118,7 +122,7 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
             storage_path: filePath,
             storage_url: publicUrl,
             uploadedAt: new Date().toISOString(),
-            processing_status: file.type === 'application/pdf' ? (extractedText ? 'extraction_complete' : 'extraction_failed') : 'ready',
+            processing_status: file.type === 'application/pdf' ? 'extraction_complete' : 'ready',
             extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
             text_length: extractedText.length || 0,
             extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
