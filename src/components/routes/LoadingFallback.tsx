@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 interface LoadingFallbackProps {
   onTimeoutAction?: () => void;
@@ -15,7 +14,6 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
   message = "Loading application..."
 }) => {
   const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
-  const [extendedTimeout, setExtendedTimeout] = useState(false);
 
   // Show a timeout message if loading takes too long
   useEffect(() => {
@@ -26,20 +24,8 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
       }
     }, timeoutSeconds * 1000);
 
-    // Extended timeout for longer waits
-    const extendedTimer = setTimeout(() => {
-      setExtendedTimeout(true);
-    }, (timeoutSeconds + 10) * 1000);
-
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(extendedTimer);
-    };
+    return () => clearTimeout(timer);
   }, [onTimeoutAction, timeoutSeconds]);
-
-  const handleManualRefresh = () => {
-    window.location.reload();
-  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
@@ -53,17 +39,6 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
             <p className="text-muted-foreground text-sm mt-2">
               This could be due to server load or network connectivity. Please wait a moment...
             </p>
-            {extendedTimeout && (
-              <div className="mt-4">
-                <Button variant="outline" onClick={handleManualRefresh} className="flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh Page
-                </Button>
-                <p className="text-xs text-muted-foreground mt-2">
-                  If you keep seeing this message, try refreshing the page or checking your network connection.
-                </p>
-              </div>
-            )}
           </div>
         )}
       </div>
