@@ -33,6 +33,7 @@ export const WidgetPreview = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
   
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -52,26 +53,55 @@ export const WidgetPreview = ({
       
       console.log(`Sending query to assistant for client ${clientId}: "${userMessage}"`);
       
-      const result = await getAnswerFromOpenAIAssistant(clientId, userMessage);
+      const timeoutPromise = new Promise<{error: string}>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Request timed out after 15 seconds'));
+        }, 15000);
+      });
+      
+      const result = await Promise.race([
+        getAnswerFromOpenAIAssistant(clientId, userMessage),
+        timeoutPromise
+      ]);
       
       if (result.error) {
         console.error('Assistant query error:', result.error);
-        throw new Error(result.error);
-      }
-      
-      setMessages(prev => [...prev, { role: 'assistant', content: result.answer }]);
+        setError(`Failed to get response: ${result.error}`);
+        setConnectionAttempts(prev => prev + 1);
+        
+        let errorMessage = "Sorry, I encountered an error processing your request.";
+        
+        if (result.error.includes("Edge function") || result.error.includes("network")) {
+          errorMessage = "I'm having trouble connecting to my knowledge base right now. Please try again shortly.";
+        }
+        
+        setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
+      } else {
+        if (connectionAttempts > 0) {
+          setConnectionAttempts(0);
+        }
+        
+        setMessages(prev => [...prev, { role: 'assistant', content: result.answer }]);
 
-      if (onTestInteraction) {
-        onTestInteraction();
+        if (onTestInteraction) {
+          onTestInteraction();
+        }
       }
     } catch (error) {
       console.error('Error querying assistant:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setError(`Failed to get response: ${errorMessage}`);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: "Sorry, I encountered an error processing your request." 
-      }]);
+      setConnectionAttempts(prev => prev + 1);
+      
+      let userFriendlyMessage = "Sorry, I encountered an error processing your request.";
+      
+      if (errorMessage.includes("timeout")) {
+        userFriendlyMessage = "I'm sorry, the request took too long to complete. The service might be busy right now. Please try again shortly.";
+      } else if (errorMessage.includes("network") || errorMessage.includes("Edge function")) {
+        userFriendlyMessage = "I'm having trouble connecting to my knowledge base right now. This might be due to network issues. Please try again in a few moments.";
+      }
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: userFriendlyMessage }]);
     } finally {
       setIsLoading(false);
     }
@@ -96,6 +126,15 @@ export const WidgetPreview = ({
     console.log('Widget preview error:', error);
   }
 
+  const connectionTroubleshooting = connectionAttempts >= 2 ? (
+    <Alert variant="info" className="m-3 py-2">
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription className="text-xs">
+        Having trouble connecting? Try refreshing the page or checking your internet connection.
+      </AlertDescription>
+    </Alert>
+  ) : null;
+
   switch (settings.display_mode) {
     case 'inline':
       return (
@@ -113,6 +152,8 @@ export const WidgetPreview = ({
               <AlertDescription className="text-xs">{error}</AlertDescription>
             </Alert>
           )}
+          
+          {connectionTroubleshooting}
           
           <div className="h-[300px] overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
             <ChatMessages 
@@ -167,6 +208,8 @@ export const WidgetPreview = ({
                     <AlertDescription className="text-xs">{error}</AlertDescription>
                   </Alert>
                 )}
+                
+                {connectionTroubleshooting}
                 
                 <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
                   <ChatMessages 
@@ -242,6 +285,8 @@ export const WidgetPreview = ({
                     <AlertDescription className="text-xs">{error}</AlertDescription>
                   </Alert>
                 )}
+                
+                {connectionTroubleshooting}
                 
                 <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
                   <ChatMessages 

@@ -25,6 +25,7 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when messages change
@@ -57,36 +58,88 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
       // Add debug info to help track network issues
       console.log(`AssistantPreview request details: timestamp=${new Date().toISOString()}, clientId=${clientId}, assistantId=${assistantId}`);
       
+      // Make the request with timeout handling
+      const fetchTimeout = setTimeout(() => {
+        setError('Request timed out. The server might be temporarily unavailable.');
+        setIsLoading(false);
+        
+        // Add assistant response indicating the timeout
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: "I'm sorry, but the request timed out. Please try again in a few moments." 
+        }]);
+        
+        setConnectionAttempts(prev => prev + 1);
+      }, 15000); // 15 seconds timeout
+      
       // Use the improved error handling approach
       const result = await getAnswerFromOpenAIAssistant(clientId, userMessage);
+      clearTimeout(fetchTimeout);
       
       if (result.error) {
         console.error('Assistant query error:', result.error);
-        setError(result.error);
-        toast.error('Failed to get response from assistant');
+        setError(`Error: ${result.error}`);
+        
+        // Give more specific messages based on the error
+        let errorMessage = "I'm sorry, I couldn't process that request due to a technical issue.";
+        
+        if (result.error.includes("send a request to the Edge Function")) {
+          errorMessage = "I'm currently having trouble connecting to my knowledge base. This might be due to a temporary network issue. Please try again shortly.";
+          setConnectionAttempts(prev => prev + 1);
+        }
+        
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: errorMessage
+        }]);
+      } else {
+        // Reset connection attempts on success
+        if (connectionAttempts > 0) {
+          setConnectionAttempts(0);
+        }
+        
         setMessages(prev => [...prev, { 
           role: 'assistant', 
           content: result.answer || "I'm sorry, I couldn't process that request." 
-        }]);
-      } else {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: result.answer || "I'm sorry, I couldn't process that request."
         }]);
       }
     } catch (error) {
       console.error('Error querying assistant:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setError(errorMessage);
-      toast.error('Failed to get response from assistant');
+      
+      let userFriendlyMessage = "Sorry, I encountered an error processing your request. Please try again later.";
+      
+      // Give more specific error messages for common issues
+      if (errorMessage.includes("network") || errorMessage.includes("Failed to fetch")) {
+        userFriendlyMessage = "I'm having trouble connecting to my knowledge base right now. This might be due to network connectivity issues. Please try again in a few moments.";
+      }
+      
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: "Sorry, I encountered an error processing your request. Please try again later." 
+        content: userFriendlyMessage
       }]);
+      
+      setConnectionAttempts(prev => prev + 1);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Show suggestions if we've had multiple connection failures
+  const connectionSuggestions = connectionAttempts >= 2 ? (
+    <Alert variant="info" className="mt-4">
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription>
+        It looks like you're having persistent connection issues. You might try:
+        <ul className="list-disc ml-5 mt-2">
+          <li>Refreshing the page</li>
+          <li>Checking your internet connection</li>
+          <li>Waiting a few minutes and trying again</li>
+        </ul>
+      </AlertDescription>
+    </Alert>
+  ) : null;
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -98,7 +151,7 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Error: {error}
+              {error}
             </AlertDescription>
           </Alert>
         )}
@@ -137,6 +190,8 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
             )}
           </div>
         </ScrollArea>
+
+        {connectionSuggestions}
 
         <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
           <Input

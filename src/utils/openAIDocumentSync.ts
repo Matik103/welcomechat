@@ -142,57 +142,85 @@ export const getAnswerFromOpenAIAssistant = async (
     // Add debug info to help track network issues
     console.log(`Request details: timestamp=${new Date().toISOString()}, clientId=${clientId}`);
     
-    // Call the query-openai-assistant Edge Function with improved error handling
-    const response = await supabase.functions.invoke('query-openai-assistant', {
-      body: { client_id: clientId, query },
-      headers: {
-        'Content-Type': 'application/json'
+    // Implement a timeout to prevent hanging requests
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 20000); // 20 second timeout
+    
+    try {
+      // Call the query-openai-assistant Edge Function with improved error handling
+      const response = await supabase.functions.invoke('query-openai-assistant', {
+        body: { client_id: clientId, query },
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        signal: abortController.signal
+      });
+      
+      // Clear the timeout since we got a response
+      clearTimeout(timeoutId);
+      
+      if (response.error) {
+        console.error('Edge function error:', response.error);
+        return { 
+          answer: "I'm sorry, I encountered an error while processing your question.", 
+          error: `Edge function error: ${response.error.message || JSON.stringify(response.error)}` 
+        };
       }
-    });
-    
-    if (response.error) {
-      console.error('Edge function error:', response.error);
-      return { 
-        answer: "I'm sorry, I encountered an error while processing your question.", 
-        error: `Edge function error: ${response.error.message || JSON.stringify(response.error)}` 
-      };
-    }
-    
-    const data = response.data;
-    console.log('Response data from Edge Function:', data);
-    
-    // Handle different response formats from the edge function
-    if (data?.answer) {
+      
+      const data = response.data;
+      console.log('Response data from Edge Function:', data);
+      
+      // Handle different response formats from the edge function
+      if (data?.answer) {
+        return {
+          answer: data.answer,
+          threadId: data.thread_id
+        };
+      } else if (typeof data === 'string') {
+        return {
+          answer: data
+        };
+      } else if (data?.messages && Array.isArray(data.messages)) {
+        const lastMessage = data.messages[data.messages.length - 1]?.content;
+        return {
+          answer: lastMessage || "I couldn't generate a proper response."
+        };
+      } else if (data?.error) {
+        // Handle explicit error in the response
+        console.error('Error in OpenAI response:', data.error);
+        return {
+          answer: "I'm sorry, I encountered a specific error: " + data.error,
+          error: data.error
+        };
+      } else if (!data) {
+        return {
+          answer: "I'm sorry, the AI service is currently unavailable. Please try again later.",
+          error: 'No data returned from assistant'
+        };
+      } else {
+        console.warn('Unexpected response format from query-openai-assistant:', data);
+        return {
+          answer: "I received your question but couldn't generate a proper response.",
+          error: 'Unexpected response format'
+        };
+      }
+    } catch (fetchError) {
+      // Clear timeout in case of error
+      clearTimeout(timeoutId);
+      
+      if (fetchError.name === 'AbortError') {
+        console.error('Request timed out:', fetchError);
+        return {
+          answer: "I'm sorry, the request timed out. The service might be experiencing high traffic or connectivity issues.",
+          error: 'Request timed out'
+        };
+      }
+      
+      // Handle network and other errors
+      console.error('Fetch error in getAnswerFromOpenAIAssistant:', fetchError);
       return {
-        answer: data.answer,
-        threadId: data.thread_id
-      };
-    } else if (typeof data === 'string') {
-      return {
-        answer: data
-      };
-    } else if (data?.messages && Array.isArray(data.messages)) {
-      const lastMessage = data.messages[data.messages.length - 1]?.content;
-      return {
-        answer: lastMessage || "I couldn't generate a proper response."
-      };
-    } else if (data?.error) {
-      // Handle explicit error in the response
-      console.error('Error in OpenAI response:', data.error);
-      return {
-        answer: "I'm sorry, I encountered a specific error: " + data.error,
-        error: data.error
-      };
-    } else if (!data) {
-      return {
-        answer: "I'm sorry, the AI service is currently unavailable. Please try again later.",
-        error: 'No data returned from assistant'
-      };
-    } else {
-      console.warn('Unexpected response format from query-openai-assistant:', data);
-      return {
-        answer: "I received your question but couldn't generate a proper response.",
-        error: 'Unexpected response format'
+        answer: "I'm sorry, I encountered a network error while processing your question. Please check your connection and try again.",
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError)
       };
     }
   } catch (error) {
