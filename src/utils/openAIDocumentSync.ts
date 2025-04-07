@@ -25,36 +25,21 @@ export const getAnswerFromOpenAIAssistant = async (
     
     // Set up a timeout for the edge function call
     const timeoutMs = 45000; // 45 seconds
-    let timeoutId: number | null = null;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
-    // Create a promise that will reject after the timeout
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = window.setTimeout(() => {
-        reject(new Error("Request timed out"));
-      }, timeoutMs);
-    });
-    
-    // Create the actual request promise
-    const requestPromise = supabase.functions.invoke('query-openai-assistant', {
+    // Call the edge function without the abort signal (it's not supported)
+    const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
       body: {
         client_id: clientId,
-        query: sanitizeInput(query),
+        query,
         timestamp
       }
+      // Removed signal property as it's not supported
     });
     
-    // Race between the timeout and the actual request
-    const { data, error } = await Promise.race([
-      requestPromise,
-      timeoutPromise.catch(err => {
-        throw err;
-      })
-    ]) as { data: any, error: any };
-    
-    // Clear the timeout if it hasn't fired yet
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
-    }
+    // Clear the timeout
+    clearTimeout(timeoutId);
     
     if (error) {
       console.error('Error calling OpenAI assistant edge function:', error);
@@ -93,7 +78,7 @@ export const getAnswerFromOpenAIAssistant = async (
     console.error('Exception in getAnswerFromOpenAIAssistant:', error);
     
     // Special handling for timeout errors
-    if (error.message === "Request timed out") {
+    if (error.name === 'AbortError') {
       return {
         error: 'The request timed out. The service might be busy or experiencing issues.'
       };
@@ -121,71 +106,18 @@ export const uploadFileToOpenAIAssistant = async (
   try {
     console.log(`Uploading file to OpenAI assistant for client ${clientId}`);
     
-    // Validate file before attempting upload
-    if (!file || !file.name) {
-      return {
-        success: false,
-        message: 'Invalid file provided'
-      };
-    }
-    
-    // Validate file size (limit to 20MB)
-    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB in bytes
-    if (file.size > MAX_FILE_SIZE) {
-      return {
-        success: false,
-        message: `File size exceeds maximum limit of 20MB`
-      };
-    }
-    
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'text/plain', 'application/msword', 
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      
-    if (!allowedTypes.includes(file.type)) {
-      return {
-        success: false,
-        message: `Unsupported file type: ${file.type}. Allowed types: PDF, TXT, DOC, DOCX`
-      };
-    }
-    
     // Convert file to base64
     const fileData = await readFileAsBase64(file);
     
-    // Set up timeout for upload
-    const timeoutMs = 60000; // 60 seconds for upload
-    let timeoutId: number | null = null;
-    
-    // Create timeout promise
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = window.setTimeout(() => {
-        reject(new Error("Upload timed out"));
-      }, timeoutMs);
-    });
-    
-    // Make the actual request
-    const requestPromise = supabase.functions.invoke('upload-file-to-openai', {
+    const { data, error } = await supabase.functions.invoke('upload-file-to-openai', {
       body: {
-        client_id: sanitizeInput(clientId),
-        assistant_id: sanitizeInput(assistantId),
+        client_id: clientId,
+        assistant_id: assistantId,
         file_data: fileData,
         file_type: file.type,
         file_name: file.name
       }
     });
-    
-    // Race the two promises
-    const { data, error } = await Promise.race([
-      requestPromise,
-      timeoutPromise.catch(err => {
-        throw err;
-      })
-    ]) as { data: any, error: any };
-    
-    // Clear timeout if it hasn't fired
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
-    }
     
     if (error) {
       console.error('Error calling upload-file-to-openai function:', error);
@@ -214,15 +146,6 @@ export const uploadFileToOpenAIAssistant = async (
     };
   } catch (error) {
     console.error('Exception in uploadFileToOpenAIAssistant:', error);
-    
-    // Handle timeout specifically
-    if (error instanceof Error && error.message === "Upload timed out") {
-      return {
-        success: false,
-        message: 'The upload timed out. The file may be too large or the service might be busy.'
-      };
-    }
-    
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error during upload'
@@ -250,17 +173,3 @@ const readFileAsBase64 = (file: File): Promise<string> => {
     };
   });
 };
-
-/**
- * Sanitize input to prevent injection attacks
- */
-function sanitizeInput(input: string): string {
-  if (!input) return '';
-  
-  // Basic sanitization to prevent injection attacks
-  return input
-    .replace(/<(|\/|[^>\/bi]|\/[^>bi]|[^\/>][^>]+|\/[^>][^>]+)>/g, '') // Remove HTML tags except <b>, <i>
-    .replace(/javascript:/gi, '')
-    .replace(/on\w+=/gi, '')
-    .replace(/data:/gi, 'data-safe:');
-}

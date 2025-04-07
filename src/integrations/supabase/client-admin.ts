@@ -60,52 +60,23 @@ export const initializeBotLogosBucket = async (): Promise<boolean> => {
   }
 };
 
-// Export the admin client with safer initialization
+// Export the admin client (always initialize with hardcoded key)
 export const supabaseAdmin = (() => {
   if (!supabaseAdminInstance) {
-    try {
-      console.log('Initializing Supabase admin client');
-      
-      if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-        console.error('Missing Supabase URL or Service Role Key');
-        // Return mock client to prevent crashes
-        return createFallbackAdminClient();
+    console.log('Initializing Supabase admin client');
+    supabaseAdminInstance = createClient<Database>(
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
       }
-      
-      supabaseAdminInstance = createClient<Database>(
-        SUPABASE_URL,
-        SUPABASE_SERVICE_ROLE_KEY,
-        {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false,
-          },
-        }
-      );
-    } catch (err) {
-      console.error('Failed to initialize Supabase admin client:', err);
-      return createFallbackAdminClient();
-    }
+    );
   }
   return supabaseAdminInstance;
 })();
-
-// Create a fallback admin client
-function createFallbackAdminClient() {
-  console.warn('Using fallback Supabase admin client');
-  return {
-    storage: {
-      createBucket: () => Promise.resolve({ error: new Error('Using fallback admin client') }),
-      from: () => ({
-        upload: () => Promise.resolve({ error: new Error('Using fallback admin client') }),
-        download: () => Promise.resolve({ error: new Error('Using fallback admin client') }),
-      }),
-    },
-    from: () => ({
-      select: () => Promise.resolve({ data: null, error: new Error('Using fallback admin client') }),
-    }),
-  } as any;
-}
 
 export default supabaseAdmin;
 
