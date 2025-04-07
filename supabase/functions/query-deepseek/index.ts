@@ -84,11 +84,15 @@ serve(async (req) => {
     }
 
     console.log(`Processing query for client_id: ${client_id}`);
-    console.log(`Query text: ${query}`);
+    console.log(`Query text: ${query?.substring(0, 100)}${query?.length > 100 ? '...' : ''}`);
     
     // Call DeepSeek API
     try {
-      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      // Validate the API URL before making the request
+      const apiUrl = 'https://api.deepseek.com/v1/chat/completions';
+      console.log(`Calling DeepSeek API at: ${apiUrl}`);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -112,13 +116,17 @@ serve(async (req) => {
       });
 
       if (!response.ok) {
+        console.error(`DeepSeek API error status: ${response.status}`);
         const errorText = await response.text();
+        console.error(`DeepSeek API error response: ${errorText}`);
         throw new Error(`DeepSeek API error: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
+      console.log("Received response from DeepSeek API");
       
       if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        console.error("Invalid response format from DeepSeek API:", JSON.stringify(data));
         throw new Error("Invalid response format from DeepSeek API");
       }
 
@@ -131,6 +139,7 @@ serve(async (req) => {
       
       console.log("Answer generated successfully");
       console.log(`Processing time: ${processingTime}ms`);
+      console.log(`Answer length: ${answer.length} characters`);
       
       // Return the answer
       return new Response(
