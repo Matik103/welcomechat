@@ -59,12 +59,18 @@ export const WidgetPreview = ({
         }, 15000);
       });
       
-      const result = await Promise.race([
-        getAnswerFromOpenAIAssistant(clientId, userMessage),
-        timeoutPromise
-      ]);
+      let result;
+      try {
+        result = await Promise.race([
+          getAnswerFromOpenAIAssistant(clientId, userMessage),
+          timeoutPromise
+        ]);
+      } catch (raceError) {
+        console.error('Race promise error:', raceError);
+        throw raceError;
+      }
       
-      if (result.error) {
+      if ('error' in result) {
         console.error('Assistant query error:', result.error);
         setError(`Failed to get response: ${result.error}`);
         setConnectionAttempts(prev => prev + 1);
@@ -127,7 +133,7 @@ export const WidgetPreview = ({
   }
 
   const connectionTroubleshooting = connectionAttempts >= 2 ? (
-    <Alert variant="info" className="m-3 py-2">
+    <Alert variant="warning" className="m-3 py-2">
       <AlertCircle className="h-4 w-4" />
       <AlertDescription className="text-xs">
         Having trouble connecting? Try refreshing the page or checking your internet connection.

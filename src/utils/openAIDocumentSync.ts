@@ -152,8 +152,7 @@ export const getAnswerFromOpenAIAssistant = async (
         body: { client_id: clientId, query },
         headers: {
           'Content-Type': 'application/json'
-        },
-        signal: abortController.signal
+        }
       });
       
       // Clear the timeout since we got a response

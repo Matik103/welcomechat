@@ -128,7 +128,7 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
 
   // Show suggestions if we've had multiple connection failures
   const connectionSuggestions = connectionAttempts >= 2 ? (
-    <Alert variant="info" className="mt-4">
+    <Alert variant="warning" className="mt-4">
       <AlertCircle className="h-4 w-4" />
       <AlertDescription>
         It looks like you're having persistent connection issues. You might try:
