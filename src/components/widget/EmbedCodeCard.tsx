@@ -84,3 +84,6 @@ export function EmbedCodeCards({ settings, onCopy }: EmbedCodeProps) {
     </div>
   );
 }
+
+// Explicitly export EmbedCodeCard to ensure it's available for imports
+export default EmbedCodeCard;

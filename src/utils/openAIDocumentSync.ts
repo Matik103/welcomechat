@@ -22,19 +22,17 @@ export const getAnswerFromOpenAIAssistant = async (
     // Add request timestamp for tracking
     const timestamp = new Date().toISOString();
     
-    // Set up a timeout for the edge function call
-    const timeoutMs = 45000; // 45 seconds
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 seconds timeout
     
-    // Call the edge function with the abort signal
+    // Call the edge function without the abort signal in the options
     const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
       body: {
         client_id: clientId,
         query,
         timestamp
-      },
-      signal: controller.signal
+      }
+      // Remove the signal property as it's not supported
     });
     
     // Clear the timeout

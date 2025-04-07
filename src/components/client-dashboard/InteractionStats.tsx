@@ -59,4 +59,5 @@ export function InteractionStats({ totalQueries, activeUsers, responseRate, aver
   );
 }
 
+// For backwards compatibility, also export as default
 export default InteractionStats;
