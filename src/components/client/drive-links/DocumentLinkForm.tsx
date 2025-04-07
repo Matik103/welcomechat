@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { validateDocumentLink } from '@/utils/documentProcessing';
+import { supabase } from '@/integrations/supabase/client';
 
 const formSchema = z.object({
   link: z.string()
@@ -33,6 +33,26 @@ interface DocumentLinkFormProps {
 
 export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assistant' }: DocumentLinkFormProps) {
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [aiProcessingAvailable, setAiProcessingAvailable] = useState<boolean>(true);
+
+  useEffect(() => {
+    const checkAiProcessingAvailable = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-secrets', {
+          body: {
+            keys: ['OPENAI_API_KEY']
+          }
+        });
+        
+        setAiProcessingAvailable(!!data?.OPENAI_API_KEY);
+      } catch (err) {
+        console.error('Error checking AI processing availability:', err);
+        setAiProcessingAvailable(false);
+      }
+    };
+
+    checkAiProcessingAvailable();
+  }, []);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -118,6 +138,15 @@ export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assis
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{validationError}</AlertDescription>
+          </Alert>
+        )}
+
+        {!aiProcessingAvailable && (
+          <Alert variant="warning">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              AI processing is currently unavailable. Documents will be stored but not processed by {agentName}.
+            </AlertDescription>
           </Alert>
         )}
 
