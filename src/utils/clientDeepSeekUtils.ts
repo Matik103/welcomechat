@@ -1,92 +1,140 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { DEEPSEEK_MODEL } from "@/config/env";
 
 /**
- * Sets up a DeepSeek AI assistant for a client
+ * Setup a DeepSeek assistant for a client
  */
 export const setupDeepSeekAssistant = async (
   clientId: string,
-  agentName: string,
-  agentDescription: string,
-  clientName: string
-) => {
+  agentName: string = 'AI Assistant',
+  agentDescription: string = '',
+  clientName: string = 'Client'
+): Promise<{ success: boolean; message?: string; assistant_id?: string }> => {
   try {
-    console.log('Setting up DeepSeek assistant for:', { clientId, agentName, agentDescription, clientName });
-    
-    // Generate a unique assistant ID based on client name and timestamp
-    const assistantId = `${clientName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
-    
-    // Check if an AI agent already exists for this client
-    const { data: existingAgent, error: fetchError } = await supabase
+    if (!clientId) {
+      return { success: false, message: "Client ID is required" };
+    }
+
+    // Check if client already has a DeepSeek assistant
+    const { data: existingAssistant, error: existingError } = await supabase
       .from('ai_agents')
-      .select('id')
+      .select('deepseek_assistant_id, id')
       .eq('client_id', clientId)
       .eq('interaction_type', 'config')
-      .maybeSingle();
+      .single();
+
+    // If assistant already exists, update it
+    if (existingAssistant?.deepseek_assistant_id) {
+      console.log("DeepSeek assistant already exists:", existingAssistant.deepseek_assistant_id);
       
-    if (fetchError) {
-      console.error('Error checking for existing agent:', fetchError);
-      throw fetchError;
-    }
-    
-    if (existingAgent) {
-      // Update the existing agent
+      // Update the assistant with new name/description if provided
       const { error: updateError } = await supabase
         .from('ai_agents')
         .update({
           agent_name: agentName,
           agent_description: agentDescription,
-          deepseek_enabled: true,
-          deepseek_model: DEEPSEEK_MODEL || 'deepseek-chat',
-          deepseek_assistant_id: assistantId,
-          openai_enabled: false,
-          openai_assistant_id: null,
           updated_at: new Date().toISOString()
         })
-        .eq('id', existingAgent.id);
-        
+        .eq('id', existingAssistant.id);
+      
       if (updateError) {
-        console.error('Error updating AI agent:', updateError);
-        throw updateError;
+        console.error("Error updating DeepSeek assistant:", updateError);
       }
-    } else {
-      // Create a new agent
-      const { error: insertError } = await supabase
-        .from('ai_agents')
-        .insert({
-          client_id: clientId,
-          name: agentName,
-          agent_name: agentName,
-          agent_description: agentDescription,
-          client_name: clientName,
-          deepseek_enabled: true,
-          deepseek_model: DEEPSEEK_MODEL || 'deepseek-chat',
-          deepseek_assistant_id: assistantId,
-          interaction_type: 'config',
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-        
-      if (insertError) {
-        console.error('Error creating AI agent:', insertError);
-        throw insertError;
-      }
+      
+      // Also update widget settings to use DeepSeek
+      await updateClientWidgetSettings(clientId, {
+        agent_name: agentName,
+        agent_description: agentDescription,
+        deepseek_enabled: true,
+        deepseek_assistant_id: existingAssistant.deepseek_assistant_id
+      });
+      
+      return { 
+        success: true, 
+        message: "DeepSeek assistant updated successfully", 
+        assistant_id: existingAssistant.deepseek_assistant_id 
+      };
     }
+
+    // Generate unique assistant ID based on client name and timestamp
+    const assistantId = `${clientName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
     
-    console.log(`DeepSeek assistant ${assistantId} configured successfully for client ${clientId}`);
-    
+    // Create new assistant record
+    const { data: newAssistant, error: insertError } = await supabase
+      .from('ai_agents')
+      .insert({
+        client_id: clientId,
+        agent_name: agentName,
+        agent_description: agentDescription,
+        deepseek_enabled: true,
+        deepseek_model: 'deepseek-chat',
+        deepseek_assistant_id: assistantId,
+        interaction_type: 'config'
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Error creating DeepSeek assistant:", insertError);
+      return { success: false, message: `Failed to create DeepSeek assistant: ${insertError.message}` };
+    }
+
+    // Update client widget settings to use DeepSeek
+    await updateClientWidgetSettings(clientId, {
+      agent_name: agentName,
+      agent_description: agentDescription,
+      deepseek_enabled: true,
+      deepseek_assistant_id: assistantId
+    });
+
     return { 
       success: true, 
-      message: 'DeepSeek assistant configured successfully',
-      assistantId
+      message: "DeepSeek assistant created successfully",
+      assistant_id: assistantId
     };
   } catch (error) {
-    console.error('Error setting up DeepSeek assistant:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Failed to set up DeepSeek assistant'
+    console.error("Error in setupDeepSeekAssistant:", error);
+    return { success: false, message: error instanceof Error ? error.message : String(error) };
+  }
+};
+
+/**
+ * Update client widget settings
+ */
+const updateClientWidgetSettings = async (
+  clientId: string,
+  settings: Record<string, any>
+): Promise<boolean> => {
+  try {
+    // Get current settings
+    const { data: currentClient } = await supabase
+      .from('clients')
+      .select('widget_settings')
+      .eq('id', clientId)
+      .single();
+    
+    // Merge with new settings
+    const updatedSettings = {
+      ...(currentClient?.widget_settings || {}),
+      ...settings
     };
+    
+    // Update settings
+    const { error } = await supabase
+      .from('clients')
+      .update({
+        widget_settings: updatedSettings
+      })
+      .eq('id', clientId);
+    
+    if (error) {
+      console.error("Error updating widget settings:", error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error in updateClientWidgetSettings:", error);
+    return false;
   }
 };
