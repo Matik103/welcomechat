@@ -69,7 +69,7 @@ export function useUnifiedDocumentUpload({
                 cacheControl: '3600',
                 upsert: false,
                 contentType: file.type,
-                signal: controller.signal, // Pass the AbortSignal
+                // Remove the signal property as it's not supported in FileOptions
               });
 
             // Update progress
@@ -171,9 +171,9 @@ export function useUnifiedDocumentUpload({
             
             // Check if the error is an AbortError (timeout)
             if (error instanceof DOMException && error.name === 'AbortError') {
-              const timeoutDuration = calculateTimeoutDuration(file.size);
-              toast.error(`File upload timed out after ${timeoutDuration / 60000} minutes. Please try again with a smaller file or a better connection.`);
-              return { success: false, error: `File upload timed out after ${timeoutDuration / 60000} minutes.` };
+              const calculatedTimeoutDuration = calculateTimeoutDuration(file.size);
+              toast.error(`File upload timed out after ${calculatedTimeoutDuration / 60000} minutes. Please try again with a smaller file or a better connection.`);
+              return { success: false, error: `File upload timed out after ${calculatedTimeoutDuration / 60000} minutes.` };
             }
             
             if (onError) {

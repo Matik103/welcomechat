@@ -27,6 +27,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Starting query-openai-assistant function");
+    
     // Check for API key
     if (!OPENAI_API_KEY) {
       console.error("Missing OpenAI API key");
@@ -43,10 +45,14 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const body = await req.json().catch(err => {
+    let body;
+    try {
+      body = await req.json();
+      console.log("Request body parsed successfully");
+    } catch (err) {
       console.error("Error parsing request body:", err);
       throw new Error("Invalid JSON in request body");
-    });
+    }
     
     const { client_id, query } = body;
 
@@ -55,12 +61,14 @@ serve(async (req) => {
     }
 
     console.log(`Processing query for client_id: ${client_id}`);
+    console.log(`Query text: ${query}`);
     
     // Initialize OpenAI
     const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
     try {
       // Generate embedding for the query
+      console.log("Generating embedding for query...");
       const embeddingResponse = await openai.embeddings.create({
         model: "text-embedding-ada-002",
         input: query.trim(),
@@ -71,10 +79,12 @@ serve(async (req) => {
       }
 
       const queryEmbedding = embeddingResponse.data[0].embedding;
+      console.log("Embedding generated successfully");
 
-      // Search for similar documents - explicitly cast client_id to UUID
+      // Search for similar documents
+      console.log("Searching for similar documents...");
       const { data: documents, error: searchError } = await supabase.rpc('match_documents_by_embedding', {
-        p_client_id: client_id, // Postgres will handle the cast based on the function signature
+        p_client_id: client_id, 
         p_query_embedding: queryEmbedding,
         p_match_threshold: 0.5,
         p_match_count: 5
@@ -107,6 +117,7 @@ serve(async (req) => {
         .join("\n");
 
       // Generate answer using ChatGPT
+      console.log("Generating answer using OpenAI...");
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini", // Using gpt-4o-mini for cost efficiency
         messages: [
@@ -126,6 +137,8 @@ serve(async (req) => {
       if (!completion.choices || completion.choices.length === 0) {
         throw new Error("Failed to generate answer");
       }
+
+      console.log("Answer generated successfully");
 
       // Return the answer and relevant documents
       return new Response(
