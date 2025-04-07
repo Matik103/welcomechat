@@ -1,4 +1,4 @@
-import React, { useState, Suspense, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
@@ -13,30 +13,12 @@ export default function ClientList() {
   const { clients, isLoading, error, searchQuery, handleSearch, refetch, retry } = useClientList();
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [showLoading, setShowLoading] = useState(false);
-  
-  // Use effect to handle loading state with delay
-  useEffect(() => {
-    let timeoutId: number;
-    if (isLoading) {
-      timeoutId = window.setTimeout(() => {
-        setShowLoading(true);
-      }, 500);
-    } else {
-      setShowLoading(false);
-    }
-    return () => {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [isLoading]);
 
-  const handleDeleteClick = (client: Client) => {
+  const handleDeleteClick = useCallback((client: Client) => {
     console.log('Delete clicked for client:', client.client_name);
-  };
+  }, []);
 
-  const handleRetry = async () => {
+  const handleRetry = useCallback(async () => {
     setIsRetrying(true);
     toast.info("Refreshing client data...");
     try {
@@ -46,7 +28,12 @@ export default function ClientList() {
     } finally {
       setIsRetrying(false);
     }
-  };
+  }, [retry]);
+
+  const handleAddClientClose = useCallback(() => {
+    setIsAddClientModalOpen(false);
+    refetch();
+  }, [refetch]);
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -100,32 +87,34 @@ export default function ClientList() {
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          {showLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                <p className="text-sm text-gray-500">Loading clients...</p>
+        <div className="bg-white rounded-lg shadow overflow-hidden relative">
+          <div className={`transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
+            {clients.length === 0 && !error && !isLoading ? (
+              <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+                <p className="text-gray-500 mb-4">No clients found</p>
+                <Button 
+                  onClick={() => setIsAddClientModalOpen(true)}
+                  variant="outline"
+                  className="inline-flex items-center"
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Add Your First Client
+                </Button>
               </div>
-            </div>
-          ) : clients.length === 0 && !error ? (
-            <div className="flex flex-col items-center justify-center h-64 text-center px-4">
-              <p className="text-gray-500 mb-4">No clients found</p>
-              <Button 
-                onClick={() => setIsAddClientModalOpen(true)}
-                variant="outline"
-                className="inline-flex items-center"
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Your First Client
-              </Button>
-            </div>
-          ) : (
-            <div className={`transition-opacity duration-300 ease-in-out ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
+            ) : (
               <ClientListTable
                 clients={clients}
                 onDeleteClick={handleDeleteClick}
                 isLoading={isLoading}
               />
+            )}
+          </div>
+          
+          {isLoading && (
+            <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <p className="text-sm text-gray-500">Loading clients...</p>
+              </div>
             </div>
           )}
         </div>
@@ -133,10 +122,7 @@ export default function ClientList() {
 
       <AddClientModal 
         isOpen={isAddClientModalOpen}
-        onClose={() => {
-          setIsAddClientModalOpen(false);
-          refetch(); // Refresh the client list after adding a new client
-        }}
+        onClose={handleAddClientClose}
       />
     </div>
   );
