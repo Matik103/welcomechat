@@ -77,19 +77,40 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
         const formData = new FormData();
         formData.append('file', file);
 
+        // Get API key from environment variables
+        const rapidApiKey = import.meta.env.VITE_RAPIDAPI_KEY;
+        const rapidApiHost = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
+        
+        if (!rapidApiKey) {
+          console.error("RapidAPI key is missing. Please set VITE_RAPIDAPI_KEY in your environment.");
+          toast.error("API configuration error: Missing API key");
+          throw new Error("RapidAPI key is missing. Text extraction cannot be performed.");
+        }
+
         try {
           // Extract text using RapidAPI
+          console.log("Sending request to RapidAPI for text extraction");
           const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
             method: 'POST',
             headers: {
-              'x-rapidapi-host': import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com',
-              'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY || ''
+              'x-rapidapi-host': rapidApiHost,
+              'x-rapidapi-key': rapidApiKey
             },
             body: formData
           });
 
           if (!response.ok) {
-            throw new Error(`Text extraction API responded with status: ${response.status}`);
+            const statusCode = response.status;
+            let errorDetail = '';
+            try {
+              const errorData = await response.json();
+              errorDetail = errorData.message || '';
+            } catch (e) {
+              // If we can't parse the error as JSON, just use the status text
+              errorDetail = response.statusText;
+            }
+            
+            throw new Error(`Text extraction API responded with status: ${statusCode}. ${errorDetail}`);
           }
 
           extractedText = await response.text();
@@ -97,6 +118,8 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
           if (!extractedText || extractedText.trim().length === 0) {
             throw new Error('API returned empty text content');
           }
+          
+          console.log("Text extraction successful, extracted length:", extractedText.length);
         } catch (extractionError) {
           console.error("Text extraction failed:", extractionError);
           throw new Error(`Failed to extract text from PDF: ${extractionError instanceof Error ? extractionError.message : String(extractionError)}`);
