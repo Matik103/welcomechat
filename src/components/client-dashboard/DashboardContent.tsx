@@ -32,10 +32,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
       {/* Stats section */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <InteractionStats
-          totalQueries={stats?.total_interactions}
-          activeUsers={stats?.active_days}
-          responseRate={stats?.response_rate || "0%"}
-          averageTime={stats?.average_response_time ? `${stats.average_response_time.toFixed(2)}s` : "0s"}
+          stats={stats}
           isLoading={isLoading}
         />
       </div>

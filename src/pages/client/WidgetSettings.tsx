@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
@@ -23,14 +24,17 @@ export default function WidgetSettings() {
   const { logClientActivity } = useClientActivity(clientId || "");
   const widgetSettingsHook = useWidgetSettings(clientId || "");
 
+  // Use useClientData with proper client ID
   const { client, isLoadingClient, refetchClient } = useClientData(clientId);
 
+  // Fetch widget settings with proper client ID
   const { data: settings, isLoading, refetch } = useQuery({
     queryKey: ["widget-settings", clientId],
     queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
     enabled: !!clientId,
   });
 
+  // Log current data state on load for debugging
   useEffect(() => {
     if (client && settings) {
       console.log("Client view - current data state:", {
@@ -41,11 +45,13 @@ export default function WidgetSettings() {
     }
   }, [client, settings, clientId]);
 
+  // Ensure settings has the clientId
   const enhancedSettings = settings ? { ...settings, clientId } : { ...defaultSettings, clientId };
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
       if (clientId) {
+        // Ensure clientId is included
         await updateWidgetSettings(clientId, { ...newSettings, clientId });
         
         const clientName = client?.client_name || settings?.agent_name || "Unknown";
@@ -62,6 +68,7 @@ export default function WidgetSettings() {
     onSuccess: () => {
       refetch();
       if (clientId) {
+        // Invalidate client query to ensure bidirectional sync
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
         refetchClient();
       }

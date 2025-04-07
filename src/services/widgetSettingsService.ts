@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/env';
 import { WidgetSettings, defaultSettings } from '../types/widget-settings';
@@ -83,7 +82,3 @@ export class WidgetSettingsService {
     }
   }
 }
-
-// Add named exports to support direct importing by other modules
-export const getWidgetSettings = WidgetSettingsService.getWidgetSettings;
-export const updateWidgetSettings = WidgetSettingsService.updateWidgetSettings;

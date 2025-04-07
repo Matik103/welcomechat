@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -22,17 +23,19 @@ export const getAnswerFromOpenAIAssistant = async (
     // Add request timestamp for tracking
     const timestamp = new Date().toISOString();
     
+    // Set up a timeout for the edge function call
+    const timeoutMs = 45000; // 45 seconds
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 seconds timeout
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
-    // Call the edge function without the abort signal in the options
+    // Call the edge function with the abort signal
     const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
       body: {
         client_id: clientId,
         query,
         timestamp
-      }
-      // Remove the signal property as it's not supported
+      },
+      signal: controller.signal
     });
     
     // Clear the timeout
@@ -169,50 +172,4 @@ const readFileAsBase64 = (file: File): Promise<string> => {
       reject(error);
     };
   });
-};
-
-/**
- * Sync document with OpenAI assistant via Supabase Edge Function
- * @param documentId - The document ID
- * @param clientId - The client ID
- * @returns The response with success or error
- */
-export const syncDocumentWithOpenAI = async (documentId: string, clientId: string) => {
-  try {
-    console.log(`Syncing document with OpenAI assistant for client ${clientId}`);
-    
-    const { data, error } = await supabase.functions.invoke('upload-file-to-openai', {
-      body: { file_id: documentId, client_id: clientId }
-    });
-    
-    if (error) {
-      console.error('Error calling upload-file-to-openai function:', error);
-      return { 
-        success: false,
-        message: `Failed to sync: ${error.message}` 
-      };
-    }
-    
-    if (!data || data.error) {
-      const errorMessage = data?.error || 'Unknown error';
-      console.error('Error from upload-file-to-openai function:', errorMessage);
-      return { 
-        success: false,
-        message: `Sync failed: ${errorMessage}`
-      };
-    }
-    
-    console.log('Document synced successfully:', data);
-    
-    return {
-      success: true,
-      message: data.message || 'Document synced successfully'
-    };
-  } catch (error) {
-    console.error('Exception in syncDocumentWithOpenAI:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Unknown error during sync'
-    };
-  }
 };

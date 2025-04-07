@@ -1,73 +1,68 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 import { WidgetSettings } from '@/types/widget-settings';
-import { cn } from '@/lib/utils';
+import { WidgetPreview } from './WidgetPreview';
 
-export interface WidgetPreviewProps {
+interface WidgetPreviewCardProps {
   settings: WidgetSettings;
-  clientId: string;
+  clientId?: string;
 }
 
-export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewProps) {
-  const { agent_name, agent_description, chat_color, background_color, button_color, font_color, button_text, position, greeting_message, text_color, secondary_color, welcome_text, response_time_text, display_mode } = settings;
+export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps) {
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!clientId) {
+      setError('No client ID available for preview');
+    } else {
+      setError(null);
+    }
+  }, [clientId]);
+
+  // Get a display name based on the selected mode
+  const getDisplayModeName = () => {
+    switch(settings.display_mode) {
+      case 'inline': return 'Inline Widget';
+      case 'sidebar': return 'Sidebar Panel';
+      case 'floating': return 'Floating Bubble';
+      default: return 'Widget Preview';
+    }
+  };
+
+  // Determine preview height based on display mode
+  const getPreviewHeight = () => {
+    switch(settings.display_mode) {
+      case 'inline': return 'h-[550px]';
+      case 'sidebar': return 'h-[600px]'; // Increased height for sidebar mode
+      case 'floating': return 'h-[650px]'; // Increased height for floating mode
+      default: return 'h-[550px]';
+    }
+  };
 
   return (
-    <Card className="w-full">
+    <Card>
       <CardHeader>
-        <CardTitle>Widget Preview</CardTitle>
+        <CardTitle>Widget Preview - {getDisplayModeName()}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col items-start p-4 rounded-md"
-          style={{
-            backgroundColor: background_color,
-            color: font_color,
-            opacity: settings.background_opacity,
-            width: '100%'
-          }}
-        >
-          <div className="flex items-center space-x-2 mb-2">
-            <div
-              className="w-8 h-8 rounded-full bg-gray-300"
-              style={{ backgroundColor: secondary_color }}
+      <CardContent className="flex flex-col items-center">
+        {error ? (
+          <Alert variant="destructive" className="w-full">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : (
+          <div className={`w-full ${getPreviewHeight()} border border-gray-200 rounded-md overflow-hidden`}>
+            <WidgetPreview 
+              settings={settings} 
+              clientId={clientId} 
+              key={`widget-preview-${clientId}-${settings.display_mode}`}
             />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none" style={{ color: text_color }}>
-                {agent_name}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {response_time_text}
-              </p>
-            </div>
           </div>
-          <div className="w-full p-3 rounded-md" style={{ backgroundColor: chat_color, color: settings.chat_font_color }}>
-            {greeting_message}
-          </div>
-        </div>
-        <div className="flex justify-end">
-          <Badge
-            className={cn(
-              "rounded-full px-3 py-1 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-              "hover:bg-secondary/80"
-            )}
-            style={{
-              backgroundColor: button_color,
-              color: font_color,
-            }}
-          >
-            {button_text}
-          </Badge>
-        </div>
+        )}
       </CardContent>
     </Card>
-  );
-}
-
-export function WidgetPreviewCards({ settings, clientId }: WidgetPreviewProps) {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <WidgetPreviewCard settings={settings} clientId={clientId} />
-    </div>
   );
 }
