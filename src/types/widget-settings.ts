@@ -24,12 +24,6 @@ export interface WidgetSettings {
   display_mode: WidgetDisplayMode;
   openai_assistant_id?: string;
   clientId?: string; // Added clientId property
-  deepseek_enabled?: boolean;
-  deepseek_model?: string;
-  openai_enabled?: boolean;
-  openai_model?: string;
-  created_at?: string;
-  updated_at?: string;
 }
 
 // Default widget settings
@@ -51,10 +45,5 @@ export const defaultSettings: WidgetSettings = {
   secondary_color: "#6366f1",
   welcome_text: "Welcome to our assistant",
   response_time_text: "Typically responds in a few seconds",
-  display_mode: "floating",
-  deepseek_enabled: true,
-  deepseek_model: "deepseek-chat",
-  openai_enabled: false,
-  openai_model: "",
-  openai_assistant_id: ""
+  display_mode: "floating"
 };

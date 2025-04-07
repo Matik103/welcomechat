@@ -26,8 +26,7 @@ export const useUrlAccessCheck = () => {
     setIsChecking(true);
     
     try {
-      // Remove the explicit type parameter from invoke() call
-      const { data, error } = await supabase.functions.invoke(
+      const { data, error } = await supabase.functions.invoke<UrlCheckResult>(
         'check-url-access',
         {
           body: { url }

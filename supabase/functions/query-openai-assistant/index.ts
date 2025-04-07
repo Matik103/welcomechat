@@ -28,7 +28,6 @@ serve(async (req) => {
 
   try {
     console.log("Starting query-openai-assistant function");
-    const startTime = performance.now();
     
     // Check for API key
     if (!OPENAI_API_KEY) {
@@ -50,53 +49,22 @@ serve(async (req) => {
     try {
       body = await req.json();
       console.log("Request body parsed successfully");
-      // Log request details but obfuscate the actual query content for privacy
-      console.log(`Request timestamp: ${body.timestamp || new Date().toISOString()}`);
-      console.log(`Client ID: ${body.client_id}`);
-      console.log(`Query length: ${body.query?.length || 0} characters`);
     } catch (err) {
       console.error("Error parsing request body:", err);
-      return new Response(
-        JSON.stringify({
-          error: "Invalid JSON in request body",
-          answer: "I'm sorry, I couldn't process your request due to a technical issue. Please try again."
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200, // Return 200 for better UX but with error info
-        }
-      );
+      throw new Error("Invalid JSON in request body");
     }
     
     const { client_id, query } = body;
 
     if (!client_id || !query) {
-      const missingFields = [];
-      if (!client_id) missingFields.push("client_id");
-      if (!query) missingFields.push("query");
-      
-      console.error(`Missing required fields: ${missingFields.join(", ")}`);
-      
-      return new Response(
-        JSON.stringify({
-          error: `Missing required fields: ${missingFields.join(", ")}`,
-          answer: "I'm sorry, I couldn't process your request due to missing information. Please try again."
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200, // Return 200 for better UX but with error info
-        }
-      );
+      throw new Error("Missing required fields: client_id and query are required");
     }
 
     console.log(`Processing query for client_id: ${client_id}`);
     console.log(`Query text: ${query}`);
     
-    // Initialize OpenAI with timeout option to prevent hanging requests
-    const openai = new OpenAI({ 
-      apiKey: OPENAI_API_KEY,
-      timeout: 25000, // 25 second timeout
-    });
+    // Initialize OpenAI
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
     try {
       // Generate embedding for the query
@@ -148,10 +116,10 @@ serve(async (req) => {
         .map((doc, index) => `Document ${index + 1}:\n${doc.content}\n`)
         .join("\n");
 
-      // Generate answer using GPT-4-mini
+      // Generate answer using ChatGPT
       console.log("Generating answer using OpenAI...");
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini", // Using gpt-4o-mini for best balance of cost and quality
+        model: "gpt-4o-mini", // Using gpt-4o-mini for cost efficiency
         messages: [
           {
             role: "system",
@@ -167,29 +135,10 @@ serve(async (req) => {
       });
 
       if (!completion.choices || completion.choices.length === 0) {
-        throw new Error("Failed to generate answer from OpenAI");
+        throw new Error("Failed to generate answer");
       }
 
       console.log("Answer generated successfully");
-      
-      // Calculate processing time
-      const endTime = performance.now();
-      const processingTime = Math.round(endTime - startTime);
-      console.log(`Total processing time: ${processingTime}ms`);
-
-      // Log query to database for analytics (non-critical, don't throw errors)
-      try {
-        await supabase.from('assistant_queries').insert({
-          client_id,
-          query,
-          answer: completion.choices[0].message.content,
-          success: true,
-          processing_time_ms: processingTime
-        });
-      } catch (logError) {
-        console.error("Failed to log query:", logError);
-        // Non-critical error, continue with response
-      }
 
       // Return the answer and relevant documents
       return new Response(
@@ -198,8 +147,7 @@ serve(async (req) => {
           documents: documents.map(doc => ({
             content: doc.content.substring(0, 200) + '...',  // Only return a preview
             similarity: doc.similarity
-          })),
-          processing_time_ms: processingTime
+          }))
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -209,19 +157,7 @@ serve(async (req) => {
     } catch (openaiError) {
       console.error("OpenAI API error:", openaiError);
       
-      // Log failed query to database (non-critical, don't throw additional errors)
-      try {
-        await supabase.from('assistant_queries').insert({
-          client_id,
-          query,
-          error_message: openaiError instanceof Error ? openaiError.message : "Unknown OpenAI error",
-          success: false
-        });
-      } catch (logError) {
-        console.error("Failed to log error query:", logError);
-      }
-      
-      // Return a more helpful error message
+      // Fallback to a simple response when OpenAI fails
       return new Response(
         JSON.stringify({
           answer: "I'm having trouble accessing my knowledge base at the moment. Please try again later.",
@@ -242,7 +178,7 @@ serve(async (req) => {
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200, // Return 200 but include error in payload for better UX
+        status: 200, // Return 200 but include error in payload for better user experience
       }
     );
   }

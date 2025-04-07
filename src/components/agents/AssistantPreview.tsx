@@ -25,8 +25,6 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [connectionAttempts, setConnectionAttempts] = useState(0);
-  const [lastRequestTime, setLastRequestTime] = useState<number>(0);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when messages change
@@ -52,14 +50,6 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
     setError(null);
-    
-    // Rate limiting - prevent rapid-fire requests
-    const now = Date.now();
-    if (now - lastRequestTime < 1000) {
-      // If less than 1 second since last request, add a small delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    setLastRequestTime(now);
 
     try {
       console.log(`Sending message to assistant (${clientId}): ${userMessage}`);
@@ -67,79 +57,36 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
       // Add debug info to help track network issues
       console.log(`AssistantPreview request details: timestamp=${new Date().toISOString()}, clientId=${clientId}, assistantId=${assistantId}`);
       
-      // Make the request with timeout handling built into the getAnswerFromOpenAIAssistant function
+      // Use the improved error handling approach
       const result = await getAnswerFromOpenAIAssistant(clientId, userMessage);
       
       if (result.error) {
         console.error('Assistant query error:', result.error);
-        setError(`Error: ${result.error}`);
-        
-        // Give more specific messages based on the error
-        let errorMessage = "I'm sorry, I couldn't process that request due to a technical issue.";
-        
-        if (result.error.includes("send a request to the Edge Function") || 
-            result.error.includes("network") || 
-            result.error.includes("timeout")) {
-          errorMessage = "I'm currently having trouble connecting to my knowledge base. This might be due to a temporary network issue. Please try again shortly.";
-          setConnectionAttempts(prev => prev + 1);
-        }
-        
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: errorMessage
-        }]);
-      } else {
-        // Reset connection attempts on success
-        if (connectionAttempts > 0) {
-          setConnectionAttempts(0);
-        }
-        
+        setError(result.error);
+        toast.error('Failed to get response from assistant');
         setMessages(prev => [...prev, { 
           role: 'assistant', 
           content: result.answer || "I'm sorry, I couldn't process that request." 
+        }]);
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: result.answer || "I'm sorry, I couldn't process that request."
         }]);
       }
     } catch (error) {
       console.error('Error querying assistant:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setError(errorMessage);
-      
-      let userFriendlyMessage = "Sorry, I encountered an error processing your request. Please try again later.";
-      
-      // Give more specific error messages for common issues
-      if (errorMessage.includes("network") || 
-          errorMessage.includes("Failed to fetch") || 
-          errorMessage.includes("timeout") ||
-          errorMessage.includes("Edge function")) {
-        userFriendlyMessage = "I'm having trouble connecting to my knowledge base right now. This might be due to network connectivity issues. Please try again in a few moments.";
-      }
-      
+      toast.error('Failed to get response from assistant');
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: userFriendlyMessage
+        content: "Sorry, I encountered an error processing your request. Please try again later." 
       }]);
-      
-      setConnectionAttempts(prev => prev + 1);
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Show suggestions if we've had multiple connection failures
-  const connectionSuggestions = connectionAttempts >= 2 ? (
-    <Alert variant="warning" className="mt-4">
-      <AlertCircle className="h-4 w-4" />
-      <AlertDescription>
-        It looks like you're having persistent connection issues. You might try:
-        <ul className="list-disc ml-5 mt-2">
-          <li>Refreshing the page</li>
-          <li>Checking your internet connection</li>
-          <li>Waiting a few minutes and trying again</li>
-          <li>Verifying that Supabase Edge Functions are properly configured</li>
-        </ul>
-      </AlertDescription>
-    </Alert>
-  ) : null;
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -151,7 +98,7 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {error}
+              Error: {error}
             </AlertDescription>
           </Alert>
         )}
@@ -190,8 +137,6 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
             )}
           </div>
         </ScrollArea>
-
-        {connectionSuggestions}
 
         <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
           <Input
