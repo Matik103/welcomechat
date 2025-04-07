@@ -1,181 +1,213 @@
 
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { PageHeading } from '@/components/dashboard/PageHeading';
-import { useClientData } from '@/hooks/useClientData';
-import { WidgetSettingsForm } from '@/components/client/forms/WidgetSettingsForm';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { WidgetSettingsContainer } from '@/components/widget/WidgetSettingsContainer';
-import { WidgetPreview } from '@/components/widget/WidgetPreview';
-import { setupDeepSeekAssistant } from '@/utils/clientDeepSeekUtils';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
+import { useParams } from "react-router-dom";
+import { useWidgetSettings } from "@/hooks/useWidgetSettings";
+import { useAuth } from "@/contexts/AuthContext";
+import { useClientActivity } from "@/hooks/useClientActivity";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettingsService";
+import { handleLogoUpload } from "@/services/uploadService";
+import { defaultSettings } from "@/types/widget-settings";
+import type { WidgetSettings as WidgetSettingsType } from "@/types/widget-settings";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { useNavigation } from "@/hooks/useNavigation";
+import { useClientData } from "@/hooks/useClientData";
+import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
+import { setupDeepSeekAssistant } from "@/utils/clientDeepSeekUtils";
 
-export function WidgetSettings() {
-  const { id } = useParams<{ id: string }>();
-  const { client, isLoadingClient, error, clientMutation, clientId, refetchClient } = useClientData(id);
-  const [isSetupLoading, setIsSetupLoading] = useState(false);
+export default function WidgetSettings() {
+  const { clientId } = useParams<{ clientId: string }>();
+  const { user, userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
+  const navigation = useNavigation();
+  const queryClient = useQueryClient();
+  const [isUploading, setIsUploading] = useState(false);
+  const { logClientActivity } = useClientActivity(clientId);
+  const widgetSettingsHook = useWidgetSettings(clientId || "");
   
-  const widgetSettings = client?.widget_settings || {};
-  const hasDeepSeekAssistant = client?.deepseek_assistant_id || client?.widget_settings?.deepseek_assistant_id;
-  
-  const handleSetupAssistant = async () => {
-    if (!client?.id) {
-      toast.error('Client ID is required');
-      return;
+  // Get client data to sync agent name
+  const { client, isLoadingClient, refetchClient } = useClientData(clientId);
+
+  // Fetch widget settings
+  const { data: settings, isLoading, refetch } = useQuery({
+    queryKey: ["widget-settings", clientId],
+    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
+    enabled: !!clientId,
+  });
+
+  // Ensure settings has the clientId
+  const enhancedSettings = settings ? { ...settings, clientId } : { ...defaultSettings, clientId };
+
+  // Sync agent name from client data when settings load
+  useEffect(() => {
+    if (!isLoadingClient && client && settings) {
+      // Only log once per load
+      console.log("Current client and settings state:", { 
+        client: {
+          agent_name: client.agent_name,
+          logo_url: client.logo_url
+        },
+        settings: {
+          agent_name: settings.agent_name,
+          logo_url: settings.logo_url
+        }
+      });
+
+      // Auto-setup DeepSeek assistant if none exists
+      if (clientId && client && !client.deepseek_assistant_id && !isLoading) {
+        console.log("No DeepSeek assistant found, auto-configuring...");
+        setupDeepSeekAssistant(
+          clientId,
+          client.agent_name || settings?.agent_name || "AI Assistant",
+          client.agent_description || settings?.agent_description || "",
+          client.client_name || "Client"
+        ).then(result => {
+          if (result.success) {
+            console.log("Auto-configured DeepSeek assistant:", result);
+            refetch();
+            refetchClient();
+          }
+        });
+      }
     }
-    
-    setIsSetupLoading(true);
-    
-    try {
-      const clientName = client.client_name || 'Client';
-      const agentName = client.widget_settings?.agent_name || client.agent_name || 'AI Assistant';
-      const agentDescription = client.widget_settings?.agent_description || client.agent_description || '';
-      
-      const result = await setupDeepSeekAssistant(
-        client.id,
-        agentName,
-        agentDescription,
-        clientName
-      );
-      
-      if (result.success) {
-        toast.success('DeepSeek assistant setup successfully');
+  }, [client, settings, isLoadingClient, clientId, isLoading, refetch, refetchClient]);
+
+  // Update widget settings mutation
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
+      if (clientId) {
+        // Ensure clientId is included
+        await updateWidgetSettings(clientId, { ...newSettings, clientId });
+        
+        // Make sure we have a client name for the activity log
+        const clientName = client?.client_name || newSettings.agent_name || "Unknown";
+        
+        // Also ensure the DeepSeek assistant is set up
+        await setupDeepSeekAssistant(
+          clientId,
+          newSettings.agent_name || "AI Assistant",
+          newSettings.agent_description || "",
+          clientName
+        );
+        
+        // Log the activity with safe activity type and client name
+        await logClientActivity("widget_settings_updated", 
+          `Widget settings updated for "${clientName}"`, 
+          {
+            client_name: clientName,
+            agent_name: newSettings.agent_name,
+            settings_changed: true
+          });
+      }
+    },
+    onSuccess: () => {
+      refetch();
+      // Also invalidate client queries to ensure bidirectional sync
+      if (clientId) {
+        queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+        // Also refetch client data to ensure bidirectional sync
         refetchClient();
+      }
+      
+      if (isAdmin) {
+        toast.success("Widget settings updated successfully");
       } else {
-        toast.error(`Failed to setup DeepSeek assistant: ${result.message}`);
+        toast.success("Your AI assistant settings have been updated");
+      }
+    },
+    onError: (error) => {
+      toast.error(`Failed to update settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    },
+  });
+
+  const handleNavigateBack = () => {
+    navigation.goBack();
+  };
+
+  const handleLogoUploadChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!clientId) return;
+    
+    setIsUploading(true);
+    try {
+      const result = await handleLogoUpload(event, clientId);
+      
+      if (result) {
+        await widgetSettingsHook.updateLogo(result.url, result.path);
+        
+        // Make sure we have a client name for the activity log
+        const clientName = client?.client_name || settings?.agent_name || "Unknown";
+        
+        // Log with the correct client name
+        await logClientActivity("logo_uploaded", 
+          `Logo updated for "${clientName}"`, 
+          {
+            client_name: clientName,
+            agent_name: settings?.agent_name,
+            logo_url: result.url
+          });
+          
+        // Refetch both widget settings and client data
+        refetch();
+        refetchClient();
       }
     } catch (error) {
-      console.error('Error setting up DeepSeek assistant:', error);
-      toast.error(`Error setting up DeepSeek assistant: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Error uploading logo:", error);
+      toast.error("Failed to upload logo. Please try again.");
     } finally {
-      setIsSetupLoading(false);
+      setIsUploading(false);
     }
   };
-  
+
+  if (isLoading || isLoadingClient) {
+    return <ClientViewLoading />;
+  }
+
+  // Create a wrapper for updateSettingsMutation to match expected props
+  const updateSettingsWrapper = {
+    isPending: updateSettingsMutation.isPending,
+    mutateAsync: updateSettingsMutation.mutateAsync
+  };
+
+  // Type-safe logClientActivity with client name
+  const logActivityWrapper = async (): Promise<void> => {
+    // Make sure we have a client name for the activity log
+    const clientName = client?.client_name || settings?.agent_name || "Unknown";
+    
+    await logClientActivity("widget_previewed", 
+      `Widget previewed for "${clientName}"`, 
+      {
+        client_name: clientName,
+        agent_name: settings?.agent_name
+      });
+  };
+
   return (
-    <div className="container mx-auto my-8">
-      <PageHeading>
-        Widget Settings
-        <p className="text-sm font-normal text-muted-foreground">
-          Configure the chat widget for {client?.client_name || 'this client'}
-        </p>
-      </PageHeading>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
-        <div>
-          <WidgetSettingsForm 
-            initialData={client}
-            onSubmit={async (data) => {
-              console.log('Widget settings updated:', data);
-              await clientMutation.mutateAsync({
-                ...client,
-                widget_settings: {
-                  ...(client?.widget_settings || {}),
-                  ...data
-                }
-              });
-            }}
-            isLoading={isLoadingClient || clientMutation.isPending}
-          />
-          
-          <div className="mt-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  DeepSeek AI Integration
-                  <Badge variant={hasDeepSeekAssistant ? "success" : "outline"}>
-                    {hasDeepSeekAssistant ? 'Configured' : 'Not Configured'}
-                  </Badge>
-                </CardTitle>
-                <CardDescription>
-                  Enable DeepSeek AI integration for this client
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {hasDeepSeekAssistant ? (
-                  <Alert variant="default" className="bg-green-50 border-green-200">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <AlertDescription className="text-green-700">
-                      DeepSeek assistant is configured and ready to use
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <Alert variant="default" className="bg-yellow-50 border-yellow-200">
-                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                    <AlertDescription className="text-yellow-700">
-                      No DeepSeek assistant configured for this client
-                    </AlertDescription>
-                  </Alert>
-                )}
-                
-                <Button
-                  onClick={handleSetupAssistant}
-                  disabled={isSetupLoading}
-                  className="w-full mt-4"
-                >
-                  {isSetupLoading ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Setting up assistant...
-                    </>
-                  ) : hasDeepSeekAssistant ? (
-                    'Update DeepSeek Assistant'
-                  ) : (
-                    'Setup DeepSeek Assistant'
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-6">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="mb-4 flex items-center gap-1"
+          onClick={handleNavigateBack}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Clients
+        </Button>
         
-        <div>
-          <Card className="mb-4">
-            <CardHeader>
-              <CardTitle>Widget Preview</CardTitle>
-              <CardDescription>
-                This is how your chat widget will look
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <WidgetSettingsContainer widgetSettings={widgetSettings} clientId={clientId}>
-                <WidgetPreview />
-              </WidgetSettingsContainer>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Integration Instructions</CardTitle>
-              <CardDescription>
-                How to add this widget to your website
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto">
-                {`<script>
-  // Add this script to your website
-  (function(w,d,s,o,f,js,fjs){
-    w['ItTalentWidget']=o;w[o]=w[o]||function(){
-      (w[o].q=w[o].q||[]).push(arguments)};
-    js=d.createElement(s),fjs=d.getElementsByTagName(s)[0];
-    js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
-  }(window,document,'script','itta','https://widget.example.com/loader.js'));
-  
-  // Initialize with your client ID
-  itta('init', { clientId: '${clientId || 'YOUR_CLIENT_ID'}' });
-</script>`}
-              </pre>
-            </CardContent>
-          </Card>
-        </div>
+        <WidgetSettingsContainer
+          clientId={clientId}
+          settings={enhancedSettings}
+          isClientView={!isAdmin}
+          isUploading={isUploading}
+          updateSettingsMutation={updateSettingsWrapper}
+          handleBack={handleNavigateBack}
+          handleLogoUpload={handleLogoUploadChange}
+          logClientActivity={logActivityWrapper}
+        />
       </div>
     </div>
   );
 }
-
-export default WidgetSettings;
