@@ -19,26 +19,5 @@ export interface WidgetSettings {
   deepseek_enabled?: boolean;
   deepseek_model?: string;
   deepseek_assistant_id?: string;
-  
-  // Properties from the default WidgetSettings type
-  chat_color?: string;
-  background_color?: string;
-  button_color?: string;
-  font_color?: string;
-  chat_font_color?: string;
-  background_opacity?: number;
-  button_text?: string;
-  position?: "left" | "right";
-  greeting_message?: string;
-  text_color?: string;
-  secondary_color?: string;
-  welcome_text?: string;
-  response_time_text?: string;
-  display_mode?: string;
-  openai_assistant_id?: string;
-  openai_model?: string;
-  created_at?: string;
-  updated_at?: string;
-  
   [key: string]: any;
 }
