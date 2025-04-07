@@ -4,26 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { getUserRole, checkAndRefreshAuth } from '@/services/authService';
 import { toast } from 'sonner';
-
-// Export UserRole type so it can be used by other files
-export type UserRole = 'admin' | 'client' | null;
-
-interface AuthContextType {
-  user: User | null;
-  userRole: UserRole;
-  session: Session | null;
-  isLoading: boolean;
-  clientId: string | null; // Add clientId property to the interface
-  signOut: () => Promise<void>;
-  refreshUserRole: () => Promise<void>; // Change return type to match interface
-}
+import { UserRole, AuthContextType } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userRole: null,
   session: null,
   isLoading: true,
-  clientId: null, // Initialize with null
+  clientId: null,
   signOut: async () => {},
   refreshUserRole: async () => {},
 });
@@ -40,10 +28,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [authInitialized, setAuthInitialized] = useState<boolean>(false);
-  const [clientId, setClientId] = useState<string | null>(null); // Add clientId state
+  const [clientId, setClientId] = useState<string | null>(null);
   
   // Function to refresh user role
-  const refreshUserRole = async () => {
+  const refreshUserRole = async (): Promise<void> => {
     console.log("Refreshing user role");
     if (user) {
       try {
@@ -68,8 +56,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.error("Error fetching client ID:", err);
           }
         }
-        
-        // Return void to match interface
       } catch (err) {
         console.error("Error refreshing user role:", err);
       }

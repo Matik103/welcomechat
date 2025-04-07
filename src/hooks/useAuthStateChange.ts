@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
-import { UserRole } from '@/types/auth'; // Import from types/auth instead
+import { UserRole } from '@/types/auth';
 import { getUserRole } from '@/services/authService';
 
 interface UseAuthStateChangeProps {
