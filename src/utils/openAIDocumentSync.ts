@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -172,4 +171,50 @@ const readFileAsBase64 = (file: File): Promise<string> => {
       reject(error);
     };
   });
+};
+
+/**
+ * Sync document with OpenAI assistant via Supabase Edge Function
+ * @param documentId - The document ID
+ * @param clientId - The client ID
+ * @returns The response with success or error
+ */
+export const syncDocumentWithOpenAI = async (documentId: string, clientId: string) => {
+  try {
+    console.log(`Syncing document with OpenAI assistant for client ${clientId}`);
+    
+    const { data, error } = await supabase.functions.invoke('upload-file-to-openai', {
+      body: { file_id: documentId, client_id: clientId }
+    });
+    
+    if (error) {
+      console.error('Error calling upload-file-to-openai function:', error);
+      return { 
+        success: false,
+        message: `Failed to sync: ${error.message}` 
+      };
+    }
+    
+    if (!data || data.error) {
+      const errorMessage = data?.error || 'Unknown error';
+      console.error('Error from upload-file-to-openai function:', errorMessage);
+      return { 
+        success: false,
+        message: `Sync failed: ${errorMessage}`
+      };
+    }
+    
+    console.log('Document synced successfully:', data);
+    
+    return {
+      success: true,
+      message: data.message || 'Document synced successfully'
+    };
+  } catch (error) {
+    console.error('Exception in syncDocumentWithOpenAI:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error during sync'
+    };
+  }
 };

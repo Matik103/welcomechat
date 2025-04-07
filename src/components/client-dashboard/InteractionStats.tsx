@@ -1,65 +1,62 @@
 
-import { Loader2 } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { InteractionStats as InteractionStatsType } from "@/types/client-dashboard";
+// Ensure this file exports the InteractionStats component properly
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface InteractionStatsProps {
-  stats: InteractionStatsType;
-  isLoading?: boolean;
+export interface StatCardProps {
+  title: string;
+  value: any;
+  isLoading: boolean;
 }
 
-export const InteractionStats = ({ stats, isLoading = false }: InteractionStatsProps) => {
-  if (isLoading) {
-    return (
-      <>
-        {[1, 2, 3, 4].map(index => (
-          <StatCard
-            key={index}
-            title="Loading..."
-            value={<Loader2 className="h-5 w-5 animate-spin text-primary" />}
-            isLoading={true}
-          />
-        ))}
-      </>
-    );
-  }
-
+export function StatCard({ title, value, isLoading }: StatCardProps) {
   return (
-    <>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="h-6 w-16 bg-gray-200 animate-pulse rounded"></div>
+        ) : (
+          <div className="text-2xl font-bold">{value}</div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function InteractionStats({ totalQueries, activeUsers, responseRate, averageTime, isLoading }: {
+  totalQueries?: number;
+  activeUsers?: number;
+  responseRate?: string;
+  averageTime?: string;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
-        title="Total Interactions"
-        value={stats.total_interactions.toLocaleString()}
-        className="border-blue-100 bg-blue-50"
+        title="Total Queries"
+        value={totalQueries || 0}
+        isLoading={isLoading}
       />
       <StatCard
-        title="Active Days"
-        value={stats.active_days.toLocaleString()}
-        className="border-emerald-100 bg-emerald-50"
+        title="Active Users"
+        value={activeUsers || 0}
+        isLoading={isLoading}
+      />
+      <StatCard
+        title="Response Rate"
+        value={responseRate || "0%"}
+        isLoading={isLoading}
       />
       <StatCard
         title="Avg Response Time"
-        value={`${stats.average_response_time}s`}
-        className="border-amber-100 bg-amber-50"
+        value={averageTime || "0s"}
+        isLoading={isLoading}
       />
-      <StatCard
-        title="Common Topics"
-        value={stats.top_queries.length > 0 ? stats.top_queries.length.toString() : "0"}
-        className="border-purple-100 bg-purple-50"
-      />
-    </>
+    </div>
   );
-};
-
-interface StatCardProps {
-  title: string;
-  value: React.ReactNode;
-  className?: string;
-  isLoading?: boolean;
 }
 
-const StatCard = ({ title, value, className = "", isLoading = false }: StatCardProps) => (
-  <Card className={`p-6 flex flex-col items-center justify-center text-center ${className} ${isLoading ? 'animate-pulse' : ''}`}>
-    <p className="text-sm font-medium text-gray-500">{title}</p>
-    <p className="text-3xl font-bold mt-2">{value}</p>
-  </Card>
-);
+export default InteractionStats;
