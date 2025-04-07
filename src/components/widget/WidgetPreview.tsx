@@ -1,13 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
-import { WidgetSettings, defaultSettings } from '@/types/widget-settings';
+import { WidgetSettings } from '@/types/widget-settings';
 
 interface WidgetPreviewProps {
   settings?: WidgetSettings;
   clientId?: string;
 }
 
-export const WidgetPreview = ({ settings = defaultSettings, clientId }: WidgetPreviewProps) => {
+export const WidgetPreview = ({ settings, clientId }: WidgetPreviewProps) => {
   const [isOpen, setIsOpen] = useState(false);
   
   // Get stylesheet variables from settings

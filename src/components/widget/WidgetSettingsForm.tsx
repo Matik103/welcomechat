@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BrandingSettings } from "@/components/widget/BrandingSettings";
 import { AppearanceSettings } from "@/components/widget/AppearanceSettings";
-import { WidgetSettings } from "@/types/widget-settings";
+import { WidgetSettings } from "@/types/client-form";
 
 interface WidgetSettingsFormProps {
   settings: WidgetSettings;

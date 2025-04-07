@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import { WidgetSettings, defaultSettings } from '@/types/widget-settings';
+import { WidgetSettings } from '@/types/widget-settings';
 
 interface WidgetSettingsContainerProps {
   widgetSettings?: WidgetSettings | null;
