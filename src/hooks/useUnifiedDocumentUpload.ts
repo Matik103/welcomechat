@@ -1,6 +1,6 @@
 
 import { useState, useCallback } from 'react';
-import { useSupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 import { useClientActivity } from './useClientActivity';
@@ -28,7 +28,6 @@ export function useUnifiedDocumentUpload({
   onError,
   onProgress,
 }: UseUnifiedDocumentUploadProps) {
-  const supabaseClient = useSupabaseClient();
   const { logClientActivity } = useClientActivity(clientId);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -64,7 +63,7 @@ export function useUnifiedDocumentUpload({
             const fileName = `${uuidv4()}-${file.name}`;
 
             // Upload the file to Supabase storage
-            const { data: uploadData, error: uploadError } = await supabaseClient.storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
               .from('client_documents')
               .upload(`${clientId}/${fileName}`, file, {
                 cacheControl: '3600',
@@ -99,7 +98,7 @@ export function useUnifiedDocumentUpload({
             setUploadProgress(70);
 
             // Get the public URL of the uploaded file
-            const { data: publicUrlData } = supabaseClient.storage
+            const { data: publicUrlData } = supabase.storage
               .from('client_documents')
               .getPublicUrl(`${clientId}/${fileName}`);
 
@@ -113,7 +112,7 @@ export function useUnifiedDocumentUpload({
             setUploadProgress(80);
 
             // Create a record in the database
-            const { data: documentData, error: documentError } = await supabaseClient
+            const { data: documentData, error: documentError } = await supabase
               .from('client_documents')
               .insert([
                 {
@@ -123,7 +122,7 @@ export function useUnifiedDocumentUpload({
                   file_size: file.size,
                   storage_path: uploadData.path,
                   storage_url: publicUrlData.publicUrl,
-                  user_id: supabaseClient.auth.getUser().then(res => res.data.user?.id)
+                  user_id: (await supabase.auth.getUser()).data.user?.id
                 }
               ])
               .select()
@@ -212,7 +211,7 @@ export function useUnifiedDocumentUpload({
         setUploadProgress(0);
       }
     },
-    [clientId, supabaseClient, onSuccess, onError, onProgress, logClientActivity, IS_PRODUCTION]
+    [clientId, onSuccess, onError, onProgress, logClientActivity, IS_PRODUCTION]
   );
 
   return { 
