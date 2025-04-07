@@ -1,12 +1,11 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from "sonner";
-import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
+import { getAnswerFromOpenAIAssistant } from '@/utils/openAIDocumentSync';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -41,28 +40,20 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
-        body: {
-          client_id: clientId,
-          query: userMessage
-        }
-      });
-
-      if (error) throw error;
-
-      // Handle the response as a string or object with messages
-      if (typeof data === 'string') {
-        setMessages(prev => [...prev, { role: 'assistant', content: data }]);
-      } else if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
-        const assistantMessage = data.messages[data.messages.length - 1]?.content || 
-          "Sorry, I couldn't generate a response.";
-        setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
-      } else {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: "Sorry, I couldn't generate a response." 
-        }]);
+      console.log(`Sending message to assistant: ${userMessage}`);
+      
+      // Use the improved error handling approach
+      const result = await getAnswerFromOpenAIAssistant(clientId, userMessage);
+      
+      if (result.error) {
+        console.error('Error getting answer:', result.error);
+        toast.error('Failed to get response from assistant');
       }
+      
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: result.answer 
+      }]);
     } catch (error) {
       console.error('Error querying assistant:', error);
       toast.error('Failed to get response from assistant');

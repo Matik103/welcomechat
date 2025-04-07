@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 interface SyncDocumentResult {
@@ -138,30 +139,51 @@ export const getAnswerFromOpenAIAssistant = async (
   try {
     console.log(`Getting answer from OpenAI assistant for client ${clientId}: "${query}"`);
     
-    // Call the query-openai-assistant Edge Function
-    const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
-      body: { client_id: clientId, query }
+    // Call the query-openai-assistant Edge Function with improved error handling
+    const response = await supabase.functions.invoke('query-openai-assistant', {
+      body: { client_id: clientId, query },
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
     
-    if (error) {
-      console.error('Error querying OpenAI assistant:', error);
+    if (response.error) {
+      console.error('Edge function error:', response.error);
       return { 
         answer: "I'm sorry, I encountered an error while processing your question.", 
-        error: `Error querying assistant: ${error.message}` 
+        error: `Edge function error: ${response.error.message || response.error}` 
       };
     }
     
-    if (!data || !data.answer) {
-      return { 
-        answer: "I couldn't generate a proper response. Please try asking a different question.",
-        error: data?.error || 'No answer returned from assistant'
+    const data = response.data;
+    
+    // Handle different response formats from the edge function
+    if (data?.answer) {
+      return {
+        answer: data.answer,
+        threadId: data.thread_id
+      };
+    } else if (typeof data === 'string') {
+      return {
+        answer: data
+      };
+    } else if (data?.messages && Array.isArray(data.messages)) {
+      const lastMessage = data.messages[data.messages.length - 1]?.content;
+      return {
+        answer: lastMessage || "I couldn't generate a proper response."
+      };
+    } else if (!data) {
+      return {
+        answer: "I'm sorry, the AI service is currently unavailable. Please try again later.",
+        error: 'No data returned from assistant'
+      };
+    } else {
+      console.warn('Unexpected response format from query-openai-assistant:', data);
+      return {
+        answer: "I received your question but couldn't generate a proper response.",
+        error: 'Unexpected response format'
       };
     }
-    
-    return {
-      answer: data.answer,
-      threadId: data.thread_id
-    };
   } catch (error) {
     console.error('Error in getAnswerFromOpenAIAssistant:', error);
     return {
