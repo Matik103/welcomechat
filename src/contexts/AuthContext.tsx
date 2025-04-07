@@ -1,170 +1,229 @@
-
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../integrations/supabase/client';
-
-export type UserRole = 'admin' | 'client' | null;
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Session } from '@supabase/supabase-js';
 
 export interface AuthContextType {
+  isAuthenticated: boolean;
+  user: any;
   session: Session | null;
-  user: User | null;
-  userRole: UserRole;
-  isLoading: boolean;
+  signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
-  refreshUserRole: () => Promise<void>;
+  loading: boolean;
+  error: string | null;
+  signUp: (email: string, password: string) => Promise<any>;
+  resetPassword: (email: string) => Promise<any>;
+  updatePassword: (password: string) => Promise<any>;
   userId: string | null;
-  userClientId: string | null;
+  clientId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
-  session: null,
+  isAuthenticated: false,
   user: null,
-  userRole: null,
-  isLoading: true,
+  session: null,
+  signIn: async () => ({}),
   signOut: async () => {},
-  refreshUserRole: async () => {},
+  loading: true,
+  error: null,
+  signUp: async () => ({}),
+  resetPassword: async () => ({}),
+  updatePassword: async () => ({}),
   userId: null,
-  userClientId: null
+  clientId: null,
 });
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<UserRole>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [userClientId, setUserClientId] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
 
-  const refreshUserRole = async () => {
-    try {
-      if (!user) {
-        setUserRole(null);
-        setUserId(null);
-        setUserClientId(null);
-        return;
-      }
-
-      // Get user role from user_roles table
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role, client_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user role:', error);
-        setUserRole(null);
-        setUserId(null);
-        setUserClientId(null);
-        return;
-      }
-
-      setUserRole(data.role || null);
-      setUserId(user.id || null);
-      setUserClientId(data.client_id || null);
-      
-      // Store in session storage for quick access on page refreshes
-      sessionStorage.setItem('userRole', data.role || '');
-      sessionStorage.setItem('userId', user.id || '');
-      sessionStorage.setItem('userClientId', data.client_id || '');
-    } catch (error) {
-      console.error('Error in refreshUserRole:', error);
-      setUserRole(null);
-    }
-  };
-
-  // Listen for auth state changes
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user || null);
-        
-        if (session?.user) {
-          await refreshUserRole();
-        } else {
-          setUserRole(null);
-          setUserId(null);
-          setUserClientId(null);
-          sessionStorage.removeItem('userRole');
-          sessionStorage.removeItem('userId');
-          sessionStorage.removeItem('userClientId');
-        }
-        
-        setIsLoading(false);
-      }
-    );
-
-    // Initial session check
-    const initAuth = async () => {
-      setIsLoading(true);
-      
+    const loadSession = async () => {
       try {
-        // Try to recover from session storage first (for faster UI display)
-        const storedRole = sessionStorage.getItem('userRole');
-        const storedUserId = sessionStorage.getItem('userId');
-        const storedClientId = sessionStorage.getItem('userClientId');
-        
-        if (storedRole) {
-          setUserRole(storedRole as UserRole);
-          setUserId(storedUserId);
-          setUserClientId(storedClientId);
-        }
-        
-        // Then check actual auth state
+        setLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
+
         setSession(session);
+        setIsAuthenticated(!!session);
         setUser(session?.user || null);
-        
-        if (session?.user) {
-          await refreshUserRole();
+        setUserId(session?.user?.id || null);
+
+        // Fetch client ID if user is authenticated
+        if (session?.user?.id) {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('client_id')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+            console.error("Error fetching client ID:", profileError);
+            setError(profileError.message);
+          } else {
+            setClientId(profileData?.client_id || null);
+          }
         } else {
-          setUserRole(null);
-          setUserId(null);
-          setUserClientId(null);
+          setClientId(null);
         }
-      } catch (error) {
-        console.error('Error checking auth status:', error);
+      } catch (err: any) {
+        setError(err.message || 'An unexpected error occurred');
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
-    initAuth();
+    loadSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+      setUser(session?.user || null);
+      setSession(session);
+      setUserId(session?.user?.id || null);
+
+      // Fetch client ID on auth state change
+      if (session?.user?.id) {
+        supabase
+          .from('profiles')
+          .select('client_id')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data: profileData, error: profileError }) => {
+            if (profileError) {
+              console.error("Error fetching client ID:", profileError);
+              setError(profileError.message);
+              setClientId(null);
+            } else {
+              setClientId(profileData?.client_id || null);
+            }
+          });
+      } else {
+        setClientId(null);
+      }
+    });
 
     return () => {
-      if (authListener && authListener.subscription) {
-        authListener.subscription.unsubscribe();
-      }
+      subscription?.unsubscribe();
     };
   }, []);
 
-  const signOut = async () => {
+  const signIn = async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      await supabase.auth.signOut();
-      setUserRole(null);
-      setUserId(null);
-      setUserClientId(null);
-      sessionStorage.removeItem('userRole');
-      sessionStorage.removeItem('userId');
-      sessionStorage.removeItem('userClientId');
-    } catch (error) {
-      console.error('Error signing out:', error);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        return { error };
+      }
+      return { data };
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+      return { error: err };
+    } finally {
+      setLoading(false);
     }
   };
 
-  const value = {
-    session,
-    user,
-    userRole,
-    isLoading,
-    signOut,
-    refreshUserRole,
-    userId,
-    userClientId
+  const signUp = async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        setError(error.message);
+        return { error };
+      }
+      return { data };
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+      return { error: err };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const signOut = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await supabase.auth.signOut();
+      setIsAuthenticated(false);
+      setUser(null);
+      setSession(null);
+      setUserId(null);
+      setClientId(null);
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
+      if (error) {
+        setError(error.message);
+        return { error };
+      }
+      return { data };
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+      return { error: err };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updatePassword = async (password: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        setError(error.message);
+        return { error };
+      }
+      return { data };
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+      return { error: err };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const value: AuthContextType = {
+    isAuthenticated,
+    user,
+    session,
+    signIn,
+    signOut,
+    loading,
+    error,
+    signUp,
+    resetPassword,
+    updatePassword,
+    userId,
+    clientId,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => useContext(AuthContext);
+
+export default AuthContext;

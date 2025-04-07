@@ -9,13 +9,21 @@ import { RAPIDAPI_KEY, IS_PRODUCTION } from '@/config/env';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
+export interface UploadResult {
+  success: boolean;
+  error?: string;
+  fileName?: string;
+  publicUrl?: string;
+  documentId?: string;
+}
+
 export function useUnifiedDocumentUpload(clientId: string) {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
   // Create a mutation for document upload
   const uploadMutation = useMutation({
-    mutationFn: async (formData: FormData): Promise<{ success: boolean; message: string; url?: string }> => {
+    mutationFn: async (formData: FormData): Promise<UploadResult> => {
       if (!clientId) {
         throw new Error('Client ID is required');
       }
@@ -127,7 +135,9 @@ export function useUnifiedDocumentUpload(clientId: string) {
           return {
             success: true,
             message: 'Document uploaded successfully and processing has started.',
-            url: documentUrl
+            fileName: file.name,
+            publicUrl: documentUrl,
+            documentId: documentData.id
           };
         } catch (processingError) {
           console.error('Error triggering document processing:', processingError);
@@ -135,14 +145,16 @@ export function useUnifiedDocumentUpload(clientId: string) {
           return {
             success: true,
             message: 'Document uploaded successfully but processing could not be started. It will be processed automatically later.',
-            url: documentUrl
+            fileName: file.name,
+            publicUrl: documentUrl,
+            documentId: documentData.id
           };
         }
       } catch (error) {
         console.error('Document upload error:', error);
         return {
           success: false,
-          message: error instanceof Error ? error.message : 'Unknown error occurred during document upload'
+          error: error instanceof Error ? error.message : 'Unknown error occurred during document upload'
         };
       } finally {
         setIsUploading(false);
@@ -150,9 +162,9 @@ export function useUnifiedDocumentUpload(clientId: string) {
     },
     onSuccess: (result) => {
       if (result.success) {
-        toast.success(result.message);
+        toast.success(result.message || 'Document uploaded successfully');
       } else {
-        toast.error(result.message);
+        toast.error(result.error || 'Failed to upload document');
       }
     },
     onError: (error: Error) => {

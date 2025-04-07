@@ -1,125 +1,45 @@
-
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
-import { DocumentLinksList } from './drive-links/DocumentLinksList';
-import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { DocumentType } from '@/types/document-processing';
-import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
+import { toast } from 'sonner';
 
 interface DocumentLinksProps {
   clientId: string;
-  onResourceChange?: () => void;
-  logClientActivity: () => Promise<void>;
-  onUploadComplete?: () => void;
 }
 
-export function DocumentLinks({ 
-  clientId, 
-  onResourceChange,
-  logClientActivity,
-  onUploadComplete
-}: DocumentLinksProps) {
-  const {
-    documentLinks,
-    isLoading,
-    addDocumentLink,
-    deleteDocumentLink,
-    refetch
-  } = useDocumentLinks(clientId);
+export function DocumentLinks({ clientId }: { clientId: string }) {
+  const { uploadDocument, isUploading } = useUnifiedDocumentUpload(clientId);
 
-  const {
-    upload,
-    isLoading: isUploading,
-    uploadProgress
-  } = useUnifiedDocumentUpload({
-    clientId,
-    onSuccess: () => {
-      if (onUploadComplete) onUploadComplete();
-      toast.success('Document uploaded successfully');
-    },
-    onError: (error) => {
-      toast.error(`Upload failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  });
-
-  const handleAddLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
-    try {
-      const enhancedData = {
-        ...data,
-        document_type: (data.document_type || 'google_drive') as DocumentType
-      };
-      await addDocumentLink.mutateAsync(enhancedData);
-      
-      if (refetch) await refetch();
-      if (onResourceChange) onResourceChange();
-    } catch (error) {
-      toast.error(`Failed to add link: ${error instanceof Error ? error.message : String(error)}`);
-    }
+  const handleUpload = (formData: FormData) => {
+    uploadDocument(formData);
   };
 
-  const handleDeleteLink = async (id: number) => {
-    try {
-      await deleteDocumentLink.mutateAsync(id);
-      
-      if (refetch) await refetch();
-      if (onResourceChange) onResourceChange();
-    } catch (error) {
-      toast.error(`Failed to delete link: ${error instanceof Error ? error.message : String(error)}`);
-    }
+  const handleSuccess = () => {
+    toast.success("Document uploaded successfully!");
   };
 
-  const handleDocumentUpload = async (file: File) => {
-    try {
-      const result = await upload(file);
-      if (result?.success) {
-        await logClientActivity();
-      }
-    } catch (error) {
-      console.error('Upload failed:', error);
-    }
+  const handleError = (error: any) => {
+    toast.error(`Failed to upload document: ${error.message}`);
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Document Resources</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="links">
-          <TabsList>
-            <TabsTrigger value="links">Google Drive Links</TabsTrigger>
-            <TabsTrigger value="upload">Upload Document</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="links" className="pt-4">
-            <DocumentLinkForm 
-              onSubmit={handleAddLink} 
-              isSubmitting={addDocumentLink.isPending}
-              agentName="AI Assistant"
-            />
-            <div className="h-4" />
-            <DocumentLinksList 
-              links={documentLinks || []} 
-              isLoading={isLoading}
-              onDelete={handleDeleteLink}
-              isDeleting={deleteDocumentLink.isPending}
-              deletingId={deleteDocumentLink.variables}
-            />
-          </TabsContent>
-          
-          <TabsContent value="upload" className="pt-4">
-            <DocumentUploadForm
-              onSubmitDocument={handleDocumentUpload}
-              isUploading={isUploading}
-              uploadProgress={uploadProgress}
-            />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+    <div>
+      {/* Your component's UI elements for displaying document links */}
+      {/* Example: */}
+      <p>Document Links Component for Client: {clientId}</p>
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById('document') as HTMLInputElement;
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+          const formData = new FormData();
+          formData.append('file', fileInput.files[0]);
+          handleUpload(formData);
+        }
+      }}>
+        <input type="file" id="document" />
+        <button type="submit" disabled={isUploading}>
+          {isUploading ? 'Uploading...' : 'Upload Document'}
+        </button>
+      </form>
+    </div>
   );
 }
