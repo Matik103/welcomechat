@@ -1,3 +1,4 @@
+
 /// <reference types="https://deno.land/std@0.168.0/http/server.ts" />
 /// <reference types="https://esm.sh/@supabase/supabase-js@2.38.4" />
 
@@ -84,7 +85,21 @@ serve(async (req: Request) => {
     
     const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
     if (!rapidApiKey) {
-      throw new Error('RAPIDAPI_KEY environment variable is not set');
+      // Update document status to indicate failure due to missing API key
+      await supabase
+        .from('document_content')
+        .update({ 
+          metadata: {
+            processing_status: 'extraction_failed',
+            error: 'RAPIDAPI_KEY environment variable is not set',
+            failed_at: new Date().toISOString(),
+            retry_count: requestData.retry ? 1 : 0,
+            missing_api_key: true
+          }
+        })
+        .eq('id', document_id);
+        
+      throw new Error('RAPIDAPI_KEY environment variable is not set. Please add it to your environment variables.');
     }
     
     // Create form data for the file upload
@@ -92,6 +107,7 @@ serve(async (req: Request) => {
     formData.append('file', new Blob([pdfBuffer], { type: 'application/pdf' }), 'document.pdf');
     
     // Call RapidAPI endpoint with multipart/form-data
+    console.log('Sending request to RapidAPI...');
     const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
       method: 'POST',
       headers: {
@@ -103,6 +119,26 @@ serve(async (req: Request) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('RapidAPI request failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      
+      // Update document status to indicate API failure
+      await supabase
+        .from('document_content')
+        .update({ 
+          metadata: {
+            processing_status: 'extraction_failed',
+            error: `RapidAPI request failed: ${response.status} ${response.statusText} - ${errorText}`,
+            failed_at: new Date().toISOString(),
+            retry_count: requestData.retry ? 1 : 0,
+            http_status: response.status
+          }
+        })
+        .eq('id', document_id);
+        
       throw new Error(`RapidAPI request failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
@@ -111,9 +147,11 @@ serve(async (req: Request) => {
     if (!result) {
       throw new Error('No text extracted from PDF');
     }
+    
+    console.log('Text extraction successful. Text length:', result.length);
 
     // Update document content with extracted text
-    const { error: updateError } = await supabase
+    const { data: updateData, error: updateError } = await supabase
       .from('document_content')
       .update({ 
         content: result,
@@ -127,8 +165,11 @@ serve(async (req: Request) => {
       .eq('id', document_id);
 
     if (updateError) {
+      console.error('Failed to update document content:', updateError);
       throw new Error(`Failed to update document content: ${updateError.message}`);
     }
+    
+    console.log('Document content updated successfully!');
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -145,10 +186,16 @@ serve(async (req: Request) => {
     console.error('PDF processing error:', error);
     
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const requestData = await req.json().catch(() => ({})) as ProcessPDFRequest;
+    let requestData: ProcessPDFRequest;
+    
+    try {
+      requestData = await req.json();
+    } catch (jsonError) {
+      requestData = { document_id: 'unknown', storage_path: 'unknown' };
+    }
     
     // Update document status to indicate failure
-    if (requestData.document_id) {
+    if (requestData.document_id && requestData.document_id !== 'unknown') {
       try {
         await supabase
           .from('document_content')
