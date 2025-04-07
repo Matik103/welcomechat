@@ -14,7 +14,7 @@ export const checkDocumentContentRLS = async (): Promise<{ success: boolean; mes
         client_id: testId,
         document_id: testId,
         content: 'TEST CONTENT - PLEASE DELETE',
-        file_type: 'test/plain',
+        file_type: 'text/plain',
         filename: 'test.txt'
       })
       .select();
@@ -61,8 +61,6 @@ export const fixDocumentContentRLS = async (): Promise<{ success: boolean; messa
     }
     
     // Execute a stored procedure to fix the RLS policies
-    // This is a dummy call as we can't execute SQL directly from the frontend
-    // We'll handle this properly through Supabase migrations
     const { data, error } = await supabase.rpc('fix_document_content_rls');
     
     if (error) {
