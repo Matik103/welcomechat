@@ -1,3 +1,4 @@
+
 import { Json } from '@/integrations/supabase/types';
 import { ActivityType } from './client-form';
 import { AccessStatus } from './document-processing';
@@ -25,6 +26,9 @@ export interface Client {
   is_error?: boolean;
   user_id?: string; // Added for compatibility
   openai_assistant_id?: string; // Added for OpenAI integration
+  deepseek_assistant_id?: string; // Added for DeepSeek integration
+  deepseek_enabled?: boolean;
+  deepseek_model?: string;
 
   // Additional fields from ai_agents table
   ai_prompt?: string;

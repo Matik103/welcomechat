@@ -20,7 +20,7 @@ export const AiAssistantSection = ({ client, onAssistantSetup }: AiAssistantSect
   const [setupError, setSetupError] = useState<string | null>(null);
   
   const hasDeepSeekAssistant = client?.deepseek_assistant_id || 
-                              (client?.widget_settings && (client.widget_settings as WidgetSettings).deepseek_assistant_id);
+                              (client?.widget_settings && (client.widget_settings as WidgetSettings)?.deepseek_assistant_id);
   
   const handleSetupAssistant = async () => {
     if (!client?.id) {
@@ -33,9 +33,10 @@ export const AiAssistantSection = ({ client, onAssistantSetup }: AiAssistantSect
     setSetupError(null);
     
     try {
-      const clientName = client?.client_name || (client?.widget_settings as WidgetSettings)?.client_name || 'Client';
-      const agentName = client?.agent_name || (client?.widget_settings as WidgetSettings)?.agent_name || 'AI Assistant';
-      const agentDescription = client?.agent_description || (client?.widget_settings as WidgetSettings)?.agent_description || '';
+      const widgetSettings = client?.widget_settings as WidgetSettings;
+      const clientName = client?.client_name || widgetSettings?.agent_name || 'Client';
+      const agentName = client?.agent_name || widgetSettings?.agent_name || 'AI Assistant';
+      const agentDescription = client?.agent_description || widgetSettings?.agent_description || '';
       
       const result = await setupDeepSeekAssistant(
         client.id,
