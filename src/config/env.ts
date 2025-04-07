@@ -39,6 +39,8 @@ export const PDF_PROCESSING = {
   maxPages: parseInt(import.meta.env.VITE_MAX_PDF_PAGES || '200', 10),
   chunkSize: parseInt(import.meta.env.VITE_PDF_CHUNK_SIZE || '1000', 10),
   overlap: parseInt(import.meta.env.VITE_PDF_CHUNK_OVERLAP || '100', 10),
+  maxRetries: parseInt(import.meta.env.VITE_PDF_MAX_RETRIES || '3', 10),
+  retryDelay: parseInt(import.meta.env.VITE_PDF_RETRY_DELAY || '2000', 10),
 };
 
 // RapidAPI configuration
