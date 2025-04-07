@@ -1,11 +1,11 @@
 
 import { useState } from 'react';
 import { Client } from '@/types/client';
-import { WidgetSection } from '@/components/client/settings/WidgetSection';
 import { WidgetSettings } from '@/types/widget-settings';
 import { Button } from '@/components/ui/button';
 import { useWidgetSettings } from '@/hooks/useWidgetSettings';
 import { Loader2 } from 'lucide-react';
+import { WidgetSettingsForm as BaseWidgetSettingsForm } from '@/components/widget/WidgetSettingsForm';
 
 interface WidgetSettingsFormProps {
   initialData: Client | null | undefined;
@@ -96,7 +96,7 @@ export function WidgetSettingsForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <WidgetSection
+      <BaseWidgetSettingsForm
         settings={formData}
         isUploading={isUploading}
         onSettingsChange={handleSettingsChange}

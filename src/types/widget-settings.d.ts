@@ -42,3 +42,21 @@ export interface WidgetSettings {
   
   [key: string]: any;
 }
+
+// Default settings if needed
+export const defaultSettings: WidgetSettings = {
+  agent_name: "AI Assistant",
+  chat_color: "#4F46E5",
+  background_color: "#FFFFFF",
+  button_color: "#4F46E5",
+  text_color: "#111827",
+  font_color: "#111827",
+  chat_font_color: "#FFFFFF",
+  background_opacity: 1,
+  position: "right",
+  greeting_message: "Hello! How can I help you today?",
+  welcome_message: "Hello! How can I help you today?",
+  fontFamily: "Inter, system-ui, sans-serif",
+  fontSize: "md",
+  display_mode: "floating"
+};
