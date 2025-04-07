@@ -1,6 +1,6 @@
 
 import React from "react";
-import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
+import InteractionStats from "@/components/client-dashboard/InteractionStats";
 import { QueryList } from "@/components/client-dashboard/QueryList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";

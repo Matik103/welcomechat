@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { createOpenAIAssistant } from "@/utils/openAIUtils";
 import { toast } from "sonner";
-import { EmbedCodeCard } from "@/components/widget/EmbedCodeCard";
+import EmbedCodeCard from "@/components/widget/EmbedCodeCard";
 
 interface AiAssistantSectionProps {
   settings: WidgetSettings;

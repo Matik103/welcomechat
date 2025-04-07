@@ -1,3 +1,4 @@
+
 import { format } from "date-fns";
 import {
   Table,
@@ -9,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { ClientActions } from "./ClientActions";
 import { Client } from "@/types/client";
-import { Badge } from "@/components/ui/badge";
+import Badge from "@/components/ui/badge";
 import { useState } from "react";
 import { DeleteClientConfirmDialog } from "./DeleteClientConfirmDialog";
 

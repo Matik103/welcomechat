@@ -39,6 +39,4 @@ function Badge({ className, variant, children, ...props }: BadgeProps) {
 }
 
 export { Badge, badgeVariants }
-
-// For backwards compatibility with existing imports
 export default Badge;
