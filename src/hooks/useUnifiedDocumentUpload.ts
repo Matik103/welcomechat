@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
+import { RAPIDAPI_KEY, RAPIDAPI_HOST } from '@/config/env';
 
 export interface UploadResult {
   success: boolean;
@@ -77,12 +78,12 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
         const formData = new FormData();
         formData.append('file', file);
 
-        // Get API key from environment variables
-        const rapidApiKey = import.meta.env.VITE_RAPIDAPI_KEY;
-        const rapidApiHost = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
+        // Always use the hardcoded API key as fallback
+        const rapidApiKey = RAPIDAPI_KEY;
+        const rapidApiHost = RAPIDAPI_HOST;
         
         if (!rapidApiKey) {
-          console.error("RapidAPI key is missing. Please set VITE_RAPIDAPI_KEY in your environment.");
+          console.error("RapidAPI key is missing. Text extraction cannot be performed.");
           toast.error("API configuration error: Missing API key");
           throw new Error("RapidAPI key is missing. Text extraction cannot be performed.");
         }
@@ -90,6 +91,9 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
         try {
           // Extract text using RapidAPI
           console.log("Sending request to RapidAPI for text extraction");
+          console.log("Using host:", rapidApiHost);
+          console.log("API key present:", rapidApiKey ? "Yes" : "No");
+          
           const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
             method: 'POST',
             headers: {

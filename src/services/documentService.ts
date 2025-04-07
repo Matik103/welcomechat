@@ -1,6 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { RAPIDAPI_KEY, RAPIDAPI_HOST } from '@/config/env';
 
 interface UploadResult {
   success: boolean;
@@ -96,11 +96,21 @@ export const uploadDocument = async (
         const formData = new FormData();
         formData.append('file', file);
         
+        // Get RapidAPI key from env, with hardcoded fallback
+        const rapidApiKey = RAPIDAPI_KEY;
+        const rapidApiHost = RAPIDAPI_HOST;
+        
+        if (!rapidApiKey) {
+          console.error('RapidAPI key is missing. PDF text extraction cannot be performed.');
+          processingStatus = 'extraction_failed';
+          throw new Error('RapidAPI key is missing');
+        }
+        
         const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
           method: 'POST',
           headers: {
-            'x-rapidapi-host': 'pdf-to-text-converter.p.rapidapi.com',
-            'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY || ''
+            'x-rapidapi-host': rapidApiHost,
+            'x-rapidapi-key': rapidApiKey
           },
           body: formData
         });

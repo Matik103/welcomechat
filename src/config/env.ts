@@ -13,7 +13,7 @@ export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'http://localho
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // RapidAPI settings
-export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
+export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d';
 export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
 
 // App settings

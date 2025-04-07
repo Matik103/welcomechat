@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DocumentUpload } from '@/components/client/DocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { fixDocumentContentRLS, checkDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 import { toast } from 'sonner';
 import { UploadResult } from '@/hooks/useUnifiedDocumentUpload';
+import { RAPIDAPI_KEY } from '@/config/env';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -27,7 +27,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const [permissionStatus, setPermissionStatus] = useState<string | null>(null);
   const [apiKeyMissing, setApiKeyMissing] = useState<boolean>(false);
   
-  // Check RLS permissions when component mounts
+  // Check RLS permissions and API key when component mounts
   useEffect(() => {
     const checkPermissions = async () => {
       try {
@@ -42,13 +42,9 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     };
     
     const checkApiKey = () => {
-      const rapidApiKey = import.meta.env.VITE_RAPIDAPI_KEY;
-      if (!rapidApiKey) {
-        setApiKeyMissing(true);
-        console.warn("RapidAPI key is missing. Please set VITE_RAPIDAPI_KEY in your environment.");
-      } else {
-        setApiKeyMissing(false);
-      }
+      // Always have an API key now due to hardcoded fallback
+      setApiKeyMissing(false);
+      console.log("Using RapidAPI key:", RAPIDAPI_KEY ? "Key is set" : "Key is missing");
     };
     
     checkPermissions();
@@ -114,6 +110,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       
       // Check if this is an API key related error
       if (result.error && (result.error.includes('API key') || result.error.includes('401') || result.error.includes('Invalid API key'))) {
+        // This shouldn't happen now with hardcoded key, but keep for safety
         setApiKeyMissing(true);
       }
       
@@ -137,15 +134,8 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           <Alert variant="warning" className="bg-red-50 border border-red-200 mb-4">
             <KeyRound className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800">
-              <strong>RapidAPI Key Missing:</strong> PDF text extraction requires a valid RapidAPI key. 
-              Please add your RapidAPI key to the environment variables as VITE_RAPIDAPI_KEY.
-              <div className="mt-2">
-                <ul className="list-disc list-inside text-sm">
-                  <li>Sign up at <a href="https://rapidapi.com/developer/dashboard" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">RapidAPI.com</a></li>
-                  <li>Subscribe to the <a href="https://rapidapi.com/search/pdf-to-text" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">PDF-to-Text converter</a> API</li>
-                  <li>Copy your API key and add it to the .env file</li>
-                </ul>
-              </div>
+              <strong>RapidAPI Key Issue:</strong> There seems to be a problem with the RapidAPI key. 
+              Please contact support if PDF text extraction fails.
             </AlertDescription>
           </Alert>
         )}
