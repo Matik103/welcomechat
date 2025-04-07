@@ -1,3 +1,4 @@
+
 // Define a common display mode type that can be used across components
 export type WidgetDisplayMode = 'floating' | 'inline' | 'sidebar' | string;
 
