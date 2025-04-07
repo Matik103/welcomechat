@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -13,16 +12,14 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import type { WidgetSettings as WidgetSettingsType } from '@/types/widget-settings';
 
 export function ClientWidgetSettings() {
   const { user, userId, userRole, userClientId } = useAuth();
   const { client, isLoadingClient, error, clientMutation, clientId, refetchClient } = useClientData(userClientId || '');
   const [isSetupLoading, setIsSetupLoading] = useState(false);
   
-  const widgetSettings = client?.widget_settings as WidgetSettingsType || {};
-  const hasDeepSeekAssistant = client?.deepseek_assistant_id || 
-                              (client?.widget_settings as WidgetSettingsType)?.deepseek_assistant_id;
+  const widgetSettings = client?.widget_settings || {};
+  const hasDeepSeekAssistant = client?.deepseek_assistant_id || client?.widget_settings?.deepseek_assistant_id;
   
   const handleSetupAssistant = async () => {
     if (!client?.id) {
@@ -34,8 +31,8 @@ export function ClientWidgetSettings() {
     
     try {
       const clientName = client.client_name || 'Client';
-      const agentName = (client.widget_settings as WidgetSettingsType)?.agent_name || client.agent_name || 'AI Assistant';
-      const agentDescription = (client.widget_settings as WidgetSettingsType)?.agent_description || client.agent_description || '';
+      const agentName = client.widget_settings?.agent_name || client.agent_name || 'AI Assistant';
+      const agentDescription = client.widget_settings?.agent_description || client.agent_description || '';
       
       const result = await setupDeepSeekAssistant(
         client.id,
