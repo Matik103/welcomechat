@@ -1,246 +1,175 @@
+
 import { supabase } from '@/integrations/supabase/client';
-
-interface SyncDocumentResult {
-  success: boolean;
-  fileId?: string;
-  assistantFileId?: string;
-  error?: string;
-  message?: string;
-}
-
-interface AnswerResult {
-  answer: string;
-  threadId?: string;
-  error?: string;
-}
+import { toast } from 'sonner';
 
 /**
- * Synchronizes a document with OpenAI assistant for a specific client
+ * Get an answer from OpenAI assistant via Supabase Edge Function
+ * @param clientId - The client ID
+ * @param query - The user query
+ * @returns The response with answer or error
  */
-export const syncDocumentWithOpenAI = async (
+export const getAnswerFromOpenAIAssistant = async (
   clientId: string,
-  file: File,
-  documentId?: string
-): Promise<SyncDocumentResult> => {
+  query: string
+): Promise<{
+  answer?: string;
+  error?: string;
+  documents?: any[];
+  processing_time_ms?: number;
+}> => {
   try {
-    console.log(`Syncing document ${file.name} with OpenAI assistant for client ${clientId}`);
+    console.log(`Sending query to OpenAI assistant for client ${clientId}`);
     
-    // First, get the OpenAI assistant ID for this client
-    const { data: aiAgent, error: agentError } = await supabase
-      .from('ai_agents')
-      .select('openai_assistant_id')
-      .eq('client_id', clientId)
-      .eq('interaction_type', 'config')
-      .maybeSingle();
+    // Add request timestamp for tracking
+    const timestamp = new Date().toISOString();
     
-    if (agentError) {
-      console.error('Error fetching OpenAI assistant ID:', agentError);
+    // Set up a timeout for the edge function call
+    const timeoutMs = 45000; // 45 seconds
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    // Call the edge function with the abort signal
+    const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
+      body: {
+        client_id: clientId,
+        query,
+        timestamp
+      },
+      signal: controller.signal
+    });
+    
+    // Clear the timeout
+    clearTimeout(timeoutId);
+    
+    if (error) {
+      console.error('Error calling OpenAI assistant edge function:', error);
       return { 
-        success: false, 
-        error: `Error fetching assistant: ${agentError.message}` 
+        error: `Failed to send a request to the Edge Function: ${error.message}` 
       };
     }
     
-    const assistantId = aiAgent?.openai_assistant_id;
-    
-    if (!assistantId) {
-      console.warn('No OpenAI assistant ID found for client', clientId);
+    if (!data) {
+      console.error('No data returned from OpenAI assistant edge function');
       return { 
-        success: false, 
-        error: 'No AI assistant configured for this client. Document was still uploaded successfully.' 
+        error: 'No response received from the AI service' 
       };
     }
     
-    console.log(`Found OpenAI assistant ID: ${assistantId}`);
+    console.log('Response from OpenAI assistant edge function:', {
+      hasAnswer: !!data.answer,
+      answerLength: data.answer?.length || 0,
+      hasError: !!data.error,
+      processingTimeMs: data.processing_time_ms
+    });
     
-    try {
-      // Convert file to base64
-      const fileData = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64data = reader.result as string;
-          resolve(base64data.split(',')[1]); // Remove data URL prefix
-        };
-        reader.readAsDataURL(file);
-      });
-
-      // Call the Edge Function with the file data
-      const { data, error } = await supabase.functions.invoke('upload-file-to-openai', {
-        body: {
-          client_id: clientId,
-          file_data: fileData,
-          file_name: file.name,
-          file_type: file.type
-        }
-      });
-      
-      if (error) {
-        console.error('Error uploading file to OpenAI:', error);
-        return { 
-          success: false, 
-          error: `Error uploading to OpenAI: ${error.message}` 
-        };
-      }
-      
-      console.log('File uploaded to OpenAI successfully:', data);
-      
-      if (data.document_id) {
-        // Update the document record with the OpenAI file ID if we have a document ID
-        if (documentId) {
-          const { error: updateError } = await supabase
-            .from('ai_documents')
-            .update({ 
-              status: 'completed'
-            })
-            .eq('id', documentId);
-          
-          if (updateError) {
-            console.error('Error updating document status:', updateError);
-            // Non-critical error, we still uploaded the file successfully
-          }
-        }
-        
-        return {
-          success: true,
-          fileId: data.document_id,
-          message: 'Document synchronized with OpenAI assistant successfully'
-        };
-      } else {
-        return {
-          success: false,
-          error: data.message || 'Unknown error from OpenAI file upload'
-        };
-      }
-    } catch (fetchError) {
-      console.error('Fetch error in syncDocumentWithOpenAI:', fetchError);
-      
+    if (data.error) {
       return {
-        success: false,
-        error: fetchError instanceof Error ? fetchError.message : 'Error connecting to OpenAI'
+        answer: data.answer, // May still have a fallback answer even with error
+        error: data.error
       };
     }
-  } catch (error) {
-    console.error('Error in syncDocumentWithOpenAI:', error);
+    
     return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error syncing document'
+      answer: data.answer,
+      documents: data.documents,
+      processing_time_ms: data.processing_time_ms
+    };
+  } catch (error: any) {
+    console.error('Exception in getAnswerFromOpenAIAssistant:', error);
+    
+    // Special handling for timeout errors
+    if (error.name === 'AbortError') {
+      return {
+        error: 'The request timed out. The service might be busy or experiencing issues.'
+      };
+    }
+    
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 };
 
 /**
- * Gets an answer from OpenAI assistant for a specific client
+ * Upload file to OpenAI assistant via Supabase Edge Function
  */
-export const getAnswerFromOpenAIAssistant = async (
+export const uploadFileToOpenAIAssistant = async (
   clientId: string,
-  query: string
-): Promise<AnswerResult> => {
+  assistantId: string,
+  file: File
+): Promise<{
+  success: boolean;
+  message: string;
+  document_id?: string;
+  openai_file_id?: string;
+}> => {
   try {
-    console.log(`Getting answer from OpenAI assistant for client ${clientId}: "${query}"`);
+    console.log(`Uploading file to OpenAI assistant for client ${clientId}`);
     
-    // Add debug info to help track network issues
-    const timestamp = new Date().toISOString();
-    console.log(`Request details: timestamp=${timestamp}, clientId=${clientId}`);
+    // Convert file to base64
+    const fileData = await readFileAsBase64(file);
     
-    // Use Promise with timeout for better error handling
-    const fetchWithTimeout = async () => {
-      try {
-        // Call the query-openai-assistant Edge Function
-        const response = await supabase.functions.invoke('query-openai-assistant', {
-          body: { 
-            client_id: clientId, 
-            query,
-            timestamp  // Add timestamp for correlation in logs
-          },
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.error) {
-          console.error('Edge function invocation error:', response.error);
-          throw new Error(`Edge function error: ${response.error.message || JSON.stringify(response.error)}`);
-        }
-        
-        return response.data;
-      } catch (error) {
-        console.error('Edge function fetch error:', error);
-        throw error;
+    const { data, error } = await supabase.functions.invoke('upload-file-to-openai', {
+      body: {
+        client_id: clientId,
+        assistant_id: assistantId,
+        file_data: fileData,
+        file_type: file.type,
+        file_name: file.name
       }
-    };
-    
-    // Create a timeout promise
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error('Request timed out after 15 seconds'));
-      }, 15000);
     });
     
-    // Race between the fetch and the timeout
-    const data = await Promise.race([fetchWithTimeout(), timeoutPromise]);
-    
-    console.log('Response data from Edge Function:', data);
-    
-    // Handle different response formats from the edge function
-    if (!data) {
-      throw new Error('No data received from Edge Function');
-    }
-    
-    if (data?.error) {
-      console.error('Error in Edge Function response:', data.error);
-      return {
-        answer: "I'm sorry, I encountered a specific error: " + data.error,
-        error: data.error
+    if (error) {
+      console.error('Error calling upload-file-to-openai function:', error);
+      return { 
+        success: false,
+        message: `Failed to upload: ${error.message}` 
       };
     }
     
-    if (data?.answer) {
-      return {
-        answer: data.answer,
-        threadId: data.thread_id
-      };
-    } else if (typeof data === 'string') {
-      return {
-        answer: data
-      };
-    } else if (data?.messages && Array.isArray(data.messages)) {
-      const lastMessage = data.messages[data.messages.length - 1]?.content;
-      return {
-        answer: lastMessage || "I couldn't generate a proper response."
-      };
-    } else {
-      console.warn('Unexpected response format from query-openai-assistant:', data);
-      return {
-        answer: "I received your question but couldn't generate a proper response.",
-        error: 'Unexpected response format'
+    if (!data || data.error) {
+      const errorMessage = data?.error || 'Unknown error';
+      console.error('Error from upload-file-to-openai function:', errorMessage);
+      return { 
+        success: false,
+        message: `Upload failed: ${errorMessage}`
       };
     }
-  } catch (error) {
-    console.error('Error in getAnswerFromOpenAIAssistant:', error);
     
-    // Provide specific error messages based on the error type
-    if (error instanceof Error) {
-      if (error.message.includes('timeout')) {
-        return {
-          answer: "I'm sorry, the request timed out. The server might be temporarily unavailable.",
-          error: `Request timeout: ${error.message}`
-        };
-      } else if (error.message.includes('fetch') || error.message.includes('network')) {
-        return {
-          answer: "I'm having trouble connecting to my knowledge base. This might be due to network connectivity issues.",
-          error: `Network error: ${error.message}`
-        };
-      } else if (error.message.includes('Edge function')) {
-        return {
-          answer: "I'm having trouble connecting to my knowledge base. The AI service might be temporarily unavailable.",
-          error: error.message
-        };
-      }
-    }
+    console.log('File uploaded successfully:', data);
     
     return {
-      answer: "I'm sorry, I encountered an error while processing your question.",
-      error: error instanceof Error ? error.message : 'Unknown error'
+      success: true,
+      message: data.message || 'File uploaded successfully',
+      document_id: data.document?.id,
+      openai_file_id: data.document?.openai_file_id
+    };
+  } catch (error) {
+    console.error('Exception in uploadFileToOpenAIAssistant:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error during upload'
     };
   }
+};
+
+/**
+ * Helper function to read file as base64
+ */
+const readFileAsBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      let result = reader.result as string;
+      // Remove the data URL prefix
+      if (result.includes('base64,')) {
+        result = result.split('base64,')[1];
+      }
+      resolve(result);
+    };
+    reader.onerror = (error) => {
+      reject(error);
+    };
+  });
 };

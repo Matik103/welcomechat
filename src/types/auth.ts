@@ -13,7 +13,7 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   isLoading: boolean;
   userRole: UserRole;
-  clientId: string | null; // Including clientId in the interface
+  clientId: string | null;
   refreshUserRole: () => Promise<void>;
 }
 

@@ -21,7 +21,7 @@ export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '109e60ef56msh0
 export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
 
 // OpenAI API key with updated value
-export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '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';
+export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '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';
 
 // Validate required environment variables in development only
 if (!IS_PRODUCTION && !RAPIDAPI_KEY) {
