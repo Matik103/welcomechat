@@ -20,9 +20,6 @@ export const EDGE_FUNCTIONS_URL = import.meta.env.VITE_EDGE_FUNCTION_URL || SUPA
 export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d';
 export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
 
-// OpenAI API key with updated value
-export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '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';
-
 // Validate required environment variables in development only
 if (!IS_PRODUCTION && !RAPIDAPI_KEY) {
   console.warn('Missing required environment variable: VITE_RAPIDAPI_KEY');
@@ -67,7 +64,6 @@ export const validateEnvironment = () => {
   if (!SUPABASE_URL) issues.push('Missing Supabase URL');
   if (!SUPABASE_ANON_KEY) issues.push('Missing Supabase Anon Key');
   if (!RAPIDAPI_KEY) issues.push('Missing RapidAPI Key');
-  if (!OPENAI_API_KEY) issues.push('Missing OpenAI API Key'); // Added OpenAI API key check
   
   return {
     valid: issues.length === 0,
