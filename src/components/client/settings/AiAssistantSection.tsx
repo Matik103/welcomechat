@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { EmbedCodeCard } from "@/components/widget/EmbedCodeCard";
-import { safeOpenAIUtils } from "@/utils/safeOpenAIUtils";
+import { setupDeepSeekAssistant } from "@/utils/clientDeepSeekUtils";
 
 interface AiAssistantSectionProps {
   settings: WidgetSettings;
@@ -25,27 +25,32 @@ export function AiAssistantSection({
   const [isUpdatingAssistant, setIsUpdatingAssistant] = useState(false);
   
   const handleUpdateSystemPrompt = () => {
-    if (!settings.agent_description) {
-      toast.error("System prompt cannot be empty");
+    if (!settings.agent_name) {
+      toast.error("Assistant name cannot be empty");
       return;
     }
     
     setIsUpdatingAssistant(true);
     
-    // Use safe utility to update assistant config without making actual API calls
-    safeOpenAIUtils.createAssistant(
+    // Use the DeepSeek setup utility to configure an assistant
+    setupDeepSeekAssistant(
       clientId,
       settings.agent_name,
-      settings.agent_description
+      settings.agent_description || "",
+      settings.client_name || settings.agent_name
     )
-      .then(() => {
-        toast.success("AI Assistant configuration updated successfully");
-        // Update settings to use DeepSeek instead
-        onSettingsChange({
-          deepseek_enabled: true,
-          deepseek_model: 'deepseek-chat',
-          openai_enabled: false
-        } as any);
+      .then((result) => {
+        if (result.success) {
+          toast.success("AI Assistant configuration updated successfully");
+          // Update settings to use DeepSeek
+          onSettingsChange({
+            deepseek_enabled: true,
+            deepseek_model: 'deepseek-chat',
+            openai_enabled: false
+          });
+        } else {
+          toast.error(`Failed to update AI Assistant: ${result.message}`);
+        }
       })
       .catch((error) => {
         console.error("Error updating AI assistant:", error);

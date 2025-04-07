@@ -16,6 +16,7 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useClientData } from "@/hooks/useClientData";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
+import { setupDeepSeekAssistant } from "@/utils/clientDeepSeekUtils";
 
 export default function WidgetSettings() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -54,8 +55,25 @@ export default function WidgetSettings() {
           logo_url: settings.logo_url
         }
       });
+
+      // Auto-setup DeepSeek assistant if none exists
+      if (clientId && client && !client.deepseek_assistant_id && !isLoading) {
+        console.log("No DeepSeek assistant found, auto-configuring...");
+        setupDeepSeekAssistant(
+          clientId,
+          client.agent_name || settings?.agent_name || "AI Assistant",
+          client.agent_description || settings?.agent_description || "",
+          client.client_name || "Client"
+        ).then(result => {
+          if (result.success) {
+            console.log("Auto-configured DeepSeek assistant:", result);
+            refetch();
+            refetchClient();
+          }
+        });
+      }
     }
-  }, [client, settings, isLoadingClient]);
+  }, [client, settings, isLoadingClient, clientId, isLoading, refetch, refetchClient]);
 
   // Update widget settings mutation
   const updateSettingsMutation = useMutation({
@@ -66,6 +84,14 @@ export default function WidgetSettings() {
         
         // Make sure we have a client name for the activity log
         const clientName = client?.client_name || newSettings.agent_name || "Unknown";
+        
+        // Also ensure the DeepSeek assistant is set up
+        await setupDeepSeekAssistant(
+          clientId,
+          newSettings.agent_name || "AI Assistant",
+          newSettings.agent_description || "",
+          clientName
+        );
         
         // Log the activity with safe activity type and client name
         await logClientActivity("widget_settings_updated", 

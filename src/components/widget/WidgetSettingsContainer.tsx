@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WidgetSection } from "@/components/client/settings/WidgetSection";
@@ -9,6 +9,8 @@ import { WidgetSettings } from "@/types/widget-settings";
 import { EmbedCodeCard } from "./EmbedCodeCard";
 import { toast } from "sonner";
 import { WidgetPreviewCard } from "./WidgetPreviewCard";
+import { AiAssistantSection } from "@/components/client/settings/AiAssistantSection";
+import { setupDeepSeekAssistant } from "@/utils/clientDeepSeekUtils";
 
 interface UpdateSettingsMutation {
   isPending: boolean;
@@ -43,6 +45,14 @@ export function WidgetSettingsContainer({
   };
   
   const [activeSettings, setActiveSettings] = useState<WidgetSettings>(initialSettings);
+  const [activeTab, setActiveTab] = useState<string>("widget");
+  
+  // Auto-setup DeepSeek if needed
+  useEffect(() => {
+    if (clientId && !settings.deepseek_assistant_id) {
+      console.log("No DeepSeek assistant ID found in widget container, might need setup");
+    }
+  }, [clientId, settings]);
   
   const handleSettingsChange = (partialSettings: Partial<WidgetSettings>) => {
     setActiveSettings((prev) => ({ ...prev, ...partialSettings }));
@@ -93,26 +103,42 @@ export function WidgetSettingsContainer({
             {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>
-
-        <div className="space-y-6">
-          <WidgetSection
-            settings={activeSettings}
-            isUploading={isUploading}
-            onSettingsChange={handleSettingsChange}
-            onLogoUpload={handleLogoUpload}
-          />
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="widget">Widget Settings</TabsTrigger>
+            <TabsTrigger value="ai">AI Assistant</TabsTrigger>
+          </TabsList>
           
-          {/* Widget Preview Card - as the 3rd card */}
-          <WidgetPreviewCard
-            settings={activeSettings}
-            clientId={clientId}
-          />
+          <TabsContent value="widget" className="space-y-6">
+            <WidgetSection
+              settings={activeSettings}
+              isUploading={isUploading}
+              onSettingsChange={handleSettingsChange}
+              onLogoUpload={handleLogoUpload}
+            />
+            
+            <WidgetPreviewCard
+              settings={activeSettings}
+              clientId={clientId}
+            />
+            
+            <EmbedCodeCard 
+              settings={activeSettings} 
+              onCopy={handleCopyCode}
+            />
+          </TabsContent>
           
-          <EmbedCodeCard 
-            settings={activeSettings} 
-            onCopy={handleCopyCode}
-          />
-        </div>
+          <TabsContent value="ai" className="space-y-6">
+            {clientId && (
+              <AiAssistantSection 
+                settings={activeSettings}
+                onSettingsChange={handleSettingsChange}
+                clientId={clientId}
+              />
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

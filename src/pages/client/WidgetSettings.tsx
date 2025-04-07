@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { useNavigation } from "@/hooks/useNavigation";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
 import { useClientData } from "@/hooks/useClientData";
-import { useEffect } from "react";
+import { setupDeepSeekAssistant } from "@/utils/clientDeepSeekUtils";
 
 export default function WidgetSettings() {
   const { user } = useAuth();
@@ -42,8 +42,25 @@ export default function WidgetSettings() {
         clientAgentName: client.agent_name,
         settingsAgentName: settings.agent_name
       });
+      
+      // Auto-setup DeepSeek assistant if none exists
+      if (clientId && client && !client.deepseek_assistant_id && !isLoading) {
+        console.log("No DeepSeek assistant found in client view, auto-configuring...");
+        setupDeepSeekAssistant(
+          clientId,
+          client.agent_name || settings?.agent_name || "AI Assistant",
+          client.agent_description || settings?.agent_description || "",
+          client.client_name || "Client"
+        ).then(result => {
+          if (result.success) {
+            console.log("Auto-configured DeepSeek assistant:", result);
+            refetch();
+            refetchClient();
+          }
+        });
+      }
     }
-  }, [client, settings, clientId]);
+  }, [client, settings, clientId, isLoading, refetch, refetchClient]);
 
   // Ensure settings has the clientId
   const enhancedSettings = settings ? { ...settings, clientId } : { ...defaultSettings, clientId };
@@ -55,6 +72,14 @@ export default function WidgetSettings() {
         await updateWidgetSettings(clientId, { ...newSettings, clientId });
         
         const clientName = client?.client_name || settings?.agent_name || "Unknown";
+        
+        // Also ensure the DeepSeek assistant is set up
+        await setupDeepSeekAssistant(
+          clientId,
+          newSettings.agent_name || "AI Assistant",
+          newSettings.agent_description || "",
+          clientName
+        );
         
         await logClientActivity("widget_settings_updated", 
           `Widget settings updated for "${clientName}"`, 
