@@ -36,7 +36,7 @@ export const WidgetSettingsContainer = ({
         if (widgetSettings) {
           window.ItTalentAi.customSettings = {
             ...window.ItTalentAi.customSettings,
-            clientId: clientId || widgetSettings.clientId || widgetSettings.client_id,
+            clientId: clientId || widgetSettings.client_id,
             agentName: widgetSettings.agent_name || 'AI Assistant',
             agentDescription: widgetSettings.agent_description || '',
             primaryColor: widgetSettings.color || '#4F46E5',
