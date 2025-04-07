@@ -13,7 +13,7 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
   // Use refs to track initialization state without causing rerenders
   const initializationRef = useRef<boolean>(false);
   
-  // Optimized app initialization
+  // Optimized app initialization with shorter timeouts
   useEffect(() => {
     // Only initialize once and prevent duplicate initialization
     if (initializationAttempted || initializationRef.current) return;
@@ -47,26 +47,17 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
         const isConfigured = isAdminClientConfigured();
         setAdminConfigError(!isConfigured);
         
+        // Complete initialization regardless of admin config status
+        setIsInitializing(false);
+        setIsLoading(false);
+        
+        // Initialize bucket in the background without blocking UI
         if (isConfigured) {
-          // Initialize bucket but don't wait too long
-          try {
-            const bucketInitPromise = initializeBotLogosBucket();
-            // Use a shorter timeout
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Bucket initialization timeout')), 1000)
-            );
-            
-            await Promise.race([bucketInitPromise, timeoutPromise]);
-            console.log('Bot logos bucket initialized successfully');
-          } catch (error) {
-            console.warn('Non-blocking bucket initialization error (continuing):', error);
-          }
+          initializeBotLogosBucket()
+            .catch(error => console.warn('Non-blocking bucket initialization error:', error));
         }
       } catch (error) {
         console.warn('Non-critical initialization error (continuing):', error);
-      } finally {
-        // Always complete initialization to avoid being stuck
-        console.log('Completing initialization');
         setIsInitializing(false);
         setIsLoading(false);
       }
@@ -75,14 +66,14 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
     // Start initialization but don't block UI
     initializeApp();
     
-    // Short timeout for initialization - simply complete it after 1 second
+    // Very short timeout for initialization - complete it after 500ms
     const timeoutId = setTimeout(() => {
       if (isInitializing) {
         console.log('Completing initialization after timeout');
         setIsInitializing(false);
         setIsLoading(false);
       }
-    }, 1000);
+    }, 500);
     
     return () => clearTimeout(timeoutId);
   }, [location.pathname, user, userRole, isLoading, isInitializing, setIsLoading, initializationAttempted]);

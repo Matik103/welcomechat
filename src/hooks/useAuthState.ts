@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session, User } from '@supabase/supabase-js';
 
@@ -11,9 +11,8 @@ export function useAuthState() {
   const [clientId, setClientId] = useState<string | null>(null);
 
   // Function to check user role from the user_roles table
-  const checkUserRole = async (userId: string) => {
+  const checkUserRole = useCallback(async (userId: string) => {
     try {
-      console.log('Checking user role for user ID:', userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, client_id')
@@ -25,7 +24,6 @@ export function useAuthState() {
         return { role: null, clientId: null };
       }
 
-      console.log('Found user role data:', data);
       return { 
         role: data?.role as 'admin' | 'client' | null,
         clientId: data?.client_id
@@ -34,28 +32,38 @@ export function useAuthState() {
       console.error('Exception checking user role:', err);
       return { role: null, clientId: null };
     }
-  };
+  }, []);
+
+  // Try to load from session storage first for instant UI
+  useEffect(() => {
+    const cachedState = sessionStorage.getItem('auth_state_cache');
+    if (cachedState) {
+      try {
+        const state = JSON.parse(cachedState);
+        if (state.role) {
+          setUserRole(state.role);
+          // This will get overwritten if needed when the real auth check completes
+          setIsLoading(false);
+        }
+      } catch (e) {
+        console.error('Error parsing cached auth state:', e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        setIsLoading(true);
-        console.log('Initializing auth state');
-        
         // Get the current session
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
-          setUser(null);
-          setSession(null);
-          setUserRole(null);
-          setClientId(null);
+          setIsLoading(false);
           return;
         }
 
         if (currentSession) {
-          console.log('Session found');
           setSession(currentSession);
           setUser(currentSession.user);
           
@@ -64,28 +72,24 @@ export function useAuthState() {
             const { role, clientId: userClientId } = await checkUserRole(currentSession.user.id);
             setUserRole(role);
             setClientId(userClientId);
-            console.log(`User role set to: ${role}, client ID: ${userClientId}`);
           }
-        } else {
-          console.log('No session found');
-          setUser(null);
-          setSession(null);
-          setUserRole(null);
-          setClientId(null);
         }
       } catch (err) {
         console.error('Error in auth initialization:', err);
       } finally {
+        // Always complete loading after a reasonable time
         setIsLoading(false);
       }
     };
+
+    const initTimeout = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
 
     initializeAuth();
 
     // Set up subscription for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log('Auth state changed:', event);
-      
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setSession(newSession);
         setUser(newSession?.user || null);
@@ -95,7 +99,6 @@ export function useAuthState() {
           const { role, clientId: userClientId } = await checkUserRole(newSession.user.id);
           setUserRole(role);
           setClientId(userClientId);
-          console.log(`User role set to: ${role}, client ID: ${userClientId}`);
         }
       }
       
@@ -105,13 +108,16 @@ export function useAuthState() {
         setUserRole(null);
         setClientId(null);
       }
+      
+      setIsLoading(false);
     });
 
     // Cleanup subscription on unmount
     return () => {
+      clearTimeout(initTimeout);
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [checkUserRole]);
 
   return { user, session, isLoading, userRole, clientId };
 }
