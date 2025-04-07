@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useParams } from "react-router-dom";
-import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +15,7 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useClientData } from "@/hooks/useClientData";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
+import { useMountEffect } from "@/hooks/useMountEffect";
 
 export default function WidgetSettings() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -25,10 +25,13 @@ export default function WidgetSettings() {
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const { logClientActivity } = useClientActivity(clientId);
-  const widgetSettingsHook = useWidgetSettings(clientId || "");
-  
-  // Get client data to sync agent name
   const { client, isLoadingClient, refetchClient } = useClientData(clientId);
+  
+  useMountEffect(() => {
+    if (clientId) {
+      logClientActivity("widget_settings_viewed", "Widget settings page viewed");
+    }
+  });
 
   // Fetch widget settings
   const { data: settings, isLoading, refetch } = useQuery({
@@ -68,13 +71,15 @@ export default function WidgetSettings() {
         const clientName = client?.client_name || newSettings.agent_name || "Unknown";
         
         // Log the activity with safe activity type and client name
-        await logClientActivity("widget_settings_updated", 
+        await logClientActivity(
+          "widget_settings_updated", 
           `Widget settings updated for "${clientName}"`, 
           {
             client_name: clientName,
             agent_name: newSettings.agent_name,
             settings_changed: true
-          });
+          }
+        );
       }
     },
     onSuccess: () => {
@@ -109,19 +114,21 @@ export default function WidgetSettings() {
       const result = await handleLogoUpload(event, clientId);
       
       if (result) {
-        await widgetSettingsHook.updateLogo(result.url, result.path);
+        await updateLogo(result.url, result.path);
         
         // Make sure we have a client name for the activity log
         const clientName = client?.client_name || settings?.agent_name || "Unknown";
         
         // Log with the correct client name
-        await logClientActivity("logo_uploaded", 
+        await logClientActivity(
+          "logo_uploaded", 
           `Logo updated for "${clientName}"`, 
           {
             client_name: clientName,
             agent_name: settings?.agent_name,
             logo_url: result.url
-          });
+          }
+        );
           
         // Refetch both widget settings and client data
         refetch();
@@ -135,27 +142,51 @@ export default function WidgetSettings() {
     }
   };
 
+  // Helper function to update logo
+  const updateLogo = async (url: string, path: string): Promise<void> => {
+    try {
+      if (!clientId) throw new Error('Client ID is required');
+      
+      // Update widget settings with new logo URL
+      await updateWidgetSettings(clientId, {
+        ...enhancedSettings,
+        logo_url: url,
+        logo_storage_path: path
+      });
+      
+      // Invalidate queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['widget-settings', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      
+      toast.success('Logo updated successfully');
+    } catch (error) {
+      console.error('Error in updateLogo:', error);
+      toast.error(`Failed to update logo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
+    }
+  };
+
   if (isLoading || isLoadingClient) {
     return <ClientViewLoading />;
   }
 
-  // Create a wrapper for updateSettingsMutation to match expected props
   const updateSettingsWrapper = {
     isPending: updateSettingsMutation.isPending,
     mutateAsync: updateSettingsMutation.mutateAsync
   };
 
-  // Type-safe logClientActivity with client name
   const logActivityWrapper = async (): Promise<void> => {
     // Make sure we have a client name for the activity log
     const clientName = client?.client_name || settings?.agent_name || "Unknown";
     
-    await logClientActivity("widget_previewed", 
+    await logClientActivity(
+      "widget_previewed", 
       `Widget previewed for "${clientName}"`, 
       {
         client_name: clientName,
         agent_name: settings?.agent_name
-      });
+      }
+    );
   };
 
   return (

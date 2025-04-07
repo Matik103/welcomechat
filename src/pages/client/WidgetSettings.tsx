@@ -1,7 +1,6 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
-import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,68 +9,88 @@ import { handleLogoUpload } from "@/services/uploadService";
 import { defaultSettings } from "@/types/widget-settings";
 import type { WidgetSettings as WidgetSettingsType } from "@/types/widget-settings";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
-import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
 import { useClientData } from "@/hooks/useClientData";
-import { useEffect } from "react";
+import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
+import { ClientHeader } from "@/components/client/ClientHeader";
+import { useMountEffect } from "@/hooks/useMountEffect";
 
-export default function WidgetSettings() {
+export default function ClientWidgetSettings() {
   const { user } = useAuth();
   const clientId = user?.user_metadata?.client_id;
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const { logClientActivity } = useClientActivity(clientId || "");
-  const widgetSettingsHook = useWidgetSettings(clientId || "");
-
-  // Use useClientData with proper client ID
   const { client, isLoadingClient, refetchClient } = useClientData(clientId);
+  
+  // Use our useMountEffect hook to log activity when component mounts
+  useMountEffect(() => {
+    if (clientId) {
+      logClientActivity("widget_settings_viewed", "Widget settings page viewed");
+    }
+  });
 
-  // Fetch widget settings with proper client ID
+  // Fetch widget settings
   const { data: settings, isLoading, refetch } = useQuery({
     queryKey: ["widget-settings", clientId],
     queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
     enabled: !!clientId,
   });
 
-  // Log current data state on load for debugging
-  useEffect(() => {
-    if (client && settings) {
-      console.log("Client view - current data state:", {
-        clientId,
-        clientAgentName: client.agent_name,
-        settingsAgentName: settings.agent_name
-      });
-    }
-  }, [client, settings, clientId]);
-
   // Ensure settings has the clientId
   const enhancedSettings = settings ? { ...settings, clientId } : { ...defaultSettings, clientId };
 
+  // Sync agent name from client data when settings load
+  useEffect(() => {
+    if (!isLoadingClient && client && settings) {
+      // Only log once per load
+      console.log("Current client and settings state:", { 
+        client: {
+          agent_name: client.agent_name,
+          logo_url: client.logo_url
+        },
+        settings: {
+          agent_name: settings.agent_name,
+          logo_url: settings.logo_url
+        }
+      });
+    }
+  }, [client, settings, isLoadingClient]);
+
+  // Update widget settings mutation
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
       if (clientId) {
         // Ensure clientId is included
         await updateWidgetSettings(clientId, { ...newSettings, clientId });
         
-        const clientName = client?.client_name || settings?.agent_name || "Unknown";
+        // Make sure we have a client name for the activity log
+        const clientName = client?.client_name || newSettings.agent_name || "Unknown";
         
-        await logClientActivity("widget_settings_updated", 
+        // Log the activity with safe activity type and client name
+        await logClientActivity(
+          "widget_settings_updated", 
           `Widget settings updated for "${clientName}"`, 
           {
             client_name: clientName,
-            agent_name: settings?.agent_name,
+            agent_name: newSettings.agent_name,
             settings_changed: true
-          });
+          }
+        );
       }
     },
     onSuccess: () => {
       refetch();
+      // Also invalidate client queries to ensure bidirectional sync
       if (clientId) {
-        // Invalidate client query to ensure bidirectional sync
         queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+        // Also refetch client data to ensure bidirectional sync
         refetchClient();
       }
+      
       toast.success("Your AI assistant settings have been updated");
     },
     onError: (error) => {
@@ -91,20 +110,24 @@ export default function WidgetSettings() {
       const result = await handleLogoUpload(event, clientId);
       
       if (result) {
-        await widgetSettingsHook.updateLogo(result.url, result.path);
+        await updateLogo(result.url, result.path);
         
+        // Make sure we have a client name for the activity log
         const clientName = client?.client_name || settings?.agent_name || "Unknown";
         
-        await logClientActivity("logo_uploaded", 
+        // Log with the correct client name
+        await logClientActivity(
+          "logo_uploaded", 
           `Logo updated for "${clientName}"`, 
           {
             client_name: clientName,
             agent_name: settings?.agent_name,
             logo_url: result.url
-          });
+          }
+        );
           
+        // Refetch both widget settings and client data
         refetch();
-        queryClient.invalidateQueries({ queryKey: ['client', clientId] });
         refetchClient();
       }
     } catch (error) {
@@ -112,6 +135,30 @@ export default function WidgetSettings() {
       toast.error("Failed to upload logo. Please try again.");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Helper function to update logo
+  const updateLogo = async (url: string, path: string): Promise<void> => {
+    try {
+      if (!clientId) throw new Error('Client ID is required');
+      
+      // Update widget settings with new logo URL
+      await updateWidgetSettings(clientId, {
+        ...enhancedSettings,
+        logo_url: url,
+        logo_storage_path: path
+      });
+      
+      // Invalidate queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['widget-settings', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      
+      toast.success('Logo updated successfully');
+    } catch (error) {
+      console.error('Error in updateLogo:', error);
+      toast.error(`Failed to update logo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
     }
   };
 
@@ -125,28 +172,44 @@ export default function WidgetSettings() {
   };
 
   const logActivityWrapper = async (): Promise<void> => {
+    // Make sure we have a client name for the activity log
     const clientName = client?.client_name || settings?.agent_name || "Unknown";
     
-    await logClientActivity("widget_previewed", 
+    await logClientActivity(
+      "widget_previewed", 
       `Widget previewed for "${clientName}"`, 
       {
         client_name: clientName,
         agent_name: settings?.agent_name
-      });
+      }
+    );
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-6">
-      <WidgetSettingsContainer
-        clientId={clientId}
-        settings={enhancedSettings}
-        isClientView={true}
-        isUploading={isUploading}
-        updateSettingsMutation={updateSettingsWrapper}
-        handleBack={handleNavigateBack}
-        handleLogoUpload={handleLogoUploadChange}
-        logClientActivity={logActivityWrapper}
-      />
+    <div className="min-h-screen bg-gray-50">
+      <ClientHeader />
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-6">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="mb-4 flex items-center gap-1"
+          onClick={handleNavigateBack}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </Button>
+        
+        <WidgetSettingsContainer
+          clientId={clientId}
+          settings={enhancedSettings}
+          isClientView={true}
+          isUploading={isUploading}
+          updateSettingsMutation={updateSettingsWrapper}
+          handleBack={handleNavigateBack}
+          handleLogoUpload={handleLogoUploadChange}
+          logClientActivity={logActivityWrapper}
+        />
+      </div>
     </div>
   );
 }
