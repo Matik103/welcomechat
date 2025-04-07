@@ -8,7 +8,7 @@ interface InteractionStatsProps {
   isLoading?: boolean;
 }
 
-export const InteractionStats = ({ stats, isLoading = false }: InteractionStatsProps) => {
+export function InteractionStats({ stats, isLoading = false }: InteractionStatsProps) {
   if (isLoading) {
     return (
       <>
@@ -48,7 +48,7 @@ export const InteractionStats = ({ stats, isLoading = false }: InteractionStatsP
       />
     </>
   );
-};
+}
 
 interface StatCardProps {
   title: string;
