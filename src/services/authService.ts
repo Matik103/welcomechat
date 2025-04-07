@@ -1,8 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
-
-// Define UserRole type directly as string literals
-type UserRole = 'admin' | 'client' | null;
+import { UserRole } from "@/types/auth"; // Import UserRole from types
 
 /**
  * Get the current user's role with improved error handling and timeouts

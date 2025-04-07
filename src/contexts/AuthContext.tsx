@@ -5,13 +5,17 @@ import { User, Session } from '@supabase/supabase-js';
 import { getUserRole, checkAndRefreshAuth } from '@/services/authService';
 import { toast } from 'sonner';
 
+// Export UserRole type so it can be used by other files
+export type UserRole = 'admin' | 'client' | null;
+
 interface AuthContextType {
   user: User | null;
-  userRole: 'admin' | 'client' | null;
+  userRole: UserRole;
   session: Session | null;
   isLoading: boolean;
+  clientId: string | null; // Add clientId property to the interface
   signOut: () => Promise<void>;
-  refreshUserRole: () => Promise<void>;
+  refreshUserRole: () => Promise<void>; // Change return type to match interface
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   userRole: null,
   session: null,
   isLoading: true,
+  clientId: null, // Initialize with null
   signOut: async () => {},
   refreshUserRole: async () => {},
 });
@@ -32,9 +37,10 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [userRole, setUserRole] = useState<'admin' | 'client' | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [authInitialized, setAuthInitialized] = useState<boolean>(false);
+  const [clientId, setClientId] = useState<string | null>(null); // Add clientId state
   
   // Function to refresh user role
   const refreshUserRole = async () => {
@@ -44,13 +50,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const role = await getUserRole();
         console.log("User role refreshed:", role);
         setUserRole(role);
-        return role;
+        
+        // Check if the role has an associated client ID
+        if (role === 'client') {
+          try {
+            const { data, error } = await supabase
+              .from('user_roles')
+              .select('client_id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+              
+            if (!error && data && data.client_id) {
+              setClientId(data.client_id);
+              console.log("Client ID set:", data.client_id);
+            }
+          } catch (err) {
+            console.error("Error fetching client ID:", err);
+          }
+        }
+        
+        // Return void to match interface
       } catch (err) {
         console.error("Error refreshing user role:", err);
-        return null;
       }
     }
-    return null;
   };
 
   // Handle auth state changes
@@ -58,7 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log("Setting up auth state listener");
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         console.log("Auth state changed:", event);
         
         setSession(currentSession);
@@ -66,13 +89,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           // Wait a moment before fetching the role to ensure auth is fully processed
-          setTimeout(() => {
-            refreshUserRole();
+          setTimeout(async () => {
+            await refreshUserRole();
           }, 100);
         }
         
         if (event === 'SIGNED_OUT') {
           setUserRole(null);
+          setClientId(null);
         }
       }
     );
@@ -92,6 +116,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const role = await getUserRole();
             console.log("User role determined:", role);
             setUserRole(role);
+            
+            // Fetch client ID if the user is a client
+            if (role === 'client') {
+              try {
+                const { data, error } = await supabase
+                  .from('user_roles')
+                  .select('client_id')
+                  .eq('user_id', currentSession.user.id)
+                  .maybeSingle();
+                  
+                if (!error && data && data.client_id) {
+                  setClientId(data.client_id);
+                  console.log("Client ID set:", data.client_id);
+                }
+              } catch (err) {
+                console.error("Error fetching client ID:", err);
+              }
+            }
           } catch (error) {
             console.error("Error fetching user role:", error);
           }
@@ -152,6 +194,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(null);
       setSession(null);
       setUserRole(null);
+      setClientId(null);
     } catch (error) {
       console.error("Error signing out:", error);
       toast.error("Error signing out. Please try again.");
@@ -165,6 +208,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     userRole,
     session,
     isLoading,
+    clientId,
     signOut,
     refreshUserRole,
   };
