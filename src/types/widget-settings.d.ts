@@ -46,6 +46,11 @@ export interface WidgetSettings {
 // Default settings if needed
 export const defaultSettings: WidgetSettings = {
   agent_name: "AI Assistant",
+  agent_description: "",
+  logo_url: "",
+  logo_storage_path: "",
+  logo: "",
+  logo_path: "",
   chat_color: "#4F46E5",
   background_color: "#FFFFFF",
   button_color: "#4F46E5",
@@ -58,5 +63,13 @@ export const defaultSettings: WidgetSettings = {
   welcome_message: "Hello! How can I help you today?",
   fontFamily: "Inter, system-ui, sans-serif",
   fontSize: "md",
-  display_mode: "floating"
+  display_mode: "floating",
+  deepseek_enabled: false,
+  deepseek_model: "deepseek-chat",
+  openai_enabled: false,
+  openai_model: "",
+  openai_assistant_id: "",
+  deepseek_assistant_id: "",
+  clientId: "",
+  color: "#4F46E5"
 };
