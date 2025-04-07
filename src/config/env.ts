@@ -13,8 +13,8 @@ export const NODE_ENV = import.meta.env.MODE || 'development';
 export const EDGE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
 
 // Export other environment variables as needed
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://mgjodiqecnnltsgorife.supabase.co";
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is";
 
 // RapidAPI settings
 export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
