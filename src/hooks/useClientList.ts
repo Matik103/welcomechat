@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +9,14 @@ import { toast } from 'sonner';
 const getSettingValue = <T>(settings: Record<string, any>, key: string, defaultValue: T): T => {
   if (!settings) return defaultValue;
   return settings[key] !== undefined ? settings[key] : defaultValue;
+};
+
+// Helper function to ensure metadata is always an object
+const ensureObjectMetadata = (metadata: any): Record<string, any> => {
+  if (!metadata) return {};
+  if (typeof metadata === 'object' && metadata !== null && !Array.isArray(metadata)) return metadata;
+  // Convert non-object metadata to an object with a value property
+  return { value: metadata };
 };
 
 export const useClientList = () => {
@@ -90,7 +99,7 @@ export const useClientList = () => {
         error_type: agent.error_type || '',
         interaction_type: agent.interaction_type || '',
         is_active: agent.is_active || false,
-        metadata: agent.metadata || {},
+        metadata: ensureObjectMetadata(agent.metadata),
         model: agent.model || '',
         query_text: agent.query_text || '',
         response_time_ms: agent.response_time_ms || null,
