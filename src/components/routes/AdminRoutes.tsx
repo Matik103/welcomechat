@@ -7,7 +7,7 @@ import ClientList from "@/pages/ClientList";
 import Agents from "@/pages/Agents";
 import Settings from "@/pages/Settings";
 import ClientView from "@/pages/ClientView";
-import WidgetSettingsPage from "@/pages/WidgetSettings";
+import WidgetSettings from "@/pages/WidgetSettings";
 import EditClientInfo from "@/pages/EditClientInfo";
 import NotFound from "@/pages/NotFound";
 
@@ -23,7 +23,7 @@ export const AdminRoutes = () => {
         <Route path="/admin/agents/:agentId" element={<Agents />} />
         <Route path="/admin/settings" element={<Settings />} />
         <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
-        <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettingsPage />} />
+        <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
         <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
         <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
         <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />

@@ -1,151 +1,62 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
-import { DocumentLinksList } from './drive-links/DocumentLinksList';
-import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { DocumentType } from '@/types/document-processing';
-import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Database, Upload } from 'lucide-react';
 
 interface DriveLinksProps {
   clientId: string;
-  onResourceChange?: () => void;
-  logClientActivity: () => Promise<void>;
-  onUploadComplete?: () => void;
 }
 
-export const DriveLinks: React.FC<DriveLinksProps> = ({
-  clientId,
-  onResourceChange,
-  logClientActivity,
-  onUploadComplete
-}) => {
-  const [activeTab, setActiveTab] = useState('links');
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+export function DriveLinks({ clientId }: DriveLinksProps) {
+  const { uploadDocument, isUploading } = useUnifiedDocumentUpload(clientId);
+  const [isConnecting, setIsConnecting] = useState(false);
 
-  const {
-    documentLinks,
-    isLoading,
-    error,
-    addDocumentLink,
-    deleteDocumentLink,
-    refetch
-  } = useDocumentLinks(clientId);
-
-  const {
-    upload,
-    isLoading: isUploading,
-    uploadProgress
-  } = useUnifiedDocumentUpload({
-    clientId,
-    onSuccess: () => {
-      if (onUploadComplete) onUploadComplete();
-      toast.success('Document uploaded successfully');
-    },
-    onError: (error) => {
-      toast.error(`Upload failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  });
-
-  const handleAddLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
+  const handleConnectDrive = async () => {
+    setIsConnecting(true);
     try {
-      const enhancedData = {
-        ...data,
-        document_type: (data.document_type || 'google_drive') as DocumentType
-      };
+      // Placeholder for future drive integration
+      toast.info("Google Drive integration coming soon!");
       
-      await addDocumentLink.mutateAsync(enhancedData);
-      toast.success('Document link added successfully');
-      
-      if (refetch) {
-        await refetch();
-      }
-      
-      if (onResourceChange) {
-        onResourceChange();
-      }
-    } catch (error) {
-      console.error('Error adding link:', error);
-      toast.error('Failed to add document link');
-    }
-  };
-
-  const handleDeleteLink = async (linkId: number) => {
-    try {
-      setDeletingId(linkId);
-      await deleteDocumentLink.mutateAsync(linkId);
-      toast.success('Document link deleted successfully');
-      
-      if (refetch) {
-        await refetch();
-      }
-      
-      if (onResourceChange) {
-        onResourceChange();
-      }
-    } catch (error) {
-      console.error('Error deleting link:', error);
-      toast.error('Failed to delete document link');
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleDriveUpload = async (file: File): Promise<void> => {
-    try {
-      const result = await upload(file);
-      if (result?.success) {
-        await logClientActivity();
-      }
-    } catch (error) {
-      console.error('Drive upload failed:', error);
+      // Simulating connection process
+      setTimeout(() => {
+        setIsConnecting(false);
+      }, 1500);
+    } catch (error: any) {
+      toast.error(`Failed to connect to Google Drive: ${error.message}`);
+      setIsConnecting(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Document Management</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="links">Google Drive Links</TabsTrigger>
-            <TabsTrigger value="upload">Upload Document</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="links">
-            <div className="space-y-6">
-              <DocumentLinkForm
-                onSubmit={handleAddLink}
-                isSubmitting={addDocumentLink.isPending}
-                agentName="AI Assistant"
-              />
-              
-              <DocumentLinksList
-                links={documentLinks || []}
-                onDelete={handleDeleteLink}
-                isLoading={isLoading}
-                isDeleting={deleteDocumentLink.isPending}
-                deletingId={deletingId}
-              />
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="upload">
-            <DocumentUploadForm
-              onSubmitDocument={handleDriveUpload}
-              isUploading={isUploading}
-              uploadProgress={uploadProgress}
-            />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
+    <Card className="p-4">
+      <h3 className="text-lg font-semibold mb-4">Connect to Google Drive</h3>
+      <p className="text-sm text-gray-500 mb-4">
+        Connect your Google Drive to automatically import documents.
+      </p>
+      
+      <Button 
+        onClick={handleConnectDrive} 
+        className="w-full"
+        disabled={isConnecting}
+      >
+        {isConnecting ? (
+          <span className="flex items-center">
+            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Connecting...
+          </span>
+        ) : (
+          <span className="flex items-center">
+            <Database className="h-4 w-4 mr-2" />
+            Connect to Google Drive
+          </span>
+        )}
+      </Button>
     </Card>
   );
-};
-
-export default DriveLinks;
+}

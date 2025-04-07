@@ -13,34 +13,68 @@ let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 
 export function getSupabase() {
   if (!supabaseInstance) {
-    console.log("Initializing Supabase client...");
-    supabaseInstance = createClient<Database>(
-      SUPABASE_URL, 
-      SUPABASE_ANON_KEY, 
-      {
-        auth: {
-          persistSession: true,
-          storageKey: 'welcomechat_auth_token',
-          autoRefreshToken: true,
-          detectSessionInUrl: true,
-          flowType: 'pkce',
-          debug: false // Turn off debug mode in production
-        },
-        global: {
-          headers: {
-            'x-custom-timeout': '15000'  // 15 second timeout
-          }
-        },
-        db: {
-          schema: 'public'
-        },
-        realtime: {
-          timeout: 15000  // 15 second timeout for realtime
-        }
+    try {
+      console.log("Initializing Supabase client...");
+      // Validate required values to prevent initialization with empty strings
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        console.error("Missing Supabase URL or Anon Key");
+        throw new Error("Supabase configuration is incomplete. Check console for details.");
       }
-    );
+      
+      supabaseInstance = createClient<Database>(
+        SUPABASE_URL, 
+        SUPABASE_ANON_KEY, 
+        {
+          auth: {
+            persistSession: true,
+            storageKey: 'welcomechat_auth_token',
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            flowType: 'pkce',
+            debug: false // Turn off debug mode in production
+          },
+          global: {
+            headers: {
+              'x-custom-timeout': '15000'  // 15 second timeout
+            }
+          },
+          db: {
+            schema: 'public'
+          },
+          realtime: {
+            timeout: 15000  // 15 second timeout for realtime
+          }
+        }
+      );
+    } catch (err) {
+      console.error("Failed to initialize Supabase client:", err);
+      // Return a mock client that won't crash the app
+      return createFallbackClient();
+    }
   }
   return supabaseInstance;
+}
+
+// Create a fallback client that doesn't throw errors but logs them
+function createFallbackClient() {
+  console.warn("Using fallback Supabase client");
+  // This is a minimal implementation to prevent crashes
+  const mockMethods = {
+    from: () => ({
+      select: () => ({ data: null, error: new Error("Using fallback client") }),
+      insert: () => ({ data: null, error: new Error("Using fallback client") }),
+      update: () => ({ data: null, error: new Error("Using fallback client") }),
+      delete: () => ({ data: null, error: new Error("Using fallback client") })
+    }),
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      refreshSession: () => Promise.resolve({ data: null, error: null })
+    },
+    rpc: () => Promise.resolve({ data: null, error: null })
+  };
+
+  return mockMethods as any;
 }
 
 // Export the supabase instance

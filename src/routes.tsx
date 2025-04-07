@@ -21,10 +21,11 @@ const DocumentExtractionPage = React.lazy(() => import('./pages/admin/DocumentEx
 const ClientViewPage = React.lazy(() => import('./pages/ClientView'));
 const EditClientInfoPage = React.lazy(() => import('./pages/EditClientInfo'));
 const WidgetSettingsPage = React.lazy(() => import('./pages/WidgetSettings'));
-const ClientWidgetSettingsPage = React.lazy(() => import('./pages/client/WidgetSettings'));
 const ClientResourceSettingsPage = React.lazy(() => import('./pages/client/ResourceSettings'));
 const ClientSettingsPage = React.lazy(() => import('./pages/client/Settings'));
+const ClientWidgetSettingsPage = React.lazy(() => import('./pages/client/WidgetSettings'));
 const ClientAccountSettingsPage = React.lazy(() => import('./pages/client/AccountSettings'));
+const NotFoundPage = React.lazy(() => import('./pages/NotFound'));
 
 export const routes: RouteObject[] = [
   {
@@ -82,7 +83,7 @@ export const routes: RouteObject[] = [
     ),
   },
   {
-    path: '/admin/clients/:clientId/widget-settings',
+    path: '/admin/clients/:id/widget-settings',
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><WidgetSettingsPage /></React.Suspense></ProtectedRoute>,
   },
   {
@@ -137,7 +138,7 @@ export const routes: RouteObject[] = [
   },
   {
     path: '*',
-    element: <React.Suspense fallback={<div>Loading...</div>}>Not Found</React.Suspense>,
+    element: <React.Suspense fallback={<div>Loading...</div>}><NotFoundPage /></React.Suspense>,
   },
 ];
 

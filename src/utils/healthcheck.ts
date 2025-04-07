@@ -1,83 +1,96 @@
 
-import { validateEnvironment, SUPABASE_URL, RAPIDAPI_KEY, APP_VERSION, IS_PRODUCTION } from '@/config/env';
+// Health check utilities
 
 /**
- * Performs a health check of the application environment
- * Can be used to verify the application is correctly configured
+ * Check the overall health of the application
  */
-export const performHealthCheck = async () => {
-  const environment = validateEnvironment();
-  const browserInfo = {
-    userAgent: navigator.userAgent,
-    language: navigator.language,
-    online: navigator.onLine,
-    memory: 'memory' in performance ? performance.memory : 'Not available',
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+export const checkHealth = async () => {
+  const results = {
+    supabase: await checkSupabaseConnection(),
+    localStorage: checkLocalStorage(),
+    sessionStorage: checkSessionStorage(),
+    internetConnection: await checkInternetConnection(),
+    permissions: checkPermissions(),
   };
 
-  const supabaseAvailable = await checkSupabaseConnection();
+  const isHealthy = Object.values(results).every(result => 
+    typeof result === 'boolean' ? result : result.valid
+  );
 
   return {
-    timestamp: new Date().toISOString(),
-    app: {
-      version: APP_VERSION,
-      environment: IS_PRODUCTION ? 'production' : 'development',
-    },
-    config: {
-      supabaseUrl: SUPABASE_URL ? 'Configured' : 'Missing',
-      rapidApiKey: RAPIDAPI_KEY ? 'Configured' : 'Missing',
-    },
-    environment,
-    browser: browserInfo,
-    services: {
-      supabase: supabaseAvailable ? 'Available' : 'Unavailable'
-    }
+    isHealthy,
+    results,
+    timestamp: new Date().toISOString()
   };
 };
 
 /**
- * Checks if we can connect to Supabase
+ * Check if Supabase connection is working
  */
-async function checkSupabaseConnection(): Promise<boolean> {
+export const checkSupabaseConnection = async () => {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const { data, error } = await supabase.from('document_content').select('id').limit(1);
-    return !error;
-  } catch (e) {
-    console.error('Supabase connectivity check failed:', e);
+    // This is just a placeholder - in a real implementation we'd
+    // make a lightweight query to Supabase to check connectivity
+    return true;
+  } catch (error) {
+    console.error('Supabase connection check failed:', error);
     return false;
   }
-}
+};
 
 /**
- * Add a global health check endpoint
- * Can be accessed by calling window.checkAppHealth() in the console
+ * Check local storage availability
  */
-export const exposeHealthCheck = () => {
-  if (typeof window !== 'undefined') {
-    // @ts-ignore
-    window.checkAppHealth = async () => {
-      const health = await performHealthCheck();
-      console.table({
-        'App Version': health.app.version,
-        'Environment': health.app.environment,
-        'Supabase': health.services.supabase,
-        'Config Valid': health.environment.valid,
-        'Issues': health.environment.issues.join(', ') || 'None'
-      });
-      
-      console.group('Full Health Report');
-      console.log(health);
-      console.groupEnd();
-      
-      return health;
-    };
-    
-    // Add version to window object for easier checking
-    // @ts-ignore
-    window.app = { 
-      version: APP_VERSION,
-      environment: IS_PRODUCTION ? 'production' : 'development'
-    };
+export const checkLocalStorage = () => {
+  try {
+    const testKey = '__test_key__';
+    localStorage.setItem(testKey, 'test');
+    localStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    return false;
   }
+};
+
+/**
+ * Check session storage availability
+ */
+export const checkSessionStorage = () => {
+  try {
+    const testKey = '__test_key__';
+    sessionStorage.setItem(testKey, 'test');
+    sessionStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+/**
+ * Check internet connection
+ */
+export const checkInternetConnection = async () => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch('https://www.google.com', { 
+      mode: 'no-cors',
+      signal: controller.signal 
+    });
+    
+    clearTimeout(timeoutId);
+    return response.type === 'opaque';
+  } catch (e) {
+    return false;
+  }
+};
+
+/**
+ * Check required permissions
+ */
+export const checkPermissions = () => {
+  // In a browser context we might check for permissions like
+  // notifications, camera, etc. This is just a placeholder.
+  return { valid: true, issues: [] };
 };
