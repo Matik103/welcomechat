@@ -19,11 +19,12 @@ export const useClientList = () => {
   const lastFetchTime = useRef<number>(0);
   const initialLoadDone = useRef<boolean>(false);
   const fetchTimeoutRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchClients = useCallback(async (force = false) => {
-    // Don't refetch if we just did within the last 15 seconds unless forced
+    // Don't refetch if we just did within the last 5 seconds unless forced
     const now = Date.now();
-    if (!force && now - lastFetchTime.current < 15000) {
+    if (!force && now - lastFetchTime.current < 5000) {
       console.log('Skipping fetch - too soon after last fetch');
       return;
     }
@@ -40,7 +41,15 @@ export const useClientList = () => {
     try {
       console.log('Fetching clients data...');
       
-      // Set a timeout to show error after 10 seconds
+      // Cancel any previous ongoing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Create a new abort controller for this request
+      abortControllerRef.current = new AbortController();
+      
+      // Set a timeout to show error after 20 seconds (increased from 10)
       if (fetchTimeoutRef.current) {
         window.clearTimeout(fetchTimeoutRef.current);
       }
@@ -51,8 +60,13 @@ export const useClientList = () => {
           setError(new Error('Request timed out. Please try again.'));
           setIsLoading(false);
           toast.error('Failed to load clients: Request timed out');
+          
+          // Abort the ongoing request if it's still in progress
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+          }
         }
-      }, 10000) as unknown as number;
+      }, 20000) as unknown as number; // Increased timeout from 10s to 20s
       
       let query = supabase
         .from('ai_agents')
@@ -115,6 +129,12 @@ export const useClientList = () => {
       setClients(filteredClients);
       initialLoadDone.current = true;
     } catch (error) {
+      // Ignore aborted request errors
+      if (error.name === 'AbortError') {
+        console.log('Request was aborted', error);
+        return;
+      }
+      
       console.error('Error fetching clients:', error);
       setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
       toast.error(`Failed to load clients: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -123,14 +143,33 @@ export const useClientList = () => {
     }
   }, [searchQuery, isLoading]);
   
-  // Initial fetch on component mount
+  // Initial fetch on component mount with retry logic
   useEffect(() => {
-    fetchClients(true);
+    const attemptFetch = async () => {
+      try {
+        await fetchClients(true);
+      } catch (err) {
+        console.error("Initial client fetch failed, retrying...", err);
+        
+        // Retry after a delay if initial fetch fails
+        setTimeout(() => {
+          fetchClients(true).catch(retryErr => {
+            console.error("Retry fetch failed:", retryErr);
+          });
+        }, 3000);
+      }
+    };
+    
+    attemptFetch();
     
     return () => {
-      // Clean up timeout if component unmounts
+      // Clean up timeouts and abort controllers if component unmounts
       if (fetchTimeoutRef.current) {
         window.clearTimeout(fetchTimeoutRef.current);
+      }
+      
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, [fetchClients]);
@@ -168,12 +207,19 @@ export const useClientList = () => {
     setSearchQuery(value);
   };
   
+  // Add a manual retry function that forces a refresh
+  const retryFetch = () => {
+    setError(null);
+    return fetchClients(true);
+  };
+  
   return {
     clients,
     isLoading,
     error,
     searchQuery,
     handleSearch,
-    refetch: fetchClients
+    refetch: fetchClients,
+    retry: retryFetch
   };
 };

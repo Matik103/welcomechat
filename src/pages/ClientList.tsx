@@ -6,21 +6,29 @@ import { useClientList } from '@/hooks/useClientList';
 import { toast } from 'sonner';
 import { Client } from '@/types/client';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { AddClientModal } from '@/components/client/AddClientModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function ClientList() {
-  const { clients, isLoading, error, searchQuery, handleSearch, refetch } = useClientList();
+  const { clients, isLoading, error, searchQuery, handleSearch, refetch, retry } = useClientList();
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   
   const handleDeleteClick = (client: Client) => {
     console.log('Delete clicked for client:', client.client_name);
   };
 
-  const handleRetry = () => {
+  const handleRetry = async () => {
+    setIsRetrying(true);
     toast.info("Refreshing client data...");
-    refetch(true);
+    try {
+      await retry();
+    } catch (error) {
+      console.error("Error retrying fetch:", error);
+    } finally {
+      setIsRetrying(false);
+    }
   };
 
   return (
@@ -35,10 +43,10 @@ export default function ClientList() {
             <Button
               variant="outline"
               onClick={handleRetry}
-              disabled={isLoading}
+              disabled={isLoading || isRetrying}
               className="sm:ml-auto"
             >
-              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`mr-2 h-4 w-4 ${(isLoading || isRetrying) ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
             <Button 
@@ -52,9 +60,11 @@ export default function ClientList() {
         
         {error && (
           <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4 mr-2" />
             <AlertDescription className="flex items-center justify-between">
-              <span>Error: {error.message}</span>
-              <Button variant="outline" size="sm" onClick={handleRetry}>
+              <span>Failed to load clients: {error.message}</span>
+              <Button variant="outline" size="sm" onClick={handleRetry} disabled={isRetrying}>
+                {isRetrying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 Retry
               </Button>
             </AlertDescription>
