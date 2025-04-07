@@ -28,14 +28,14 @@ export const getAnswerFromOpenAIAssistant = async (
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
-    // Call the edge function with the abort signal
+    // Call the edge function without the abort signal (it's not supported)
     const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
       body: {
         client_id: clientId,
         query,
         timestamp
-      },
-      signal: controller.signal
+      }
+      // Removed signal property as it's not supported
     });
     
     // Clear the timeout

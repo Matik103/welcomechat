@@ -64,7 +64,6 @@ function App() {
 
   // Error recovery handler
   const handleLoadingComplete = useCallback(() => {
-    console.log("Fallback loading timeout triggered");
     if (isLoading) {
       toast.warning("Loading is taking longer than expected", {
         description: "Attempting to recover..."
@@ -121,32 +120,25 @@ function App() {
 
     // Render based on user role - only calculate this when user and userRole are available
     if (user) {
-      try {
-        if (userRole === 'admin') {
-          return (
-            <Suspense fallback={<LoadingFallback message="Loading admin dashboard..." />}>
-              <AdminRoutes />
-            </Suspense>
-          );
-        }
-        
-        if (userRole === 'client') {
-          return (
-            <Suspense fallback={<LoadingFallback message="Loading client dashboard..." />}>
-              <ClientRoutes />
-            </Suspense>
-          );
-        }
-        
-        // If user is authenticated but role not determined yet, treat as loading
-        if (!userRole) {
-          return <LoadingFallback message="Determining user access..." timeoutSeconds={5} />;
-        }
-      } catch (error) {
-        console.error("Error rendering routes:", error);
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        setLoadError(`Error loading application: ${errorMessage}`);
-        return <LoadingFallback message="Error occurred. Attempting to recover..." />;
+      if (userRole === 'admin') {
+        return (
+          <Suspense fallback={<LoadingFallback message="Loading admin dashboard..." />}>
+            <AdminRoutes />
+          </Suspense>
+        );
+      }
+      
+      if (userRole === 'client') {
+        return (
+          <Suspense fallback={<LoadingFallback message="Loading client dashboard..." />}>
+            <ClientRoutes />
+          </Suspense>
+        );
+      }
+      
+      // If user is authenticated but role not determined yet, treat as loading
+      if (!userRole) {
+        return <LoadingFallback message="Determining user access..." timeoutSeconds={5} />;
       }
     }
     
