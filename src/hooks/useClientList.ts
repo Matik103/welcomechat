@@ -94,15 +94,14 @@ export const useClientList = () => {
           widget_settings: parsedSettings,
           // Add missing properties with default values
           user_id: '',
-          // Handle potentially missing properties safely
-          company: agent.company !== undefined ? agent.company : '',
-          description: agent.description !== undefined ? agent.description : '',
+          company: agent.company || '',
+          description: agent.description || '',
           logo_storage_path: agent.logo_storage_path || '',
           deletion_scheduled_at: agent.deletion_scheduled_at || null,
           deleted_at: agent.deleted_at || null,
           last_active: agent.last_active || null,
           name: agent.name || '',
-          is_error: agent.is_error !== undefined ? agent.is_error : false
+          is_error: agent.is_error || false
         };
       });
       

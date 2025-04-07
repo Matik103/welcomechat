@@ -39,8 +39,8 @@ export const useAuthSafetyTimeout = ({
       }
     }
     
-    // Use an extremely short timeout - 300ms is enough to prevent blank screens without causing noticeable delay
-    const timeoutDuration = 300;
+    // Use a shorter timeout - 1 second is enough to prevent blank screens
+    const timeoutDuration = 1000;
     
     const safetyTimeout = setTimeout(() => {
       if (isLoading) {

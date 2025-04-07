@@ -12,25 +12,6 @@ export const EDGE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL || 'http://l
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// RapidAPI configuration
-// Using a hardcoded fallback key for development if environment variable is not set
-export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d';
-export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
-
 // App settings
 export const APP_VERSION = '1.0.0';
 export const IS_PRODUCTION = import.meta.env.PROD;
-
-// Validate required environment variables in development
-if (!IS_PRODUCTION) {
-  const missingVars = [];
-  if (!SUPABASE_URL) missingVars.push('VITE_SUPABASE_URL');
-  if (!SUPABASE_ANON_KEY) missingVars.push('VITE_SUPABASE_ANON_KEY');
-  
-  if (missingVars.length > 0) {
-    console.warn(`Missing environment variables: ${missingVars.join(', ')}`);
-  }
-}
-
-// Log RapidAPI configuration status for debugging
-console.log(`RapidAPI configuration - Key ${RAPIDAPI_KEY ? 'is set' : 'is missing'}, Host: ${RAPIDAPI_HOST}`);

@@ -1,4 +1,3 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
@@ -6,18 +5,8 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: true, // Listen on all addresses
+    host: "::",
     port: 8080,
-    strictPort: true,
-    hmr: {
-      clientPort: 443, // Use 443 for HTTPS or use 'auto'
-      overlay: false, // Disable the error overlay which might cause rendering issues
-    },
-    allowedHosts: [
-      'localhost',
-      '127.0.0.1',
-      '0d5c6a3b-7227-45a3-ae03-72c126be75be.lovableproject.com'
-    ]
   },
   plugins: [
     react(),
