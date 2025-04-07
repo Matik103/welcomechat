@@ -27,7 +27,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const [permissionStatus, setPermissionStatus] = useState<string | null>(null);
   const [apiKeyMissing, setApiKeyMissing] = useState<boolean>(false);
   
-  // Check RLS permissions and API key when component mounts
   useEffect(() => {
     const checkPermissions = async () => {
       try {
@@ -42,7 +41,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     };
     
     const checkApiKey = () => {
-      // Always have an API key now due to hardcoded fallback
       setApiKeyMissing(false);
       console.log("Using RapidAPI key:", RAPIDAPI_KEY ? "Key is set" : "Key is missing");
     };
@@ -83,7 +81,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         setPermissionStatus('Upload successful');
         toast.success('Document uploaded successfully');
         
-        // Log activity
         await createClientActivity(
           clientId,
           undefined,
@@ -97,7 +94,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           }
         );
         
-        // Call the parent's upload complete handler
         await logClientActivity();
         if (onUploadComplete) onUploadComplete();
       } catch (activityError) {
@@ -108,13 +104,10 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       console.error("Upload failed:", result.error);
       setLastError(result.error || "Unknown error during upload");
       
-      // Check if this is an API key related error
       if (result.error && (result.error.includes('API key') || result.error.includes('401') || result.error.includes('Invalid API key'))) {
-        // This shouldn't happen now with hardcoded key, but keep for safety
         setApiKeyMissing(true);
       }
       
-      // If it's a permissions error, offer to fix it automatically
       if (result.error && (result.error.includes('row-level security') || result.error.includes('permission denied') || result.error.includes('policy'))) {
         setPermissionStatus('Permission denied. Click "Fix Permissions" to resolve this issue.');
       }
