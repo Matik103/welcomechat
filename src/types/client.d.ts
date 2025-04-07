@@ -1,3 +1,4 @@
+
 import { WidgetSettings } from "./widget-settings";
 
 export interface Client {

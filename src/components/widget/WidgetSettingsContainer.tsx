@@ -34,8 +34,8 @@ export const WidgetSettingsContainer = ({
         
         // Apply settings from props
         if (widgetSettings) {
-          window.ItTalentAi.customSettings = {
-            ...window.ItTalentAi.customSettings,
+          const settings = {
+            ...widgetSettings,
             clientId: clientId || widgetSettings.clientId || widgetSettings.client_id,
             agentName: widgetSettings.agent_name || 'AI Assistant',
             agentDescription: widgetSettings.agent_description || '',
@@ -47,6 +47,11 @@ export const WidgetSettingsContainer = ({
             deepseekEnabled: widgetSettings.deepseek_enabled || false,
             deepseekModel: widgetSettings.deepseek_model || 'deepseek-chat',
             deepseekAssistantId: widgetSettings.deepseek_assistant_id || null
+          };
+          
+          window.ItTalentAi.customSettings = {
+            ...window.ItTalentAi.customSettings,
+            ...settings
           };
         }
       } catch (error) {
