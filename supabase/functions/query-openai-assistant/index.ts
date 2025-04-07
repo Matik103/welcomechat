@@ -63,10 +63,16 @@ serve(async (req) => {
     console.log(`Processing query for client_id: ${client_id}`);
     console.log(`Query text: ${query}`);
     
-    // Initialize OpenAI
-    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+    // Initialize OpenAI with a timeout option
+    const openai = new OpenAI({ 
+      apiKey: OPENAI_API_KEY,
+      timeout: 30000, // 30 second timeout
+    });
 
     try {
+      // Start a timer to track performance
+      const startTime = performance.now();
+      
       // Generate embedding for the query
       console.log("Generating embedding for query...");
       const embeddingResponse = await openai.embeddings.create({
@@ -139,6 +145,25 @@ serve(async (req) => {
       }
 
       console.log("Answer generated successfully");
+      
+      // Calculate processing time
+      const endTime = performance.now();
+      const processingTime = Math.round(endTime - startTime);
+      console.log(`Total processing time: ${processingTime}ms`);
+
+      // Log query to database for analytics
+      try {
+        await supabase.from('assistant_queries').insert({
+          client_id,
+          query,
+          answer: completion.choices[0].message.content,
+          success: true,
+          processing_time_ms: processingTime
+        });
+      } catch (logError) {
+        console.error("Failed to log query:", logError);
+        // Non-critical error, continue with response
+      }
 
       // Return the answer and relevant documents
       return new Response(
@@ -147,7 +172,8 @@ serve(async (req) => {
           documents: documents.map(doc => ({
             content: doc.content.substring(0, 200) + '...',  // Only return a preview
             similarity: doc.similarity
-          }))
+          })),
+          processing_time_ms: processingTime
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -156,6 +182,18 @@ serve(async (req) => {
       );
     } catch (openaiError) {
       console.error("OpenAI API error:", openaiError);
+      
+      // Log failed query to database
+      try {
+        await supabase.from('assistant_queries').insert({
+          client_id,
+          query,
+          error_message: openaiError instanceof Error ? openaiError.message : "Unknown OpenAI error",
+          success: false
+        });
+      } catch (logError) {
+        console.error("Failed to log error query:", logError);
+      }
       
       // Fallback to a simple response when OpenAI fails
       return new Response(
