@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
@@ -34,7 +33,7 @@ serve(async (req) => {
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200, // Return 200 but with error info
+          status: 200,
         }
       );
     }
@@ -46,46 +45,43 @@ serve(async (req) => {
       console.log("Request body parsed successfully");
       console.log(`Request timestamp: ${body.timestamp || new Date().toISOString()}`);
       console.log(`Client ID: ${body.client_id}`);
+      console.log(`Assistant ID: ${body.assistant_id}`);
       console.log(`Query length: ${body.query?.length || 0} characters`);
       console.log(`Model: ${body.model || 'deepseek-chat'}`);
-    } catch (err) {
-      console.error("Error parsing request body:", err);
+      console.log(`Query text: ${body.query?.substring(0, 100)}${body.query?.length > 100 ? '...' : ''}`);
+    } catch (e) {
+      console.error("Error parsing request body:", e);
       return new Response(
         JSON.stringify({
-          error: "Invalid JSON in request body",
-          answer: "I'm sorry, I couldn't process your request due to a technical issue. Please try again."
+          error: "Invalid request body",
+          answer: "I'm sorry, I couldn't process your request because it was malformed."
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200, // Return 200 for better UX but with error info
-        }
-      );
-    }
-    
-    const { client_id, query, model = 'deepseek-chat' } = body;
-
-    if (!client_id || !query) {
-      const missingFields = [];
-      if (!client_id) missingFields.push("client_id");
-      if (!query) missingFields.push("query");
-      
-      console.error(`Missing required fields: ${missingFields.join(", ")}`);
-      
-      return new Response(
-        JSON.stringify({
-          error: `Missing required fields: ${missingFields.join(", ")}`,
-          answer: "I'm sorry, I couldn't process your request due to missing information. Please try again."
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200, // Return 200 for better UX but with error info
+          status: 400,
         }
       );
     }
 
-    console.log(`Processing query for client_id: ${client_id}`);
-    console.log(`Query text: ${query?.substring(0, 100)}${query?.length > 100 ? '...' : ''}`);
-    
+    // Validate required fields
+    if (!body.client_id || !body.query || !body.assistant_id) {
+      console.error("Missing required fields:", {
+        hasClientId: !!body.client_id,
+        hasQuery: !!body.query,
+        hasAssistantId: !!body.assistant_id
+      });
+      return new Response(
+        JSON.stringify({
+          error: "Missing required fields",
+          answer: "I'm sorry, I couldn't process your request because some required information was missing."
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
+    }
+
     // Call DeepSeek API
     try {
       // Validate the API URL before making the request
@@ -95,19 +91,19 @@ serve(async (req) => {
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: model,
+          model: body.model || 'deepseek-chat',
           messages: [
             {
               role: 'system',
-              content: "You are a helpful, friendly assistant that provides concise and accurate answers. If you don't know something, admit it rather than making up information."
+              content: `You are an AI assistant for client ${body.client_id}. Assistant ID: ${body.assistant_id}`
             },
             {
               role: 'user',
-              content: query
+              content: body.query
             }
           ],
           temperature: 0.7,
@@ -118,34 +114,33 @@ serve(async (req) => {
       if (!response.ok) {
         console.error(`DeepSeek API error status: ${response.status}`);
         const errorText = await response.text();
-        console.error(`DeepSeek API error response: ${errorText}`);
+        console.error("DeepSeek API error:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
         throw new Error(`DeepSeek API error: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
       console.log("Received response from DeepSeek API");
       
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-        console.error("Invalid response format from DeepSeek API:", JSON.stringify(data));
+      if (!data.choices?.[0]?.message?.content) {
+        console.error("Invalid response format from DeepSeek API:", data);
         throw new Error("Invalid response format from DeepSeek API");
       }
 
-      // Calculate processing time
-      const endTime = performance.now();
-      const processingTime = Math.round(endTime - startTime);
-      
-      // Get the actual answer from the response
+      const processingTimeMs = Math.round(performance.now() - startTime);
       const answer = data.choices[0].message.content;
       
       console.log("Answer generated successfully");
-      console.log(`Processing time: ${processingTime}ms`);
+      console.log(`Processing time: ${processingTimeMs}ms`);
       console.log(`Answer length: ${answer.length} characters`);
       
-      // Return the answer
       return new Response(
         JSON.stringify({
-          answer: answer,
-          processing_time_ms: processingTime
+          answer,
+          processing_time_ms: processingTimeMs
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -154,15 +149,14 @@ serve(async (req) => {
       );
     } catch (apiError) {
       console.error("DeepSeek API error:", apiError);
-      
       return new Response(
         JSON.stringify({
-          answer: "I'm having trouble processing your request at the moment. Please try again later.",
-          error: apiError instanceof Error ? apiError.message : "Unknown DeepSeek API error"
+          error: apiError instanceof Error ? apiError.message : "Unknown DeepSeek API error",
+          answer: "I'm sorry, I encountered an error while processing your request. Please try again later."
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200, // Return 200 but include error in payload
+          status: 200,
         }
       );
     }
@@ -170,12 +164,12 @@ serve(async (req) => {
     console.error("Error in query-deepseek function:", error);
     return new Response(
       JSON.stringify({
-        answer: "Sorry, I encountered an error processing your request. Please try again later.",
-        error: error instanceof Error ? error.message : "An unknown error occurred"
+        error: error instanceof Error ? error.message : "Unknown error",
+        answer: "I'm sorry, I encountered an error while processing your request. Please try again later."
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200, // Return 200 but include error in payload for better UX
+        status: 200,
       }
     );
   }
