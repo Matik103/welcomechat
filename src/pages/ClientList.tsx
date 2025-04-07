@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, Suspense, useEffect } from 'react';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
@@ -14,7 +13,25 @@ export default function ClientList() {
   const { clients, isLoading, error, searchQuery, handleSearch, refetch, retry } = useClientList();
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
   
+  // Use effect to handle loading state with delay
+  useEffect(() => {
+    let timeoutId: number;
+    if (isLoading) {
+      timeoutId = window.setTimeout(() => {
+        setShowLoading(true);
+      }, 500);
+    } else {
+      setShowLoading(false);
+    }
+    return () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [isLoading]);
+
   const handleDeleteClick = (client: Client) => {
     console.log('Delete clicked for client:', client.client_name);
   };
@@ -33,7 +50,7 @@ export default function ClientList() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col space-y-6">
+      <div className="flex flex-col space-y-6 min-h-[600px]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
@@ -52,6 +69,7 @@ export default function ClientList() {
             <Button 
               onClick={() => setIsAddClientModalOpen(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+              disabled={isLoading}
             >
               <Plus className="mr-2 h-4 w-4" /> Add New Client
             </Button>
@@ -77,12 +95,13 @@ export default function ClientList() {
               value={searchQuery} 
               onChange={handleSearch}
               className="w-full" 
+              disabled={isLoading}
             />
           </div>
         </div>
         
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          {isLoading ? (
+          {showLoading ? (
             <div className="flex items-center justify-center h-64">
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -101,10 +120,13 @@ export default function ClientList() {
               </Button>
             </div>
           ) : (
-            <ClientListTable
-              clients={clients}
-              onDeleteClick={handleDeleteClick}
-            />
+            <div className={`transition-opacity duration-300 ease-in-out ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
+              <ClientListTable
+                clients={clients}
+                onDeleteClick={handleDeleteClick}
+                isLoading={isLoading}
+              />
+            </div>
           )}
         </div>
       </div>

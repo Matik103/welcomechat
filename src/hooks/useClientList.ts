@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +19,34 @@ export const useClientList = () => {
   const initialLoadDone = useRef<boolean>(false);
   const fetchTimeoutRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const loadingTimeoutRef = useRef<number | null>(null);
+  const retryCountRef = useRef<number>(0);
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 2000; // 2 seconds
+
+  const fetchWithRetry = async (query: any, retryCount = 0): Promise<any> => {
+    try {
+      const { data, error } = await Promise.race([
+        query,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timed out')), 15000)
+        )
+      ]);
+      
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      console.error(`Attempt ${retryCount + 1} failed:`, error);
+      
+      if (retryCount < MAX_RETRIES) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        console.log(`Retrying... Attempt ${retryCount + 2}`);
+        return fetchWithRetry(query, retryCount + 1);
+      }
+      
+      throw error;
+    }
+  };
 
   const fetchClients = useCallback(async (force = false) => {
     // Don't refetch if we just did within the last 5 seconds unless forced
@@ -30,11 +57,19 @@ export const useClientList = () => {
     }
     
     lastFetchTime.current = now;
+    retryCountRef.current = 0;
     
-    // Only show loading state on initial load or forced refresh
-    if (!initialLoadDone.current || force) {
-      setIsLoading(true);
+    // Clear any existing loading timeout
+    if (loadingTimeoutRef.current) {
+      window.clearTimeout(loadingTimeoutRef.current);
     }
+    
+    // Only show loading state after a small delay to prevent flicker on fast loads
+    loadingTimeoutRef.current = window.setTimeout(() => {
+      if (!initialLoadDone.current || force) {
+        setIsLoading(true);
+      }
+    }, 200) as unknown as number;
     
     setError(null);
     
@@ -49,25 +84,6 @@ export const useClientList = () => {
       // Create a new abort controller for this request
       abortControllerRef.current = new AbortController();
       
-      // Set a timeout to show error after 20 seconds (increased from 10)
-      if (fetchTimeoutRef.current) {
-        window.clearTimeout(fetchTimeoutRef.current);
-      }
-      
-      fetchTimeoutRef.current = window.setTimeout(() => {
-        if (isLoading) {
-          console.error('Client fetch timeout reached');
-          setError(new Error('Request timed out. Please try again.'));
-          setIsLoading(false);
-          toast.error('Failed to load clients: Request timed out');
-          
-          // Abort the ongoing request if it's still in progress
-          if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-          }
-        }
-      }, 20000) as unknown as number; // Increased timeout from 10s to 20s
-      
       let query = supabase
         .from('ai_agents')
         .select('*')
@@ -77,45 +93,86 @@ export const useClientList = () => {
         query = query.or(`client_name.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
       }
       
-      const { data, error } = await query;
+      const { data, error } = await fetchWithRetry(query);
       
-      // Clear the timeout since we got a response
+      // Clear all timeouts since we got a response
       if (fetchTimeoutRef.current) {
         window.clearTimeout(fetchTimeoutRef.current);
         fetchTimeoutRef.current = null;
       }
+      if (loadingTimeoutRef.current) {
+        window.clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
       
       if (error) {
-        throw error;
+        console.error('Supabase error:', error);
+        throw new Error(error.message || 'Failed to fetch clients');
+      }
+      
+      if (!data) {
+        throw new Error('No data received from the server');
+      }
+
+      // Log the first item to see its structure
+      if (data.length > 0) {
+        console.log('First agent data structure:', JSON.stringify(data[0], null, 2));
       }
       
       // Convert to Client type
       const formattedClients: Client[] = data.map(agent => {
-        // Use the safeParseSettings utility to ensure widget_settings is always an object
         const parsedSettings = safeParseSettings(agent.settings);
         
         return {
+          // Required fields from Client interface
           id: agent.id,
           client_id: agent.client_id || '',
           client_name: agent.client_name || '',
           email: agent.email || '',
-          status: agent.status as 'active' | 'inactive' | 'deleted' || 'active',
-          created_at: agent.created_at || '',
-          updated_at: agent.updated_at || '',
-          agent_name: agent.name || '',
-          agent_description: agent.agent_description || '',
-          logo_url: agent.logo_url || '',
-          widget_settings: parsedSettings,
-          // Add missing properties with default values
-          user_id: '',
           company: agent.company || '',
           description: agent.description || '',
-          logo_storage_path: agent.logo_storage_path || '',
-          deletion_scheduled_at: agent.deletion_scheduled_at || null,
+          status: agent.status || 'active',
+          created_at: agent.created_at || '',
+          updated_at: agent.updated_at || '',
           deleted_at: agent.deleted_at || null,
+          deletion_scheduled_at: agent.deletion_scheduled_at || null,
           last_active: agent.last_active || null,
+          logo_url: agent.logo_url || '',
+          logo_storage_path: agent.logo_storage_path || '',
+          agent_name: agent.name || '',
+          agent_description: agent.agent_description || '',
+          widget_settings: parsedSettings,
           name: agent.name || '',
-          is_error: agent.is_error || false
+          is_error: agent.is_error || false,
+          openai_assistant_id: agent.openai_assistant_id || undefined,
+          
+          // Additional fields from ai_agents
+          ai_prompt: agent.ai_prompt || '',
+          assistant_id: agent.assistant_id || '',
+          content: agent.content || '',
+          document_id: agent.document_id || null,
+          drive_link: agent.drive_link || '',
+          drive_link_added_at: agent.drive_link_added_at || null,
+          drive_link_refresh_rate: agent.drive_link_refresh_rate || null,
+          drive_urls: agent.drive_urls || [],
+          embedding: agent.embedding || null,
+          error_message: agent.error_message || '',
+          error_status: agent.error_status || '',
+          error_type: agent.error_type || '',
+          interaction_type: agent.interaction_type || '',
+          is_active: agent.is_active || false,
+          metadata: agent.metadata || {},
+          model: agent.model || '',
+          query_text: agent.query_text || '',
+          response_time_ms: agent.response_time_ms || null,
+          sentiment: agent.sentiment || '',
+          size: agent.size || null,
+          topic: agent.topic || '',
+          type: agent.type || '',
+          uploadDate: agent.uploadDate || '',
+          url: agent.url || '',
+          urls: agent.urls || [],
+          website_url_refresh_rate: agent.website_url_refresh_rate || null
         };
       });
       
@@ -139,6 +196,11 @@ export const useClientList = () => {
       setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
       toast.error(`Failed to load clients: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
+      // Clear loading timeout if it exists
+      if (loadingTimeoutRef.current) {
+        window.clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
       setIsLoading(false);
     }
   }, [searchQuery, isLoading]);
@@ -166,6 +228,10 @@ export const useClientList = () => {
       // Clean up timeouts and abort controllers if component unmounts
       if (fetchTimeoutRef.current) {
         window.clearTimeout(fetchTimeoutRef.current);
+      }
+      
+      if (loadingTimeoutRef.current) {
+        window.clearTimeout(loadingTimeoutRef.current);
       }
       
       if (abortControllerRef.current) {
