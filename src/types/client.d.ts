@@ -1,3 +1,4 @@
+
 export interface Client {
   id: string;
   client_id: string;
@@ -12,6 +13,8 @@ export interface Client {
   created_at?: string;
   updated_at?: string;
   deepseek_assistant_id?: string;
+  deepseek_enabled?: boolean;
+  deepseek_model?: string;
   // Add other optional fields
   [key: string]: any;
 }
