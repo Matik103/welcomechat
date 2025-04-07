@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -12,14 +13,15 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { WidgetSettings } from '@/types/widget-settings';
 
 export function ClientWidgetSettings() {
   const { user, userId, userRole, userClientId } = useAuth();
   const { client, isLoadingClient, error, clientMutation, clientId, refetchClient } = useClientData(userClientId || '');
   const [isSetupLoading, setIsSetupLoading] = useState(false);
   
-  const widgetSettings = client?.widget_settings || {};
-  const hasDeepSeekAssistant = client?.deepseek_assistant_id || client?.widget_settings?.deepseek_assistant_id;
+  const widgetSettings = client?.widget_settings as WidgetSettings || {};
+  const hasDeepSeekAssistant = client?.deepseek_assistant_id || (client?.widget_settings as WidgetSettings)?.deepseek_assistant_id;
   
   const handleSetupAssistant = async () => {
     if (!client?.id) {
@@ -31,8 +33,8 @@ export function ClientWidgetSettings() {
     
     try {
       const clientName = client.client_name || 'Client';
-      const agentName = client.widget_settings?.agent_name || client.agent_name || 'AI Assistant';
-      const agentDescription = client.widget_settings?.agent_description || client.agent_description || '';
+      const agentName = (client.widget_settings as WidgetSettings)?.agent_name || client.agent_name || 'AI Assistant';
+      const agentDescription = (client.widget_settings as WidgetSettings)?.agent_description || client.agent_description || '';
       
       const result = await setupDeepSeekAssistant(
         client.id,
@@ -150,7 +152,7 @@ export function ClientWidgetSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <WidgetSettingsContainer widgetSettings={widgetSettings} clientId={clientId}>
+              <WidgetSettingsContainer widgetSettings={widgetSettings as WidgetSettings} clientId={clientId}>
                 <WidgetPreview />
               </WidgetSettingsContainer>
             </CardContent>

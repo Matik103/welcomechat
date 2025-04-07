@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const role = await getUserRole();
       setUserRole(role);
-      return role;
+      // Don't return the role, just return nothing to match Promise<void>
     } catch (err) {
       console.error("Error refreshing user role:", err);
     }

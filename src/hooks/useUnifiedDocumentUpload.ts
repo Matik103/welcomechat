@@ -4,12 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { IS_PRODUCTION } from '@/config/env';
 
-// Define the upload result type
-interface UploadResult {
+// Define and export the upload result type
+export interface UploadResult {
   success: boolean;
   data?: any;
   error?: any;
-  message?: string; // Add the message property to fix the error
+  message?: string;
+  fileName?: string;
+  documentId?: string | number;
+  publicUrl?: string;
 }
 
 export function useUnifiedDocumentUpload(clientId: string) {
@@ -102,7 +105,10 @@ export function useUnifiedDocumentUpload(clientId: string) {
       return { 
         success: true, 
         data: { document: docData, url: documentUrl },
-        message: 'Document uploaded successfully'
+        message: 'Document uploaded successfully',
+        fileName: file.name,
+        documentId: docData?.id,
+        publicUrl: documentUrl
       };
     } catch (err: any) {
       console.error('Document upload error:', err);
@@ -111,7 +117,7 @@ export function useUnifiedDocumentUpload(clientId: string) {
       // Return error result
       return { 
         success: false, 
-        error: err,
+        error: err.message || 'Failed to upload document',
         message: err.message || 'Failed to upload document'
       };
     } finally {
