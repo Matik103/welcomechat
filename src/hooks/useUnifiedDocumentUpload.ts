@@ -3,51 +3,40 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-import { RAPIDAPI_HOST } from '@/config/env';
+import { RAPIDAPI_HOST, RAPIDAPI_KEY } from '@/config/env';
 
-export interface UploadResult {
-  upload: (clientId: string, options: { onSuccess: (result: any) => void; onProgress: (progress: any) => void }) => void;
-  isLoading: boolean;
-  uploadProgress: number;
+interface UploadResult {
+  success: boolean;
+  documentId?: string;
+  error?: string;
+  extractedText?: string;
+  publicUrl?: string;
+  fileName?: string;
+  fileType?: string;
 }
 
-interface UseUnifiedDocumentUploadOptions {
-  clientId?: string;
-  onSuccess?: (result: UploadResult) => void;
-  onError?: (error: Error | string) => void;
-  onProgress?: (progress: number) => void;
-}
+export const useUnifiedDocumentUpload = () => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-export const useUnifiedDocumentUpload = (): UploadResult => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const uploadDocument = async (formData: FormData): Promise<UploadResult> => {
+    const file = formData.get('file') as File;
+    const clientId = formData.get('clientId') as string;
 
-  const upload = async (file: File, clientId?: string): Promise<UploadResult> => {
-    // Use the clientId from options if not provided directly
-    const effectiveClientId = clientId || options.clientId;
-    
-    if (!effectiveClientId) {
-      const error = new Error("Client ID is required");
-      if (options.onError) options.onError(error);
-      toast.error("Client ID is required");
-      return { success: false, error: error.message };
+    if (!file || !clientId) {
+      return { success: false, error: 'File and Client ID are required' };
     }
 
-    setIsLoading(true);
-    setUploadProgress(0);
-    if (options.onProgress) options.onProgress(0);
+    setIsUploading(true);
+    setProgress(0);
 
     try {
-      if (options.onProgress) options.onProgress(20);
-      setUploadProgress(20);
-
-      // Generate document ID
+      // Step 1: Upload to Supabase Storage
+      setProgress(20);
       const documentId = uuidv4();
-
-      // Upload to storage bucket first
-      const filePath = `${effectiveClientId}/${documentId}/${file.name}`;
+      const filePath = `${clientId}/${documentId}/${file.name}`;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('client_documents')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -55,139 +44,111 @@ export const useUnifiedDocumentUpload = (): UploadResult => {
         });
 
       if (uploadError) {
-        throw new Error(`Error uploading file to storage: ${uploadError.message}`);
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
       }
-      
-      // Get the public URL
+
+      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('client_documents')
         .getPublicUrl(filePath);
-      
-      setUploadProgress(40);
-      if (options.onProgress) options.onProgress(40);
 
-      // If it's a PDF, extract text using RapidAPI
+      setProgress(40);
+
+      // Step 2: Extract text if PDF
       let extractedText = '';
       let processingStatus = 'ready';
-      
+
       if (file.type === 'application/pdf') {
-        processingStatus = 'pending_extraction';
+        setProgress(60);
+        processingStatus = 'extracting';
+        
         try {
-          const formData = new FormData();
-          formData.append('file', file);
-          
-          // Fetch RapidAPI key from Supabase secrets
-          const { data: secrets, error: secretsError } = await supabase.functions.invoke('get-secrets', {
-            body: { keys: ['VITE_RAPIDAPI_KEY'] }
-          });
-          
-          if (secretsError) {
-            console.error('Failed to get RapidAPI key from secrets:', secretsError);
-            throw new Error('Failed to get RapidAPI key from secrets');
-          }
-          
-          if (!secrets?.VITE_RAPIDAPI_KEY) {
-            console.error('RapidAPI key not found in secrets');
-            throw new Error('RapidAPI key not found in secrets');
-          }
-          
-          console.log('Using RapidAPI Host:', RAPIDAPI_HOST);
-          
+          const pdfFormData = new FormData();
+          pdfFormData.append('file', file);
+
           const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
             method: 'POST',
             headers: {
-              'x-rapidapi-host': RAPIDAPI_HOST,
-              'x-rapidapi-key': secrets.VITE_RAPIDAPI_KEY
+              'X-RapidAPI-Key': RAPIDAPI_KEY,
+              'X-RapidAPI-Host': RAPIDAPI_HOST
             },
-            body: formData
+            body: pdfFormData
           });
-          
-          if (response.ok) {
-            extractedText = await response.text();
-            processingStatus = 'extraction_complete';
-            console.log("Text extraction successful, extracted length:", extractedText.length);
-          } else {
-            const errorData = await response.json();
-            throw new Error(`PDF extraction failed: ${errorData.message || response.statusText}`);
+
+          if (!response.ok) {
+            throw new Error(`PDF extraction failed: ${response.statusText}`);
           }
-        } catch (extractionError) {
-          console.error("Text extraction failed:", extractionError);
-          processingStatus = 'extraction_failed';
-          toast.error(`Text extraction failed: ${extractionError instanceof Error ? extractionError.message : 'Unknown error'}`);
-          // Continue with empty text, don't throw error
+
+          const result = await response.json();
+          extractedText = result.text || '';
+          processingStatus = 'completed';
+        } catch (error) {
+          console.error('Text extraction error:', error);
+          processingStatus = 'failed';
+          // Continue with empty text
         }
       }
-      
-      setUploadProgress(60);
-      if (options.onProgress) options.onProgress(60);
 
-      // Store document and extracted text in database
-      const documentContent = {
-        client_id: effectiveClientId,
-        document_id: documentId,
-        content: extractedText || null,  // Ensure we pass null, not empty string if no content
-        filename: file.name,
-        file_type: file.type,
-        metadata: {
+      setProgress(80);
+
+      // Step 3: Save to database
+      const { error: dbError } = await supabase
+        .from('document_content')
+        .insert({
+          client_id: clientId,
+          document_id: documentId,
+          content: extractedText || null,
           filename: file.name,
           file_type: file.type,
-          size: file.size,
           storage_path: filePath,
-          storage_url: publicUrl,
-          uploadedAt: new Date().toISOString(),
+          public_url: publicUrl,
           processing_status: processingStatus,
-          extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
-          text_length: extractedText ? extractedText.length : 0,
-          extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
-          extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null
-        }
-      };
+          metadata: {
+            size: file.size,
+            uploadedAt: new Date().toISOString(),
+            extractedAt: processingStatus === 'completed' ? new Date().toISOString() : null,
+            textLength: extractedText.length
+          }
+        });
 
-      const { data: documentData, error: documentError } = await supabase
-        .from('document_content')
-        .insert(documentContent)
-        .select()
-        .single();
-
-      if (documentError) {
-        console.error('Failed to store document:', documentError, 'Data:', documentContent);
-        throw new Error(`Failed to store document: ${documentError.message}`);
+      if (dbError) {
+        throw new Error(`Database insert failed: ${dbError.message}`);
       }
 
-      setUploadProgress(100);
-      if (options.onProgress) options.onProgress(100);
+      setProgress(100);
 
-      const result: UploadResult = {
+      return {
         success: true,
-        documentId: documentData?.id ? documentData.id.toString() : documentId,
+        documentId,
         extractedText,
         publicUrl,
         fileName: file.name,
         fileType: file.type
       };
 
-      if (options.onSuccess) options.onSuccess(result);
-      return result;
-
     } catch (error) {
-      console.error('Document processing error:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (options.onError) options.onError(errorMessage);
-      return { 
-        success: false, 
-        error: errorMessage,
+      console.error('Upload error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
         fileName: file.name,
         fileType: file.type
       };
-
     } finally {
-      setIsLoading(false);
+      setIsUploading(false);
+      setProgress(0);
     }
   };
 
   return {
-    upload,
-    isLoading,
-    uploadProgress
+    uploadDocument,
+    isUploading,
+    progress,
+    isError: false,
+    error: null,
+    reset: () => {
+      setIsUploading(false);
+      setProgress(0);
+    }
   };
 };

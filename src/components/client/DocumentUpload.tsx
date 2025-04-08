@@ -1,10 +1,8 @@
-
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
-import { useUnifiedDocumentUpload } from '../../hooks/useUnifiedDocumentUpload';
+import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
 import { Loader2 } from 'lucide-react';
-import { RAPIDAPI_KEY } from '@/config/env';
 
 interface DocumentUploadProps {
   clientId: string;
@@ -12,19 +10,7 @@ interface DocumentUploadProps {
 }
 
 export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadProps) {
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const { upload } = useUnifiedDocumentUpload({
-    clientId,
-    onSuccess: (result) => {
-      if (onUploadComplete) {
-        onUploadComplete(result);
-      }
-    },
-    onProgress: (progress) => {
-      setUploadProgress(progress);
-    }
-  });
+  const { uploadDocument, isUploading, progress, reset } = useUnifiedDocumentUpload();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!clientId) {
@@ -32,15 +18,17 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
       return;
     }
 
-    setIsUploading(true);
     try {
       for (const file of acceptedFiles) {
-        setUploadProgress(0);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('clientId', clientId);
+
         toast.info(`Uploading ${file.name}...`);
         
-        const result = await upload(file);
+        const result = await uploadDocument(formData);
         
-        if (result.success && result.documentId) {
+        if (result.success) {
           toast.success(`${file.name} uploaded successfully!`);
           if (onUploadComplete) {
             onUploadComplete(result);
@@ -53,10 +41,9 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
       console.error('Upload error:', error);
       toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
+      reset();
     }
-  }, [clientId, upload, onUploadComplete]);
+  }, [clientId, uploadDocument, onUploadComplete, reset]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -82,11 +69,11 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
       {isUploading ? (
         <div className="flex flex-col items-center justify-center space-y-2">
           <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-          <p>Uploading... {uploadProgress > 0 ? `${uploadProgress}%` : ''}</p>
+          <p>Uploading... {progress > 0 ? `${progress}%` : ''}</p>
           <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
             <div 
               className="h-full bg-blue-500 transition-all duration-300 ease-in-out" 
-              style={{ width: `${uploadProgress}%` }}
+              style={{ width: `${progress}%` }}
             />
           </div>
         </div>
@@ -96,6 +83,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
         <div>
           <p>Drag and drop files here, or click to select files</p>
           <p className="text-sm text-gray-500 mt-2">Supports: PDF, Word, Excel, and Text files</p>
+          <p className="text-xs text-gray-400 mt-1">Maximum file size: 100MB</p>
         </div>
       )}
     </div>
