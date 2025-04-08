@@ -1,4 +1,3 @@
-
 /**
  * User role types for the application
  */
@@ -13,7 +12,7 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   isLoading: boolean;
   userRole: UserRole | null;
-  clientId: string | null; // Adding the clientId property
+  clientId: string | null; // Client ID is needed by multiple components
 }
 
 /**

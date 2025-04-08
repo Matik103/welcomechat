@@ -17,5 +17,9 @@ export interface Client {
   phone?: string;
   address?: string;
   openai_assistant_id?: string;
-  deepseek_assistant_id?: string; // Added missing property
+  deepseek_assistant_id?: string;
+  // Additional fields needed for proper functioning
+  deleted_at?: string | null;
+  deletion_scheduled_at?: string | null;
+  last_active?: string | null;
 }

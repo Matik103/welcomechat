@@ -35,8 +35,15 @@ export const useClientList = () => {
   const { clients, isLoading, error, searchQuery } = state;
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchClients = useCallback(async (force = false) => {
+    // Clear any existing timeout to prevent multiple fetches
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+      fetchTimeoutRef.current = null;
+    }
+
     // Cancel any previous ongoing request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -85,6 +92,7 @@ export const useClientList = () => {
         name: agent.name || '',
         is_error: agent.is_error || false,
         openai_assistant_id: agent.openai_assistant_id || undefined,
+        deepseek_assistant_id: agent.deepseek_assistant_id || undefined,
         ai_prompt: agent.ai_prompt || '',
         assistant_id: agent.assistant_id || '',
         content: agent.content || '',
@@ -110,7 +118,10 @@ export const useClientList = () => {
         uploadDate: agent.uploadDate || '',
         url: agent.url || '',
         urls: agent.urls || [],
-        website_url_refresh_rate: agent.website_url_refresh_rate || null
+        website_url_refresh_rate: agent.website_url_refresh_rate || null,
+        website: agent.website || '',
+        phone: agent.phone || '',
+        address: agent.address || ''
       }));
 
       const filteredClients = formattedClients.filter(client => 
@@ -125,7 +136,7 @@ export const useClientList = () => {
         error: null
       }));
 
-    } catch (error) {
+    } catch (error: any) {
       if (!isMountedRef.current) return;
       if (error.name === 'AbortError') return;
 
@@ -136,6 +147,13 @@ export const useClientList = () => {
         isLoading: false
       }));
       toast.error(`Failed to load clients: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Add retry mechanism with exponential backoff for failed fetches
+      fetchTimeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          retry();
+        }
+      }, 5000);
     }
   }, [searchQuery]);
 
@@ -143,19 +161,27 @@ export const useClientList = () => {
     setState(prev => ({ ...prev, searchQuery: query }));
   }, []);
 
-  useEffect(() => {
-    fetchClients();
+  const retry = useCallback(async () => {
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+      fetchTimeoutRef.current = null;
+    }
+    return fetchClients(true);
   }, [fetchClients]);
 
   useEffect(() => {
-    isMountedRef.current = true;
+    fetchClients();
+    
     return () => {
       isMountedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
     };
-  }, []);
+  }, [fetchClients]);
 
   return {
     clients,
@@ -164,6 +190,6 @@ export const useClientList = () => {
     searchQuery,
     handleSearch,
     refetch: () => fetchClients(true),
-    retry: () => fetchClients(true)
+    retry
   };
 };
