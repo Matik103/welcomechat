@@ -1,10 +1,9 @@
-
 // Streamlined document upload hook with direct RapidAPI integration
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-import { RAPIDAPI_KEY, RAPIDAPI_HOST } from '@/config/env';
+import { RAPIDAPI_HOST } from '@/config/env';
 
 export interface UploadResult {
   success: boolean;
@@ -73,60 +72,45 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
 
       // If it's a PDF, extract text using RapidAPI
       let extractedText = '';
+      let processingStatus = 'ready';
+      
       if (file.type === 'application/pdf') {
-        // Create form data for RapidAPI
-        const formData = new FormData();
-        formData.append('file', file);
-
-        // Always use the hardcoded API key as fallback
-        const rapidApiKey = RAPIDAPI_KEY;
-        const rapidApiHost = RAPIDAPI_HOST;
-        
-        if (!rapidApiKey) {
-          console.error("RapidAPI key is missing. Text extraction cannot be performed.");
-          toast.error("API configuration error: Missing API key");
-          throw new Error("RapidAPI key is missing. Text extraction cannot be performed.");
-        }
-
+        processingStatus = 'pending_extraction';
         try {
-          // Extract text using RapidAPI
-          console.log("Sending request to RapidAPI for text extraction");
-          console.log("Using host:", rapidApiHost);
-          console.log("API key present:", rapidApiKey ? "Yes" : "No");
+          const formData = new FormData();
+          formData.append('file', file);
+          
+          // Fetch RapidAPI key from Supabase secrets
+          const { data: secrets, error: secretsError } = await supabase.functions.invoke('get-secrets', {
+            body: { keys: ['VITE_RAPIDAPI_KEY'] }
+          });
+          
+          if (secretsError || !secrets?.VITE_RAPIDAPI_KEY) {
+            throw new Error('Failed to get RapidAPI key from secrets');
+          }
           
           const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
             method: 'POST',
             headers: {
-              'x-rapidapi-host': rapidApiHost,
-              'x-rapidapi-key': rapidApiKey
+              'x-rapidapi-host': RAPIDAPI_HOST,
+              'x-rapidapi-key': secrets.VITE_RAPIDAPI_KEY
             },
             body: formData
           });
-
-          if (!response.ok) {
-            const statusCode = response.status;
-            let errorDetail = '';
-            try {
-              const errorData = await response.json();
-              errorDetail = errorData.message || '';
-            } catch (e) {
-              // If we can't parse the error as JSON, just use the status text
-              errorDetail = response.statusText;
-            }
-            
-            throw new Error(`Text extraction API responded with status: ${statusCode}. ${errorDetail}`);
-          }
-
-          extractedText = await response.text();
           
-          if (!extractedText || extractedText.trim().length === 0) {
-            throw new Error('API returned empty text content');
+          if (response.ok) {
+            extractedText = await response.text();
+            processingStatus = 'extraction_complete';
+            console.log("Text extraction successful, extracted length:", extractedText.length);
+          } else {
+            const errorData = await response.json();
+            throw new Error(`PDF extraction failed: ${errorData.message || response.statusText}`);
           }
-          
-          console.log("Text extraction successful, extracted length:", extractedText.length);
         } catch (extractionError) {
           console.error("Text extraction failed:", extractionError);
-          throw new Error(`Failed to extract text from PDF: ${extractionError instanceof Error ? extractionError.message : String(extractionError)}`);
+          processingStatus = 'extraction_failed';
+          toast.error(`Text extraction failed: ${extractionError instanceof Error ? extractionError.message : 'Unknown error'}`);
+          // Continue with empty text, don't throw error
         }
       }
       
@@ -134,7 +118,7 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
       if (options.onProgress) options.onProgress(60);
 
       // Store document and extracted text in database
-      const { error: documentError } = await supabase
+      const { data: documentData, error: documentError } = await supabase
         .from('document_content')
         .insert({
           client_id: effectiveClientId,
@@ -149,13 +133,15 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
             storage_path: filePath,
             storage_url: publicUrl,
             uploadedAt: new Date().toISOString(),
-            processing_status: file.type === 'application/pdf' ? 'extraction_complete' : 'ready',
+            processing_status: processingStatus,
             extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
             text_length: extractedText.length || 0,
             extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
             extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null
           }
-        });
+        })
+        .select()
+        .single();
 
       if (documentError) {
         throw new Error(`Failed to store document: ${documentError.message}`);
@@ -166,7 +152,7 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
 
       const result: UploadResult = {
         success: true,
-        documentId,
+        documentId: documentData.id.toString(),
         extractedText,
         publicUrl,
         fileName: file.name,
