@@ -1,4 +1,3 @@
-
 import { useMemo, useCallback, Suspense } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
@@ -6,6 +5,7 @@ import { PublicRoutes } from "./components/routes/PublicRoutes";
 import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes";
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Simple loading fallback component
 const LoadingFallback = () => (
@@ -47,29 +47,41 @@ function App() {
 
     // Public routes for non-authenticated users
     if (!user && isPublicRoute()) {
-      return <PublicRoutes />;
+      return (
+        <ErrorBoundary>
+          <PublicRoutes />
+        </ErrorBoundary>
+      );
     }
 
     // Non-authenticated user routes
     if (!user) {
-      return <UnauthenticatedRoutes />;
+      return (
+        <ErrorBoundary>
+          <UnauthenticatedRoutes />
+        </ErrorBoundary>
+      );
     }
 
     // Render based on user role - only calculate this when user and userRole are available
     if (user) {
       if (userRole === 'admin') {
         return (
-          <Suspense fallback={<LoadingFallback />}>
-            <AdminRoutes />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingFallback />}>
+              <AdminRoutes />
+            </Suspense>
+          </ErrorBoundary>
         );
       }
       
       if (userRole === 'client') {
         return (
-          <Suspense fallback={<LoadingFallback />}>
-            <ClientRoutes />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingFallback />}>
+              <ClientRoutes />
+            </Suspense>
+          </ErrorBoundary>
         );
       }
       

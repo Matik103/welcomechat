@@ -1,4 +1,3 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -9,6 +8,7 @@ import './index.css';
 import { initializeRpcFunctions } from './utils/supabaseUtils.ts';
 import { AuthProvider } from './contexts/AuthContext';
 import { CACHE_STALE_TIME } from './config/env.ts';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Create a client with better caching strategy
 const queryClient = new QueryClient({
@@ -54,13 +54,15 @@ initializeRpcFunctions().catch(err => {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <App />
-          <Toaster position="top-right" />
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <App />
+            <Toaster position="top-right" />
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );
