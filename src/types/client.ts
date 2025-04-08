@@ -1,4 +1,3 @@
-
 import { Json } from '@/integrations/supabase/types';
 import { ActivityType } from './client-form';
 import { AccessStatus } from './document-processing';
@@ -26,6 +25,7 @@ export interface Client {
   is_error?: boolean;
   user_id?: string; // Added for compatibility
   openai_assistant_id?: string; // Added for OpenAI integration
+  deepseek_assistant_id?: string; // Added for DeepSeek integration
 }
 
 // Export these types from client-dashboard.ts to avoid circular dependencies
