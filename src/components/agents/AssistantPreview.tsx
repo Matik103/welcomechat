@@ -41,7 +41,7 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
+      const { data, error } = await supabase.functions.invoke('query-deepseek-assistant', {
         body: {
           client_id: clientId,
           query: userMessage
@@ -57,6 +57,8 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
         const assistantMessage = data.messages[data.messages.length - 1]?.content || 
           "Sorry, I couldn't generate a response.";
         setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
+      } else if (data?.answer) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
       } else {
         setMessages(prev => [...prev, { 
           role: 'assistant', 

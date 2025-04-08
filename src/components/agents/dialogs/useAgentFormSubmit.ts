@@ -1,6 +1,6 @@
 
 import { toast } from 'sonner';
-import { createOpenAIAssistant } from '@/utils/openAIUtils';
+import { createDeepseekAssistant } from '@/utils/deepseekUtils';
 import { Agent } from '@/types/agent';
 
 interface UseAgentFormSubmitProps {
@@ -92,12 +92,12 @@ export function useAgentFormSubmit({
       
       console.log('Agent created successfully:', agent);
       
-      // Try to create OpenAI assistant
+      // Try to create DeepSeek assistant
       try {
-        await createOpenAIAssistant(clientId, agentName, agentDescription);
-      } catch (openAiError) {
-        console.error('Error creating OpenAI assistant:', openAiError);
-        // Continue with agent creation even if OpenAI assistant creation fails
+        await createDeepseekAssistant(clientId, agentName, agentDescription);
+      } catch (deepSeekError) {
+        console.error('Error creating DeepSeek assistant:', deepSeekError);
+        // Continue with agent creation even if DeepSeek assistant creation fails
       }
       
       toast.success(`Agent "${agentName}" created successfully`);
@@ -118,7 +118,7 @@ export function useAgentFormSubmit({
           logo_url: agent.logo_url || logoUrl,
           logo_storage_path: agent.logo_storage_path || logoPath,
           settings: agent.settings,
-          openai_assistant_id: agent.openai_assistant_id,
+          deepseek_assistant_id: agent.deepseek_assistant_id,
           total_interactions: 0,
           average_response_time: 0,
           last_active: agent.updated_at
