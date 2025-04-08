@@ -1,4 +1,3 @@
-
 // Environment variables and configuration
 
 // Cache settings
@@ -19,3 +18,34 @@ export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-
 // App settings
 export const APP_VERSION = '1.0.0';
 export const IS_PRODUCTION = import.meta.env.PROD;
+
+// API Configuration
+export const API_CONFIG = {
+  baseURL: EDGE_FUNCTIONS_URL,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+};
+
+// Deepseek Configuration
+export const DEEPSEEK_MODEL = 'deepseek-chat';
+
+// Environment validation
+export const validateEnvironment = () => {
+  const requiredEnvVars = [
+    'VITE_SUPABASE_URL',
+    'VITE_SUPABASE_ANON_KEY',
+    'VITE_RAPIDAPI_KEY',
+  ];
+
+  const missingVars = requiredEnvVars.filter(
+    (envVar) => !import.meta.env[envVar]
+  );
+
+  if (missingVars.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missingVars.join(', ')}`
+    );
+  }
+};
