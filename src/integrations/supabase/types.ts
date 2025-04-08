@@ -3923,10 +3923,7 @@ export type Database = {
     }
     Functions: {
       accept_invitation: {
-        Args: {
-          token_param: string
-          accepting_user_id: string
-        }
+        Args: { token_param: string; accepting_user_id: string }
         Returns: string
       }
       audit_agent_names: {
@@ -3939,62 +3936,33 @@ export type Database = {
           record_count: number
         }[]
       }
-      binary_quantize:
-        | {
-            Args: {
-              "": string
-            }
-            Returns: unknown
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: unknown
-          }
+      binary_quantize: {
+        Args: { "": unknown } | { "": string }
+        Returns: unknown
+      }
       check_and_notify_new_urls: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
       check_invitation_token: {
-        Args: {
-          token_param: string
-        }
+        Args: { token_param: string }
         Returns: boolean
       }
       check_user_role: {
-        Args: {
-          allowed_roles: string[]
-        }
+        Args: { allowed_roles: string[] }
         Returns: boolean
       }
       create_chatbot_embeddings_table: {
-        Args: {
-          chatbot_name: string
-        }
+        Args: { chatbot_name: string }
         Returns: undefined
       }
       create_chatbot_table: {
-        Args: {
-          table_name: string
-        }
+        Args: { table_name: string }
         Returns: undefined
       }
-      create_new_client:
-        | {
-            Args: {
-              p_client_name: string
-              p_email: string
-              p_agent_name: string
-              p_widget_settings: Json
-              p_status: string
-              p_website_url_refresh_rate: number
-              p_drive_link_refresh_rate: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
+      create_new_client: {
+        Args:
+          | {
               p_client_name: string
               p_email: string
               p_agent_name?: string
@@ -4004,8 +3972,17 @@ export type Database = {
               p_widget_settings?: Json
               p_status?: string
             }
-            Returns: string
-          }
+          | {
+              p_client_name: string
+              p_email: string
+              p_agent_name: string
+              p_widget_settings: Json
+              p_status: string
+              p_website_url_refresh_rate: number
+              p_drive_link_refresh_rate: number
+            }
+        Returns: string
+      }
       disable_website_triggers: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -4018,24 +3995,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
-      exec_sql:
-        | {
-            Args: {
-              query: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              sql_query: string
-              query_params?: Json
-            }
-            Returns: Json
-          }
+      exec_sql: {
+        Args: { sql_query: string; query_params?: Json } | { query: string }
+        Returns: Json
+      }
       extract_google_drive_links: {
-        Args: {
-          content: string
-        }
+        Args: { content: string }
         Returns: string[]
       }
       fix_agent_name_mismatches: {
@@ -4057,16 +4022,11 @@ export type Database = {
         Returns: undefined
       }
       get_active_days: {
-        Args: {
-          client_id_param: string
-          agent_name_param: string
-        }
+        Args: { client_id_param: string; agent_name_param: string }
         Returns: number
       }
       get_active_days_count: {
-        Args: {
-          client_id_param: string
-        }
+        Args: { client_id_param: string }
         Returns: number
       }
       get_admin_dashboard_stats: {
@@ -4074,17 +4034,11 @@ export type Database = {
         Returns: Json
       }
       get_agent_dashboard_stats: {
-        Args: {
-          client_id_param: string
-          agent_name_param: string
-        }
+        Args: { client_id_param: string; agent_name_param: string }
         Returns: Json
       }
       get_ai_interactions: {
-        Args: {
-          client_id_param: string
-          limit_param?: number
-        }
+        Args: { client_id_param: string; limit_param?: number }
         Returns: {
           agent_name: string
           client_id: string
@@ -4097,16 +4051,11 @@ export type Database = {
         }[]
       }
       get_average_response_time: {
-        Args: {
-          client_id_param: string
-          agent_name_param: string
-        }
+        Args: { client_id_param: string; agent_name_param: string }
         Returns: number
       }
       get_chat_sessions_for_client: {
-        Args: {
-          client_id_param: string
-        }
+        Args: { client_id_param: string }
         Returns: {
           agent_name: string
           client_id: string
@@ -4119,9 +4068,7 @@ export type Database = {
         }[]
       }
       get_client_documents: {
-        Args: {
-          p_client_id: string
-        }
+        Args: { p_client_id: string }
         Returns: {
           agent_id: string
           created_at: string | null
@@ -4152,9 +4099,7 @@ export type Database = {
         Returns: Json
       }
       get_document_access_status: {
-        Args: {
-          document_id: number
-        }
+        Args: { document_id: number }
         Returns: string
       }
       get_recent_error_logs: {
@@ -4173,10 +4118,7 @@ export type Database = {
         }[]
       }
       get_recent_interactions: {
-        Args: {
-          client_id_param: string
-          limit_param?: number
-        }
+        Args: { client_id_param: string; limit_param?: number }
         Returns: {
           agent_name: string
           client_id: string
@@ -4189,123 +4131,69 @@ export type Database = {
         }[]
       }
       get_total_interactions: {
-        Args: {
-          client_id_param: string
-          agent_name_param: string
-        }
+        Args: { client_id_param: string; agent_name_param: string }
         Returns: number
       }
       halfvec_avg: {
-        Args: {
-          "": number[]
-        }
+        Args: { "": number[] }
         Returns: unknown
       }
       halfvec_out: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       halfvec_send: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: string
       }
       halfvec_typmod_in: {
-        Args: {
-          "": unknown[]
-        }
+        Args: { "": unknown[] }
         Returns: number
       }
       hnsw_bit_support: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       hnsw_halfvec_support: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       hnsw_sparsevec_support: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       hnswhandler: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       is_client_active: {
-        Args: {
-          client_id: string
-          check_time: string
-        }
+        Args: { client_id: string; check_time: string }
         Returns: boolean
       }
       is_invitation_valid: {
-        Args: {
-          token: string
-        }
+        Args: { token: string }
         Returns: boolean
       }
       ivfflat_bit_support: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       ivfflat_halfvec_support: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       ivfflathandler: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
-      l2_norm:
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: number
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: number
-          }
-      l2_normalize:
-        | {
-            Args: {
-              "": string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: unknown
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: unknown
-          }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": unknown } | { "": string } | { "": unknown }
+        Returns: unknown
+      }
       log_activity: {
         Args: {
           agent_id: string
@@ -4353,11 +4241,7 @@ export type Database = {
         Returns: Json
       }
       match_agent_1742397281528: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4366,11 +4250,7 @@ export type Database = {
         }[]
       }
       match_agent_1742425072029: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4379,11 +4259,7 @@ export type Database = {
         }[]
       }
       match_agent_1742426304880: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4392,11 +4268,7 @@ export type Database = {
         }[]
       }
       match_ai_agent: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4404,47 +4276,33 @@ export type Database = {
           similarity: number
         }[]
       }
-      match_ai_agents:
-        | {
-            Args: {
+      match_ai_agents: {
+        Args:
+          | {
               client_id_param: string
               agent_name_param: string
               query_embedding: string
               match_count?: number
               additional_filter?: Json
             }
-            Returns: {
-              id: string
-              name: string
-              content: string
-              settings: Json
-              similarity: number
-              url: string
-            }[]
-          }
-        | {
-            Args: {
+          | {
               query_embedding: string
               client_id_filter: string
               agent_name_filter: string
               match_count?: number
               filter?: Json
             }
-            Returns: {
-              id: number
-              client_id: string
-              agent_name: string
-              content: string
-              metadata: Json
-              similarity: number
-            }[]
-          }
+        Returns: {
+          id: string
+          name: string
+          content: string
+          settings: Json
+          similarity: number
+          url: string
+        }[]
+      }
       match_airtable: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4453,11 +4311,7 @@ export type Database = {
         }[]
       }
       match_asd: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4466,11 +4320,7 @@ export type Database = {
         }[]
       }
       match_ask_parent_handbook: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4479,11 +4329,7 @@ export type Database = {
         }[]
       }
       match_biegye: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4492,11 +4338,7 @@ export type Database = {
         }[]
       }
       match_bigje: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4505,11 +4347,7 @@ export type Database = {
         }[]
       }
       match_biyger: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4518,11 +4356,7 @@ export type Database = {
         }[]
       }
       match_bokvn: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4531,11 +4365,7 @@ export type Database = {
         }[]
       }
       match_buffalo_school_board: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4544,11 +4374,7 @@ export type Database = {
         }[]
       }
       match_byclicks: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4557,11 +4383,7 @@ export type Database = {
         }[]
       }
       match_cafgt11: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4570,11 +4392,7 @@ export type Database = {
         }[]
       }
       match_cc: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4583,11 +4401,7 @@ export type Database = {
         }[]
       }
       match_client_3: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4596,11 +4410,7 @@ export type Database = {
         }[]
       }
       match_coca_cola: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4609,11 +4419,7 @@ export type Database = {
         }[]
       }
       match_coins: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4622,11 +4428,7 @@ export type Database = {
         }[]
       }
       match_deals: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4635,11 +4437,7 @@ export type Database = {
         }[]
       }
       match_digicel: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4647,40 +4445,28 @@ export type Database = {
           similarity: number
         }[]
       }
-      match_documents_by_embedding:
-        | {
-            Args: {
+      match_documents_by_embedding: {
+        Args:
+          | {
               p_client_id: string
               p_query_embedding: string
               p_match_threshold?: number
               p_match_count?: number
             }
-            Returns: {
-              id: string
-              content: string
-              similarity: number
-            }[]
-          }
-        | {
-            Args: {
+          | {
               p_client_id: string
               p_query_embedding: string
               p_match_threshold?: number
               p_match_count?: number
             }
-            Returns: {
-              id: string
-              content: string
-              similarity: number
-              metadata: Json
-            }[]
-          }
+        Returns: {
+          id: string
+          content: string
+          similarity: number
+        }[]
+      }
       match_frenniy: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4689,11 +4475,7 @@ export type Database = {
         }[]
       }
       match_g_g: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4702,11 +4484,7 @@ export type Database = {
         }[]
       }
       match_gaiivo: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4715,11 +4493,7 @@ export type Database = {
         }[]
       }
       match_glouglu: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4728,11 +4502,7 @@ export type Database = {
         }[]
       }
       match_great_deal: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4741,11 +4511,7 @@ export type Database = {
         }[]
       }
       match_imanye_3: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4754,11 +4520,7 @@ export type Database = {
         }[]
       }
       match_llama1: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4767,11 +4529,7 @@ export type Database = {
         }[]
       }
       match_llama11: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4780,11 +4538,7 @@ export type Database = {
         }[]
       }
       match_llama3: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4793,11 +4547,7 @@ export type Database = {
         }[]
       }
       match_llama4: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4806,11 +4556,7 @@ export type Database = {
         }[]
       }
       match_llama5: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4819,11 +4565,7 @@ export type Database = {
         }[]
       }
       match_llama7: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4832,11 +4574,7 @@ export type Database = {
         }[]
       }
       match_llama9: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4845,11 +4583,7 @@ export type Database = {
         }[]
       }
       match_mailer: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4858,11 +4592,7 @@ export type Database = {
         }[]
       }
       match_manyel_2: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4871,11 +4601,7 @@ export type Database = {
         }[]
       }
       match_metricool: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4884,11 +4610,7 @@ export type Database = {
         }[]
       }
       match_n8n: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4897,11 +4619,7 @@ export type Database = {
         }[]
       }
       match_n8n123: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4910,11 +4628,7 @@ export type Database = {
         }[]
       }
       match_neem_25: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4923,11 +4637,7 @@ export type Database = {
         }[]
       }
       match_news: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4936,11 +4646,7 @@ export type Database = {
         }[]
       }
       match_news_2: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4949,11 +4655,7 @@ export type Database = {
         }[]
       }
       match_news_3: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4962,11 +4664,7 @@ export type Database = {
         }[]
       }
       match_news_4: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4975,11 +4673,7 @@ export type Database = {
         }[]
       }
       match_news_5: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -4988,11 +4682,7 @@ export type Database = {
         }[]
       }
       match_news_one: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5001,11 +4691,7 @@ export type Database = {
         }[]
       }
       match_nnmo1: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5014,11 +4700,7 @@ export type Database = {
         }[]
       }
       match_notion: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5027,11 +4709,7 @@ export type Database = {
         }[]
       }
       match_pet__pets: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5040,11 +4718,7 @@ export type Database = {
         }[]
       }
       match_pierreme12: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5053,11 +4727,7 @@ export type Database = {
         }[]
       }
       match_pierreme123: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5066,11 +4736,7 @@ export type Database = {
         }[]
       }
       match_primelee1: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5079,11 +4745,7 @@ export type Database = {
         }[]
       }
       match_proque: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5092,11 +4754,7 @@ export type Database = {
         }[]
       }
       match_proton: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5105,11 +4763,7 @@ export type Database = {
         }[]
       }
       match_sadhana_forest: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5118,11 +4772,7 @@ export type Database = {
         }[]
       }
       match_saldo: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5131,11 +4781,7 @@ export type Database = {
         }[]
       }
       match_skynet: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5144,11 +4790,7 @@ export type Database = {
         }[]
       }
       match_story: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5157,11 +4799,7 @@ export type Database = {
         }[]
       }
       match_tea_team: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5170,11 +4808,7 @@ export type Database = {
         }[]
       }
       match_teplate: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5183,11 +4817,7 @@ export type Database = {
         }[]
       }
       match_tesi: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5196,11 +4826,7 @@ export type Database = {
         }[]
       }
       match_test_98: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5209,11 +4835,7 @@ export type Database = {
         }[]
       }
       match_test_agent_1741894950: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5222,11 +4844,7 @@ export type Database = {
         }[]
       }
       match_test_agent_1741895003: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5235,11 +4853,7 @@ export type Database = {
         }[]
       }
       match_test_xyt7ti: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5248,11 +4862,7 @@ export type Database = {
         }[]
       }
       match_test12345: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5261,11 +4871,7 @@ export type Database = {
         }[]
       }
       match_test1t: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5274,11 +4880,7 @@ export type Database = {
         }[]
       }
       match_test5: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5287,11 +4889,7 @@ export type Database = {
         }[]
       }
       match_test6_gmail_com: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5300,11 +4898,7 @@ export type Database = {
         }[]
       }
       match_test7: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5313,11 +4907,7 @@ export type Database = {
         }[]
       }
       match_testa: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5326,11 +4916,7 @@ export type Database = {
         }[]
       }
       match_testab: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5339,11 +4925,7 @@ export type Database = {
         }[]
       }
       match_testac: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5352,11 +4934,7 @@ export type Database = {
         }[]
       }
       match_testad: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5365,11 +4943,7 @@ export type Database = {
         }[]
       }
       match_testagen6: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5378,11 +4952,7 @@ export type Database = {
         }[]
       }
       match_testagent: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5391,11 +4961,7 @@ export type Database = {
         }[]
       }
       match_testagent1: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5404,11 +4970,7 @@ export type Database = {
         }[]
       }
       match_testagent4: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5417,11 +4979,7 @@ export type Database = {
         }[]
       }
       match_testagent5: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5430,11 +4988,7 @@ export type Database = {
         }[]
       }
       match_testagent7: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5443,11 +4997,7 @@ export type Database = {
         }[]
       }
       match_testagent8: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5456,11 +5006,7 @@ export type Database = {
         }[]
       }
       match_testb: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5469,11 +5015,7 @@ export type Database = {
         }[]
       }
       match_testc: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5482,11 +5024,7 @@ export type Database = {
         }[]
       }
       match_testclient11: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5495,11 +5033,7 @@ export type Database = {
         }[]
       }
       match_testclient12: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5508,11 +5042,7 @@ export type Database = {
         }[]
       }
       match_testclient3: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5521,11 +5051,7 @@ export type Database = {
         }[]
       }
       match_testclient4: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5534,11 +5060,7 @@ export type Database = {
         }[]
       }
       match_testclient5: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5547,11 +5069,7 @@ export type Database = {
         }[]
       }
       match_testd: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5560,11 +5078,7 @@ export type Database = {
         }[]
       }
       match_teste: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5573,11 +5087,7 @@ export type Database = {
         }[]
       }
       match_testest: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5586,11 +5096,7 @@ export type Database = {
         }[]
       }
       match_testest1: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5599,11 +5105,7 @@ export type Database = {
         }[]
       }
       match_testest12: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5612,11 +5114,7 @@ export type Database = {
         }[]
       }
       match_testf: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5625,11 +5123,7 @@ export type Database = {
         }[]
       }
       match_testg: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5638,11 +5132,7 @@ export type Database = {
         }[]
       }
       match_testglas: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5651,11 +5141,7 @@ export type Database = {
         }[]
       }
       match_testh: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5664,11 +5150,7 @@ export type Database = {
         }[]
       }
       match_testheagent: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5677,11 +5159,7 @@ export type Database = {
         }[]
       }
       match_testit: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5690,11 +5168,7 @@ export type Database = {
         }[]
       }
       match_testj: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5703,11 +5177,7 @@ export type Database = {
         }[]
       }
       match_testk: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5716,11 +5186,7 @@ export type Database = {
         }[]
       }
       match_testl: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5729,11 +5195,7 @@ export type Database = {
         }[]
       }
       match_testm: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5742,11 +5204,7 @@ export type Database = {
         }[]
       }
       match_testme1234: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5755,11 +5213,7 @@ export type Database = {
         }[]
       }
       match_testn: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5768,11 +5222,7 @@ export type Database = {
         }[]
       }
       match_testo: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5781,11 +5231,7 @@ export type Database = {
         }[]
       }
       match_testp: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5794,11 +5240,7 @@ export type Database = {
         }[]
       }
       match_testq: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5807,11 +5249,7 @@ export type Database = {
         }[]
       }
       match_testr: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5820,11 +5258,7 @@ export type Database = {
         }[]
       }
       match_tests: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5833,11 +5267,7 @@ export type Database = {
         }[]
       }
       match_testt: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5846,11 +5276,7 @@ export type Database = {
         }[]
       }
       match_testu: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5859,11 +5285,7 @@ export type Database = {
         }[]
       }
       match_testv: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5872,11 +5294,7 @@ export type Database = {
         }[]
       }
       match_testw: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5885,11 +5303,7 @@ export type Database = {
         }[]
       }
       match_the_agent: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5898,11 +5312,7 @@ export type Database = {
         }[]
       }
       match_thetest: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5911,11 +5321,7 @@ export type Database = {
         }[]
       }
       match_tweoo: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5924,11 +5330,7 @@ export type Database = {
         }[]
       }
       match_upwork: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5937,11 +5339,7 @@ export type Database = {
         }[]
       }
       match_vahalas: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5950,11 +5348,7 @@ export type Database = {
         }[]
       }
       match_value1: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5963,11 +5357,7 @@ export type Database = {
         }[]
       }
       match_value10: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5976,11 +5366,7 @@ export type Database = {
         }[]
       }
       match_value11: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -5989,11 +5375,7 @@ export type Database = {
         }[]
       }
       match_value2: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6002,11 +5384,7 @@ export type Database = {
         }[]
       }
       match_value6: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6015,11 +5393,7 @@ export type Database = {
         }[]
       }
       match_value7: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6028,11 +5402,7 @@ export type Database = {
         }[]
       }
       match_value8: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6041,11 +5411,7 @@ export type Database = {
         }[]
       }
       match_value9: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6054,11 +5420,7 @@ export type Database = {
         }[]
       }
       match_vidgu: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6067,11 +5429,7 @@ export type Database = {
         }[]
       }
       match_vladd2a: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6080,11 +5438,7 @@ export type Database = {
         }[]
       }
       match_vlooh: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6093,11 +5447,7 @@ export type Database = {
         }[]
       }
       match_voigai: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6106,11 +5456,7 @@ export type Database = {
         }[]
       }
       match_wechate: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6119,11 +5465,7 @@ export type Database = {
         }[]
       }
       match_your_agent: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -6183,27 +5525,19 @@ export type Database = {
         Returns: boolean
       }
       setup_vector_table_policies: {
-        Args: {
-          table_name: string
-        }
+        Args: { table_name: string }
         Returns: undefined
       }
       sparsevec_out: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       sparsevec_send: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: string
       }
       sparsevec_typmod_in: {
-        Args: {
-          "": unknown[]
-        }
+        Args: { "": unknown[] }
         Returns: number
       }
       store_document_content: {
@@ -6255,11 +5589,7 @@ export type Database = {
         Returns: Json
       }
       update_logo_url: {
-        Args: {
-          client_id: string
-          logo_url: string
-          storage_path: string
-        }
+        Args: { client_id: string; logo_url: string; storage_path: string }
         Returns: undefined
       }
       uuid_generate_v4: {
@@ -6267,46 +5597,27 @@ export type Database = {
         Returns: string
       }
       vector_avg: {
-        Args: {
-          "": number[]
-        }
+        Args: { "": number[] }
         Returns: string
       }
-      vector_dims:
-        | {
-            Args: {
-              "": string
-            }
-            Returns: number
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: number
-          }
+      vector_dims: {
+        Args: { "": unknown } | { "": string }
+        Returns: number
+      }
       vector_norm: {
-        Args: {
-          "": string
-        }
+        Args: { "": string }
         Returns: number
       }
       vector_out: {
-        Args: {
-          "": string
-        }
+        Args: { "": string }
         Returns: unknown
       }
       vector_send: {
-        Args: {
-          "": string
-        }
+        Args: { "": string }
         Returns: string
       }
       vector_typmod_in: {
-        Args: {
-          "": unknown[]
-        }
+        Args: { "": unknown[] }
         Returns: number
       }
     }
@@ -6357,27 +5668,29 @@ export type Database = {
   }
 }
 
-type PublicSchema = Database[Extract<keyof Database, "public">]
+type DefaultSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
-        PublicSchema["Views"])
-    ? (PublicSchema["Tables"] &
-        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -6385,20 +5698,22 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -6406,20 +5721,22 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -6427,21 +5744,23 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  PublicEnumNameOrOptions extends
-    | keyof PublicSchema["Enums"]
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
     | { schema: keyof Database },
-  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
-    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof PublicSchema["CompositeTypes"]
+    | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof Database },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof Database
@@ -6450,6 +5769,54 @@ export type CompositeTypes<
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
   ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
-    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      activity_type: [
+        "document_added",
+        "document_removed",
+        "document_processed",
+        "document_processing_failed",
+        "url_added",
+        "url_removed",
+        "url_processed",
+        "url_processing_failed",
+        "chat_message_sent",
+        "chat_message_received",
+        "agent_created",
+        "agent_updated",
+        "agent_deleted",
+        "client_created",
+        "client_updated",
+        "client_deleted",
+      ],
+      activity_type_enum: [
+        "document_added",
+        "document_removed",
+        "document_processed",
+        "document_processing_failed",
+        "url_added",
+        "url_removed",
+        "url_processed",
+        "url_processing_failed",
+        "chat_message_sent",
+        "chat_message_received",
+        "client_created",
+        "client_updated",
+        "client_deleted",
+      ],
+      app_role: ["admin", "manager", "client"],
+      client_status: ["active", "inactive"],
+      document_status: ["pending", "processing", "processed", "failed"],
+      document_type: ["pdf", "doc", "docx", "txt", "url"],
+      invitation_status: ["pending", "accepted", "expired"],
+      role_type: ["admin", "client"],
+      source_type: ["google_drive", "website"],
+      user_role: ["admin", "manager", "user"],
+    },
+  },
+} as const
