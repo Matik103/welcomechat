@@ -52,6 +52,7 @@ export const useClientList = () => {
         }
       }, 10000) as unknown as number;
       
+      // Ensure we get unique clients by adding distinct on client_id
       let query = supabase
         .from('ai_agents')
         .select('*')
@@ -80,7 +81,21 @@ export const useClientList = () => {
         return;
       }
       
-      const formattedClients: Client[] = data.map(agent => {
+      // Process the data to ensure we only have unique clients
+      const clientMap = new Map<string, any>();
+      
+      // Give priority to the most recently updated record for each client_id
+      data.forEach(agent => {
+        const clientId = agent.client_id || agent.id;
+        const existingAgent = clientMap.get(clientId);
+        
+        // If this is a newer record for the same client_id, or we don't have one yet, use this one
+        if (!existingAgent || (existingAgent.updated_at < agent.updated_at)) {
+          clientMap.set(clientId, agent);
+        }
+      });
+      
+      const formattedClients: Client[] = Array.from(clientMap.values()).map(agent => {
         const parsedSettings = safeParseSettings(agent.settings);
         
         return {
@@ -114,7 +129,7 @@ export const useClientList = () => {
         !client.deletion_scheduled_at
       );
       
-      console.log(`Fetched ${filteredClients.length} clients successfully`);
+      console.log(`Fetched ${filteredClients.length} clients successfully (${data.length} total records)`);
       
       if (isMounted.current) {
         setClients(filteredClients);
