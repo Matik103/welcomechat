@@ -60,7 +60,6 @@
     "input-otp": "^1.1.0",
     "jspdf": "^3.0.1",
     "llamaindex": "^0.1.10",
-    "lovable-tagger": "^1.1.8",
     "lucide-react": "^0.344.0",
     "mammoth": "^1.7.0",
     "next-themes": "^0.2.1",

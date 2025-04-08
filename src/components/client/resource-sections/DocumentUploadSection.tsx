@@ -1,15 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { DocumentUpload } from '@/components/client/DocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, RefreshCw, CheckCircle2, Loader2, KeyRound } from 'lucide-react';
+import { AlertTriangle, RefreshCw, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fixDocumentContentRLS, checkDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 import { toast } from 'sonner';
 import { UploadResult } from '@/hooks/useUnifiedDocumentUpload';
-import { RAPIDAPI_KEY } from '@/config/env';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -25,8 +25,8 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const [lastError, setLastError] = useState<string | null>(null);
   const [isFixingPermissions, setIsFixingPermissions] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<string | null>(null);
-  const [apiKeyMissing, setApiKeyMissing] = useState<boolean>(false);
   
+  // Check RLS permissions when component mounts
   useEffect(() => {
     const checkPermissions = async () => {
       try {
@@ -40,13 +40,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       }
     };
     
-    const checkApiKey = () => {
-      setApiKeyMissing(false);
-      console.log("Using RapidAPI key:", RAPIDAPI_KEY ? "Key is set" : "Key is missing");
-    };
-    
     checkPermissions();
-    checkApiKey();
   }, []);
   
   const handleFixPermissions = async () => {
@@ -81,6 +75,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         setPermissionStatus('Upload successful');
         toast.success('Document uploaded successfully');
         
+        // Log activity
         await createClientActivity(
           clientId,
           undefined,
@@ -94,6 +89,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           }
         );
         
+        // Call the parent's upload complete handler
         await logClientActivity();
         if (onUploadComplete) onUploadComplete();
       } catch (activityError) {
@@ -104,10 +100,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       console.error("Upload failed:", result.error);
       setLastError(result.error || "Unknown error during upload");
       
-      if (result.error && (result.error.includes('API key') || result.error.includes('401') || result.error.includes('Invalid API key'))) {
-        setApiKeyMissing(true);
-      }
-      
+      // If it's a permissions error, offer to fix it automatically
       if (result.error && (result.error.includes('row-level security') || result.error.includes('permission denied') || result.error.includes('policy'))) {
         setPermissionStatus('Permission denied. Click "Fix Permissions" to resolve this issue.');
       }
@@ -119,20 +112,10 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       <CardHeader>
         <CardTitle>Document Upload</CardTitle>
         <CardDescription>
-          Upload documents to be processed and extracted using RapidAPI
+          Upload documents to be processed and stored for your assistant
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {apiKeyMissing && (
-          <Alert variant="warning" className="bg-red-50 border border-red-200 mb-4">
-            <KeyRound className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">
-              <strong>RapidAPI Key Issue:</strong> There seems to be a problem with the RapidAPI key. 
-              Please contact support if PDF text extraction fails.
-            </AlertDescription>
-          </Alert>
-        )}
-        
         {permissionStatus && permissionStatus !== 'Permissions verified' && (
           <Alert variant={permissionStatus.includes('successful') || permissionStatus.includes('fixed') 
                   ? "default" 
@@ -153,7 +136,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           </Alert>
         )}
         
-        {lastError && !apiKeyMissing && (
+        {lastError && (
           <Alert variant="warning" className="bg-yellow-50 border border-yellow-200 mb-4">
             <AlertTriangle className="h-4 w-4 text-yellow-600" />
             <AlertDescription className="text-yellow-800">

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { WidgetSettings } from '@/types/widget-settings';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getAnswerFromOpenAIAssistant } from '@/utils/openAIDocumentSync';
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -33,25 +33,17 @@ export const WidgetPreview = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [connectionAttempts, setConnectionAttempts] = useState(0);
-  const [lastRequestTime, setLastRequestTime] = useState<number>(0);
   
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
-    if (!inputValue.trim() || isLoading) return;
+    if (!inputValue.trim()) return;
     
     const userMessage = inputValue;
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setInputValue('');
     setIsLoading(true);
     setError(null);
-    
-    const now = Date.now();
-    if (now - lastRequestTime < 1000) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    setLastRequestTime(now);
     
     try {
       if (!clientId) {
@@ -60,48 +52,46 @@ export const WidgetPreview = ({
       
       console.log(`Sending query to assistant for client ${clientId}: "${userMessage}"`);
       
-      const result = await getAnswerFromOpenAIAssistant(clientId, userMessage);
-      
-      if (result.error) {
-        console.error('Assistant query error:', result.error);
-        setError(`Failed to get response: ${result.error}`);
-        setConnectionAttempts(prev => prev + 1);
-        
-        let errorMessage = "Sorry, I encountered an error processing your request.";
-        
-        if (result.error.includes("Edge function") || 
-            result.error.includes("network") || 
-            result.error.includes("timeout")) {
-          errorMessage = "I'm having trouble connecting to my knowledge base right now. Please try again shortly.";
+      const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
+        body: {
+          client_id: clientId,
+          query: userMessage
         }
-        
-        setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
-      } else {
-        if (connectionAttempts > 0) {
-          setConnectionAttempts(0);
-        }
-        
-        setMessages(prev => [...prev, { role: 'assistant', content: result.answer }]);
+      });
 
-        if (onTestInteraction) {
-          onTestInteraction();
-        }
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(`Edge function error: ${error.message || 'Unknown error'}`);
+      }
+
+      console.log('Assistant response:', data);
+
+      if (data?.answer) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
+      } else if (typeof data === 'string') {
+        setMessages(prev => [...prev, { role: 'assistant', content: data }]);
+      } else if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+        const assistantMessage = data.messages[data.messages.length - 1]?.content || 
+          "Sorry, I couldn't generate a response.";
+        setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: "Sorry, I couldn't generate a response." 
+        }]);
+      }
+
+      if (onTestInteraction) {
+        onTestInteraction();
       }
     } catch (error) {
       console.error('Error querying assistant:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setError(`Failed to get response: ${errorMessage}`);
-      setConnectionAttempts(prev => prev + 1);
-      
-      let userFriendlyMessage = "Sorry, I encountered an error processing your request.";
-      
-      if (errorMessage.includes("timeout")) {
-        userFriendlyMessage = "I'm sorry, the request took too long to complete. The service might be busy right now. Please try again shortly.";
-      } else if (errorMessage.includes("network") || errorMessage.includes("Edge function")) {
-        userFriendlyMessage = "I'm having trouble connecting to my knowledge base right now. This might be due to network issues. Please try again in a few moments.";
-      }
-      
-      setMessages(prev => [...prev, { role: 'assistant', content: userFriendlyMessage }]);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: "Sorry, I encountered an error processing your request." 
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -126,15 +116,6 @@ export const WidgetPreview = ({
     console.log('Widget preview error:', error);
   }
 
-  const connectionTroubleshooting = connectionAttempts >= 2 ? (
-    <Alert variant="warning" className="m-3 py-2">
-      <AlertCircle className="h-4 w-4" />
-      <AlertDescription className="text-xs">
-        Having trouble connecting? Try refreshing the page or checking your internet connection.
-      </AlertDescription>
-    </Alert>
-  ) : null;
-
   switch (settings.display_mode) {
     case 'inline':
       return (
@@ -152,8 +133,6 @@ export const WidgetPreview = ({
               <AlertDescription className="text-xs">{error}</AlertDescription>
             </Alert>
           )}
-          
-          {connectionTroubleshooting}
           
           <div className="h-[300px] overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
             <ChatMessages 
@@ -183,6 +162,7 @@ export const WidgetPreview = ({
       return (
         <div className="relative h-full w-full bg-gray-100 rounded-lg p-4">
           <div className="flex h-full">
+            {/* Sidebar tab - always visible */}
             <div 
               className={`flex items-center justify-center h-full cursor-pointer transition-all ${isSidebarOpen ? 'w-8' : 'w-14'}`}
               onClick={handleToggleSidebar}
@@ -193,6 +173,7 @@ export const WidgetPreview = ({
               </div>
             </div>
             
+            {/* Chat panel - visible when open */}
             {isSidebarOpen && (
               <div className="flex-1 flex flex-col bg-white overflow-hidden border-t border-r border-b rounded-tr-lg rounded-br-lg shadow-md">
                 <ChatHeader 
@@ -208,8 +189,6 @@ export const WidgetPreview = ({
                     <AlertDescription className="text-xs">{error}</AlertDescription>
                   </Alert>
                 )}
-                
-                {connectionTroubleshooting}
                 
                 <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
                   <ChatMessages 
@@ -236,6 +215,7 @@ export const WidgetPreview = ({
             )}
           </div>
           
+          {/* Example of showing initial closed state with a button to open */}
           {!isSidebarOpen && !messages.length && (
             <div className="absolute top-4 right-4 p-3 bg-white border rounded-lg shadow-md">
               <p className="text-sm mb-4">This is how the sidebar appears when collapsed. Click the tab on the left to expand it.</p>
@@ -286,8 +266,6 @@ export const WidgetPreview = ({
                   </Alert>
                 )}
                 
-                {connectionTroubleshooting}
-                
                 <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ backgroundColor: chatBgColor }}>
                   <ChatMessages 
                     messages={formattedMessages} 
@@ -316,3 +294,4 @@ export const WidgetPreview = ({
       );
   }
 };
+
