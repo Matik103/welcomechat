@@ -26,7 +26,7 @@ export interface Client {
   is_error?: boolean;
   user_id?: string; // Added for compatibility
   openai_assistant_id?: string; // Added for OpenAI integration
-  deepseek_assistant_id?: string; // Added for Deepseek integration
+  deepseek_assistant_id: string; // Added for Deepseek integration
 
   // Additional fields from ai_agents table
   ai_prompt?: string;

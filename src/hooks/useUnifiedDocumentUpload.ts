@@ -1,4 +1,3 @@
-
 // Streamlined document upload hook with direct RapidAPI integration
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,13 +6,9 @@ import { toast } from 'sonner';
 import { RAPIDAPI_HOST } from '@/config/env';
 
 export interface UploadResult {
-  success: boolean;
-  documentId?: string;
-  error?: string;
-  extractedText?: string;
-  publicUrl?: string;
-  fileName?: string;
-  fileType?: string;
+  upload: (clientId: string, options: { onSuccess: (result: any) => void; onProgress: (progress: any) => void }) => void;
+  isLoading: boolean;
+  uploadProgress: number;
 }
 
 interface UseUnifiedDocumentUploadOptions {
@@ -23,7 +18,7 @@ interface UseUnifiedDocumentUploadOptions {
   onProgress?: (progress: number) => void;
 }
 
-export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOptions = {}) => {
+export const useUnifiedDocumentUpload = (): UploadResult => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 

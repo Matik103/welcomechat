@@ -7,12 +7,15 @@ export type UserRole = 'admin' | 'client';
  * Auth context interface
  */
 export interface AuthContextType {
-  session: any | null;
-  user: any | null;
+  session: Session | null;
+  user: User | null;
   signOut: () => Promise<void>;
   isLoading: boolean;
   userRole: UserRole | null;
-  clientId: string | null; // Client ID is needed by multiple components
+  clientId: string | null;
+  userId: string | null;
+  userClientId: string | null;
+  refreshUserRole: () => Promise<void>;
 }
 
 /**

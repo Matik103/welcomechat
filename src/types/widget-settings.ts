@@ -22,16 +22,16 @@ export interface WidgetSettings {
   response_time_text: string;
   display_mode: WidgetDisplayMode;
   openai_assistant_id?: string;
-  deepseek_assistant_id?: string;
-  clientId?: string;
-  client_id?: string;
-  color?: string;
-  fontFamily?: string;
-  fontSize?: string;
-  welcome_message?: string;
-  logo_path?: string;
-  logo?: string;
-  onTestInteraction?: () => Promise<void>;
+  deepseek_assistant_id: string;
+  clientId: string;
+  client_id: string;
+  color: string;
+  fontFamily: string;
+  fontSize: string;
+  welcome_message: string;
+  logo_path: string;
+  logo: string;
+  onTestInteraction?: () => void;
 }
 
 // Default widget settings
@@ -59,5 +59,6 @@ export const defaultSettings: WidgetSettings = {
   fontSize: "14px",
   welcome_message: "Hello! How can I help you today?",
   logo_path: "",
-  logo: ""
+  logo: "",
+  deepseek_assistant_id: ""
 };
