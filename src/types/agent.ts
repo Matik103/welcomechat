@@ -63,8 +63,8 @@ export interface Agent {
   name: string;
   status: string;
   client_id: string;
-  client_name: string; // Made required to match agentService.ts Agent interface
-  agent_description: string; // Made required to match agentService.ts Agent interface
+  client_name: string;
+  agent_description: string;
   logo_url?: string;
   total_interactions: number;
   average_response_time: number;
