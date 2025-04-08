@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -29,6 +30,7 @@ export interface Database {
           logo_url: string | null
           name: string | null
           openai_assistant_id: string | null
+          deepseek_assistant_id: string | null
           query_text: string | null
           response_time_ms: number | null
           sentiment: string | null
@@ -66,6 +68,7 @@ export interface Database {
           logo_url?: string | null
           name?: string | null
           openai_assistant_id?: string | null
+          deepseek_assistant_id?: string | null
           query_text?: string | null
           response_time_ms?: number | null
           sentiment?: string | null
@@ -103,6 +106,7 @@ export interface Database {
           logo_url?: string | null
           name?: string | null
           openai_assistant_id?: string | null
+          deepseek_assistant_id?: string | null
           query_text?: string | null
           response_time_ms?: number | null
           sentiment?: string | null

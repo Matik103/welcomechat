@@ -69,14 +69,14 @@ ${agentDescription}`.trim();
 export const createDeepseekAssistant = async (
   clientId: string,
   agentName: string,
-  agentDescription: string
+  agentDescription?: string
 ): Promise<string> => {
   try {
     console.log(`Creating DeepSeek assistant for client ${clientId}`);
     
     // Sanitize input values to prevent errors with quotes
     const sanitizedAgentName = agentName.replace(/"/g, "'");
-    const sanitizedAgentDescription = agentDescription.replace(/"/g, "'");
+    const sanitizedAgentDescription = agentDescription?.replace(/"/g, "'") || '';
     
     // Call the Supabase Edge Function to create the DeepSeek assistant
     const { data, error } = await supabase.functions.invoke('create-deepseek-assistant', {

@@ -171,16 +171,12 @@ export const useClientList = () => {
     };
   }, [fetchClients]);
   
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-  };
-  
   return {
     clients,
     isLoading,
     error,
     searchQuery,
-    handleSearch,
+    handleSearch: (value: string) => setSearchQuery(value),
     refetch: fetchClients
   };
 };
