@@ -22,7 +22,8 @@ export interface Client {
   name: string;
   is_error: boolean;
   user_id?: string;
-  openai_assistant_id?: string; // Added for OpenAI integration
+  openai_assistant_id?: string;
+  deepseek_assistant_id?: string;
 }
 
 export interface ClientListResponse {

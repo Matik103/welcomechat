@@ -19,6 +19,7 @@ export const useClientList = () => {
   const lastFetchTime = useRef<number>(0);
   const initialLoadDone = useRef<boolean>(false);
   const fetchTimeoutRef = useRef<number | null>(null);
+  const isMounted = useRef<boolean>(true);
 
   const fetchClients = useCallback(async (force = false) => {
     // Don't refetch if we just did within the last 15 seconds unless forced
@@ -40,13 +41,15 @@ export const useClientList = () => {
     try {
       console.log('Fetching clients data...');
       
-      // Set a timeout to show error after 10 seconds
+      // Clear any existing timeout
       if (fetchTimeoutRef.current) {
         window.clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
       }
       
+      // Set a timeout to show error after 10 seconds
       fetchTimeoutRef.current = window.setTimeout(() => {
-        if (isLoading) {
+        if (isLoading && isMounted.current) {
           console.error('Client fetch timeout reached');
           setError(new Error('Request timed out. Please try again.'));
           setIsLoading(false);
@@ -75,6 +78,14 @@ export const useClientList = () => {
         throw error;
       }
       
+      if (!data || data.length === 0) {
+        console.log('No clients found or empty data array');
+        setClients([]);
+        initialLoadDone.current = true;
+        setIsLoading(false);
+        return;
+      }
+      
       // Convert to Client type
       const formattedClients: Client[] = data.map(agent => {
         // Use the safeParseSettings utility to ensure widget_settings is always an object
@@ -82,18 +93,18 @@ export const useClientList = () => {
         
         return {
           id: agent.id,
-          client_id: agent.client_id || '',
-          client_name: agent.client_name || '',
-          email: agent.email || '',
+          client_id: agent.client_id || agent.id, // Fallback to id if client_id is missing
+          client_name: agent.client_name || parsedSettings.client_name || '',
+          email: agent.email || parsedSettings.email || '',
           status: agent.status as 'active' | 'inactive' | 'deleted' || 'active',
-          created_at: agent.created_at || '',
-          updated_at: agent.updated_at || '',
+          created_at: agent.created_at || new Date().toISOString(),
+          updated_at: agent.updated_at || new Date().toISOString(),
           agent_name: agent.name || '',
           agent_description: agent.agent_description || '',
           logo_url: agent.logo_url || '',
           widget_settings: parsedSettings,
           // Add missing properties with default values
-          user_id: '',
+          user_id: agent.user_id || '',
           company: agent.company || '',
           description: agent.description || '',
           logo_storage_path: agent.logo_storage_path || '',
@@ -101,7 +112,8 @@ export const useClientList = () => {
           deleted_at: agent.deleted_at || null,
           last_active: agent.last_active || null,
           name: agent.name || '',
-          is_error: agent.is_error || false
+          is_error: agent.is_error || false,
+          openai_assistant_id: agent.openai_assistant_id || undefined
         };
       });
       
@@ -112,30 +124,39 @@ export const useClientList = () => {
       );
       
       console.log(`Fetched ${filteredClients.length} clients successfully`);
-      setClients(filteredClients);
-      initialLoadDone.current = true;
+      
+      if (isMounted.current) {
+        setClients(filteredClients);
+        initialLoadDone.current = true;
+        setIsLoading(false);
+      }
     } catch (error) {
       console.error('Error fetching clients:', error);
-      setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
-      toast.error(`Failed to load clients: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsLoading(false);
+      
+      if (isMounted.current) {
+        setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
+        toast.error(`Failed to load clients: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setIsLoading(false);
+      }
     }
   }, [searchQuery, isLoading]);
   
   // Initial fetch on component mount
   useEffect(() => {
+    isMounted.current = true;
     fetchClients(true);
     
     return () => {
+      isMounted.current = false;
       // Clean up timeout if component unmounts
       if (fetchTimeoutRef.current) {
         window.clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
       }
     };
   }, [fetchClients]);
   
-  // Set up refetch on window focus and auth state restoration
+  // Set up refetch on window focus
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {

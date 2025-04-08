@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
@@ -14,8 +14,20 @@ export default function ClientList() {
   const { clients, isLoading, error, searchQuery, handleSearch, refetch } = useClientList();
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   
+  useEffect(() => {
+    if (isLoading) {
+      toast.info('Loading clients...', { id: 'loading-clients' });
+    } else {
+      toast.dismiss('loading-clients');
+      if (clients.length > 0) {
+        toast.success(`${clients.length} clients loaded`, { id: 'clients-loaded' });
+      }
+    }
+  }, [isLoading, clients.length]);
+  
   const handleDeleteClick = (client: Client) => {
     console.log('Delete clicked for client:', client.client_name);
+    refetch(true);
   };
 
   const handleRetry = () => {
@@ -103,7 +115,7 @@ export default function ClientList() {
         isOpen={isAddClientModalOpen}
         onClose={() => {
           setIsAddClientModalOpen(false);
-          refetch(); // Refresh the client list after adding a new client
+          refetch(true); // Refresh the client list after adding a new client
         }}
       />
     </div>
