@@ -1,17 +1,17 @@
-
 import React, { useState, useEffect } from 'react';
 import { DocumentUpload } from '@/components/client/DocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, RefreshCw, CheckCircle2, Loader2, KeyRound } from 'lucide-react';
+import { AlertTriangle, RefreshCw, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fixDocumentContentRLS, checkDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 import { toast } from 'sonner';
 import { UploadResult } from '@/hooks/useUnifiedDocumentUpload';
 import { RAPIDAPI_KEY } from '@/config/env';
 import { supabase } from '@/integrations/supabase/client';
+import { RapidApiKeySetup } from '@/components/admin/RapidApiKeySetup';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -29,6 +29,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const [permissionStatus, setPermissionStatus] = useState<string | null>(null);
   const [apiKeyMissing, setApiKeyMissing] = useState<boolean>(false);
   const [isCheckingApiKey, setIsCheckingApiKey] = useState<boolean>(true);
+  const [showUploadForm, setShowUploadForm] = useState<boolean>(false);
   
   // Check RLS permissions and API key when component mounts
   useEffect(() => {
@@ -47,7 +48,14 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     const checkApiKey = async () => {
       setIsCheckingApiKey(true);
       try {
-        // Fetch RapidAPI key from Supabase secrets
+        // Check if key exists in environment variables
+        if (RAPIDAPI_KEY) {
+          setApiKeyMissing(false);
+          setShowUploadForm(true);
+          return;
+        }
+        
+        // Otherwise, check Supabase secrets
         const { data: secrets, error: secretsError } = await supabase.functions.invoke('get-secrets', {
           body: { keys: ['VITE_RAPIDAPI_KEY'] }
         });
@@ -55,13 +63,16 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         if (secretsError || !secrets?.VITE_RAPIDAPI_KEY) {
           console.error("RapidAPI key is missing or couldn't be retrieved:", secretsError);
           setApiKeyMissing(true);
+          setShowUploadForm(false);
         } else {
           console.log("RapidAPI key is available");
           setApiKeyMissing(false);
+          setShowUploadForm(true);
         }
       } catch (err) {
         console.error("Failed to check API key:", err);
         setApiKeyMissing(true);
+        setShowUploadForm(false);
       } finally {
         setIsCheckingApiKey(false);
       }
@@ -136,6 +147,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           result.error.includes('RapidAPI key')
         )) {
         setApiKeyMissing(true);
+        setShowUploadForm(false);
       }
       
       // If it's a permissions error, offer to fix it automatically
@@ -143,6 +155,11 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         setPermissionStatus('Permission denied. Click "Fix Permissions" to resolve this issue.');
       }
     }
+  };
+  
+  const handleApiKeyConfigured = () => {
+    setApiKeyMissing(false);
+    setShowUploadForm(true);
   };
   
   return (
@@ -162,13 +179,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
             </AlertDescription>
           </Alert>
         ) : apiKeyMissing ? (
-          <Alert variant="warning" className="bg-red-50 border border-red-200 mb-4">
-            <KeyRound className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">
-              <strong>RapidAPI Key Issue:</strong> The RapidAPI key is missing or invalid. 
-              Please contact your administrator to add the VITE_RAPIDAPI_KEY to your environment variables for PDF text extraction.
-            </AlertDescription>
-          </Alert>
+          <RapidApiKeySetup onKeyConfigured={handleApiKeyConfigured} />
         ) : null}
         
         {permissionStatus && permissionStatus !== 'Permissions verified' && (
@@ -225,10 +236,12 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           </Alert>
         )}
         
-        <DocumentUpload
-          clientId={clientId}
-          onUploadComplete={handleUploadComplete}
-        />
+        {showUploadForm && (
+          <DocumentUpload
+            clientId={clientId}
+            onUploadComplete={handleUploadComplete}
+          />
+        )}
       </CardContent>
     </Card>
   );
