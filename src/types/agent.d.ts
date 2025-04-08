@@ -11,6 +11,7 @@ export interface Agent {
   interaction_type: string;
   settings?: any;
   openai_assistant_id?: string;
+  deepseek_assistant_id?: string;
   logo_url?: string;
   logo_storage_path?: string;
   agent_description: string; // Making this required to match agentService.ts Agent interface

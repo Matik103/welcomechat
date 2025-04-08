@@ -72,6 +72,7 @@ export interface Agent {
   created_at: string;
   updated_at: string;
   openai_assistant_id?: string;
+  deepseek_assistant_id?: string;
   settings?: Json;
   interaction_type: string;
   description?: string;

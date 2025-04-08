@@ -13,6 +13,7 @@ export interface Agent {
   average_response_time: number;
   logo_url?: string;
   logo_storage_path?: string;
+  deepseek_assistant_id?: string;
 }
 
 /**
