@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -6,44 +5,24 @@ import { WidgetSettings, defaultSettings } from '@/types/widget-settings';
 import { getWidgetSettings, updateWidgetSettings } from '@/services/widgetSettingsService';
 import { supabase } from '@/integrations/supabase/client';
 
-export function useWidgetSettings(clientId: string | undefined) {
+export const useWidgetSettings = (clientId: string | undefined) => {
   const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch widget settings
-  const { data: settings, isLoading, error, refetch } = useQuery({
+  const { data: settings, isLoading } = useQuery({
     queryKey: ['widget-settings', clientId],
     queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
-    enabled: !!clientId
+    enabled: !!clientId,
   });
 
-  // Update widget settings
   const updateSettingsMutation = useMutation({
-    mutationFn: async (newSettings: Partial<WidgetSettings>): Promise<void> => {
+    mutationFn: async (newSettings: WidgetSettings) => {
       if (!clientId) throw new Error('Client ID is required');
-      
-      console.log('Updating widget settings:', newSettings);
-      
-      // Merge with existing settings to ensure we have a complete object
-      const updatedSettings = {
-        ...(settings || defaultSettings),
-        ...newSettings
-      };
-      
-      await updateWidgetSettings(clientId, updatedSettings);
+      return updateWidgetSettings(clientId, newSettings);
     },
     onSuccess: () => {
-      refetch();
-      
-      // Also invalidate client query to ensure bidirectional sync
-      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
-      
-      toast.success('Widget settings updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['widget-settings', clientId] });
     },
-    onError: (error) => {
-      console.error('Error updating widget settings:', error);
-      toast.error(`Failed to update settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
   });
 
   // Update logo
@@ -96,11 +75,9 @@ export function useWidgetSettings(clientId: string | undefined) {
   return {
     settings: settings || defaultSettings,
     isLoading,
-    error,
-    refetch,
-    updateSettings: updateSettingsMutation.mutate,
-    isPending: updateSettingsMutation.isPending,
+    updateSettings: updateSettingsMutation.mutateAsync,
+    isUpdating: updateSettingsMutation.isPending,
     updateLogo,
     isUploading
   };
-}
+};
