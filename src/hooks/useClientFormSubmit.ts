@@ -4,7 +4,6 @@ import { ClientFormValues } from "@/components/client/forms/ClientCreationForm";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { generateTempPassword, saveClientTempPassword } from "@/utils/passwordUtils";
-import { setupOpenAIAssistant } from "@/utils/clientOpenAIUtils";
 import { sendWelcomeEmail } from "@/utils/email/welcomeEmail";
 
 export function useClientFormSubmit(onSuccess: () => void) {
@@ -21,7 +20,7 @@ export function useClientFormSubmit(onSuccess: () => void) {
       const clientId = crypto.randomUUID();
       const tempPassword = generateTempPassword();
       
-      // Create AI agent (which creates the client record)
+      // Create client record in ai_agents table
       const insertData = {
         client_id: clientId,
         client_name: values.clientName,
@@ -37,23 +36,20 @@ export function useClientFormSubmit(onSuccess: () => void) {
         },
         status: "active",
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        type: "client_created"
+        updated_at: new Date().toISOString()
       };
       
-      // Insert into supabase handled by ClientCreationForm component
+      // Insert into supabase
+      const { data, error: insertError } = await fetch('/api/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(insertData),
+      }).then(res => res.json());
 
-      // Set up OpenAI assistant - ensure OpenAI connection is established
-      try {
-        await setupOpenAIAssistant(
-          clientId,
-          values.agentName || "AI Assistant",
-          values.agentDescription || "A helpful assistant for " + values.clientName,
-          values.clientName
-        );
-      } catch (openAiError) {
-        console.error("Error setting up OpenAI assistant:", openAiError);
-        toast.warning("Client created, but OpenAI assistant setup failed. You can retry setup later.");
+      if (insertError) {
+        throw new Error(insertError.message || "Failed to create client");
       }
       
       const agentId = clientId;

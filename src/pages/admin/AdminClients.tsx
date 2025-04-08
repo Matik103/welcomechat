@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, Suspense, lazy } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
@@ -7,9 +7,13 @@ import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw } from 'lucide-react';
-import { AddClientModal } from '@/components/client/AddClientModal';
 import { Client } from '@/types/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
+// Use lazy loading for the modal to improve initial page load time
+const AddClientModal = lazy(() => import('@/components/client/AddClientModal').then(
+  module => ({ default: module.AddClientModal })
+));
 
 export default function AdminClientsPage() {
   const { clients, isLoading, error, searchQuery, handleSearch, refetch } = useClientList();
@@ -76,7 +80,7 @@ export default function AdminClientsPage() {
           )}
           
           <div className="bg-white rounded-md shadow">
-            {isLoading ? (
+            {isLoading && clients.length === 0 ? (
               <div className="p-8 flex flex-col justify-center items-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
                 <p className="text-muted-foreground">Loading clients...</p>
@@ -103,10 +107,12 @@ export default function AdminClientsPage() {
       </div>
       
       {isAddClientModalOpen && (
-        <AddClientModal 
-          isOpen={isAddClientModalOpen}
-          onClose={handleAddClientClose}
-        />
+        <Suspense fallback={<div className="flex items-center justify-center p-8">Loading...</div>}>
+          <AddClientModal 
+            isOpen={isAddClientModalOpen}
+            onClose={handleAddClientClose}
+          />
+        </Suspense>
       )}
     </AdminLayout>
   );

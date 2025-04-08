@@ -1,12 +1,13 @@
 
+import React, { useState, Suspense } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import CreateClientForm from "./CreateClientForm";
+import { ClientCreationForm } from "./forms/ClientCreationForm";
+import { LoadingSpinner } from "./LoadingStates";
 
 interface AddClientModalProps {
   isOpen: boolean;
@@ -16,12 +17,21 @@ interface AddClientModalProps {
 export function AddClientModal({ isOpen, onClose }: AddClientModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader className="flex justify-between items-center">
-          <DialogTitle>Create New Client</DialogTitle>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Add New Client</DialogTitle>
         </DialogHeader>
-        <CreateClientForm onSuccess={onClose} />
+        
+        <Suspense fallback={
+          <div className="flex justify-center p-8">
+            <LoadingSpinner className="h-8 w-8" />
+          </div>
+        }>
+          <ClientCreationForm onSuccess={onClose} />
+        </Suspense>
       </DialogContent>
     </Dialog>
   );
 }
+
+export default { AddClientModal };

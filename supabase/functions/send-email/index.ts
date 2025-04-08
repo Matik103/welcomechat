@@ -31,77 +31,77 @@ serve(async (req) => {
     // Validate required fields
     if (!to || !subject || !html) {
       return new Response(
-        JSON.stringify({
-          error: 'Missing required fields: to, subject, and html are required'
-        }),
+        JSON.stringify({ error: 'Missing required fields: to, subject, and html are required' }),
         {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
         }
       );
     }
 
-    console.log("Sending email:", {
-      to,
-      subject,
-      from,
-      htmlLength: html.length
-    });
-
-    // Send the email using Resend
+    console.log(`Attempting to send email to ${Array.isArray(to) ? to.join(', ') : to}`);
+    
+    // Send the email
     const { data, error } = await resend.emails.send({
       from,
       to,
       subject,
-      html
+      html,
     });
 
+    // Log success/error information
     if (error) {
-      console.error('Email sending error:', error);
+      console.error('Email sending failed:', error);
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ error: `Failed to send email: ${error.message}` }),
         {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
         }
       );
     }
 
-    console.log("Email sent successfully:", data);
-
-    // Return success response
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data
-      }),
-      {
-        status: 200,
+    console.log('Email sent successfully:', data);
+    
+    // Log the email sending in database
+    // This is optional but helpful for tracking
+    try {
+      const { error: logError } = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/email_logs`, {
+        method: 'POST',
         headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+        },
+        body: JSON.stringify({
+          email_to: Array.isArray(to) ? to.join(', ') : to,
+          subject,
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+        }),
+      }).then(res => res.json());
+      
+      if (logError) {
+        console.warn('Failed to log email sending:', logError);
+      }
+    } catch (logErr) {
+      console.warn('Error logging email sending:', logErr);
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, data }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
       }
     );
-
   } catch (error) {
     console.error('Error in send-email function:', error);
     return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'An unknown error occurred'
-      }),
+      JSON.stringify({ error: error.message || 'An unknown error occurred' }),
       {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
       }
     );
   }

@@ -6,7 +6,6 @@ import { z } from "zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabaseAdmin } from "@/integrations/supabase/client-admin";
-import { setupOpenAIAssistant } from "@/utils/clientOpenAIUtils";
 import { generateTempPassword, saveClientTempPassword } from "@/utils/passwordUtils";
 import { sendWelcomeEmail } from "@/utils/email/welcomeEmail";
 
@@ -68,8 +67,7 @@ export function ClientCreationForm({ onSuccess }: ClientCreationFormProps) {
         },
         status: "active",
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        type: "client_created"
+        updated_at: new Date().toISOString()
       };
       
       const { data, error } = await supabaseAdmin
@@ -87,20 +85,6 @@ export function ClientCreationForm({ onSuccess }: ClientCreationFormProps) {
       
       if (agentId) {
         await saveClientTempPassword(agentId, values.email, tempPassword);
-        
-        // Set up OpenAI assistant
-        try {
-          await setupOpenAIAssistant(
-            clientId,
-            values.agentName || "AI Assistant",
-            values.agentDescription || "A helpful assistant for " + values.clientName,
-            values.clientName
-          );
-        } catch (openAiError) {
-          console.error("Error setting up OpenAI assistant:", openAiError);
-          toast.warning("Client created, but OpenAI assistant setup failed: " + 
-            (openAiError instanceof Error ? openAiError.message : "Unknown error"));
-        }
         
         const emailResult = await sendWelcomeEmail(
           values.email,
@@ -194,9 +178,6 @@ export function ClientCreationForm({ onSuccess }: ClientCreationFormProps) {
                   />
                 </FormControl>
                 <FormMessage />
-                <p className="text-xs text-muted-foreground mt-1">
-                  This description will be used as the system prompt for the OpenAI assistant.
-                </p>
               </FormItem>
             )}
           />
