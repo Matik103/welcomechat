@@ -4,6 +4,7 @@ import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '../../hooks/useUnifiedDocumentUpload';
 import { Loader2 } from 'lucide-react';
+import { RAPIDAPI_KEY } from '@/config/env';  // Changed from PDF_PROCESSING
 
 interface DocumentUploadProps {
   clientId: string;
