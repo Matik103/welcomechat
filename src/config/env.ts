@@ -1,3 +1,4 @@
+
 // Environment variables and configuration
 
 // Cache settings
@@ -18,3 +19,7 @@ export const IS_PRODUCTION = import.meta.env.PROD;
 // RapidAPI Configuration
 export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
 export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
+
+// Loading Fallback configurations
+export const DEFAULT_LOADING_TIMEOUT = 10; // seconds
+export const AUTH_LOADING_TIMEOUT = 5; // seconds

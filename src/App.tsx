@@ -1,3 +1,4 @@
+
 import { useMemo, useCallback, Suspense } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
@@ -6,13 +7,8 @@ import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-
-// Simple loading fallback component
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
-  </div>
-);
+import { LoadingFallback } from "./components/routes/LoadingFallback";
+import { DEFAULT_LOADING_TIMEOUT, AUTH_LOADING_TIMEOUT } from "./config/env";
 
 function App() {
   const { user, userRole, isLoading, session } = useAuth();
@@ -42,7 +38,7 @@ function App() {
   const routeComponent = useMemo(() => {
     // Show minimal loading for auth-related operations only
     if (isLoading && !isAuthCallback) {
-      return <LoadingFallback />;
+      return <LoadingFallback message="Loading application..." />;
     }
 
     // Public routes for non-authenticated users
@@ -68,7 +64,7 @@ function App() {
       if (userRole === 'admin') {
         return (
           <ErrorBoundary>
-            <Suspense fallback={<LoadingFallback />}>
+            <Suspense fallback={<LoadingFallback message="Loading admin dashboard..." timeoutSeconds={DEFAULT_LOADING_TIMEOUT} />}>
               <AdminRoutes />
             </Suspense>
           </ErrorBoundary>
@@ -78,7 +74,7 @@ function App() {
       if (userRole === 'client') {
         return (
           <ErrorBoundary>
-            <Suspense fallback={<LoadingFallback />}>
+            <Suspense fallback={<LoadingFallback message="Loading dashboard..." timeoutSeconds={DEFAULT_LOADING_TIMEOUT} />}>
               <ClientRoutes />
             </Suspense>
           </ErrorBoundary>
@@ -87,7 +83,7 @@ function App() {
       
       // If user is authenticated but role not determined yet, show loading
       if (!userRole) {
-        return <LoadingFallback />;
+        return <LoadingFallback message="Verifying account..." />;
       }
     }
     
