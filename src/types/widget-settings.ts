@@ -1,4 +1,3 @@
-
 // Define a common display mode type that can be used across components
 export type WidgetDisplayMode = 'floating' | 'inline' | 'sidebar' | string;
 
@@ -23,6 +22,7 @@ export interface WidgetSettings {
   response_time_text: string;
   display_mode: WidgetDisplayMode;
   openai_assistant_id?: string;
+  deepseek_assistant_id?: string; // Added for Deepseek integration
   clientId?: string; // Added clientId property
 }
 
