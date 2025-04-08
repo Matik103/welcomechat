@@ -24,12 +24,14 @@ export interface WidgetSettings {
   openai_assistant_id?: string;
   deepseek_assistant_id?: string;
   clientId?: string;
+  client_id?: string;
   color?: string;
   fontFamily?: string;
   fontSize?: string;
   welcome_message?: string;
   logo_path?: string;
   logo?: string;
+  onTestInteraction?: () => Promise<void>;
 }
 
 // Default widget settings

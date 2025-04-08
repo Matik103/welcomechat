@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -16,7 +15,9 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   userRole: UserRole;
   clientId: string | null;
-  refreshUserRole: () => Promise<void>; // Added the missing method
+  userId: string | null;
+  userClientId: string | null;
+  refreshUserRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +28,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [clientId, setClientId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userClientId, setUserClientId] = useState<string | null>(null);
 
   // New method to refresh user role
   const refreshUserRole = async () => {
@@ -50,6 +53,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setClientId(null);
       }
+
+      setUserId(session.user.id);
+      setUserClientId(session.user.user_metadata.client_id);
     } catch (error) {
       console.error('Error in refreshUserRole:', error);
     } finally {
@@ -82,9 +88,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setClientId(null);
         }
+
+        setUserId(session.user.id);
+        setUserClientId(session.user.user_metadata.client_id);
       } else {
         setUserRole(null);
         setClientId(null);
+        setUserId(null);
+        setUserClientId(null);
       }
 
       setIsLoading(false);
@@ -106,9 +117,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setClientId(null);
         }
+
+        setUserId(session.user.id);
+        setUserClientId(session.user.user_metadata.client_id);
       } else {
         setUserRole(null);
         setClientId(null);
+        setUserId(null);
+        setUserClientId(null);
       }
 
       setIsLoading(false);
@@ -137,6 +153,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setClientId(null);
         }
+
+        setUserId(data.session.user.id);
+        setUserClientId(data.session.user.user_metadata.client_id);
       }
 
       return { data: data.session, error };
@@ -151,6 +170,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await supabase.auth.signOut();
       setUserRole(null);
       setClientId(null);
+      setUserId(null);
+      setUserClientId(null);
     } finally {
       setIsLoading(false);
     }
@@ -166,7 +187,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signOut,
         userRole,
         clientId,
-        refreshUserRole, // Added the method to the context value
+        userId,
+        userClientId,
+        refreshUserRole,
       }}
     >
       {children}

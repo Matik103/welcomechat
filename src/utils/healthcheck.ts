@@ -1,12 +1,39 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { SUPABASE_URL, RAPIDAPI_KEY } from '@/config/env';
+
+interface ValidationResult {
+  allValid: boolean;
+  results: {
+    supabase: boolean;
+    rapidApi: boolean;
+  };
+}
+
+interface HealthCheckResult {
+  allHealthy: boolean;
+  results: {
+    environment: ValidationResult;
+    database: {
+      success: boolean;
+      error?: string;
+    };
+    storage: {
+      success: boolean;
+      error?: string;
+    };
+    secrets: {
+      success: boolean;
+      hasSecrets?: boolean;
+      error?: string;
+    };
+  };
+}
 
 /**
  * Validates that all required environment variables are set
  * @returns Object containing validation results
  */
-export const validateEnvironment = () => {
+export const validateEnvironment = (): ValidationResult => {
   const results = {
     supabase: !!SUPABASE_URL,
     rapidApi: !!RAPIDAPI_KEY,
@@ -21,7 +48,7 @@ export const validateEnvironment = () => {
 /**
  * Checks the health of various system components
  */
-export const checkSystemHealth = async () => {
+export const checkSystemHealth = async (): Promise<HealthCheckResult> => {
   const results = {
     environment: validateEnvironment(),
     database: await checkDatabaseConnection(),
@@ -29,7 +56,6 @@ export const checkSystemHealth = async () => {
     secrets: await checkSecretsAccess()
   };
   
-  // Fix the type issue by checking the structure of each result
   const allHealthy = Object.entries(results).every(([key, value]) => {
     if ('allValid' in value) return value.allValid;
     if ('success' in value) return value.success;
@@ -101,7 +127,7 @@ const checkSecretsAccess = async () => {
     };
   } catch (err) {
     return { 
-      success: false, 
+      success: false,
       error: err instanceof Error ? err.message : 'Unknown error'
     };
   }
