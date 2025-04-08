@@ -45,10 +45,22 @@ interface DashboardData {
     recent: number;
   };
   activityCharts: {
-    database: any;
-    auth: any;
-    storage: any;
-    realtime: any;
+    database: {
+      value: number;
+      data: number[];
+    };
+    auth: {
+      value: number;
+      data: number[];
+    };
+    storage: {
+      value: number;
+      data: number[];
+    };
+    realtime: {
+      value: number;
+      data: number[];
+    };
   };
 }
 
@@ -84,10 +96,22 @@ const defaultDashboardData: DashboardData = {
     recent: 0
   },
   activityCharts: {
-    database: generateChartData(),
-    auth: generateChartData(),
-    storage: generateChartData(),
-    realtime: generateChartData()
+    database: {
+      value: Math.floor(Math.random() * 1000),
+      data: generateChartData()
+    },
+    auth: {
+      value: Math.floor(Math.random() * 500),
+      data: generateChartData()
+    },
+    storage: {
+      value: Math.floor(Math.random() * 200),
+      data: generateChartData()
+    },
+    realtime: {
+      value: Math.floor(Math.random() * 100),
+      data: generateChartData()
+    }
   }
 };
 
@@ -116,9 +140,11 @@ export function useAdminDashboardData() {
         if (isMountedRef.current) {
           console.log("Dashboard data fetch timed out");
           setIsLoading(false);
-          toast.error('Dashboard data fetch timed out. Please try again.');
+          toast.error('Dashboard data fetch timed out. Using default data instead.');
+          // Even on timeout, ensure we have data to show
+          setDashboardData(prev => ({...prev}));
         }
-      }, 30000); // 30 second timeout
+      }, 10000); // 10 second timeout (reduced from 30)
 
       // Fetch clients data
       const { data: clientsData, error: clientsError } = await supabase
@@ -158,7 +184,8 @@ export function useAdminDashboardData() {
             changePercentage: calculateChangePercentage(
               defaultDashboardData.clients.total, 
               clientsData?.length || 0
-            )
+            ),
+            chartData: generateChartData() // Ensure we have fresh chart data
           },
           agents: {
             ...defaultDashboardData.agents,
@@ -167,7 +194,26 @@ export function useAdminDashboardData() {
             changePercentage: calculateChangePercentage(
               defaultDashboardData.agents.total, 
               agentsData?.length || 0
-            )
+            ),
+            chartData: generateChartData() // Ensure we have fresh chart data
+          },
+          activityCharts: {
+            database: {
+              value: Math.floor(Math.random() * 1000),
+              data: generateChartData()
+            },
+            auth: {
+              value: Math.floor(Math.random() * 500),
+              data: generateChartData()
+            },
+            storage: {
+              value: Math.floor(Math.random() * 200),
+              data: generateChartData()
+            },
+            realtime: {
+              value: Math.floor(Math.random() * 100),
+              data: generateChartData()
+            }
           }
         };
         
@@ -177,7 +223,9 @@ export function useAdminDashboardData() {
     } catch (error) {
       if (isMountedRef.current) {
         console.error('Error fetching dashboard data:', error);
-        toast.error('Failed to load dashboard data. Please try again.');
+        toast.error('Failed to load dashboard data. Using default values.');
+        // On error, still update with default data to prevent UI issues
+        setDashboardData(prev => ({...prev}));
       }
     } finally {
       if (isMountedRef.current) {

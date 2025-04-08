@@ -16,6 +16,25 @@ export default function AdminDashboardPage() {
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [isManuallyRefreshing, setIsManuallyRefreshing] = useState(false);
+  const [initializationTimeout, setInitializationTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  // Force timeout after 15 seconds to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!isSetupComplete) {
+        console.log("Forcing setup completion after timeout");
+        setIsSetupComplete(true);
+      }
+    }, 15000);
+    
+    setInitializationTimeout(timeout);
+    
+    return () => {
+      if (initializationTimeout) {
+        clearTimeout(initializationTimeout);
+      }
+    };
+  }, [isSetupComplete]);
   
   // Memoize the manual refresh handler to prevent unnecessary re-renders
   const handleManualRefresh = useCallback(async () => {
@@ -35,7 +54,7 @@ export default function AdminDashboardPage() {
   // Memoize the dashboard content to prevent unnecessary re-renders
   const dashboardContent = useMemo(() => {
     if (isLoading && !isManuallyRefreshing) {
-      return <DashboardLoading />;
+      return <DashboardLoading message="Loading dashboard data..." />;
     }
     
     return (
@@ -99,13 +118,18 @@ export default function AdminDashboardPage() {
       }
     };
     
-    initializeDashboard();
+    initializeDashboard().catch(err => {
+      console.error('Unhandled error in initialization:', err);
+      setError(err instanceof Error ? err : new Error('Unhandled error during initialization'));
+      setIsSetupComplete(true); // Ensure we exit loading state on error
+    });
     
     // Cleanup function
     return () => {
       console.log("AdminDashboard unmounting, cleaning up subscriptions...");
       if (activitiesChannel) supabase.removeChannel(activitiesChannel);
       if (agentsChannel) supabase.removeChannel(agentsChannel);
+      if (initializationTimeout) clearTimeout(initializationTimeout);
     };
   }, [fetchDashboardData]);
   
