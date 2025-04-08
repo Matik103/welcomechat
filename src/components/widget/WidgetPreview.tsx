@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -126,13 +127,13 @@ export const WidgetPreview = ({
   };
 
   useEffect(() => {
-    if (messages.length === 0 && settings.welcome_message) {
+    if (messages.length === 0 && settings.greeting_message) {
       setMessages([{ 
         role: 'assistant', 
-        content: settings.welcome_message 
+        content: settings.greeting_message 
       }]);
     }
-  }, [settings.welcome_message]);
+  }, [settings.greeting_message]);
 
   const headerBgColor = settings.chat_color || '#4F46E5';
   const chatBgColor = settings.background_color || '#F9FAFB';
