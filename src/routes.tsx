@@ -1,4 +1,3 @@
-
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
@@ -30,7 +29,6 @@ const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminMigrations = lazy(() => import("./pages/admin/AdminMigrations"));
 const DocumentExtraction = lazy(() => import("./pages/admin/DocumentExtraction"));
-const DatabaseRecovery = lazy(() => import("./pages/admin/DatabaseRecovery"));
 
 export default function AppRoutes() {
   const { isLoading } = useAuth();
@@ -114,14 +112,6 @@ export default function AppRoutes() {
               element={
                 <Suspense fallback={<LoadingFallback />}>
                   <DocumentExtraction />
-                </Suspense>
-              }
-            />
-            <Route
-              path="database-recovery"
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <DatabaseRecovery />
                 </Suspense>
               }
             />
