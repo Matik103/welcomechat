@@ -154,7 +154,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: options.from || 'WelcomeChat <admin@welcome.chat>',
+          from: options.from || 'Welcome.Chat <admin@welcome.chat>',
           to: options.to,
           subject: options.subject,
           html: html
@@ -279,13 +279,17 @@ export const sendDeletionEmail = async (
     day: 'numeric'
   });
   
-  const recoveryUrl = `${window.location.origin}/client/auth?recovery=${recoveryToken}`;
+  // Use a default URL if window is not defined (server-side)
+  const baseUrl = typeof window !== 'undefined' 
+    ? window.location.origin 
+    : 'https://welcome.chat';
+  const recoveryUrl = `${baseUrl}/client/auth?recovery=${recoveryToken}`;
   
   try {
     const emailResult = await sendEmail({
       to: email,
       subject: "Important: Your Account is Scheduled for Deletion",
-      from: 'WelcomeChat <admin@welcome.chat>',
+      from: 'Welcome.Chat <admin@welcome.chat>',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <div style="text-align: center; margin-bottom: 20px;">
