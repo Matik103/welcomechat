@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
-import { RAPIDAPI_HOST, RAPIDAPI_KEY } from '@/config/env';
+import { RAPIDAPI_CONFIG } from '@/config/env';
 import { toast } from 'sonner';
 
 export interface UploadResult {
@@ -72,29 +72,51 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
 
       // If it's a PDF, extract text using RapidAPI
       let extractedText = '';
+      let processingStatus = 'ready';
+      
       if (file.type === 'application/pdf') {
-        // Create form data for RapidAPI
-        const formData = new FormData();
-        formData.append('file', file);
-
+        processingStatus = 'pending_extraction';
         try {
+          if (!RAPIDAPI_CONFIG.KEY || !RAPIDAPI_CONFIG.HOST) {
+            console.warn('RapidAPI configuration is incomplete. Text extraction will be skipped.');
+            processingStatus = 'extraction_skipped';
+            throw new Error('RapidAPI configuration is incomplete');
+          }
+
+          // Create form data for RapidAPI
+          const formData = new FormData();
+          formData.append('file', file);
+
           // Extract text using RapidAPI
           const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
             method: 'POST',
             headers: {
-              'x-rapidapi-host': RAPIDAPI_HOST,
-              'x-rapidapi-key': RAPIDAPI_KEY
+              'x-rapidapi-host': RAPIDAPI_CONFIG.HOST,
+              'x-rapidapi-key': RAPIDAPI_CONFIG.KEY
             },
             body: formData
           });
 
           if (!response.ok) {
+            processingStatus = 'extraction_failed';
             console.warn(`Text extraction API responded with status: ${response.status}. Will continue without text extraction.`);
-          } else {
-            extractedText = await response.text();
+            throw new Error(`Text extraction failed with status: ${response.status}`);
           }
+
+          const data = await response.text();
+          if (!data) {
+            processingStatus = 'extraction_failed';
+            throw new Error('No text extracted from PDF');
+          }
+
+          extractedText = data;
+          processingStatus = 'extraction_complete';
         } catch (extractionError) {
           console.warn("Text extraction failed but will continue with document upload:", extractionError);
+          if (processingStatus === 'pending_extraction') {
+            processingStatus = 'extraction_failed';
+          }
+          toast.error("PDF text extraction failed, but file will be uploaded");
           // Don't throw here - we want to continue even if text extraction fails
         }
       }
@@ -103,30 +125,36 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
       if (options.onProgress) options.onProgress(60);
 
       // Store document and extracted text in database
-      const { error: documentError } = await supabase
-        .from('document_content')
-        .insert({
-          client_id: effectiveClientId,
-          document_id: documentId,
-          content: extractedText,
+      const documentContent = {
+        client_id: effectiveClientId,
+        document_id: documentId,
+        content: extractedText || null,  // Ensure we pass null, not empty string if no content
+        filename: file.name,
+        file_type: file.type,
+        metadata: {
           filename: file.name,
           file_type: file.type,
-          metadata: {
-            filename: file.name,
-            file_type: file.type,
-            size: file.size,
-            storage_path: filePath,
-            storage_url: publicUrl,
-            uploadedAt: new Date().toISOString(),
-            processing_status: file.type === 'application/pdf' ? (extractedText ? 'extraction_complete' : 'extraction_failed') : 'ready',
-            extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
-            text_length: extractedText.length || 0,
-            extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
-            extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null
-          }
-        });
+          size: file.size,
+          storage_path: filePath,
+          storage_url: publicUrl,
+          uploadedAt: new Date().toISOString(),
+          processing_status: processingStatus,
+          extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
+          text_length: extractedText ? extractedText.length : 0,
+          extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
+          extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null,
+          rapidapi_configured: !!(RAPIDAPI_CONFIG.KEY && RAPIDAPI_CONFIG.HOST)
+        }
+      };
+
+      const { data: documentData, error: documentError } = await supabase
+        .from('document_content')
+        .insert(documentContent)
+        .select()
+        .single();
 
       if (documentError) {
+        console.error('Failed to store document:', documentError, 'Data:', documentContent);
         throw new Error(`Failed to store document: ${documentError.message}`);
       }
 
@@ -135,7 +163,7 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
 
       const result: UploadResult = {
         success: true,
-        documentId,
+        documentId: documentData?.id ? documentData.id.toString() : documentId,
         extractedText,
         publicUrl,
         fileName: file.name,
