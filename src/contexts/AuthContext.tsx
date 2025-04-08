@@ -16,6 +16,7 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   userRole: UserRole;
   clientId: string | null;
+  refreshUserRole: () => Promise<void>; // Added the missing method
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,6 +27,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [clientId, setClientId] = useState<string | null>(null);
+
+  // New method to refresh user role
+  const refreshUserRole = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        console.error('Error refreshing user role:', error);
+        return;
+      }
+      
+      const role = session.user.app_metadata.role || session.user.user_metadata.role;
+      setUserRole(role);
+      
+      // Set clientId from user metadata
+      if (role === 'client' && session.user.user_metadata.client_id) {
+        setClientId(session.user.user_metadata.client_id);
+      } else {
+        setClientId(null);
+      }
+    } catch (error) {
+      console.error('Error in refreshUserRole:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const setData = async () => {
@@ -136,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signOut,
         userRole,
         clientId,
+        refreshUserRole, // Added the method to the context value
       }}
     >
       {children}
