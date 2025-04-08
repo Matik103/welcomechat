@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +18,7 @@ type AuthContextType = {
   isLoading: boolean;
   setIsLoading: (isLoading: boolean) => void;
   signOut: () => Promise<void>;
-  clientId: string | null; // Add clientId property
+  clientId: string | null;
 };
 
 // Create context with default values
@@ -30,7 +29,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   setIsLoading: () => {},
   signOut: async () => {},
-  clientId: null, // Default value for clientId
+  clientId: null,
 });
 
 // Define the provider component
@@ -40,7 +39,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
-  const [clientId, setClientId] = useState<string | null>(null); // Add state for clientId
+  const [clientId, setClientId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
   const location = useLocation();
@@ -180,6 +179,31 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     }
   };
   
+  // Add useEffect to fetch clientId when user changes
+  useEffect(() => {
+    const fetchClientId = async () => {
+      if (user) {
+        try {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('client_id')
+            .eq('id', user.id)
+            .single();
+
+          if (error) throw error;
+          setClientId(profile?.client_id || null);
+        } catch (error) {
+          console.error('Error fetching client ID:', error);
+          setClientId(null);
+        }
+      } else {
+        setClientId(null);
+      }
+    };
+
+    fetchClientId();
+  }, [user]);
+  
   // Memoize the context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     session,
@@ -188,8 +212,8 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     isLoading,
     setIsLoading,
     signOut,
-    clientId  // Include clientId in the context value
-  }), [session, user, userRole, isLoading, clientId]);
+    clientId,
+  }), [session, user, userRole, isLoading, signOut, clientId]);
   
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
