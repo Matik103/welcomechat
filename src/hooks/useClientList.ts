@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,124 +37,67 @@ export const useClientList = () => {
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchClients = useCallback(async (force = false) => {
-    // Clear any existing timeout to prevent multiple fetches
+    if (!isMountedRef.current) return;
+
+    // Clear any existing timeout
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
       fetchTimeoutRef.current = null;
     }
 
-    // Cancel any previous ongoing request
+    // Cancel any previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
 
-    // Create a new abort controller for this request
+    // Create new abort controller
     abortControllerRef.current = new AbortController();
 
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-      let query = supabase
-        .from('ai_agents')
-        .select('*')
-        .eq('interaction_type', 'config');
-
-      if (searchQuery) {
-        query = query.or(`client_name.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
-      }
-
-      const { data, error } = await query;
-
-      if (!isMountedRef.current) return;
-
-      if (error) throw error;
-      if (!data) throw new Error('No data received from the server');
-
-      const formattedClients: Client[] = data.map(agent => ({
-        id: agent.id,
-        client_id: agent.client_id || '',
-        client_name: agent.client_name || '',
-        email: agent.email || '',
-        company: agent.company || '',
-        description: agent.description || '',
-        status: agent.status || 'active',
-        created_at: agent.created_at || '',
-        updated_at: agent.updated_at || '',
-        deleted_at: agent.deleted_at || null,
-        deletion_scheduled_at: agent.deletion_scheduled_at || null,
-        last_active: agent.last_active || null,
-        logo_url: agent.logo_url || '',
-        logo_storage_path: agent.logo_storage_path || '',
-        agent_name: agent.name || '',
-        agent_description: agent.agent_description || '',
-        widget_settings: safeParseSettings(agent.settings),
-        name: agent.name || '',
-        is_error: agent.is_error || false,
-        openai_assistant_id: agent.openai_assistant_id || undefined,
-        deepseek_assistant_id: agent.deepseek_assistant_id || undefined,
-        ai_prompt: agent.ai_prompt || '',
-        assistant_id: agent.assistant_id || '',
-        content: agent.content || '',
-        document_id: agent.document_id || null,
-        drive_link: agent.drive_link || '',
-        drive_link_added_at: agent.drive_link_added_at || null,
-        drive_link_refresh_rate: agent.drive_link_refresh_rate || null,
-        drive_urls: agent.drive_urls || [],
-        embedding: agent.embedding || null,
-        error_message: agent.error_message || '',
-        error_status: agent.error_status || '',
-        error_type: agent.error_type || '',
-        interaction_type: agent.interaction_type || '',
-        is_active: agent.is_active || false,
-        metadata: ensureObjectMetadata(agent.metadata),
-        model: agent.model || '',
-        query_text: agent.query_text || '',
-        response_time_ms: agent.response_time_ms || null,
-        sentiment: agent.sentiment || '',
-        size: agent.size || null,
-        topic: agent.topic || '',
-        type: agent.type || '',
-        uploadDate: agent.uploadDate || '',
-        url: agent.url || '',
-        urls: agent.urls || [],
-        website_url_refresh_rate: agent.website_url_refresh_rate || null,
-        website: agent.website || '',
-        phone: agent.phone || '',
-        address: agent.address || ''
-      }));
-
-      const filteredClients = formattedClients.filter(client => 
-        client.status !== 'scheduled_deletion' && 
-        !client.deletion_scheduled_at
-      );
-
-      setState(prev => ({
-        ...prev,
-        clients: filteredClients,
-        isLoading: false,
-        error: null
-      }));
-
-    } catch (error: any) {
-      if (!isMountedRef.current) return;
-      if (error.name === 'AbortError') return;
-
-      console.error('Error fetching clients:', error);
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? error : new Error('Failed to fetch clients'),
-        isLoading: false
-      }));
-      toast.error(`Failed to load clients: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      
-      // Add retry mechanism with exponential backoff for failed fetches
+      // Set a timeout to prevent infinite loading
       fetchTimeoutRef.current = setTimeout(() => {
         if (isMountedRef.current) {
-          retry();
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            error: new Error('Request timed out. Please try again.')
+          }));
         }
-      }, 5000);
+      }, 30000); // 30 second timeout
+
+      const { data, error: supabaseError } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (supabaseError) throw supabaseError;
+
+      if (isMountedRef.current) {
+        setState(prev => ({
+          ...prev,
+          clients: data || [],
+          isLoading: false,
+          error: null
+        }));
+      }
+    } catch (error) {
+      if (isMountedRef.current) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: error instanceof Error ? error : new Error('Failed to fetch clients')
+        }));
+        toast.error('Failed to load clients. Please try again.');
+      }
+    } finally {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
     }
-  }, [searchQuery]);
+  }, []);
 
   const handleSearch = useCallback((query: string) => {
     setState(prev => ({ ...prev, searchQuery: query }));
