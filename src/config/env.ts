@@ -10,6 +10,7 @@ const getEnvVar = (key: string, fallback: string = ''): string => {
   if (typeof window !== 'undefined' && (window as any).__ENV && (window as any).__ENV[key]) {
     return (window as any).__ENV[key];
   }
+  // Use the proper Vite syntax for environment variables
   if (import.meta.env[key]) {
     return import.meta.env[key];
   }

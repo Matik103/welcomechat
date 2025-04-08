@@ -11,9 +11,27 @@ export function useWidgetSettings(clientId: string | undefined) {
   const queryClient = useQueryClient();
 
   // Fetch widget settings
-  const { data: settings, isLoading, error, refetch } = useQuery({
+  const { 
+    data: settings, 
+    isLoading, 
+    error, 
+    refetch 
+  } = useQuery({
     queryKey: ['widget-settings', clientId],
-    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve({...defaultSettings}),
+    queryFn: async () => {
+      if (!clientId) {
+        console.log('No clientId provided, returning default settings');
+        return {...defaultSettings};
+      }
+      
+      try {
+        const data = await getWidgetSettings(clientId);
+        return data || {...defaultSettings};
+      } catch (err) {
+        console.error('Error fetching widget settings:', err);
+        return {...defaultSettings};
+      }
+    },
     enabled: !!clientId
   });
 
@@ -27,7 +45,8 @@ export function useWidgetSettings(clientId: string | undefined) {
       // Merge with existing settings to ensure we have a complete object
       const updatedSettings = {
         ...(settings || {...defaultSettings}),
-        ...newSettings
+        ...newSettings,
+        clientId // Always ensure clientId is included
       };
       
       await updateWidgetSettings(clientId, updatedSettings);
@@ -101,6 +120,7 @@ export function useWidgetSettings(clientId: string | undefined) {
     error,
     refetch,
     updateSettings: updateSettingsMutation.mutate,
+    updateSettingsAsync: updateSettingsMutation.mutateAsync,
     isPending: updateSettingsMutation.isPending,
     updateLogo,
     isUploading,

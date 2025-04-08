@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ErrorDisplay } from './ErrorDisplay';
+import ErrorDisplay from './ErrorDisplay';
 
 interface Props {
   children: React.ReactNode;

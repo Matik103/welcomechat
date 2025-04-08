@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,8 +13,8 @@ import { toast } from "sonner";
 import { useNavigation } from "@/hooks/useNavigation";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
 import { useClientData } from "@/hooks/useClientData";
-import { useEffect } from "react";
 import { ErrorBoundary } from "@/components";
+import { Button } from "@/components/ui/button";
 
 export default function WidgetSettings() {
   const { user } = useAuth();

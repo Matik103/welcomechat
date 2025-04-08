@@ -6,7 +6,7 @@ import { PublicRoutes } from "./components/routes/PublicRoutes";
 import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes";
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
-import { ErrorBoundary } from "./components"; // Updated import path
+import { ErrorBoundary } from "@/components";
 import { LoadingFallback } from "./components/routes/LoadingFallback";
 import { DEFAULT_LOADING_TIMEOUT, AUTH_LOADING_TIMEOUT } from "./config/env";
 

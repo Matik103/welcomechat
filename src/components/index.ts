@@ -1,4 +1,4 @@
 
 // Export all components for easier imports
-export * from './ErrorBoundary';
-export * from './ErrorDisplay';
+export { ErrorBoundary } from './ErrorBoundary';
+export { default as ErrorDisplay } from './ErrorDisplay';

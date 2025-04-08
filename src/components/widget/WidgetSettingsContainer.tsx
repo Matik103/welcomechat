@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WidgetSection } from "@/components/client/settings/WidgetSection";
 import { Button } from "@/components/ui/button";
-import { WidgetSettings } from "@/types/widget-settings";
+import { WidgetSettings, defaultSettings } from "@/types/widget-settings";
 import { EmbedCodeCard } from "./EmbedCodeCard";
 import { toast } from "sonner";
 import { WidgetPreviewCard } from "./WidgetPreviewCard";
@@ -37,13 +37,15 @@ export function WidgetSettingsContainer({
 }: WidgetSettingsContainerProps) {
   // Create a copy of settings that includes clientId and ensure all required properties exist
   const initialSettings = {
-    ...settings,
-    clientId: settings.clientId || clientId  // Ensure clientId is set
+    ...defaultSettings, // Start with default settings
+    ...settings, // Override with provided settings
+    clientId: settings?.clientId || clientId  // Ensure clientId is set
   };
   
   const [activeSettings, setActiveSettings] = useState<WidgetSettings>(initialSettings);
   
   const handleSettingsChange = (partialSettings: Partial<WidgetSettings>) => {
+    console.log("Settings change:", partialSettings);
     setActiveSettings((prev) => ({ ...prev, ...partialSettings }));
   };
 
@@ -60,6 +62,7 @@ export function WidgetSettingsContainer({
         clientId
       };
       
+      console.log("Submitting settings:", settingsToSubmit);
       await updateSettingsMutation.mutateAsync(settingsToSubmit);
     } catch (error) {
       console.error("Error saving settings:", error);
@@ -105,7 +108,8 @@ export function WidgetSettingsContainer({
             {/* Widget Preview Card */}
             <WidgetPreviewCard
               settings={activeSettings}
-              clientId={clientId}
+              clientId={clientId || ''}
+              onInteraction={handlePreviewInteraction}
             />
             
             <EmbedCodeCard 

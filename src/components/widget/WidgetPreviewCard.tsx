@@ -1,67 +1,89 @@
 
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
-import { WidgetSettings } from '@/types/widget-settings';
-import { WidgetPreview } from './WidgetPreview';
+import { useEffect, useState, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { WidgetPreview } from "@/components/widget/WidgetPreview";
+import { WidgetSettings } from "@/types/widget-settings";
+import { ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-interface WidgetPreviewCardProps {
+interface WidgetPreviewProps {
   settings: WidgetSettings;
-  clientId?: string;
+  clientId: string;
+  onInteraction?: () => Promise<void>;
 }
 
-export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps) {
-  const [error, setError] = useState<string | null>(null);
-
+export function WidgetPreviewCard({ settings, clientId, onInteraction }: WidgetPreviewProps) {
+  const [previewKey, setPreviewKey] = useState(Date.now());
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Refresh the preview when settings change
   useEffect(() => {
+    setPreviewKey(Date.now());
+  }, [
+    settings.agent_name,
+    settings.logo_url,
+    settings.chat_color,
+    settings.background_color,
+    settings.button_color,
+    settings.button_text,
+    settings.position,
+    settings.greeting_message,
+    settings.display_mode,
+    settings.welcome_text,
+    settings.response_time_text
+  ]);
+  
+  const handleOpenPreview = useCallback(async () => {
+    // Validate if clientId is available
     if (!clientId) {
-      setError('No client ID available for preview');
-    } else {
-      setError(null);
+      console.error('Client ID is required to open the preview');
+      return;
     }
-  }, [clientId]);
-
-  // Get a display name based on the selected mode
-  const getDisplayModeName = () => {
-    switch(settings.display_mode) {
-      case 'inline': return 'Inline Widget';
-      case 'sidebar': return 'Sidebar Panel';
-      case 'floating': return 'Floating Bubble';
-      default: return 'Widget Preview';
+    
+    setIsLoading(true);
+    
+    try {
+      // Log the interaction if callback is provided
+      if (onInteraction) {
+        await onInteraction();
+      }
+      
+      // Open the preview in a new window
+      const previewUrl = `${window.location.origin}/preview/${clientId}`;
+      window.open(previewUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error opening preview:', error);
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  // Determine preview height based on display mode
-  const getPreviewHeight = () => {
-    switch(settings.display_mode) {
-      case 'inline': return 'h-[550px]';
-      case 'sidebar': return 'h-[600px]'; // Increased height for sidebar mode
-      case 'floating': return 'h-[650px]'; // Increased height for floating mode
-      default: return 'h-[550px]';
-    }
-  };
+  }, [clientId, onInteraction]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Widget Preview - {getDisplayModeName()}</CardTitle>
+        <CardTitle className="flex items-center justify-between">
+          Widget Preview
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleOpenPreview}
+            disabled={isLoading || !clientId}
+            className="flex items-center gap-2"
+          >
+            <ExternalLink size={16} />
+            <span>Open in New Tab</span>
+          </Button>
+        </CardTitle>
+        <CardDescription>
+          This is how your AI assistant widget will appear on your website
+        </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col items-center">
-        {error ? (
-          <Alert variant="destructive" className="w-full">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : (
-          <div className={`w-full ${getPreviewHeight()} border border-gray-200 rounded-md overflow-hidden`}>
-            <WidgetPreview 
-              settings={settings} 
-              clientId={clientId} 
-              key={`widget-preview-${clientId}-${settings.display_mode}`}
-            />
-          </div>
-        )}
+      <CardContent className="border rounded-md p-0 h-[500px] relative">
+        <WidgetPreview 
+          settings={settings} 
+          clientId={clientId} 
+          key={previewKey} 
+        />
       </CardContent>
     </Card>
   );
