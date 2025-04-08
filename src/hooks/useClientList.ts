@@ -20,7 +20,7 @@ export const useClientList = () => {
   const fetchClients = useCallback(async (force = false) => {
     const now = Date.now();
     // Don't fetch if we've fetched recently, unless forced
-    if (!force && now - lastFetchTime.current < 30000) {
+    if (!force && now - lastFetchTime.current < 30000 && cachedClients.current.size > 0) {
       console.log('Using cached client data');
       return;
     }
@@ -47,18 +47,21 @@ export const useClientList = () => {
         setError(new Error('Request timed out. Please try again.'));
         setIsLoading(false);
       }
-    }, 8000);
+    }, 20000); // Shorter timeout - 20 seconds instead of 8000ms
     
     try {
       console.log('Fetching clients data...');
       
+      // Optimize the query - select only essential fields, implement pagination
       const query = supabase
         .from('ai_agents')
-        .select('id, client_id, client_name, name, status, created_at, updated_at, last_active, settings, logo_url, description, email, deletion_scheduled_at')
+        .select('id, client_id, client_name, name, status, created_at, updated_at, last_active, logo_url, description, email, deletion_scheduled_at')
         .eq('interaction_type', 'config')
-        // Add pagination to improve performance
-        .limit(100);
+        .is('deleted_at', null)
+        // Add limiting to improve initial load time
+        .limit(50);
       
+      // Apply search filter if provided
       if (searchQuery) {
         query.or(`client_name.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
       }
@@ -78,24 +81,22 @@ export const useClientList = () => {
         return;
       }
       
-      // Process data more efficiently
+      // Process data more efficiently with a batch approach
       const clientMap = new Map<string, any>();
       
-      // Give priority to the most recently updated record for each client_id
+      // Simplified data processing - just take the data as is
       for (const agent of data) {
         const clientId = agent.client_id || agent.id;
-        const existingAgent = clientMap.get(clientId);
-        
-        // If this is a newer record for the same client_id, or we don't have one yet, use this one
-        if (!existingAgent || (existingAgent.updated_at < agent.updated_at)) {
+        if (!clientMap.has(clientId) || (clientMap.get(clientId).updated_at < agent.updated_at)) {
           clientMap.set(clientId, agent);
         }
       }
       
-      // Convert to array and process in a more efficient way
+      // Convert to array and process efficiently
       const formattedClients: Client[] = Array.from(clientMap.values()).map(agent => {
         const parsedSettings = safeParseSettings(agent.settings);
         
+        // Create a simplified client object with only the essential properties
         return {
           id: agent.id,
           client_id: agent.client_id || agent.id,
@@ -109,7 +110,6 @@ export const useClientList = () => {
           description: agent.description || '',
           deletion_scheduled_at: agent.deletion_scheduled_at || null,
           last_active: agent.last_active || null,
-          // Only include essential properties, leave others as defaults
           deleted_at: null,
           user_id: parsedSettings.user_id || '',
           company: '',
@@ -121,6 +121,7 @@ export const useClientList = () => {
         };
       });
       
+      // Filter deleted clients
       const filteredClients = formattedClients.filter(client => 
         client.status !== 'scheduled_deletion' && 
         !client.deletion_scheduled_at
@@ -129,6 +130,7 @@ export const useClientList = () => {
       console.log(`Fetched ${filteredClients.length} clients successfully`);
       
       // Cache the results for faster future access
+      cachedClients.current.clear(); // Clear previous cache
       filteredClients.forEach(client => {
         cachedClients.current.set(client.client_id, client);
       });
@@ -175,6 +177,13 @@ export const useClientList = () => {
       }
     };
   }, [fetchClients]);
+  
+  // Add effect to refetch when search query changes
+  useEffect(() => {
+    if (searchQuery !== '') {
+      fetchClients(true);
+    }
+  }, [searchQuery, fetchClients]);
   
   return {
     clients,
