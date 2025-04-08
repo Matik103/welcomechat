@@ -1,4 +1,3 @@
-
 // Environment variables and configuration
 
 // Cache settings
@@ -15,3 +14,7 @@ export const EDGE_FUNCTIONS_URL = SUPABASE_URL;
 // App settings
 export const APP_VERSION = '1.0.0';
 export const IS_PRODUCTION = import.meta.env.PROD;
+
+// RapidAPI Configuration
+export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
+export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';

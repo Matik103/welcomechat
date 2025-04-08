@@ -1,8 +1,8 @@
-
 // Streamlined document upload hook with direct RapidAPI integration
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { RAPIDAPI_HOST, RAPIDAPI_KEY } from '@/config/env';
 import { toast } from 'sonner';
 
 export interface UploadResult {
@@ -82,8 +82,8 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
           const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
             method: 'POST',
             headers: {
-              'x-rapidapi-host': import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com',
-              'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY || ''
+              'x-rapidapi-host': RAPIDAPI_HOST,
+              'x-rapidapi-key': RAPIDAPI_KEY
             },
             body: formData
           });
