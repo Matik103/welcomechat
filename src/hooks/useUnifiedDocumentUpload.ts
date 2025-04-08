@@ -127,32 +127,35 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
       if (options.onProgress) options.onProgress(60);
 
       // Store document and extracted text in database
-      const { data: documentData, error: documentError } = await supabase
-        .from('document_content')
-        .insert({
-          client_id: effectiveClientId,
-          document_id: documentId,
-          content: extractedText,
+      const documentContent = {
+        client_id: effectiveClientId,
+        document_id: documentId,
+        content: extractedText || null,  // Ensure we pass null, not empty string if no content
+        filename: file.name,
+        file_type: file.type,
+        metadata: {
           filename: file.name,
           file_type: file.type,
-          metadata: {
-            filename: file.name,
-            file_type: file.type,
-            size: file.size,
-            storage_path: filePath,
-            storage_url: publicUrl,
-            uploadedAt: new Date().toISOString(),
-            processing_status: processingStatus,
-            extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
-            text_length: extractedText.length || 0,
-            extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
-            extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null
-          }
-        })
+          size: file.size,
+          storage_path: filePath,
+          storage_url: publicUrl,
+          uploadedAt: new Date().toISOString(),
+          processing_status: processingStatus,
+          extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
+          text_length: extractedText ? extractedText.length : 0,
+          extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
+          extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null
+        }
+      };
+
+      const { data: documentData, error: documentError } = await supabase
+        .from('document_content')
+        .insert(documentContent)
         .select()
         .single();
 
       if (documentError) {
+        console.error('Failed to store document:', documentError, 'Data:', documentContent);
         throw new Error(`Failed to store document: ${documentError.message}`);
       }
 
@@ -161,7 +164,7 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
 
       const result: UploadResult = {
         success: true,
-        documentId: documentData.id.toString(),
+        documentId: documentData?.id ? documentData.id.toString() : documentId,
         extractedText,
         publicUrl,
         fileName: file.name,

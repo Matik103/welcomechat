@@ -19,3 +19,7 @@ export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-
 // App settings
 export const APP_VERSION = '1.0.0';
 export const IS_PRODUCTION = import.meta.env.PROD;
+
+// PDF processing settings
+export const PDF_EXTRACTION_ENABLED = true;
+export const PDF_EXTRACTION_MAX_SIZE = 20 * 1024 * 1024; // 20MB
