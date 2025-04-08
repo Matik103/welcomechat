@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
-  clientId: string;
+  clientId?: string;
   onInteraction?: () => Promise<void>;
 }
 
@@ -18,19 +18,24 @@ export function WidgetPreviewCard({ settings, clientId, onInteraction }: WidgetP
   
   // Refresh the preview when settings change
   useEffect(() => {
+    if (!settings) {
+      console.error("Widget settings are null or undefined");
+      return;
+    }
+    
     setPreviewKey(Date.now());
   }, [
-    settings.agent_name,
-    settings.logo_url,
-    settings.chat_color,
-    settings.background_color,
-    settings.button_color,
-    settings.button_text,
-    settings.position,
-    settings.greeting_message,
-    settings.display_mode,
-    settings.welcome_text,
-    settings.response_time_text
+    settings?.agent_name,
+    settings?.logo_url,
+    settings?.chat_color,
+    settings?.background_color,
+    settings?.button_color,
+    settings?.button_text,
+    settings?.position,
+    settings?.greeting_message,
+    settings?.display_mode,
+    settings?.welcome_text,
+    settings?.response_time_text
   ]);
   
   const handleOpenPreview = useCallback(async () => {
@@ -58,6 +63,25 @@ export function WidgetPreviewCard({ settings, clientId, onInteraction }: WidgetP
     }
   }, [clientId, onInteraction]);
 
+  // If settings are missing, return a placeholder
+  if (!settings) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Widget Preview</CardTitle>
+          <CardDescription>
+            Settings are loading or could not be loaded
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="border rounded-md p-0 h-[500px] relative flex items-center justify-center">
+          <div className="text-center text-muted-foreground">
+            <p>Unable to display preview</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -79,11 +103,13 @@ export function WidgetPreviewCard({ settings, clientId, onInteraction }: WidgetP
         </CardDescription>
       </CardHeader>
       <CardContent className="border rounded-md p-0 h-[500px] relative">
-        <WidgetPreview 
-          settings={settings} 
-          clientId={clientId} 
-          key={previewKey} 
-        />
+        {settings && clientId && (
+          <WidgetPreview 
+            settings={settings} 
+            clientId={clientId} 
+            key={previewKey} 
+          />
+        )}
       </CardContent>
     </Card>
   );

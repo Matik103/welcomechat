@@ -18,19 +18,19 @@ import { Button } from "@/components/ui/button";
 
 export default function WidgetSettings() {
   const { user } = useAuth();
-  const clientId = user?.user_metadata?.client_id;
+  const clientId = user?.user_metadata?.client_id || "";
   const navigation = useNavigation();
   const [isUploading, setIsUploading] = useState(false);
-  const { logClientActivity } = useClientActivity(clientId || "");
-  const widgetSettingsHook = useWidgetSettings(clientId || "");
+  const { logClientActivity } = useClientActivity(clientId);
+  const widgetSettingsHook = useWidgetSettings(clientId);
 
   // Use useClientData with proper client ID
-  const { client, isLoadingClient, refetchClient, error: clientError } = useClientData(clientId || "");
+  const { client, isLoadingClient, refetchClient, error: clientError } = useClientData(clientId);
 
   // Fetch widget settings with proper client ID
   const { data: settings, isLoading, refetch, error: settingsError } = useQuery({
     queryKey: ["widget-settings", clientId],
-    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve({...defaultSettings}),
+    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve({...defaultSettings, clientId}),
     enabled: !!clientId,
   });
 

@@ -10,11 +10,9 @@ const getEnvVar = (key: string, fallback: string = ''): string => {
   if (typeof window !== 'undefined' && (window as any).__ENV && (window as any).__ENV[key]) {
     return (window as any).__ENV[key];
   }
-  // Use the proper Vite syntax for environment variables
-  if (import.meta.env[key]) {
-    return import.meta.env[key];
-  }
-  return fallback;
+  // Use the proper Vite syntax for environment variables that works with lovable.dev
+  const envValue = typeof window !== 'undefined' ? (window as any).__ENV?.[key] : undefined;
+  return envValue || fallback;
 };
 
 // Get the Supabase URL and make sure it's always defined with a fallback
@@ -42,7 +40,7 @@ export const RAPIDAPI_KEY = RAPIDAPI_CONFIG.KEY || '';
 export const DEFAULT_LOADING_TIMEOUT = 10; // seconds
 export const AUTH_LOADING_TIMEOUT = 5; // seconds
 
-// Ensure environment variables are available in production
+// Ensure environment variables are available
 if (typeof window !== 'undefined' && !window.hasOwnProperty('__ENV')) {
   (window as any).__ENV = {
     VITE_SUPABASE_URL: SUPABASE_URL,

@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { WidgetSection } from "@/components/client/settings/WidgetSection";
 import { Button } from "@/components/ui/button";
 import { WidgetSettings, defaultSettings } from "@/types/widget-settings";
@@ -16,7 +16,7 @@ interface UpdateSettingsMutation {
 
 interface WidgetSettingsContainerProps {
   clientId?: string;
-  settings: WidgetSettings;
+  settings?: WidgetSettings;
   isClientView?: boolean;
   isUploading: boolean;
   updateSettingsMutation: UpdateSettingsMutation;
@@ -26,7 +26,7 @@ interface WidgetSettingsContainerProps {
 }
 
 export function WidgetSettingsContainer({
-  clientId,
+  clientId = "",
   settings,
   isClientView = false,
   isUploading,
@@ -38,13 +38,18 @@ export function WidgetSettingsContainer({
   // Create a copy of settings that includes clientId and ensure all required properties exist
   const initialSettings = {
     ...defaultSettings, // Start with default settings
-    ...settings, // Override with provided settings
-    clientId: settings?.clientId || clientId  // Ensure clientId is set
+    ...(settings || {}), // Override with provided settings if they exist
+    clientId: (settings?.clientId || clientId) || "" // Ensure clientId is set
   };
   
   const [activeSettings, setActiveSettings] = useState<WidgetSettings>(initialSettings);
   
   const handleSettingsChange = (partialSettings: Partial<WidgetSettings>) => {
+    if (!partialSettings) {
+      console.error("Attempted to update settings with null or undefined values");
+      return;
+    }
+    
     console.log("Settings change:", partialSettings);
     setActiveSettings((prev) => ({ ...prev, ...partialSettings }));
   };
@@ -108,7 +113,7 @@ export function WidgetSettingsContainer({
             {/* Widget Preview Card */}
             <WidgetPreviewCard
               settings={activeSettings}
-              clientId={clientId || ''}
+              clientId={clientId}
               onInteraction={handlePreviewInteraction}
             />
             
