@@ -29,10 +29,15 @@ export const checkSystemHealth = async () => {
     secrets: await checkSecretsAccess()
   };
   
+  // Fix the type issue by checking the structure of each result
+  const allHealthy = Object.entries(results).every(([key, value]) => {
+    if ('allValid' in value) return value.allValid;
+    if ('success' in value) return value.success;
+    return false;
+  });
+  
   return {
-    allHealthy: Object.values(results).every(r => 
-      typeof r === 'object' ? r.allValid || r.success : !!r
-    ),
+    allHealthy,
     results
   };
 };
