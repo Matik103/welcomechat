@@ -60,5 +60,8 @@ export const defaultSettings: WidgetSettings = {
   welcome_message: "Hello! How can I help you today?",
   logo_path: "",
   logo: "",
-  deepseek_assistant_id: ""
+  deepseek_assistant_id: "",
+  clientId: "",
+  client_id: "",
+  onTestInteraction: undefined
 };
