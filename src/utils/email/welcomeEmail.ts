@@ -14,7 +14,7 @@ export const sendWelcomeEmail = async (
   try {
     console.log(`Sending welcome email to ${email} for client ${clientName}`);
     
-    // Call the Supabase Edge Function
+    // Call the Supabase Edge Function with proper error handling
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
         to: email,
@@ -45,6 +45,8 @@ export const sendWelcomeEmail = async (
       };
     }
 
+    console.log("Welcome email send result:", data);
+    
     return {
       emailSent: true
     };

@@ -53,7 +53,7 @@ serve(async (req) => {
     if (error) {
       console.error('Email sending failed:', error);
       return new Response(
-        JSON.stringify({ error: `Failed to send email: ${error.message}` }),
+        JSON.stringify({ error: `Failed to send email: ${error.message}`, success: false }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500,
@@ -98,7 +98,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in send-email function:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'An unknown error occurred' }),
+      JSON.stringify({ error: error.message || 'An unknown error occurred', success: false }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,

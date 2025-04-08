@@ -59,6 +59,7 @@ export function useClientFormSubmit(onSuccess: () => void) {
         await saveClientTempPassword(agentId, values.email, tempPassword);
         
         // Send welcome email with credentials
+        console.log("Attempting to send welcome email...");
         const emailResult = await sendWelcomeEmail(
           values.email,
           values.clientName,
@@ -67,12 +68,13 @@ export function useClientFormSubmit(onSuccess: () => void) {
         
         if (emailResult.emailSent) {
           toast.success("Client created and welcome email sent successfully!");
+          console.log("Welcome email sent successfully");
         } else {
-          toast.warning(`Client created but failed to send welcome email: ${emailResult.emailError}`);
           console.error("Failed to send welcome email:", emailResult.emailError);
+          toast.warning(`Client created but failed to send welcome email: ${emailResult.emailError}`);
         }
       } catch (error) {
-        console.error("Error saving temporary password:", error);
+        console.error("Error saving temporary password or sending email:", error);
         toast.warning("Client created but failed to set up login credentials.");
       }
       

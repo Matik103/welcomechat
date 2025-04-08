@@ -1,6 +1,5 @@
 
-import { sendEmail } from './emailSender';
-import { generateDeletionNotificationTemplate } from './emailTemplates';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Sends a deletion notification email to the client with recovery instructions
@@ -46,30 +45,45 @@ export const sendDeletionEmail = async (
     const origin = window.location.origin || 'https://welcomeai.io';
     const recoveryUrl = `${origin}/client/auth?recovery=${recoveryToken}`;
     
-    // Generate the HTML template
-    const html = generateDeletionNotificationTemplate({
-      clientName,
-      recoveryUrl,
-      formattedDeletionDate
+    // Call the Supabase Edge Function with proper error handling
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        to: email,
+        subject: 'Important: Your Account is Scheduled for Deletion',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
+            <h1 style="color: #ff4a4a;">Account Scheduled for Deletion</h1>
+            <p>Hello ${clientName},</p>
+            <p>Your account has been scheduled for deletion. All your data will be <strong>permanently removed</strong> on ${formattedDeletionDate}.</p>
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin: 20px 0;">
+              <p><strong>If this was a mistake</strong>, you can recover your account by clicking the button below:</p>
+              <div style="text-align: center; margin: 20px 0;">
+                <a href="${recoveryUrl}" 
+                   style="background-color: #4a6cf7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                  Recover My Account
+                </a>
+              </div>
+              <p>This recovery link will expire on ${formattedDeletionDate}.</p>
+            </div>
+            <p>If you intended to delete your account, no further action is required. Your data will be automatically removed after the deletion date.</p>
+            <p>If you have any questions, please contact our support team.</p>
+            <p>Best regards,<br>The Welcome.Chat Team</p>
+          </div>
+        `,
+        from: 'Welcome.Chat <admin@welcome.chat>'
+      }
     });
     
-    // Send the email using the actual email address (no test mode)
-    const emailResult = await sendEmail({
-      to: email,
-      subject: 'Important: Your Account is Scheduled for Deletion',
-      html: html,
-      from: 'Welcome.Chat <admin@welcome.chat>'
-    });
-    
-    if (!emailResult.success) {
-      console.error("Error sending deletion notification email:", emailResult.error);
+    if (error) {
+      console.error("Error sending deletion notification email:", error);
       return {
         emailSent: false,
-        emailError: emailResult.error || "Unknown error sending email"
+        emailError: error.message || "Unknown error occurred while sending email"
       };
     }
     
-    console.log("Deletion notification email sent successfully:", emailResult.details);
+    console.log("Deletion notification email send result:", data);
+    
     return {
       emailSent: true
     };
