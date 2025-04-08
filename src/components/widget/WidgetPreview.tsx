@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,13 +32,28 @@ export const WidgetPreview = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
   
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isLoading) return;
     
-    const userMessage = inputValue;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
+    const userMessage = inputValue.trim();
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setInputValue('');
     setIsLoading(true);
@@ -52,12 +66,21 @@ export const WidgetPreview = ({
       
       console.log(`Sending query to assistant for client ${clientId}: "${userMessage}"`);
       
+      const timeoutId = setTimeout(() => {
+        if (isLoading) {
+          abortControllerRef.current?.abort();
+          throw new Error('Request timed out after 30 seconds');
+        }
+      }, 30000);
+      
       const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
         body: {
           client_id: clientId,
           query: userMessage
         }
       });
+
+      clearTimeout(timeoutId);
 
       if (error) {
         console.error('Edge function error:', error);
@@ -94,12 +117,22 @@ export const WidgetPreview = ({
       }]);
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
   const handleToggleSidebar = () => {
     setIsSidebarOpen(prev => !prev);
   };
+
+  useEffect(() => {
+    if (messages.length === 0 && settings.welcome_message) {
+      setMessages([{ 
+        role: 'assistant', 
+        content: settings.welcome_message 
+      }]);
+    }
+  }, [settings.welcome_message]);
 
   const headerBgColor = settings.chat_color || '#4F46E5';
   const chatBgColor = settings.background_color || '#F9FAFB';
@@ -162,7 +195,6 @@ export const WidgetPreview = ({
       return (
         <div className="relative h-full w-full bg-gray-100 rounded-lg p-4">
           <div className="flex h-full">
-            {/* Sidebar tab - always visible */}
             <div 
               className={`flex items-center justify-center h-full cursor-pointer transition-all ${isSidebarOpen ? 'w-8' : 'w-14'}`}
               onClick={handleToggleSidebar}
@@ -173,7 +205,6 @@ export const WidgetPreview = ({
               </div>
             </div>
             
-            {/* Chat panel - visible when open */}
             {isSidebarOpen && (
               <div className="flex-1 flex flex-col bg-white overflow-hidden border-t border-r border-b rounded-tr-lg rounded-br-lg shadow-md">
                 <ChatHeader 
@@ -215,7 +246,6 @@ export const WidgetPreview = ({
             )}
           </div>
           
-          {/* Example of showing initial closed state with a button to open */}
           {!isSidebarOpen && !messages.length && (
             <div className="absolute top-4 right-4 p-3 bg-white border rounded-lg shadow-md">
               <p className="text-sm mb-4">This is how the sidebar appears when collapsed. Click the tab on the left to expand it.</p>
@@ -294,4 +324,3 @@ export const WidgetPreview = ({
       );
   }
 };
-

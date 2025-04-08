@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface ChatMessage {
   text: string;
@@ -23,6 +23,15 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
   assistantTextColor = "#1F2937",
   isLoading = false,
 }) => {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom whenever messages change or loading state changes
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isLoading]);
+
   return (
     <div className="space-y-4">
       {messages.map((message, index) => (
@@ -60,6 +69,9 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
           </div>
         </div>
       )}
+      
+      {/* Invisible element to scroll to */}
+      <div ref={messagesEndRef} />
     </div>
   );
 };
