@@ -53,6 +53,22 @@ export const createDeepseekAssistant = async (
     }
     
     console.log('DeepSeek assistant created successfully:', data.assistant_id);
+    
+    // Update the AI agent record with the assistant ID
+    const { error: updateError } = await supabase
+      .from('ai_agents')
+      .update({ 
+        deepseek_assistant_id: data.assistant_id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('client_id', clientId)
+      .eq('interaction_type', 'config');
+      
+    if (updateError) {
+      console.error('Error updating AI agent with assistant ID:', updateError);
+      // We'll continue despite this error since we still have the assistant ID
+    }
+    
     return data.assistant_id;
   } catch (error) {
     console.error('Error in createDeepseekAssistant:', error);

@@ -27,16 +27,6 @@ serve(async (req) => {
       );
     }
 
-    // Validate the API key format (simple check)
-    if (!DEEPSEEK_API_KEY.startsWith('sk-')) {
-      console.error("⚠️ Invalid DeepSeek API key format");
-      throw new AppError(
-        500,
-        "The configured DeepSeek API key appears to be invalid. Please check your API key in the Supabase dashboard.",
-        errorCodes.UNAUTHORIZED
-      );
-    }
-
     // Parse request body
     const { client_id, agent_name, agent_description, client_name } = await req.json();
 
@@ -50,59 +40,24 @@ serve(async (req) => {
       );
     }
 
-    console.log(`🔧 Creating DeepSeek assistant for client: ${client_id}`);
-    console.log(`📝 Assistant details: ${agent_name} - ${client_name || 'No client name provided'}`);
-
+    console.log(`🔧 Creating agent for client: ${client_id}`);
+    
     // Create a system prompt if none is provided
     const systemPrompt = agent_description || `You are ${agent_name}, a helpful AI assistant${client_name ? ` for ${client_name}` : ''}. Answer questions clearly and concisely.`;
     
-    console.log("💬 Using system prompt:", systemPrompt);
+    console.log(`📝 Agent details: ${agent_name}`);
+    console.log(`💬 Using system prompt: ${systemPrompt}`);
 
-    // Create the assistant
-    console.log("🔨 Creating assistant...");
-    const createAssistantResponse = await fetch("https://api.deepseek.com/v1/assistants", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        name: agent_name,
-        instructions: systemPrompt,
-        model: "deepseek-chat",
-        tools: [],
-        metadata: {
-          client_id: client_id
-        }
-      })
-    });
-
-    if (!createAssistantResponse.ok) {
-      const errorText = await createAssistantResponse.text();
-      console.error("❌ Failed to create assistant:", errorText);
-      
-      let statusCode = createAssistantResponse.status;
-      let errorMessage = `Failed to create DeepSeek assistant: ${errorText}`;
-      
-      // Special case for authentication errors
-      if (statusCode === 401) {
-        errorMessage = "Authentication failed. Please check your DeepSeek API key.";
-      }
-      
-      throw new AppError(
-        statusCode,
-        errorMessage,
-        errorCodes.OPENAI_ERROR
-      );
-    }
-
-    const assistantData = await createAssistantResponse.json();
-    console.log(`✅ Assistant created successfully with ID: ${assistantData.id}`);
+    // Generate a unique assistantId that will represent this agent
+    const assistantId = crypto.randomUUID();
+    
+    // We're generating our own assistant ID since we're not using DeepSeek's assistants API
+    console.log(`✅ Generated assistant ID: ${assistantId}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        assistant_id: assistantData.id,
+        assistant_id: assistantId,
         message: "DeepSeek assistant created successfully"
       }),
       {

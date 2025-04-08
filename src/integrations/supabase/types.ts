@@ -145,6 +145,7 @@ export type Database = {
           company: string | null
           content: string | null
           created_at: string | null
+          deepseek_assistant_id: string | null
           deleted_at: string | null
           deletion_scheduled_at: string | null
           description: string | null
@@ -192,6 +193,7 @@ export type Database = {
           company?: string | null
           content?: string | null
           created_at?: string | null
+          deepseek_assistant_id?: string | null
           deleted_at?: string | null
           deletion_scheduled_at?: string | null
           description?: string | null
@@ -239,6 +241,7 @@ export type Database = {
           company?: string | null
           content?: string | null
           created_at?: string | null
+          deepseek_assistant_id?: string | null
           deleted_at?: string | null
           deletion_scheduled_at?: string | null
           description?: string | null

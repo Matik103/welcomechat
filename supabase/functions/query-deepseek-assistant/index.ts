@@ -3,20 +3,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { handleError, AppError, errorCodes } from "../_shared/middleware/errorHandler.ts";
+import { corsHeaders } from "../_shared/middleware/cors.ts";
+import { DEEPSEEK_API_KEY } from "../_shared/config.ts";
 
-// Get environment variables
-const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+// Get environment variables for Supabase
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 // Create Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-// CORS headers
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -55,199 +50,92 @@ serve(async (req) => {
 
     console.log(`📝 Processing query for client_id: ${client_id}`);
     
-    // Get the DeepSeek assistant ID for this client
-    const { data: clientData, error: clientError } = await supabase
+    // Get the agent data including the system prompt for this client
+    const { data: agentData, error: agentError } = await supabase
       .from('ai_agents')
-      .select('deepseek_assistant_id, agent_description')
+      .select('agent_description, deepseek_assistant_id')
       .eq('client_id', client_id)
       .eq('interaction_type', 'config')
       .single();
       
-    if (clientError) {
-      console.error("❌ Error fetching client data:", clientError);
+    if (agentError) {
+      console.error("❌ Error fetching agent data:", agentError);
       throw new AppError(
         500,
-        `Error fetching client data: ${clientError.message}`,
+        `Error fetching agent data: ${agentError.message}`,
         errorCodes.DATABASE_ERROR
       );
     }
     
-    if (!clientData?.deepseek_assistant_id) {
-      console.error("❌ No DeepSeek assistant ID found for client:", client_id);
+    if (!agentData) {
+      console.error("❌ No agent data found for client:", client_id);
       throw new AppError(
         404,
-        "No DeepSeek assistant configured for this client. Please create a DeepSeek assistant first.",
-        errorCodes.NOT_FOUND,
-        { noAssistant: true }
-      );
-    }
-    
-    const assistantId = clientData.deepseek_assistant_id;
-    console.log(`🤖 Using DeepSeek assistant ID: ${assistantId}`);
-    
-    // Create a thread
-    console.log("🧵 Creating thread...");
-    const threadResponse = await fetch("https://api.deepseek.com/v1/threads", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        metadata: {
-          client_id: client_id
-        }
-      })
-    });
-    
-    if (!threadResponse.ok) {
-      const errorText = await threadResponse.text();
-      console.error("❌ Failed to create thread:", errorText);
-      throw new AppError(
-        threadResponse.status,
-        `Failed to create thread: ${errorText}`,
-        errorCodes.OPENAI_ERROR
-      );
-    }
-    
-    const threadData = await threadResponse.json();
-    const threadId = threadData.id;
-    console.log(`✅ Created thread: ${threadId}`);
-    
-    // Add a message to the thread
-    console.log("💬 Adding message to thread...");
-    const messageResponse = await fetch(`https://api.deepseek.com/v1/threads/${threadId}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        role: "user",
-        content: query
-      })
-    });
-    
-    if (!messageResponse.ok) {
-      const errorText = await messageResponse.text();
-      console.error("❌ Failed to add message:", errorText);
-      throw new AppError(
-        messageResponse.status,
-        `Failed to add message to thread: ${errorText}`, 
-        errorCodes.OPENAI_ERROR
-      );
-    }
-    
-    console.log(`✅ Added message to thread ${threadId}`);
-    
-    // Run the assistant
-    console.log("🏃 Running the assistant...");
-    const runResponse = await fetch(`https://api.deepseek.com/v1/threads/${threadId}/runs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        assistant_id: assistantId
-      })
-    });
-    
-    if (!runResponse.ok) {
-      const errorText = await runResponse.text();
-      console.error("❌ Failed to run assistant:", errorText);
-      throw new AppError(
-        runResponse.status,
-        `Failed to run assistant: ${errorText}`,
-        errorCodes.OPENAI_ERROR
-      );
-    }
-    
-    const runData = await runResponse.json();
-    const runId = runData.id;
-    console.log(`✅ Started run ${runId}`);
-    
-    // Poll for completion
-    let runStatus = "queued";
-    let attempts = 0;
-    const maxAttempts = 30;
-    
-    console.log("⏳ Polling for completion...");
-    while (runStatus !== "completed" && runStatus !== "failed" && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const checkRunResponse = await fetch(`https://api.deepseek.com/v1/threads/${threadId}/runs/${runId}`, {
-        headers: {
-          "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
-        }
-      });
-      
-      if (!checkRunResponse.ok) {
-        const errorText = await checkRunResponse.text();
-        console.error("❌ Failed to check run status:", errorText);
-        throw new AppError(
-          checkRunResponse.status,
-          `Failed to check run status: ${errorText}`,
-          errorCodes.OPENAI_ERROR
-        );
-      }
-      
-      const checkData = await checkRunResponse.json();
-      runStatus = checkData.status;
-      attempts++;
-      
-      console.log(`🔄 Run status: ${runStatus}, attempt ${attempts}/${maxAttempts}`);
-    }
-    
-    if (runStatus !== "completed") {
-      console.error(`❌ Run did not complete in time, status: ${runStatus}`);
-      throw new AppError(
-        500,
-        `Run did not complete in time, status: ${runStatus}`,
-        errorCodes.OPENAI_ERROR
-      );
-    }
-    
-    // Get messages from the thread
-    console.log("📨 Getting messages from thread...");
-    const listMessagesResponse = await fetch(`https://api.deepseek.com/v1/threads/${threadId}/messages`, {
-      headers: {
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
-      }
-    });
-    
-    if (!listMessagesResponse.ok) {
-      const errorText = await listMessagesResponse.text();
-      console.error("❌ Failed to list messages:", errorText);
-      throw new AppError(
-        listMessagesResponse.status,
-        `Failed to list messages: ${errorText}`,
-        errorCodes.OPENAI_ERROR
-      );
-    }
-    
-    const messagesData = await listMessagesResponse.json();
-    
-    // Find the assistant's response (should be the latest message)
-    const assistantMessages = messagesData.data.filter(msg => msg.role === "assistant");
-    
-    if (assistantMessages.length === 0) {
-      console.error("❌ No assistant response found");
-      throw new AppError(
-        500,
-        "No assistant response found",
+        "No agent data found for this client",
         errorCodes.NOT_FOUND
       );
     }
+
+    // Get the system instructions from agent description
+    const systemInstruction = agentData.agent_description || "You are a helpful assistant.";
+    console.log("💬 Using system instructions:", systemInstruction);
+
+    // Make the direct API call to DeepSeek chat completions endpoint
+    console.log("🚀 Sending request to DeepSeek API...");
+    const deepseekResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: query }
+        ],
+        temperature: 0.7,
+        max_tokens: 800
+      })
+    });
     
-    const latestResponse = assistantMessages[0];
+    if (!deepseekResponse.ok) {
+      const errorBody = await deepseekResponse.text();
+      console.error(`❌ DeepSeek API error (${deepseekResponse.status}):`, errorBody);
+      throw new AppError(
+        deepseekResponse.status,
+        `DeepSeek API error: ${errorBody}`,
+        errorCodes.OPENAI_ERROR
+      );
+    }
     
-    // Return the answer
-    console.log("✅ Successfully processed query, returning response");
+    const deepseekData = await deepseekResponse.json();
+    console.log("✅ Received response from DeepSeek API");
+    
+    if (!deepseekData.choices || deepseekData.choices.length === 0) {
+      console.error("❌ No choices in DeepSeek response:", deepseekData);
+      throw new AppError(
+        500,
+        "Invalid response from DeepSeek API",
+        errorCodes.OPENAI_ERROR
+      );
+    }
+    
+    // Extract the assistant's response
+    const assistantResponse = deepseekData.choices[0].message.content;
+    
+    // Log the message exchange for debugging
+    console.log(`📤 Query: ${query}`);
+    console.log(`📥 Response: ${assistantResponse.substring(0, 100)}...`);
+    
+    // Return the response
     return new Response(
       JSON.stringify({
-        answer: latestResponse.content[0].text,
-        messages: messagesData.data,
+        answer: assistantResponse,
+        messages: [
+          { role: "user", content: query },
+          { role: "assistant", content: assistantResponse }
+        ]
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
