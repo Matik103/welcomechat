@@ -26,10 +26,10 @@ export const EDGE_FUNCTIONS_URL = SUPABASE_URL;
 export const APP_VERSION = '1.0.0';
 export const IS_PRODUCTION = getEnvVar('PROD', 'false') === 'true';
 
-// RapidAPI Configuration - Use empty strings as default values
+// RapidAPI Configuration - Use specified key with fallback to empty string
 export const RAPIDAPI_CONFIG = {
   HOST: getEnvVar('VITE_RAPIDAPI_HOST', 'pdf-to-text-converter.p.rapidapi.com'),
-  KEY: getEnvVar('VITE_RAPIDAPI_KEY', '')
+  KEY: getEnvVar('VITE_RAPIDAPI_KEY', '109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d')
 } as const;
 
 // Export individual values for backward compatibility
