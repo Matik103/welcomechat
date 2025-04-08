@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DocumentUpload } from '@/components/client/DocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { fixDocumentContentRLS, checkDocumentContentRLS } from '@/utils/applyDoc
 import { toast } from 'sonner';
 import { UploadResult } from '@/hooks/useUnifiedDocumentUpload';
 import { RAPIDAPI_KEY } from '@/config/env';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -26,6 +28,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const [isFixingPermissions, setIsFixingPermissions] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<string | null>(null);
   const [apiKeyMissing, setApiKeyMissing] = useState<boolean>(false);
+  const [isCheckingApiKey, setIsCheckingApiKey] = useState<boolean>(true);
   
   // Check RLS permissions and API key when component mounts
   useEffect(() => {
@@ -41,10 +44,27 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       }
     };
     
-    const checkApiKey = () => {
-      // Always have an API key now due to hardcoded fallback
-      setApiKeyMissing(false);
-      console.log("Using RapidAPI key:", RAPIDAPI_KEY ? "Key is set" : "Key is missing");
+    const checkApiKey = async () => {
+      setIsCheckingApiKey(true);
+      try {
+        // Fetch RapidAPI key from Supabase secrets
+        const { data: secrets, error: secretsError } = await supabase.functions.invoke('get-secrets', {
+          body: { keys: ['VITE_RAPIDAPI_KEY'] }
+        });
+        
+        if (secretsError || !secrets?.VITE_RAPIDAPI_KEY) {
+          console.error("RapidAPI key is missing or couldn't be retrieved:", secretsError);
+          setApiKeyMissing(true);
+        } else {
+          console.log("RapidAPI key is available");
+          setApiKeyMissing(false);
+        }
+      } catch (err) {
+        console.error("Failed to check API key:", err);
+        setApiKeyMissing(true);
+      } finally {
+        setIsCheckingApiKey(false);
+      }
     };
     
     checkPermissions();
@@ -109,8 +129,12 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       setLastError(result.error || "Unknown error during upload");
       
       // Check if this is an API key related error
-      if (result.error && (result.error.includes('API key') || result.error.includes('401') || result.error.includes('Invalid API key'))) {
-        // This shouldn't happen now with hardcoded key, but keep for safety
+      if (result.error && (
+          result.error.includes('API key') || 
+          result.error.includes('401') || 
+          result.error.includes('Invalid API key') ||
+          result.error.includes('RapidAPI key')
+        )) {
         setApiKeyMissing(true);
       }
       
@@ -130,15 +154,22 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {apiKeyMissing && (
+        {isCheckingApiKey ? (
+          <Alert variant="default" className="bg-blue-50 border border-blue-200 mb-4">
+            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              Checking RapidAPI key status...
+            </AlertDescription>
+          </Alert>
+        ) : apiKeyMissing ? (
           <Alert variant="warning" className="bg-red-50 border border-red-200 mb-4">
             <KeyRound className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800">
-              <strong>RapidAPI Key Issue:</strong> There seems to be a problem with the RapidAPI key. 
-              Please contact support if PDF text extraction fails.
+              <strong>RapidAPI Key Issue:</strong> The RapidAPI key is missing or invalid. 
+              Please contact your administrator to add the VITE_RAPIDAPI_KEY to your environment variables for PDF text extraction.
             </AlertDescription>
           </Alert>
-        )}
+        ) : null}
         
         {permissionStatus && permissionStatus !== 'Permissions verified' && (
           <Alert variant={permissionStatus.includes('successful') || permissionStatus.includes('fixed') 

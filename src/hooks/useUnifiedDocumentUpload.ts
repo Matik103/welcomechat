@@ -1,3 +1,4 @@
+
 // Streamlined document upload hook with direct RapidAPI integration
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,9 +86,17 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
             body: { keys: ['VITE_RAPIDAPI_KEY'] }
           });
           
-          if (secretsError || !secrets?.VITE_RAPIDAPI_KEY) {
+          if (secretsError) {
+            console.error('Failed to get RapidAPI key from secrets:', secretsError);
             throw new Error('Failed to get RapidAPI key from secrets');
           }
+          
+          if (!secrets?.VITE_RAPIDAPI_KEY) {
+            console.error('RapidAPI key not found in secrets');
+            throw new Error('RapidAPI key not found in secrets');
+          }
+          
+          console.log('Using RapidAPI Host:', RAPIDAPI_HOST);
           
           const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
             method: 'POST',

@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
@@ -52,7 +53,15 @@ serve(async (req) => {
       const value = Deno.env.get(key)
       if (value) {
         result[key] = value
+      } else {
+        console.error(`Requested secret ${key} is not set in environment variables`)
       }
+    }
+    
+    // Check if we're missing any requested secrets and log this information
+    const missingKeys = validKeys.filter(key => !result[key])
+    if (missingKeys.length > 0) {
+      console.warn(`The following requested secrets are missing: ${missingKeys.join(', ')}`)
     }
 
     return new Response(
