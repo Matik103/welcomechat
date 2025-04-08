@@ -1,3 +1,4 @@
+
 // Streamlined document upload hook with direct RapidAPI integration
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -77,7 +78,7 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
       if (file.type === 'application/pdf') {
         processingStatus = 'pending_extraction';
         try {
-          if (!RAPIDAPI_CONFIG.KEY || !RAPIDAPI_CONFIG.HOST) {
+          if (!RAPIDAPI_CONFIG.KEY || RAPIDAPI_CONFIG.KEY === '' || !RAPIDAPI_CONFIG.HOST) {
             console.warn('RapidAPI configuration is incomplete. Text extraction will be skipped.');
             processingStatus = 'extraction_skipped';
             throw new Error('RapidAPI configuration is incomplete');
@@ -154,7 +155,7 @@ export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOption
         .single();
 
       if (documentError) {
-        console.error('Failed to store document:', documentError, 'Data:', documentContent);
+        console.error('Failed to store document:', documentError);
         throw new Error(`Failed to store document: ${documentError.message}`);
       }
 

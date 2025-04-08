@@ -1,3 +1,4 @@
+
 // Define a common display mode type that can be used across components
 export type WidgetDisplayMode = 'floating' | 'inline' | 'sidebar' | string;
 
@@ -9,7 +10,7 @@ export interface WidgetSettings {
   logo_storage_path: string;
   chat_color: string;
   background_color: string;
-  button_color?: string;
+  button_color: string;
   font_color: string;
   chat_font_color: string;
   background_opacity: number;
@@ -22,8 +23,8 @@ export interface WidgetSettings {
   response_time_text: string;
   display_mode: WidgetDisplayMode;
   openai_assistant_id?: string;
-  deepseek_assistant_id?: string; // Added for Deepseek integration
-  clientId?: string; // Added clientId property
+  deepseek_assistant_id?: string;
+  clientId?: string;
 }
 
 // Default widget settings

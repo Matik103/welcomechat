@@ -1,3 +1,4 @@
+
 // Environment variables and configuration
 
 // Cache settings
@@ -26,7 +27,7 @@ export const EDGE_FUNCTIONS_URL = SUPABASE_URL;
 export const APP_VERSION = '1.0.0';
 export const IS_PRODUCTION = getEnvVar('PROD', 'false') === 'true';
 
-// RapidAPI Configuration
+// RapidAPI Configuration - Use empty strings as default values
 export const RAPIDAPI_CONFIG = {
   HOST: getEnvVar('VITE_RAPIDAPI_HOST', 'pdf-to-text-converter.p.rapidapi.com'),
   KEY: getEnvVar('VITE_RAPIDAPI_KEY', '')
@@ -34,7 +35,7 @@ export const RAPIDAPI_CONFIG = {
 
 // Export individual values for backward compatibility
 export const RAPIDAPI_HOST = RAPIDAPI_CONFIG.HOST;
-export const RAPIDAPI_KEY = RAPIDAPI_CONFIG.KEY;
+export const RAPIDAPI_KEY = RAPIDAPI_CONFIG.KEY || '';
 
 // Loading Fallback configurations
 export const DEFAULT_LOADING_TIMEOUT = 10; // seconds
@@ -46,7 +47,7 @@ if (typeof window !== 'undefined' && !window.hasOwnProperty('__ENV')) {
     VITE_SUPABASE_URL: SUPABASE_URL,
     VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
     VITE_RAPIDAPI_HOST: RAPIDAPI_HOST,
-    VITE_RAPIDAPI_KEY: RAPIDAPI_KEY,
+    VITE_RAPIDAPI_KEY: RAPIDAPI_KEY || '',
     PROD: IS_PRODUCTION.toString()
   };
 }
