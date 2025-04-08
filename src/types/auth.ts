@@ -1,4 +1,3 @@
-
 /**
  * User role types for the application
  */
