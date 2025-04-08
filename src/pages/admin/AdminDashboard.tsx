@@ -26,7 +26,7 @@ export default function AdminDashboardPage() {
       if (isLoading) {
         setLoadTimeout(true);
       }
-    }, 5000); // Show fallback content after 5 seconds
+    }, 3000); // Show fallback content after 3 seconds
     
     return () => clearTimeout(timer);
   }, [isLoading]);
@@ -35,7 +35,10 @@ export default function AdminDashboardPage() {
   const handleManualRefresh = useCallback(async () => {
     try {
       setIsManuallyRefreshing(true);
+      setError(null);
       await fetchDashboardData(true);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to refresh data'));
     } finally {
       setTimeout(() => {
         setIsManuallyRefreshing(false);
@@ -116,7 +119,7 @@ export default function AdminDashboardPage() {
         setIsSetupComplete(true);
         fetchDashboardData(true);
       }
-    }, 3000); // 3 seconds timeout
+    }, 2000); // 2 seconds timeout
     
     // Cleanup function
     return () => {
@@ -156,7 +159,21 @@ export default function AdminDashboardPage() {
           </Alert>
         )}
         
-        {dashboardContent}
+        {/* Show partial content if loading for more than timeout duration */}
+        {(isLoading && !loadTimeout) ? (
+          <DashboardLoading message="Loading dashboard data..." />
+        ) : (
+          <>
+            <StatsCardsSection dashboardData={dashboardData} />
+            <ActivityChartsSection activityCharts={dashboardData.activityCharts} />
+          </>
+        )}
+        
+        {loadTimeout && isLoading && (
+          <div className="mt-4 p-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-md text-sm">
+            Taking longer than usual to load... showing partial data.
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

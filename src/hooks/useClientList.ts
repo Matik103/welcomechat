@@ -41,51 +41,78 @@ export const useClientList = () => {
     
     setError(null);
     
-    // Set a timeout to show error if fetch takes too long
-    const timeoutId = setTimeout(() => {
-      if (isLoading && isMounted.current) {
-        setError(new Error('Request timed out. Please try again.'));
-        setIsLoading(false);
-      }
-    }, 20000); // Shorter timeout - 20 seconds instead of 8000ms
-    
     try {
       console.log('Fetching clients data...');
       
-      // Optimize the query - select only essential fields, implement pagination
-      const query = supabase
+      // Break the query into smaller chunks to prevent timeouts
+      // First, get just the IDs with a simple query
+      const { data: clientIds, error: idError } = await supabase
         .from('ai_agents')
-        .select('id, client_id, client_name, name, status, created_at, updated_at, last_active, logo_url, description, email, deletion_scheduled_at')
+        .select('id, client_id')
         .eq('interaction_type', 'config')
         .is('deleted_at', null)
-        // Add limiting to improve initial load time
-        .limit(50);
-      
-      // Apply search filter if provided
-      if (searchQuery) {
-        query.or(`client_name.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+        .limit(100);
+        
+      if (idError) {
+        throw idError;
       }
       
-      const { data, error } = await query;
-      
-      clearTimeout(timeoutId);
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (!data || data.length === 0) {
-        console.log('No clients found or empty data array');
+      if (!clientIds || clientIds.length === 0) {
+        console.log('No clients found');
         setClients([]);
         setIsLoading(false);
         return;
+      }
+      
+      // Now use these IDs to fetch full client data in smaller batches
+      const batchSize = 20;
+      const clientBatches = [];
+      
+      // Group IDs into batches
+      for (let i = 0; i < clientIds.length; i += batchSize) {
+        clientBatches.push(clientIds.slice(i, i + batchSize));
+      }
+      
+      // Process batches sequentially to avoid overwhelming the connection
+      const allResults = [];
+      
+      for (const batch of clientBatches) {
+        const idFilters = batch.map(c => `id.eq.${c.id}`).join(',');
+        
+        // Apply search filter if provided
+        let query = supabase
+          .from('ai_agents')
+          .select('id, client_id, client_name, name, status, created_at, updated_at, last_active, logo_url, description, email, deletion_scheduled_at')
+          .eq('interaction_type', 'config')
+          .is('deleted_at', null)
+          .or(idFilters);
+        
+        if (searchQuery) {
+          // Apply search after getting the base IDs to filter the results, not the initial query
+          query = query.or(`client_name.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+        }
+        
+        const { data: batchData, error: batchError } = await query;
+        
+        if (batchError) {
+          console.error('Error fetching batch:', batchError);
+          continue; // Continue with other batches even if one fails
+        }
+        
+        if (batchData && batchData.length > 0) {
+          allResults.push(...batchData);
+        }
+      }
+      
+      if (allResults.length === 0 && clientIds.length > 0) {
+        throw new Error('Failed to fetch client details after getting IDs');
       }
       
       // Process data more efficiently with a batch approach
       const clientMap = new Map<string, any>();
       
       // Simplified data processing - just take the data as is
-      for (const agent of data) {
+      for (const agent of allResults) {
         const clientId = agent.client_id || agent.id;
         if (!clientMap.has(clientId) || (clientMap.get(clientId).updated_at < agent.updated_at)) {
           clientMap.set(clientId, agent);
@@ -141,14 +168,19 @@ export const useClientList = () => {
       }
     } catch (error) {
       console.error('Error fetching clients:', error);
-      clearTimeout(timeoutId);
       
-      if (isMounted.current) {
+      // Use cached data if available, even on error
+      if (cachedClients.current.size > 0) {
+        const cachedClientsList = Array.from(cachedClients.current.values());
+        setClients(cachedClientsList);
+        setError(new Error('Showing cached clients. Refresh failed: ' + (error instanceof Error ? error.message : 'Unknown error')));
+      } else {
         setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
-        setIsLoading(false);
       }
+      
+      setIsLoading(false);
     }
-  }, [searchQuery, isLoading]);
+  }, [searchQuery]);
   
   // Debounced search implementation
   const handleSearch = useCallback((value: string) => {

@@ -14,8 +14,16 @@ export interface EmailResponse {
   details?: any;
 }
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 800; // 800ms
+
+/**
+ * Validates an email address format
+ */
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
 
 /**
  * Sends an email using the Supabase Edge Function
@@ -24,9 +32,23 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
   let retries = 0;
   let lastError: any = null;
 
-  while (retries < MAX_RETRIES) {
+  // Validate email format before sending
+  const emails = Array.isArray(options.to) ? options.to : [options.to];
+  const invalidEmails = emails.filter(email => !isValidEmail(email));
+  
+  if (invalidEmails.length > 0) {
+    const error = `Invalid email format: ${invalidEmails.join(', ')}`;
+    console.error(error);
+    return {
+      success: false,
+      error,
+      details: { invalidEmails }
+    };
+  }
+
+  while (retries <= MAX_RETRIES) {
     try {
-      console.log(`Attempt ${retries + 1} of ${MAX_RETRIES} to send email to: ${options.to}`);
+      console.log(`Attempt ${retries + 1} of ${MAX_RETRIES + 1} to send email to: ${options.to}`);
       
       // Validate required fields
       if (!options.to || !options.subject || !options.html) {
@@ -45,7 +67,9 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
           subject: options.subject,
           html: options.html,
           from: options.from
-        }
+        },
+        // Add a timeout to prevent hanging requests
+        responseType: 'json'
       });
       
       if (error) {
@@ -53,9 +77,9 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
         throw error;
       }
       
-      if (!data.success) {
-        console.error("Email service returned error:", data.error);
-        throw new Error(data.error || "Unknown error from email service");
+      if (!data || !data.success) {
+        console.error("Email service returned error:", data?.error || "Unknown error");
+        throw new Error(data?.error || "Unknown error from email service");
       }
       
       console.log("Email sent successfully:", data);
@@ -65,17 +89,18 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
       };
     } catch (error) {
       lastError = error;
+      console.error(`Email send attempt ${retries + 1} failed:`, error);
       retries++;
       
-      if (retries < MAX_RETRIES) {
-        console.log(`Email send failed, retrying in ${RETRY_DELAY}ms...`);
+      if (retries <= MAX_RETRIES) {
+        console.log(`Retrying in ${RETRY_DELAY}ms...`);
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
       }
     }
   }
   
   // If we get here, all retries failed
-  console.error(`Failed to send email after ${MAX_RETRIES} attempts. Last error:`, lastError);
+  console.error(`Failed to send email after ${MAX_RETRIES + 1} attempts. Last error:`, lastError);
   return {
     success: false,
     error: lastError?.message || "Failed to send email after multiple attempts",
