@@ -21,10 +21,19 @@ export function DeepseekSetupGuide({
 }: DeepseekSetupGuideProps) {
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
 
   const handleSetupAssistant = async () => {
     setIsSettingUp(true);
+    setSetupError(null);
+    
     try {
+      console.log("Setting up DeepSeek assistant with:", {
+        clientId,
+        agentName: agentName || 'AI Assistant',
+        agentDescription: agentDescription || 'A helpful AI assistant'
+      });
+      
       const assistantId = await createDeepseekAssistant(
         clientId,
         agentName || 'AI Assistant',
@@ -39,7 +48,9 @@ export function DeepseekSetupGuide({
       }
     } catch (error) {
       console.error("Failed to set up DeepSeek assistant:", error);
-      toast.error(`Setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setSetupError(errorMessage);
+      toast.error(`Setup failed: ${errorMessage}`);
     } finally {
       setIsSettingUp(false);
     }
@@ -58,20 +69,29 @@ export function DeepseekSetupGuide({
   }
 
   return (
-    <Alert className="border-amber-200 bg-amber-50">
-      <AlertCircle className="h-4 w-4 text-amber-600" />
-      <AlertTitle>DeepSeek Assistant Setup Required</AlertTitle>
+    <Alert className={setupError ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}>
+      <AlertCircle className={`h-4 w-4 ${setupError ? "text-red-600" : "text-amber-600"}`} />
+      <AlertTitle>{setupError ? "DeepSeek Assistant Setup Failed" : "DeepSeek Assistant Setup Required"}</AlertTitle>
       <AlertDescription className="space-y-2">
-        <p>
-          You need to set up a DeepSeek assistant before you can use the chat preview.
-        </p>
+        {setupError ? (
+          <div>
+            <p className="text-red-700 mb-2">Error: {setupError}</p>
+            <p>
+              Please ensure the DeepSeek API key is properly configured in your Supabase environment.
+            </p>
+          </div>
+        ) : (
+          <p>
+            You need to set up a DeepSeek assistant before you can use the chat preview.
+          </p>
+        )}
         <Button
-          variant="outline"
+          variant={setupError ? "destructive" : "outline"}
           size="sm"
           onClick={handleSetupAssistant}
           disabled={isSettingUp}
         >
-          {isSettingUp ? "Setting up..." : "Set up DeepSeek Assistant"}
+          {isSettingUp ? "Setting up..." : setupError ? "Retry Setup" : "Set up DeepSeek Assistant"}
         </Button>
       </AlertDescription>
     </Alert>

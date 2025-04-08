@@ -2,7 +2,7 @@
 // Environment variables configuration
 export const LLAMA_CLOUD_API_KEY = Deno.env.get('LLAMA_CLOUD_API_KEY') || 'llx-Qy4NvsmC9BhtGwMtthOL5QNKhxmj0diiokWvAEkPJi4RxF8Z';
 export const LLAMA_EXTRACTION_AGENT_ID = Deno.env.get('LLAMA_EXTRACTION_AGENT_ID') || '27ef6aaa-fcb5-4a2b-8d8c-be152ce89d90';
-export const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY') || '';
+export const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY') || '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';
 
 // Note: We no longer throw errors if API keys are missing from environment
 // as we'll try to fetch them from Supabase first

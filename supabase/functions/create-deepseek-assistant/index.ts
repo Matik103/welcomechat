@@ -1,21 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-
-// Get environment variables
-const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-
-// Create clients
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-// CORS headers
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/middleware/cors.ts";
+import { handleError, AppError, errorCodes } from "../_shared/middleware/errorHandler.ts";
+import { DEEPSEEK_API_KEY } from "../_shared/config.ts";
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -27,17 +14,26 @@ serve(async (req) => {
   }
 
   try {
+    console.log("🔍 Starting create-deepseek-assistant function");
+    
     // Check for API key
     if (!DEEPSEEK_API_KEY) {
-      console.error("Missing DeepSeek API key");
-      return new Response(
-        JSON.stringify({
-          error: "DeepSeek API key is not configured. Please add it in the Supabase dashboard under Settings > API.",
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        }
+      console.error("⚠️ Missing DeepSeek API key");
+      throw new AppError(
+        500,
+        "DeepSeek API key is not configured. Please add it in the Supabase dashboard under Settings > API.",
+        errorCodes.UNAUTHORIZED,
+        { missingKey: true }
+      );
+    }
+
+    // Validate the API key format (simple check)
+    if (!DEEPSEEK_API_KEY.startsWith('sk-')) {
+      console.error("⚠️ Invalid DeepSeek API key format");
+      throw new AppError(
+        500,
+        "The configured DeepSeek API key appears to be invalid. Please check your API key in the Supabase dashboard.",
+        errorCodes.UNAUTHORIZED
       );
     }
 
@@ -46,86 +42,68 @@ serve(async (req) => {
 
     // Validate required fields
     if (!client_id || !agent_name) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields: client_id and agent_name are required" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        }
+      console.error("❌ Missing required fields");
+      throw new AppError(
+        400,
+        "Missing required fields: client_id and agent_name are required",
+        errorCodes.INVALID_INPUT
       );
     }
 
-    console.log(`Creating assistant for client ${client_id} with name "${agent_name}"`);
+    console.log(`🔧 Creating DeepSeek assistant for client: ${client_id}`);
+    console.log(`📝 Assistant details: ${agent_name} - ${client_name || 'No client name provided'}`);
 
-    // Create assistant using DeepSeek API
-    const response = await fetch("https://api.deepseek.com/v1/assistants", {
+    // Create a system prompt if none is provided
+    const systemPrompt = agent_description || `You are ${agent_name}, a helpful AI assistant${client_name ? ` for ${client_name}` : ''}. Answer questions clearly and concisely.`;
+    
+    console.log("💬 Using system prompt:", systemPrompt);
+
+    // Create the assistant
+    console.log("🔨 Creating assistant...");
+    const createAssistantResponse = await fetch("https://api.deepseek.com/v1/assistants", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
       },
       body: JSON.stringify({
         name: agent_name,
-        instructions: `You are a helpful AI assistant named ${agent_name}. ${agent_description || ''}
-
-When answering questions:
-1. Use the provided context from retrieved documents when available
-2. Cite specific parts of documents when referencing them
-3. If the answer isn't in the provided context, say so clearly
-4. Stay factual and avoid speculation
-5. If you need clarification, ask the user
-6. Format your responses in clear, readable markdown`,
+        instructions: systemPrompt,
         model: "deepseek-chat",
-        tools: [
-          { type: "retrieval" }
-        ],
+        tools: [],
         metadata: {
-          client_id: client_id,
-          client_name: client_name || "",
-          created_at: new Date().toISOString(),
-        },
-      }),
+          client_id: client_id
+        }
+      })
     });
 
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      console.error("DeepSeek API error:", responseData);
-      return new Response(
-        JSON.stringify({ error: `DeepSeek API error: ${responseData.error?.message || "Unknown error"}` }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: response.status,
-        }
+    if (!createAssistantResponse.ok) {
+      const errorText = await createAssistantResponse.text();
+      console.error("❌ Failed to create assistant:", errorText);
+      
+      let statusCode = createAssistantResponse.status;
+      let errorMessage = `Failed to create DeepSeek assistant: ${errorText}`;
+      
+      // Special case for authentication errors
+      if (statusCode === 401) {
+        errorMessage = "Authentication failed. Please check your DeepSeek API key.";
+      }
+      
+      throw new AppError(
+        statusCode,
+        errorMessage,
+        errorCodes.OPENAI_ERROR
       );
     }
 
-    console.log("Successfully created DeepSeek assistant:", responseData.id);
+    const assistantData = await createAssistantResponse.json();
+    console.log(`✅ Assistant created successfully with ID: ${assistantData.id}`);
 
-    // Update the ai_agents table with the assistant ID
-    const { error: updateError } = await supabase
-      .from("ai_agents")
-      .update({ deepseek_assistant_id: responseData.id })
-      .eq("client_id", client_id)
-      .eq("interaction_type", "config");
-
-    if (updateError) {
-      console.error("Error updating ai_agents table:", updateError);
-      return new Response(
-        JSON.stringify({ error: "Failed to update assistant ID in database" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        }
-      );
-    }
-
-    // Return the successful response
     return new Response(
       JSON.stringify({
-        assistant_id: responseData.id,
-        status: "success",
-        message: "DeepSeek assistant created successfully",
+        success: true,
+        assistant_id: assistantData.id,
+        message: "DeepSeek assistant created successfully"
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -133,13 +111,7 @@ When answering questions:
       }
     );
   } catch (error) {
-    console.error("Error in create-deepseek-assistant function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
+    console.error("❌ Error in create-deepseek-assistant function:", error);
+    return handleError(error);
   }
 });
