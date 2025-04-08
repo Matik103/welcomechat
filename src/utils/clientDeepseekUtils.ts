@@ -105,7 +105,10 @@ export const createDeepseekAssistant = async (
     // Update the AI agent record with the DeepSeek assistant ID
     const { error: updateError } = await supabase
       .from('ai_agents')
-      .update({ deepseek_assistant_id: data.assistant_id })
+      .update({ 
+        deepseek_assistant_id: data.assistant_id,
+        updated_at: new Date().toISOString()
+      })
       .eq('client_id', clientId)
       .eq('interaction_type', 'config');
       
