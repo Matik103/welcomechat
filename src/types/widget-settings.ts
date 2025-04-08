@@ -1,3 +1,4 @@
+
 // Define a common display mode type that can be used across components
 export type WidgetDisplayMode = 'floating' | 'inline' | 'sidebar' | string;
 
@@ -22,16 +23,7 @@ export interface WidgetSettings {
   response_time_text: string;
   display_mode: WidgetDisplayMode;
   openai_assistant_id?: string;
-  deepseek_assistant_id: string;
-  clientId: string;
-  client_id: string;
-  color: string;
-  fontFamily: string;
-  fontSize: string;
-  welcome_message: string;
-  logo_path: string;
-  logo: string;
-  onTestInteraction?: () => void;
+  clientId?: string; // Added clientId property
 }
 
 // Default widget settings
@@ -53,15 +45,5 @@ export const defaultSettings: WidgetSettings = {
   secondary_color: "#6366f1",
   welcome_text: "Welcome to our assistant",
   response_time_text: "Typically responds in a few seconds",
-  display_mode: "floating",
-  color: "#4f46e5",
-  fontFamily: "Inter, system-ui, sans-serif",
-  fontSize: "14px",
-  welcome_message: "Hello! How can I help you today?",
-  logo_path: "",
-  logo: "",
-  deepseek_assistant_id: "",
-  clientId: "",
-  client_id: "",
-  onTestInteraction: undefined
+  display_mode: "floating"
 };

@@ -138,32 +138,106 @@ export const getAnswerFromOpenAIAssistant = async (
   try {
     console.log(`Getting answer from OpenAI assistant for client ${clientId}: "${query}"`);
     
-    // Call the query-openai-assistant Edge Function
-    const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
-      body: { client_id: clientId, query }
+    // Add debug info to help track network issues
+    const timestamp = new Date().toISOString();
+    console.log(`Request details: timestamp=${timestamp}, clientId=${clientId}`);
+    
+    // Use Promise with timeout for better error handling
+    const fetchWithTimeout = async () => {
+      try {
+        // Call the query-openai-assistant Edge Function
+        const response = await supabase.functions.invoke('query-openai-assistant', {
+          body: { 
+            client_id: clientId, 
+            query,
+            timestamp  // Add timestamp for correlation in logs
+          },
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.error) {
+          console.error('Edge function invocation error:', response.error);
+          throw new Error(`Edge function error: ${response.error.message || JSON.stringify(response.error)}`);
+        }
+        
+        return response.data;
+      } catch (error) {
+        console.error('Edge function fetch error:', error);
+        throw error;
+      }
+    };
+    
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Request timed out after 15 seconds'));
+      }, 15000);
     });
     
-    if (error) {
-      console.error('Error querying OpenAI assistant:', error);
-      return { 
-        answer: "I'm sorry, I encountered an error while processing your question.", 
-        error: `Error querying assistant: ${error.message}` 
+    // Race between the fetch and the timeout
+    const data = await Promise.race([fetchWithTimeout(), timeoutPromise]);
+    
+    console.log('Response data from Edge Function:', data);
+    
+    // Handle different response formats from the edge function
+    if (!data) {
+      throw new Error('No data received from Edge Function');
+    }
+    
+    if (data?.error) {
+      console.error('Error in Edge Function response:', data.error);
+      return {
+        answer: "I'm sorry, I encountered a specific error: " + data.error,
+        error: data.error
       };
     }
     
-    if (!data || !data.answer) {
-      return { 
-        answer: "I couldn't generate a proper response. Please try asking a different question.",
-        error: data?.error || 'No answer returned from assistant'
+    if (data?.answer) {
+      return {
+        answer: data.answer,
+        threadId: data.thread_id
+      };
+    } else if (typeof data === 'string') {
+      return {
+        answer: data
+      };
+    } else if (data?.messages && Array.isArray(data.messages)) {
+      const lastMessage = data.messages[data.messages.length - 1]?.content;
+      return {
+        answer: lastMessage || "I couldn't generate a proper response."
+      };
+    } else {
+      console.warn('Unexpected response format from query-openai-assistant:', data);
+      return {
+        answer: "I received your question but couldn't generate a proper response.",
+        error: 'Unexpected response format'
       };
     }
-    
-    return {
-      answer: data.answer,
-      threadId: data.thread_id
-    };
   } catch (error) {
     console.error('Error in getAnswerFromOpenAIAssistant:', error);
+    
+    // Provide specific error messages based on the error type
+    if (error instanceof Error) {
+      if (error.message.includes('timeout')) {
+        return {
+          answer: "I'm sorry, the request timed out. The server might be temporarily unavailable.",
+          error: `Request timeout: ${error.message}`
+        };
+      } else if (error.message.includes('fetch') || error.message.includes('network')) {
+        return {
+          answer: "I'm having trouble connecting to my knowledge base. This might be due to network connectivity issues.",
+          error: `Network error: ${error.message}`
+        };
+      } else if (error.message.includes('Edge function')) {
+        return {
+          answer: "I'm having trouble connecting to my knowledge base. The AI service might be temporarily unavailable.",
+          error: error.message
+        };
+      }
+    }
+    
     return {
       answer: "I'm sorry, I encountered an error while processing your question.",
       error: error instanceof Error ? error.message : 'Unknown error'

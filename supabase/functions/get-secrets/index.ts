@@ -6,8 +6,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 const allowedSecrets = [
   'LLAMA_CLOUD_API_KEY',
   'OPENAI_API_KEY',
-  'RESEND_API_KEY',
-  'VITE_RAPIDAPI_KEY'
+  'RESEND_API_KEY'
 ]
 
 serve(async (req) => {
@@ -53,15 +52,7 @@ serve(async (req) => {
       const value = Deno.env.get(key)
       if (value) {
         result[key] = value
-      } else {
-        console.error(`Requested secret ${key} is not set in environment variables`)
       }
-    }
-    
-    // Check if we're missing any requested secrets and log this information
-    const missingKeys = validKeys.filter(key => !result[key])
-    if (missingKeys.length > 0) {
-      console.warn(`The following requested secrets are missing: ${missingKeys.join(', ')}`)
     }
 
     return new Response(

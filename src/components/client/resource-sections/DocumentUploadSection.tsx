@@ -4,14 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, RefreshCw, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertTriangle, RefreshCw, CheckCircle2, Loader2, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fixDocumentContentRLS, checkDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 import { toast } from 'sonner';
 import { UploadResult } from '@/hooks/useUnifiedDocumentUpload';
 import { RAPIDAPI_KEY } from '@/config/env';
-import { supabase } from '@/integrations/supabase/client';
-import { RapidApiKeySetup } from '@/components/admin/RapidApiKeySetup';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -28,10 +26,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const [isFixingPermissions, setIsFixingPermissions] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<string | null>(null);
   const [apiKeyMissing, setApiKeyMissing] = useState<boolean>(false);
-  const [isCheckingApiKey, setIsCheckingApiKey] = useState<boolean>(true);
-  const [showUploadForm, setShowUploadForm] = useState<boolean>(false);
   
-  // Check RLS permissions and API key when component mounts
   useEffect(() => {
     const checkPermissions = async () => {
       try {
@@ -45,37 +40,9 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       }
     };
     
-    const checkApiKey = async () => {
-      setIsCheckingApiKey(true);
-      try {
-        // Check if key exists in environment variables
-        if (RAPIDAPI_KEY) {
-          setApiKeyMissing(false);
-          setShowUploadForm(true);
-          return;
-        }
-        
-        // Otherwise, check Supabase secrets
-        const { data: secrets, error: secretsError } = await supabase.functions.invoke('get-secrets', {
-          body: { keys: ['VITE_RAPIDAPI_KEY'] }
-        });
-        
-        if (secretsError || !secrets?.VITE_RAPIDAPI_KEY) {
-          console.error("RapidAPI key is missing or couldn't be retrieved:", secretsError);
-          setApiKeyMissing(true);
-          setShowUploadForm(false);
-        } else {
-          console.log("RapidAPI key is available");
-          setApiKeyMissing(false);
-          setShowUploadForm(true);
-        }
-      } catch (err) {
-        console.error("Failed to check API key:", err);
-        setApiKeyMissing(true);
-        setShowUploadForm(false);
-      } finally {
-        setIsCheckingApiKey(false);
-      }
+    const checkApiKey = () => {
+      setApiKeyMissing(false);
+      console.log("Using RapidAPI key:", RAPIDAPI_KEY ? "Key is set" : "Key is missing");
     };
     
     checkPermissions();
@@ -114,7 +81,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         setPermissionStatus('Upload successful');
         toast.success('Document uploaded successfully');
         
-        // Log activity
         await createClientActivity(
           clientId,
           undefined,
@@ -128,7 +94,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           }
         );
         
-        // Call the parent's upload complete handler
         await logClientActivity();
         if (onUploadComplete) onUploadComplete();
       } catch (activityError) {
@@ -139,27 +104,14 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       console.error("Upload failed:", result.error);
       setLastError(result.error || "Unknown error during upload");
       
-      // Check if this is an API key related error
-      if (result.error && (
-          result.error.includes('API key') || 
-          result.error.includes('401') || 
-          result.error.includes('Invalid API key') ||
-          result.error.includes('RapidAPI key')
-        )) {
+      if (result.error && (result.error.includes('API key') || result.error.includes('401') || result.error.includes('Invalid API key'))) {
         setApiKeyMissing(true);
-        setShowUploadForm(false);
       }
       
-      // If it's a permissions error, offer to fix it automatically
       if (result.error && (result.error.includes('row-level security') || result.error.includes('permission denied') || result.error.includes('policy'))) {
         setPermissionStatus('Permission denied. Click "Fix Permissions" to resolve this issue.');
       }
     }
-  };
-  
-  const handleApiKeyConfigured = () => {
-    setApiKeyMissing(false);
-    setShowUploadForm(true);
   };
   
   return (
@@ -171,16 +123,15 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {isCheckingApiKey ? (
-          <Alert variant="default" className="bg-blue-50 border border-blue-200 mb-4">
-            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-            <AlertDescription className="text-blue-800">
-              Checking RapidAPI key status...
+        {apiKeyMissing && (
+          <Alert variant="warning" className="bg-red-50 border border-red-200 mb-4">
+            <KeyRound className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800">
+              <strong>RapidAPI Key Issue:</strong> There seems to be a problem with the RapidAPI key. 
+              Please contact support if PDF text extraction fails.
             </AlertDescription>
           </Alert>
-        ) : apiKeyMissing ? (
-          <RapidApiKeySetup onKeyConfigured={handleApiKeyConfigured} />
-        ) : null}
+        )}
         
         {permissionStatus && permissionStatus !== 'Permissions verified' && (
           <Alert variant={permissionStatus.includes('successful') || permissionStatus.includes('fixed') 
@@ -236,12 +187,10 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
           </Alert>
         )}
         
-        {showUploadForm && (
-          <DocumentUpload
-            clientId={clientId}
-            onUploadComplete={handleUploadComplete}
-          />
-        )}
+        <DocumentUpload
+          clientId={clientId}
+          onUploadComplete={handleUploadComplete}
+        />
       </CardContent>
     </Card>
   );

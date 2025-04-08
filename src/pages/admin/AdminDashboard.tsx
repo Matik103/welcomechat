@@ -9,41 +9,18 @@ import { StatsCardsSection } from '@/components/admin/dashboard/StatsCardsSectio
 import { ActivityChartsSection } from '@/components/admin/dashboard/ActivityChartsSection';
 import { DashboardHeader } from '@/components/client-dashboard/DashboardHeader';
 import { DashboardLoading } from '@/components/client-dashboard/DashboardLoading';
-import { toast } from 'sonner';
 
 export default function AdminDashboardPage() {
   const { isLoading, dashboardData, fetchDashboardData } = useAdminDashboardData();
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [isManuallyRefreshing, setIsManuallyRefreshing] = useState(false);
-  const [initializationTimeout, setInitializationTimeout] = useState<NodeJS.Timeout | null>(null);
-  
-  // Force timeout after 15 seconds to prevent infinite loading
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!isSetupComplete) {
-        console.log("Forcing setup completion after timeout");
-        setIsSetupComplete(true);
-      }
-    }, 15000);
-    
-    setInitializationTimeout(timeout);
-    
-    return () => {
-      if (initializationTimeout) {
-        clearTimeout(initializationTimeout);
-      }
-    };
-  }, [isSetupComplete]);
   
   // Memoize the manual refresh handler to prevent unnecessary re-renders
   const handleManualRefresh = useCallback(async () => {
     try {
       setIsManuallyRefreshing(true);
       await fetchDashboardData(true);
-    } catch (err) {
-      console.error('Error refreshing dashboard:', err);
-      toast.error('Failed to refresh dashboard data');
     } finally {
       setTimeout(() => {
         setIsManuallyRefreshing(false);
@@ -54,7 +31,7 @@ export default function AdminDashboardPage() {
   // Memoize the dashboard content to prevent unnecessary re-renders
   const dashboardContent = useMemo(() => {
     if (isLoading && !isManuallyRefreshing) {
-      return <DashboardLoading message="Loading dashboard data..." />;
+      return <DashboardLoading />;
     }
     
     return (
@@ -66,20 +43,21 @@ export default function AdminDashboardPage() {
   }, [isLoading, isManuallyRefreshing, dashboardData]);
   
   useEffect(() => {
-    console.log("AdminDashboard mounted, initializing...");
     let activitiesChannel: any = null;
     let agentsChannel: any = null;
+    let initialSetupComplete = false;
     
     const initializeDashboard = async () => {
+      if (initialSetupComplete) return;
+      initialSetupComplete = true;
+      
       try {
-        console.log("Setting up realtime activities...");
         // Setup realtime channels for activities
         const success = await setupRealtimeActivities();
         if (!success) {
           console.warn('Failed to set up realtime subscriptions, will use polling fallback');
         }
         
-        console.log("Subscribing to activities...");
         // Subscribe to all activities
         activitiesChannel = subscribeToAllActivities((payload) => {
           console.log('Activities changed:', payload);
@@ -90,7 +68,6 @@ export default function AdminDashboardPage() {
           }
         });
         
-        console.log("Setting up agent change subscription...");
         // Subscribe to agent changes
         agentsChannel = supabase.channel('public:ai_agents_dashboard')
           .on('postgres_changes', {
@@ -107,9 +84,6 @@ export default function AdminDashboardPage() {
           })
           .subscribe();
         
-        console.log("Initialization complete, fetching initial data...");
-        // Fetch initial data
-        await fetchDashboardData(true);
         setIsSetupComplete(true);
       } catch (err) {
         console.error('Error initializing dashboard:', err);
@@ -118,24 +92,17 @@ export default function AdminDashboardPage() {
       }
     };
     
-    initializeDashboard().catch(err => {
-      console.error('Unhandled error in initialization:', err);
-      setError(err instanceof Error ? err : new Error('Unhandled error during initialization'));
-      setIsSetupComplete(true); // Ensure we exit loading state on error
-    });
+    initializeDashboard();
     
     // Cleanup function
     return () => {
-      console.log("AdminDashboard unmounting, cleaning up subscriptions...");
       if (activitiesChannel) supabase.removeChannel(activitiesChannel);
       if (agentsChannel) supabase.removeChannel(agentsChannel);
-      if (initializationTimeout) clearTimeout(initializationTimeout);
     };
   }, [fetchDashboardData]);
   
   // Show loading state while setup is in progress
   if (!isSetupComplete) {
-    console.log("Setup not complete, showing loading state");
     return (
       <AdminLayout>
         <DashboardLoading message="Initializing dashboard..." />
@@ -145,7 +112,6 @@ export default function AdminDashboardPage() {
   
   // Show error state if there was an error
   if (error) {
-    console.log("Error state:", error.message);
     return (
       <AdminLayout>
         <div className="container py-8">
@@ -166,8 +132,6 @@ export default function AdminDashboardPage() {
       </AdminLayout>
     );
   }
-  
-  console.log("Rendering dashboard content, isLoading:", isLoading);
   
   return (
     <AdminLayout>

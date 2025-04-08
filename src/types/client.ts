@@ -1,7 +1,6 @@
 import { Json } from '@/integrations/supabase/types';
 import { ActivityType } from './client-form';
 import { AccessStatus } from './document-processing';
-import { WidgetSettings } from './widget-settings';
 
 export interface Client {
   id: string;
@@ -20,13 +19,12 @@ export interface Client {
   logo_storage_path: string;
   agent_name: string;
   agent_description: string;
-  widget_settings: WidgetSettings;
+  widget_settings: Record<string, any>;
   // Adding name field for backward compatibility
   name?: string;
   is_error?: boolean;
   user_id?: string; // Added for compatibility
   openai_assistant_id?: string; // Added for OpenAI integration
-  deepseek_assistant_id: string; // Added for Deepseek integration
 
   // Additional fields from ai_agents table
   ai_prompt?: string;

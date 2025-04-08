@@ -58,7 +58,6 @@ export default function AdminClientsPage() {
               value={searchQuery} 
               onChange={handleSearch} 
               className="w-full max-w-md"
-              disabled={isLoading}
             />
             
             <Button 
@@ -86,11 +85,28 @@ export default function AdminClientsPage() {
           )}
           
           <div className="bg-white rounded-md shadow">
-            <ClientListTable
-              clients={clients}
-              onDeleteClick={handleDeleteClick}
-              isLoading={isLoading}
-            />
+            {isLoading ? (
+              <div className="p-8 flex flex-col justify-center items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+                <p className="text-muted-foreground">Loading clients...</p>
+              </div>
+            ) : clients.length === 0 && !error ? (
+              <div className="p-8 text-center">
+                <p className="text-muted-foreground">No clients found</p>
+                <Button 
+                  onClick={() => setIsAddClientModalOpen(true)}
+                  variant="outline"
+                  className="mt-4"
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Add Your First Client
+                </Button>
+              </div>
+            ) : (
+              <ClientListTable
+                clients={clients}
+                onDeleteClick={handleDeleteClick}
+              />
+            )}
           </div>
         </div>
       </div>

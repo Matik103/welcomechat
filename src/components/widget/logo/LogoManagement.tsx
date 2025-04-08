@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useLogoPreview } from "../logo/useLogoPreview";
 import { LogoPreview } from "../logo/LogoPreview";
 import { LogoUploadButton } from "../logo/LogoUploadButton";

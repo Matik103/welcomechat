@@ -27,113 +27,222 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Starting query-openai-assistant function");
+    const startTime = performance.now();
+    
     // Check for API key
     if (!OPENAI_API_KEY) {
-      throw new Error("Missing OpenAI API key");
+      console.error("Missing OpenAI API key");
+      return new Response(
+        JSON.stringify({
+          error: "OpenAI API key is not configured. Please contact your administrator.",
+          answer: "I'm sorry, I can't process queries right now because the AI service is not properly configured."
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200, // Return 200 but with error info
+        }
+      );
     }
 
     // Parse request body
-    const { client_id, query } = await req.json();
+    let body;
+    try {
+      body = await req.json();
+      console.log("Request body parsed successfully");
+      // Log request details but obfuscate the actual query content for privacy
+      console.log(`Request timestamp: ${body.timestamp || new Date().toISOString()}`);
+      console.log(`Client ID: ${body.client_id}`);
+      console.log(`Query length: ${body.query?.length || 0} characters`);
+    } catch (err) {
+      console.error("Error parsing request body:", err);
+      return new Response(
+        JSON.stringify({
+          error: "Invalid JSON in request body",
+          answer: "I'm sorry, I couldn't process your request due to a technical issue. Please try again."
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200, // Return 200 for better UX but with error info
+        }
+      );
+    }
+    
+    const { client_id, query } = body;
 
     if (!client_id || !query) {
-      throw new Error("Missing required fields: client_id and query are required");
+      const missingFields = [];
+      if (!client_id) missingFields.push("client_id");
+      if (!query) missingFields.push("query");
+      
+      console.error(`Missing required fields: ${missingFields.join(", ")}`);
+      
+      return new Response(
+        JSON.stringify({
+          error: `Missing required fields: ${missingFields.join(", ")}`,
+          answer: "I'm sorry, I couldn't process your request due to missing information. Please try again."
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200, // Return 200 for better UX but with error info
+        }
+      );
     }
 
     console.log(`Processing query for client_id: ${client_id}`);
+    console.log(`Query text: ${query}`);
     
-    // Initialize OpenAI
-    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-
-    // Generate embedding for the query
-    const embeddingResponse = await openai.embeddings.create({
-      model: "text-embedding-ada-002",
-      input: query.trim(),
+    // Initialize OpenAI with timeout option to prevent hanging requests
+    const openai = new OpenAI({ 
+      apiKey: OPENAI_API_KEY,
+      timeout: 25000, // 25 second timeout
     });
 
-    if (!embeddingResponse.data || embeddingResponse.data.length === 0) {
-      throw new Error("Failed to generate query embedding");
-    }
+    try {
+      // Generate embedding for the query
+      console.log("Generating embedding for query...");
+      const embeddingResponse = await openai.embeddings.create({
+        model: "text-embedding-ada-002",
+        input: query.trim(),
+      });
 
-    const queryEmbedding = embeddingResponse.data[0].embedding;
+      if (!embeddingResponse.data || embeddingResponse.data.length === 0) {
+        throw new Error("Failed to generate query embedding");
+      }
 
-    // Search for similar documents - explicitly cast client_id to UUID
-    const { data: documents, error: searchError } = await supabase.rpc('match_documents_by_embedding', {
-      p_client_id: client_id, // Postgres will handle the cast based on the function signature
-      p_query_embedding: queryEmbedding,
-      p_match_threshold: 0.5,
-      p_match_count: 5
-    });
+      const queryEmbedding = embeddingResponse.data[0].embedding;
+      console.log("Embedding generated successfully");
 
-    if (searchError) {
-      console.error("Error searching documents:", searchError);
-      throw new Error(`Error searching documents: ${searchError.message}`);
-    }
+      // Search for similar documents
+      console.log("Searching for similar documents...");
+      const { data: documents, error: searchError } = await supabase.rpc('match_documents_by_embedding', {
+        p_client_id: client_id, 
+        p_query_embedding: queryEmbedding,
+        p_match_threshold: 0.5,
+        p_match_count: 5
+      });
 
-    if (!documents || documents.length === 0) {
-      console.log("No relevant documents found for query");
+      if (searchError) {
+        console.error("Error searching documents:", searchError);
+        throw new Error(`Error searching documents: ${searchError.message}`);
+      }
+
+      if (!documents || documents.length === 0) {
+        console.log("No relevant documents found for query");
+        return new Response(
+          JSON.stringify({
+            answer: "I don't have any relevant documents to answer your question. Please try uploading some documents first.",
+            documents: []
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          }
+        );
+      }
+
+      console.log(`Found ${documents.length} relevant documents`);
+
+      // Format documents for the prompt
+      const documentContext = documents
+        .map((doc, index) => `Document ${index + 1}:\n${doc.content}\n`)
+        .join("\n");
+
+      // Generate answer using GPT-4-mini
+      console.log("Generating answer using OpenAI...");
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini", // Using gpt-4o-mini for best balance of cost and quality
+        messages: [
+          {
+            role: "system",
+            content: "You are a helpful assistant that answers questions based on the provided documents. Use only the information from the documents to answer questions. If the documents don't contain relevant information, say so."
+          },
+          {
+            role: "user",
+            content: `Documents:\n${documentContext}\n\nQuestion: ${query}\n\nPlease answer the question based on the provided documents.`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      });
+
+      if (!completion.choices || completion.choices.length === 0) {
+        throw new Error("Failed to generate answer from OpenAI");
+      }
+
+      console.log("Answer generated successfully");
+      
+      // Calculate processing time
+      const endTime = performance.now();
+      const processingTime = Math.round(endTime - startTime);
+      console.log(`Total processing time: ${processingTime}ms`);
+
+      // Log query to database for analytics (non-critical, don't throw errors)
+      try {
+        await supabase.from('assistant_queries').insert({
+          client_id,
+          query,
+          answer: completion.choices[0].message.content,
+          success: true,
+          processing_time_ms: processingTime
+        });
+      } catch (logError) {
+        console.error("Failed to log query:", logError);
+        // Non-critical error, continue with response
+      }
+
+      // Return the answer and relevant documents
       return new Response(
         JSON.stringify({
-          answer: "I don't have any relevant documents to answer your question. Please try uploading some documents first.",
-          documents: []
+          answer: completion.choices[0].message.content,
+          documents: documents.map(doc => ({
+            content: doc.content.substring(0, 200) + '...',  // Only return a preview
+            similarity: doc.similarity
+          })),
+          processing_time_ms: processingTime
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
         }
       );
-    }
-
-    console.log(`Found ${documents.length} relevant documents`);
-
-    // Format documents for the prompt
-    const documentContext = documents
-      .map((doc, index) => `Document ${index + 1}:\n${doc.content}\n`)
-      .join("\n");
-
-    // Generate answer using ChatGPT
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Using gpt-4o-mini for cost efficiency
-      messages: [
-        {
-          role: "system",
-          content: "You are a helpful assistant that answers questions based on the provided documents. Use only the information from the documents to answer questions. If the documents don't contain relevant information, say so."
-        },
-        {
-          role: "user",
-          content: `Documents:\n${documentContext}\n\nQuestion: ${query}\n\nPlease answer the question based on the provided documents.`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 500
-    });
-
-    if (!completion.choices || completion.choices.length === 0) {
-      throw new Error("Failed to generate answer");
-    }
-
-    // Return the answer and relevant documents
-    return new Response(
-      JSON.stringify({
-        answer: completion.choices[0].message.content,
-        documents: documents.map(doc => ({
-          content: doc.content,
-          similarity: doc.similarity
-        }))
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
+    } catch (openaiError) {
+      console.error("OpenAI API error:", openaiError);
+      
+      // Log failed query to database (non-critical, don't throw additional errors)
+      try {
+        await supabase.from('assistant_queries').insert({
+          client_id,
+          query,
+          error_message: openaiError instanceof Error ? openaiError.message : "Unknown OpenAI error",
+          success: false
+        });
+      } catch (logError) {
+        console.error("Failed to log error query:", logError);
       }
-    );
+      
+      // Return a more helpful error message
+      return new Response(
+        JSON.stringify({
+          answer: "I'm having trouble accessing my knowledge base at the moment. Please try again later.",
+          error: openaiError instanceof Error ? openaiError.message : "Unknown OpenAI error"
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200, // Return 200 but include error in payload
+        }
+      );
+    }
   } catch (error) {
     console.error("Error in query-openai-assistant function:", error);
     return new Response(
       JSON.stringify({
+        answer: "Sorry, I encountered an error processing your request. Please try again later.",
         error: error instanceof Error ? error.message : "An unknown error occurred"
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
+        status: 200, // Return 200 but include error in payload for better UX
       }
     );
   }

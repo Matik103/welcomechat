@@ -1,4 +1,3 @@
-
 import { format } from "date-fns";
 import {
   Table,
@@ -13,7 +12,6 @@ import { Client } from "@/types/client";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { DeleteClientConfirmDialog } from "./DeleteClientConfirmDialog";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface ClientListTableProps {
   clients: Client[];
@@ -43,45 +41,9 @@ export const ClientListTable = ({ clients, onDeleteClick, isLoading = false }: C
     }
   };
 
-  // Render loading skeletons when isLoading is true
-  if (isLoading) {
-    return (
-      <div className="animate-pulse">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Client Name</TableHead>
-              <TableHead>AI Agent Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Last Updated</TableHead>
-              <TableHead>Last Active</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {[...Array(5)].map((_, index) => (
-              <TableRow key={index}>
-                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  }
-
   return (
     <>
-      <div className="transition-opacity duration-200 ease-in-out">
+      <div className={`transition-opacity duration-200 ease-in-out ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -114,7 +76,11 @@ export const ClientListTable = ({ clients, onDeleteClick, isLoading = false }: C
                 return (
                   <TableRow 
                     key={client.id} 
-                    className="hover:bg-gray-50 transition-all duration-200 ease-in-out"
+                    className={`
+                      transition-all duration-200 ease-in-out
+                      hover:bg-gray-50
+                      ${isLoading ? 'cursor-not-allowed' : ''}
+                    `}
                   >
                     <TableCell className="font-medium">
                       {client.client_name}
@@ -182,6 +148,7 @@ export const ClientListTable = ({ clients, onDeleteClick, isLoading = false }: C
                       <ClientActions 
                         clientId={client.id}
                         onDeleteClick={() => handleDeleteClick(client)}
+                        disabled={isLoading}
                       />
                     </TableCell>
                   </TableRow>

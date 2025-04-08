@@ -1,134 +1,83 @@
-import { supabase } from '@/integrations/supabase/client';
-import { SUPABASE_URL, RAPIDAPI_KEY } from '@/config/env';
 
-interface ValidationResult {
-  allValid: boolean;
-  results: {
-    supabase: boolean;
-    rapidApi: boolean;
-  };
-}
-
-interface HealthCheckResult {
-  allHealthy: boolean;
-  results: {
-    environment: ValidationResult;
-    database: {
-      success: boolean;
-      error?: string;
-    };
-    storage: {
-      success: boolean;
-      error?: string;
-    };
-    secrets: {
-      success: boolean;
-      hasSecrets?: boolean;
-      error?: string;
-    };
-  };
-}
+import { validateEnvironment, SUPABASE_URL, RAPIDAPI_KEY, APP_VERSION, IS_PRODUCTION } from '@/config/env';
 
 /**
- * Validates that all required environment variables are set
- * @returns Object containing validation results
+ * Performs a health check of the application environment
+ * Can be used to verify the application is correctly configured
  */
-export const validateEnvironment = (): ValidationResult => {
-  const results = {
-    supabase: !!SUPABASE_URL,
-    rapidApi: !!RAPIDAPI_KEY,
+export const performHealthCheck = async () => {
+  const environment = validateEnvironment();
+  const browserInfo = {
+    userAgent: navigator.userAgent,
+    language: navigator.language,
+    online: navigator.onLine,
+    memory: 'memory' in performance ? performance.memory : 'Not available',
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
   };
-  
+
+  const supabaseAvailable = await checkSupabaseConnection();
+
   return {
-    allValid: Object.values(results).every(Boolean),
-    results
+    timestamp: new Date().toISOString(),
+    app: {
+      version: APP_VERSION,
+      environment: IS_PRODUCTION ? 'production' : 'development',
+    },
+    config: {
+      supabaseUrl: SUPABASE_URL ? 'Configured' : 'Missing',
+      rapidApiKey: RAPIDAPI_KEY ? 'Configured' : 'Missing',
+    },
+    environment,
+    browser: browserInfo,
+    services: {
+      supabase: supabaseAvailable ? 'Available' : 'Unavailable'
+    }
   };
 };
 
 /**
- * Checks the health of various system components
+ * Checks if we can connect to Supabase
  */
-export const checkSystemHealth = async (): Promise<HealthCheckResult> => {
-  const results = {
-    environment: validateEnvironment(),
-    database: await checkDatabaseConnection(),
-    storage: await checkStorageAccess(),
-    secrets: await checkSecretsAccess()
-  };
-  
-  const allHealthy = Object.entries(results).every(([key, value]) => {
-    if ('allValid' in value) return value.allValid;
-    if ('success' in value) return value.success;
+async function checkSupabaseConnection(): Promise<boolean> {
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data, error } = await supabase.from('document_content').select('id').limit(1);
+    return !error;
+  } catch (e) {
+    console.error('Supabase connectivity check failed:', e);
     return false;
-  });
-  
-  return {
-    allHealthy,
-    results
-  };
-};
-
-/**
- * Checks if the database connection is working
- */
-const checkDatabaseConnection = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('health_check')
-      .select('*')
-      .limit(1);
-    
-    return { 
-      success: !error,
-      error: error?.message
-    };
-  } catch (err) {
-    return { 
-      success: false,
-      error: err instanceof Error ? err.message : 'Unknown error'
-    };
   }
-};
+}
 
 /**
- * Checks if storage access is working
+ * Add a global health check endpoint
+ * Can be accessed by calling window.checkAppHealth() in the console
  */
-const checkStorageAccess = async () => {
-  try {
-    const { data, error } = await supabase
-      .storage
-      .getBucket('client_documents');
+export const exposeHealthCheck = () => {
+  if (typeof window !== 'undefined') {
+    // @ts-ignore
+    window.checkAppHealth = async () => {
+      const health = await performHealthCheck();
+      console.table({
+        'App Version': health.app.version,
+        'Environment': health.app.environment,
+        'Supabase': health.services.supabase,
+        'Config Valid': health.environment.valid,
+        'Issues': health.environment.issues.join(', ') || 'None'
+      });
+      
+      console.group('Full Health Report');
+      console.log(health);
+      console.groupEnd();
+      
+      return health;
+    };
     
-    return { 
-      success: !error, 
-      error: error?.message
-    };
-  } catch (err) {
-    return { 
-      success: false, 
-      error: err instanceof Error ? err.message : 'Unknown error'
-    };
-  }
-};
-
-/**
- * Checks if secrets access is working
- */
-const checkSecretsAccess = async () => {
-  try {
-    const { data, error } = await supabase.functions.invoke('get-secrets', {
-      body: { keys: ['VITE_RAPIDAPI_KEY'] }
-    });
-    
-    return { 
-      success: !error,
-      hasSecrets: !!data?.VITE_RAPIDAPI_KEY,
-      error: error?.message
-    };
-  } catch (err) {
-    return { 
-      success: false,
-      error: err instanceof Error ? err.message : 'Unknown error'
+    // Add version to window object for easier checking
+    // @ts-ignore
+    window.app = { 
+      version: APP_VERSION,
+      environment: IS_PRODUCTION ? 'production' : 'development'
     };
   }
 };

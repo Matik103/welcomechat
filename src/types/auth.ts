@@ -1,4 +1,3 @@
-import { Session, User } from '@supabase/supabase-js';
 
 /**
  * User role types for the application
@@ -9,15 +8,12 @@ export type UserRole = 'admin' | 'client';
  * Auth context interface
  */
 export interface AuthContextType {
-  session: Session | null;
-  user: User | null;
+  session: any | null;
+  user: any | null;
   signOut: () => Promise<void>;
   isLoading: boolean;
   userRole: UserRole | null;
-  clientId: string | null;
-  userId: string | null;
-  userClientId: string | null;
-  refreshUserRole: () => Promise<void>;
+  clientId: string | null; // Adding the clientId property
 }
 
 /**
