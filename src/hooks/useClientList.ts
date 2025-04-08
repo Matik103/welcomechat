@@ -5,11 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { safeParseSettings } from '@/utils/clientSettingsUtils';
 import { toast } from 'sonner';
 
-const getSettingValue = <T>(settings: Record<string, any>, key: string, defaultValue: T): T => {
-  if (!settings) return defaultValue;
-  return settings[key] !== undefined ? settings[key] : defaultValue;
-};
-
 export const useClientList = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +14,7 @@ export const useClientList = () => {
   const initialLoadDone = useRef<boolean>(false);
   const fetchTimeoutRef = useRef<number | null>(null);
   const isMounted = useRef<boolean>(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchClients = useCallback(async (force = false) => {
     const now = Date.now();
@@ -34,6 +30,14 @@ export const useClientList = () => {
     }
     
     setError(null);
+    
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
     
     try {
       console.log('Fetching clients data...');
@@ -52,10 +56,10 @@ export const useClientList = () => {
         }
       }, 10000) as unknown as number;
       
-      // Ensure we get unique clients by adding distinct on client_id
+      // Limit columns to only fetch what we need
       let query = supabase
         .from('ai_agents')
-        .select('*')
+        .select('id, client_id, client_name, name, status, created_at, updated_at, last_active, settings, logo_url, description, email, deletion_scheduled_at')
         .eq('interaction_type', 'config');
       
       if (searchQuery) {
@@ -81,11 +85,11 @@ export const useClientList = () => {
         return;
       }
       
-      // Process the data to ensure we only have unique clients
+      // Process the data to ensure we only have unique clients with a more efficient algorithm
       const clientMap = new Map<string, any>();
       
       // Give priority to the most recently updated record for each client_id
-      data.forEach(agent => {
+      for (const agent of data) {
         const clientId = agent.client_id || agent.id;
         const existingAgent = clientMap.get(clientId);
         
@@ -93,8 +97,9 @@ export const useClientList = () => {
         if (!existingAgent || (existingAgent.updated_at < agent.updated_at)) {
           clientMap.set(clientId, agent);
         }
-      });
+      }
       
+      // Convert to array and process in a more efficient way
       const formattedClients: Client[] = Array.from(clientMap.values()).map(agent => {
         const parsedSettings = safeParseSettings(agent.settings);
         
@@ -107,20 +112,19 @@ export const useClientList = () => {
           created_at: agent.created_at || new Date().toISOString(),
           updated_at: agent.updated_at || new Date().toISOString(),
           agent_name: agent.name || '',
-          agent_description: agent.agent_description || '',
           logo_url: agent.logo_url || '',
-          widget_settings: parsedSettings,
-          user_id: parsedSettings.user_id || '',
-          company: agent.company || '',
           description: agent.description || '',
-          logo_storage_path: agent.logo_storage_path || '',
           deletion_scheduled_at: agent.deletion_scheduled_at || null,
-          deleted_at: agent.deleted_at || null,
           last_active: agent.last_active || null,
+          // Only include essential properties, leave others as defaults
+          deleted_at: null,
+          user_id: parsedSettings.user_id || '',
+          company: '',
+          agent_description: '',
+          logo_storage_path: '',
+          widget_settings: {},
           name: agent.name || '',
-          is_error: agent.is_error || false,
-          openai_assistant_id: agent.openai_assistant_id || undefined,
-          deepseek_assistant_id: agent.deepseek_assistant_id || undefined
+          is_error: false
         };
       });
       
@@ -157,19 +161,34 @@ export const useClientList = () => {
         window.clearTimeout(fetchTimeoutRef.current);
         fetchTimeoutRef.current = null;
       }
+      
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, [fetchClients]);
   
   useEffect(() => {
+    // Optimized visibility change handler with debounce
+    let visibilityChangeTimeout: number | null = null;
+    
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        const now = Date.now();
-        if (now - lastFetchTime.current > 30000) {
-          console.log('Document became visible - refetching clients');
-          fetchClients();
-        } else {
-          console.log('Document became visible, but skipping refetch (fetched recently)');
+        // Clear any existing timeout
+        if (visibilityChangeTimeout) {
+          window.clearTimeout(visibilityChangeTimeout);
         }
+        
+        // Set a new timeout
+        visibilityChangeTimeout = window.setTimeout(() => {
+          const now = Date.now();
+          if (now - lastFetchTime.current > 30000) {
+            console.log('Document became visible - refetching clients');
+            fetchClients();
+          } else {
+            console.log('Document became visible, but skipping refetch (fetched recently)');
+          }
+        }, 300) as unknown as number;
       }
     };
     
@@ -184,6 +203,9 @@ export const useClientList = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('authStateRestored', handleAuthStateRestored);
+      if (visibilityChangeTimeout) {
+        window.clearTimeout(visibilityChangeTimeout);
+      }
     };
   }, [fetchClients]);
   

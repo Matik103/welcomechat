@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
@@ -15,16 +15,21 @@ export default function AdminClientsPage() {
   const { clients, isLoading, error, searchQuery, handleSearch, refetch } = useClientList();
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
 
-  const handleDeleteClick = (client: Client) => {
+  const handleDeleteClick = useCallback((client: Client) => {
     console.log('Delete clicked for client:', client.client_name);
     // Refetch after deletion
     refetch();
-  };
+  }, [refetch]);
 
-  const handleRetryClick = () => {
+  const handleRetryClick = useCallback(() => {
     toast.info("Retrying client data fetch...");
     refetch(true);
-  };
+  }, [refetch]);
+
+  const handleAddClientClose = useCallback(() => {
+    setIsAddClientModalOpen(false);
+    refetch(); // Refresh the client list after adding a new client
+  }, [refetch]);
 
   return (
     <AdminLayout>
@@ -97,13 +102,12 @@ export default function AdminClientsPage() {
         </div>
       </div>
       
-      <AddClientModal 
-        isOpen={isAddClientModalOpen}
-        onClose={() => {
-          setIsAddClientModalOpen(false);
-          refetch(); // Refresh the client list after adding a new client
-        }}
-      />
+      {isAddClientModalOpen && (
+        <AddClientModal 
+          isOpen={isAddClientModalOpen}
+          onClose={handleAddClientClose}
+        />
+      )}
     </AdminLayout>
   );
 }
