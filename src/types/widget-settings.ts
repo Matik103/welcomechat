@@ -10,7 +10,7 @@ export interface WidgetSettings {
   logo_storage_path: string;
   chat_color: string;
   background_color: string;
-  button_color?: string;
+  button_color: string;
   font_color: string;
   chat_font_color: string;
   background_opacity: number;
@@ -23,22 +23,8 @@ export interface WidgetSettings {
   response_time_text: string;
   display_mode: WidgetDisplayMode;
   openai_assistant_id?: string;
-  clientId?: string; 
-  deepseek_enabled?: boolean;
-  deepseek_model?: string;
-  openai_enabled?: boolean;
-  openai_model?: string;
-  created_at?: string;
-  updated_at?: string;
-  // Additional properties to match usage in code
-  color?: string;
-  fontFamily?: string;
-  fontSize?: string;
-  logo?: string;
-  logo_path?: string;
-  welcome_message?: string;
-  client_id?: string;
   deepseek_assistant_id?: string;
+  clientId?: string;
 }
 
 // Default widget settings
@@ -60,18 +46,5 @@ export const defaultSettings: WidgetSettings = {
   secondary_color: "#6366f1",
   welcome_text: "Welcome to our assistant",
   response_time_text: "Typically responds in a few seconds",
-  display_mode: "floating",
-  deepseek_enabled: true,
-  deepseek_model: "deepseek-chat",
-  openai_enabled: false,
-  openai_model: "",
-  // Additional default properties
-  color: "#4f46e5",
-  fontFamily: "Inter, system-ui, sans-serif",
-  fontSize: "md",
-  welcome_message: "Hello! How can I help you today?",
-  logo: "",
-  logo_path: "",
-  client_id: "",
-  deepseek_assistant_id: ""
+  display_mode: "floating"
 };

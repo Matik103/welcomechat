@@ -1,70 +1,52 @@
 
-// Environment configuration with defaults
-const env = {
-  // API base URL
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://api.example.com',
-  
-  // Auth configuration
-  AUTH_REQUIRED: import.meta.env.VITE_AUTH_REQUIRED !== 'false',
-  
-  // Feature flags
-  FEATURES: {
-    CHAT_ENABLED: import.meta.env.VITE_FEATURE_CHAT_ENABLED !== 'false',
-    ANALYTICS_ENABLED: import.meta.env.VITE_FEATURE_ANALYTICS_ENABLED !== 'false',
-    DOCUMENT_UPLOAD_ENABLED: import.meta.env.VITE_FEATURE_DOCUMENT_UPLOAD_ENABLED !== 'false',
-  },
+// Environment variables and configuration
+
+// Cache settings
+export const CACHE_STALE_TIME = 5 * 60 * 1000; // 5 minutes
+export const CACHE_REFETCH_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+// Helper function to safely get environment variables
+const getEnvVar = (key: string, fallback: string = ''): string => {
+  if (typeof window !== 'undefined' && (window as any).__ENV && (window as any).__ENV[key]) {
+    return (window as any).__ENV[key];
+  }
+  // Use the proper Vite syntax for environment variables that works with lovable.dev
+  const envValue = typeof window !== 'undefined' ? (window as any).__ENV?.[key] : undefined;
+  return envValue || fallback;
 };
 
-// OpenAI configuration
-export const OPENAI_CONFIG = {
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
-  organization: import.meta.env.VITE_OPENAI_ORGANIZATION || '',
-  defaultModel: import.meta.env.VITE_OPENAI_DEFAULT_MODEL || 'gpt-4-turbo-preview',
-  temperature: parseFloat(import.meta.env.VITE_OPENAI_TEMPERATURE || '0.7'),
-  maxTokens: parseInt(import.meta.env.VITE_OPENAI_MAX_TOKENS || '4000', 10),
-};
+// Get the Supabase URL and make sure it's always defined with a fallback
+export const SUPABASE_URL = getEnvVar('VITE_SUPABASE_URL', 'https://mgjodiqecnnltsgorife.supabase.co');
+export const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is');
 
-// DeepSeek configuration
-export const DEEPSEEK_CONFIG = {
-  apiKey: import.meta.env.VITE_DEEPSEEK_API_KEY || '',
-  defaultModel: import.meta.env.VITE_DEEPSEEK_DEFAULT_MODEL || 'deepseek-chat',
-  temperature: parseFloat(import.meta.env.VITE_DEEPSEEK_TEMPERATURE || '0.7'),
-  maxTokens: parseInt(import.meta.env.VITE_DEEPSEEK_MAX_TOKENS || '4000', 10),
-  enabled: import.meta.env.VITE_DEEPSEEK_ENABLED === 'true',
-};
+// Get the Supabase URL for edge functions
+export const EDGE_FUNCTIONS_URL = SUPABASE_URL;
 
-// PDF processing config
-export const PDF_PROCESSING = {
-  maxFileSize: parseInt(import.meta.env.VITE_MAX_FILE_SIZE || '10485760', 10), // Default 10MB
-  maxPages: parseInt(import.meta.env.VITE_MAX_PDF_PAGES || '200', 10),
-  chunkSize: parseInt(import.meta.env.VITE_PDF_CHUNK_SIZE || '1000', 10),
-  overlap: parseInt(import.meta.env.VITE_PDF_CHUNK_OVERLAP || '100', 10),
-  maxRetries: parseInt(import.meta.env.VITE_PDF_MAX_RETRIES || '3', 10),
-  retryDelay: parseInt(import.meta.env.VITE_PDF_RETRY_DELAY || '2000', 10),
-};
+// App settings
+export const APP_VERSION = '1.0.0';
+export const IS_PRODUCTION = getEnvVar('PROD', 'false') === 'true';
 
-// API configuration
-export const API_CONFIG = {
-  baseUrl: import.meta.env.VITE_API_BASE_URL || 'https://api.example.com',
-  timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '30000', 10),
-  retries: parseInt(import.meta.env.VITE_API_RETRIES || '3', 10),
-};
+// RapidAPI Configuration - Use specified key with fallback to empty string
+export const RAPIDAPI_CONFIG = {
+  HOST: getEnvVar('VITE_RAPIDAPI_HOST', 'pdf-to-text-converter.p.rapidapi.com'),
+  KEY: getEnvVar('VITE_RAPIDAPI_KEY', '109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d')
+} as const;
 
-// RapidAPI configuration
-export const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
-export const RAPIDAPI_HOST = import.meta.env.VITE_RAPIDAPI_HOST || 'pdf-to-text-converter.p.rapidapi.com';
+// Export individual values for backward compatibility
+export const RAPIDAPI_HOST = RAPIDAPI_CONFIG.HOST;
+export const RAPIDAPI_KEY = RAPIDAPI_CONFIG.KEY || '';
 
-// Export commonly used environment variables
-export const DEEPSEEK_MODEL = DEEPSEEK_CONFIG.defaultModel;
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-export const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
-export const IS_PRODUCTION = import.meta.env.VITE_NODE_ENV === 'production';
-export const EDGE_FUNCTIONS_URL = import.meta.env.VITE_EDGE_FUNCTIONS_URL || '';
-export const CACHE_STALE_TIME = parseInt(import.meta.env.VITE_CACHE_STALE_TIME || '300000', 10); // 5 minutes default
+// Loading Fallback configurations
+export const DEFAULT_LOADING_TIMEOUT = 10; // seconds
+export const AUTH_LOADING_TIMEOUT = 5; // seconds
 
-export const validateEnvironment = () => {
-  // Implement environment validation if needed
-  return true;
-};
-
-export default env;
+// Ensure environment variables are available
+if (typeof window !== 'undefined' && !window.hasOwnProperty('__ENV')) {
+  (window as any).__ENV = {
+    VITE_SUPABASE_URL: SUPABASE_URL,
+    VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
+    VITE_RAPIDAPI_HOST: RAPIDAPI_HOST,
+    VITE_RAPIDAPI_KEY: RAPIDAPI_KEY || '',
+    PROD: IS_PRODUCTION.toString()
+  };
+}

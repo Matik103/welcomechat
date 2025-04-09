@@ -11,9 +11,27 @@ export function useWidgetSettings(clientId: string | undefined) {
   const queryClient = useQueryClient();
 
   // Fetch widget settings
-  const { data: settings, isLoading, error, refetch } = useQuery({
+  const { 
+    data: settings, 
+    isLoading, 
+    error, 
+    refetch 
+  } = useQuery({
     queryKey: ['widget-settings', clientId],
-    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
+    queryFn: async () => {
+      if (!clientId) {
+        console.log('No clientId provided, returning default settings');
+        return {...defaultSettings};
+      }
+      
+      try {
+        const data = await getWidgetSettings(clientId);
+        return data || {...defaultSettings};
+      } catch (err) {
+        console.error('Error fetching widget settings:', err);
+        return {...defaultSettings};
+      }
+    },
     enabled: !!clientId
   });
 
@@ -26,8 +44,9 @@ export function useWidgetSettings(clientId: string | undefined) {
       
       // Merge with existing settings to ensure we have a complete object
       const updatedSettings = {
-        ...(settings || defaultSettings),
-        ...newSettings
+        ...(settings || {...defaultSettings}),
+        ...newSettings,
+        clientId // Always ensure clientId is included
       };
       
       await updateWidgetSettings(clientId, updatedSettings);
@@ -36,7 +55,9 @@ export function useWidgetSettings(clientId: string | undefined) {
       refetch();
       
       // Also invalidate client query to ensure bidirectional sync
-      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      if (clientId) {
+        queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      }
       
       toast.success('Widget settings updated successfully');
     },
@@ -61,7 +82,7 @@ export function useWidgetSettings(clientId: string | undefined) {
           logo_storage_path: path,
           updated_at: new Date().toISOString(),
           settings: {
-            ...(settings || defaultSettings),
+            ...(settings || {...defaultSettings}),
             logo_url: url,
             logo_storage_path: path
           }
@@ -76,7 +97,7 @@ export function useWidgetSettings(clientId: string | undefined) {
       
       // Update widget settings cache
       queryClient.setQueryData(['widget-settings', clientId], {
-        ...(settings || defaultSettings),
+        ...(settings || {...defaultSettings}),
         logo_url: url,
         logo_storage_path: path
       });
@@ -94,13 +115,15 @@ export function useWidgetSettings(clientId: string | undefined) {
   };
 
   return {
-    settings: settings || defaultSettings,
+    settings: settings || {...defaultSettings},
     isLoading,
     error,
     refetch,
     updateSettings: updateSettingsMutation.mutate,
+    updateSettingsAsync: updateSettingsMutation.mutateAsync,
     isPending: updateSettingsMutation.isPending,
     updateLogo,
-    isUploading
+    isUploading,
+    setIsUploading
   };
 }

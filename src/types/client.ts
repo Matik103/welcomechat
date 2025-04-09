@@ -26,37 +26,6 @@ export interface Client {
   is_error?: boolean;
   user_id?: string; // Added for compatibility
   openai_assistant_id?: string; // Added for OpenAI integration
-  deepseek_assistant_id?: string; // Added for DeepSeek integration
-  deepseek_enabled?: boolean;
-  deepseek_model?: string;
-
-  // Additional fields from ai_agents table
-  ai_prompt?: string;
-  assistant_id?: string;
-  content?: string;
-  document_id?: number | null;
-  drive_link?: string;
-  drive_link_added_at?: string | null;
-  drive_link_refresh_rate?: number | null;
-  drive_urls?: string[];
-  embedding?: string | null;
-  error_message?: string;
-  error_status?: string;
-  error_type?: string;
-  interaction_type?: string;
-  is_active?: boolean;
-  metadata?: Record<string, any>;
-  model?: string;
-  query_text?: string;
-  response_time_ms?: number | null;
-  sentiment?: string;
-  size?: number | null;
-  topic?: string;
-  type?: string;
-  uploadDate?: string;
-  url?: string;
-  urls?: string[];
-  website_url_refresh_rate?: number | null;
 }
 
 // Export these types from client-dashboard.ts to avoid circular dependencies

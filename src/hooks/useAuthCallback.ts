@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
-import { UserRole } from '@/types/auth';
+import { UserRole } from '@/contexts/AuthContext';
 import { getUserRole } from '@/services/authService';
 
 interface UseAuthCallbackProps {

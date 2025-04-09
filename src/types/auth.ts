@@ -2,7 +2,7 @@
 /**
  * User role types for the application
  */
-export type UserRole = 'admin' | 'client' | null;
+export type UserRole = 'admin' | 'client';
 
 /**
  * Auth context interface
@@ -12,17 +12,8 @@ export interface AuthContextType {
   user: any | null;
   signOut: () => Promise<void>;
   isLoading: boolean;
-  error: string | null;
-  signIn?: (email: string, password: string) => Promise<any>;
-  signUp?: (email: string, password: string) => Promise<any>;
-  resetPassword?: (email: string) => Promise<any>;
-  updatePassword?: (password: string) => Promise<any>;
-  userId?: string | null;
-  clientId?: string | null;
-  userRole: UserRole;
-  refreshUserRole?: () => Promise<void>;
-  userClientId?: string | null;
-  isAuthenticated?: boolean;
+  userRole: UserRole | null;
+  clientId: string | null; // Adding the clientId property
 }
 
 /**

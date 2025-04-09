@@ -1,11 +1,13 @@
 
-// Determine if we should add the necessary exports or just check the existing file and add the missing exports
+// Client admin service for Supabase
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { SUPABASE_URL } from './client';
 
-// Use hardcoded service role key
-const SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
+// Get the service role key - use a fallback for development on lovable.dev
+const SUPABASE_SERVICE_ROLE_KEY = 
+  (typeof window !== 'undefined' && (window as any).__ENV?.VITE_SUPABASE_SERVICE_ROLE_KEY) || 
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
 
 // Create a singleton instance for the admin client
 let supabaseAdminInstance: ReturnType<typeof createClient<Database>> | null = null;
@@ -60,18 +62,11 @@ export const initializeBotLogosBucket = async (): Promise<boolean> => {
   }
 };
 
-// Export the admin client with safer initialization
+// Export the admin client (initialize only if service role key is available)
 export const supabaseAdmin = (() => {
-  if (!supabaseAdminInstance) {
-    try {
-      console.log('Initializing Supabase admin client');
-      
-      if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-        console.error('Missing Supabase URL or Service Role Key');
-        // Return mock client to prevent crashes
-        return createFallbackAdminClient();
-      }
-      
+  if (isAdminClientConfigured()) {
+    if (!supabaseAdminInstance) {
+      console.log('Initializing Supabase admin client with service role key:', SUPABASE_SERVICE_ROLE_KEY.substring(0, 10) + '...');
       supabaseAdminInstance = createClient<Database>(
         SUPABASE_URL,
         SUPABASE_SERVICE_ROLE_KEY,
@@ -82,36 +77,38 @@ export const supabaseAdmin = (() => {
           },
         }
       );
-    } catch (err) {
-      console.error('Failed to initialize Supabase admin client:', err);
-      return createFallbackAdminClient();
     }
+    return supabaseAdminInstance;
   }
-  return supabaseAdminInstance;
-})();
 
-// Create a fallback admin client
-function createFallbackAdminClient() {
-  console.warn('Using fallback Supabase admin client');
-  return {
-    storage: {
-      createBucket: () => Promise.resolve({ error: new Error('Using fallback admin client') }),
-      from: () => ({
-        upload: () => Promise.resolve({ error: new Error('Using fallback admin client') }),
-        download: () => Promise.resolve({ error: new Error('Using fallback admin client') }),
-      }),
-    },
-    from: () => ({
-      select: () => Promise.resolve({ data: null, error: new Error('Using fallback admin client') }),
-    }),
-  } as any;
-}
+  // Return a mock object that logs errors when methods are called
+  return new Proxy(
+    {},
+    {
+      get: (target, prop) => {
+        // Allow checking for certain properties without triggering the warning
+        if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+          return undefined;
+        }
+
+        // For everything else, return a function that warns about missing service role key
+        return () => {
+          console.error(
+            'Supabase admin client not properly configured. Check that VITE_SUPABASE_SERVICE_ROLE_KEY is set in your environment variables.'
+          );
+          return {
+            data: null,
+            error: new Error('Supabase admin client not configured'),
+          };
+        };
+      },
+    }
+  ) as ReturnType<typeof createClient<Database>>;
+})();
 
 export default supabaseAdmin;
 
-/**
- * Initialize storage buckets
- */
+// Initialize storage buckets
 export const initializeStorage = async () => {
   try {
     // Create bot logos bucket if it doesn't exist

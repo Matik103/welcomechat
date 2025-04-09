@@ -1,64 +1,39 @@
-
-import { JsonObject, toJson } from "@/types/supabase-extensions";
+import { JsonObject } from "@/types/supabase-extensions";
 import { WidgetSettings, defaultSettings } from "@/types/widget-settings";
 import { execSql } from "@/utils/rpcUtils";
+import { safeParseSettings } from './clientSettingsUtils';
 
 /**
  * Extracts and normalizes widget settings from client data
  */
-export const extractWidgetSettings = (clientData: any): WidgetSettings => {
-  // Start with default settings
-  let settings = { ...defaultSettings };
-
-  if (!clientData) {
-    return settings;
-  }
-
-  try {
-    // Extract settings from widget_settings property if it exists
-    if (clientData.widget_settings && typeof clientData.widget_settings === 'object') {
-      settings = {
-        ...settings,
-        ...clientData.widget_settings
-      };
-    }
-    
-    // If there's a settings property and it's an object (from ai_agents table)
-    if (clientData.settings && typeof clientData.settings === 'object') {
-      settings = {
-        ...settings,
-        ...clientData.settings
-      };
-    }
-
-    // Ensure agent name is set
-    if (clientData.agent_name && !settings.agent_name) {
-      settings.agent_name = clientData.agent_name;
-    } else if (clientData.name && !settings.agent_name) {
-      settings.agent_name = clientData.name;
-    }
-
-    // Ensure agent description is set
-    if (clientData.agent_description && !settings.agent_description) {
-      settings.agent_description = clientData.agent_description;
-    }
-
-    // Ensure logo URL is set
-    if (clientData.logo_url && !settings.logo_url) {
-      settings.logo_url = clientData.logo_url;
-    }
-
-    // Ensure logo storage path is set
-    if (clientData.logo_storage_path && !settings.logo_storage_path) {
-      settings.logo_storage_path = clientData.logo_storage_path;
-    }
-
-    return settings;
-  } catch (error) {
-    console.error("Error extracting widget settings:", error);
-    return defaultSettings;
-  }
-};
+export function extractWidgetSettings(agentData: any): WidgetSettings {
+  const parsedSettings = safeParseSettings(agentData.settings);
+  
+  return {
+    ...defaultSettings,
+    agent_name: agentData.name || defaultSettings.agent_name,
+    agent_description: agentData.agent_description || defaultSettings.agent_description,
+    logo_url: agentData.logo_url || defaultSettings.logo_url,
+    logo_storage_path: agentData.logo_storage_path || defaultSettings.logo_storage_path,
+    chat_color: parsedSettings.chat_color || defaultSettings.chat_color,
+    background_color: parsedSettings.background_color || defaultSettings.background_color,
+    button_color: parsedSettings.button_color || defaultSettings.button_color,
+    font_color: parsedSettings.font_color || defaultSettings.font_color,
+    chat_font_color: parsedSettings.chat_font_color || defaultSettings.chat_font_color,
+    background_opacity: parsedSettings.background_opacity || defaultSettings.background_opacity,
+    button_text: parsedSettings.button_text || defaultSettings.button_text,
+    position: parsedSettings.position || defaultSettings.position,
+    greeting_message: parsedSettings.greeting_message || defaultSettings.greeting_message,
+    text_color: parsedSettings.text_color || defaultSettings.text_color,
+    secondary_color: parsedSettings.secondary_color || defaultSettings.secondary_color,
+    welcome_text: parsedSettings.welcome_text || defaultSettings.welcome_text,
+    response_time_text: parsedSettings.response_time_text || defaultSettings.response_time_text,
+    display_mode: parsedSettings.display_mode || defaultSettings.display_mode,
+    openai_assistant_id: agentData.openai_assistant_id,
+    deepseek_assistant_id: agentData.deepseek_assistant_id,
+    clientId: agentData.client_id
+  };
+}
 
 /**
  * Normalizes widget settings to ensure all required properties are present
