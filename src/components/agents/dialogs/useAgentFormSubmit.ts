@@ -1,4 +1,3 @@
-
 import { toast } from 'sonner';
 import { createDeepseekAssistant } from '@/utils/deepseekUtils';
 import { Agent } from '@/types/agent';
@@ -19,12 +18,13 @@ interface UseAgentFormSubmitProps {
     agentName: string,
     agentDescription?: string,
     logoUrl?: string,
-    logoPath?: string,
-    clientName?: string
+    logoStoragePath?: string,
+    clientName?: string,
+    skipActivityLog?: boolean
   ) => Promise<{
     success: boolean;
     agent?: any;
-    error?: string;
+    error: string;
   }>;
 }
 
@@ -60,13 +60,13 @@ export function useAgentFormSubmit({
     try {
       // Upload logo if provided
       let logoUrl = "";
-      let logoPath = "";
+      let logoStoragePath = "";
       
       if (logoFile) {
         // Logic to upload logo would go here
         // For now, just use the preview as the URL
         logoUrl = logoPreview || "";
-        logoPath = `/client-logos/${clientId}/${logoFile.name}`;
+        logoStoragePath = `/client-logos/${clientId}/${logoFile.name}`;
       }
       
       console.log('Creating agent with:', {
@@ -82,7 +82,7 @@ export function useAgentFormSubmit({
         agentName,
         agentDescription,
         logoUrl,
-        logoPath,
+        logoStoragePath,
         clientName
       );
       
@@ -116,7 +116,7 @@ export function useAgentFormSubmit({
           interaction_type: agent.interaction_type,
           agent_description: agent.agent_description || agentDescription || '',
           logo_url: agent.logo_url || logoUrl,
-          logo_storage_path: agent.logo_storage_path || logoPath,
+          logo_storage_path: agent.logo_storage_path || logoStoragePath,
           settings: agent.settings,
           deepseek_assistant_id: agent.deepseek_assistant_id,
           total_interactions: 0,

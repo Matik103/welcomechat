@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,22 +65,22 @@ const ClientAgents: React.FC = () => {
       } else {
         const formattedAgents: Agent[] = (data || []).map(agent => ({
           id: agent.id,
-          client_id: agent.client_id,
+          client_id: agent.client_id || '',
           client_name: agent.client_name || clientName,
           name: agent.name,
           description: agent.description || '',
-          status: agent.status,
-          created_at: agent.created_at,
-          updated_at: agent.updated_at,
-          interaction_type: agent.interaction_type,
+          status: agent.status || 'active',
+          created_at: agent.created_at || new Date().toISOString(),
+          updated_at: agent.updated_at || new Date().toISOString(),
+          interaction_type: agent.interaction_type || 'config',
           agent_description: agent.agent_description || '',
-          logo_url: agent.logo_url,
-          logo_storage_path: agent.logo_storage_path,
-          settings: agent.settings,
-          openai_assistant_id: agent.openai_assistant_id,
+          logo_url: agent.logo_url || '',
+          logo_storage_path: agent.logo_storage_path || '',
+          settings: agent.settings || {},
+          openai_assistant_id: agent.openai_assistant_id || '',
           total_interactions: 0,
           average_response_time: 0,
-          last_active: agent.updated_at // Use updated_at as last_active if not available
+          last_active: agent.updated_at || new Date().toISOString()
         }));
 
         setAgents(formattedAgents);
@@ -100,6 +99,28 @@ const ClientAgents: React.FC = () => {
     if (clientId) {
       console.log('Client ID detected, fetching agents:', clientId);
       fetchAgents();
+
+      // Subscribe to changes in the ai_agents table for this client
+      const subscription = supabase
+        .channel('ai_agents_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'ai_agents',
+            filter: `client_id=eq.${clientId}`,
+          },
+          (payload) => {
+            console.log('Received real-time update:', payload);
+            fetchAgents();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
     } else {
       console.log('No client ID available, cannot fetch agents');
       setLoading(false);
@@ -107,10 +128,10 @@ const ClientAgents: React.FC = () => {
     }
   }, [clientId]);
 
-  const handleAgentCreated = (agent: Agent) => {
+  const handleAgentCreated = async (agent: Agent) => {
     console.log('Agent created, refreshing agent list:', agent);
-    // Add the new agent to the list or refetch all agents
-    fetchAgents();
+    await fetchAgents();
+    toast.success('Agent created successfully!');
   };
 
   console.log('Current agents state:', agents);
@@ -156,6 +177,14 @@ const ClientAgents: React.FC = () => {
         </Button>
       </div>
 
+      <CreateAgentDialog
+        open={isAgentDialogOpen}
+        onOpenChange={setIsAgentDialogOpen}
+        clientId={clientId || undefined}
+        clientName={clientName}
+        onAgentCreated={handleAgentCreated}
+      />
+
       {agents.length === 0 ? (
         <div className="text-center p-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
           <h3 className="text-lg font-medium text-gray-900 mb-2">No AI agents found</h3>
@@ -185,7 +214,7 @@ const ClientAgents: React.FC = () => {
                 )}
                 <h2 className="text-xl font-semibold">{agent.name}</h2>
               </div>
-              <p className="text-gray-600 mb-4">{agent.agent_description || 'No description provided.'}</p>
+              <p className="text-gray-600 mb-4">{(agent.agent_description || 'No description provided.')}</p>
               <div className="mt-auto">
                 <div className="text-sm text-gray-500 mt-4">Created: {new Date(agent.created_at).toLocaleDateString()}</div>
                 <div className="flex justify-end mt-2">
@@ -198,14 +227,6 @@ const ClientAgents: React.FC = () => {
           ))}
         </div>
       )}
-
-      <CreateAgentDialog
-        open={isAgentDialogOpen}
-        onOpenChange={setIsAgentDialogOpen}
-        clientId={clientId || undefined}
-        clientName={clientName}
-        onAgentCreated={handleAgentCreated}
-      />
     </div>
   );
 };

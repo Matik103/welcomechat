@@ -1,4 +1,3 @@
-
 import { Json } from "@/integrations/supabase/types";
 
 export interface ChatInteraction {
@@ -64,7 +63,7 @@ export interface Agent {
   status: string;
   client_id: string;
   client_name: string;
-  agent_description: string;
+  agent_description?: string;
   logo_url?: string;
   total_interactions: number;
   average_response_time: number;

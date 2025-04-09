@@ -1,4 +1,3 @@
-
 import {
   Dialog,
   DialogContent,
@@ -12,13 +11,14 @@ import { useAiAgentManagement } from '@/hooks/useAiAgentManagement';
 import { AgentFormFields } from './dialogs/AgentFormFields';
 import { useAgentFormState } from './dialogs/useAgentFormState';
 import { useAgentFormSubmit } from './dialogs/useAgentFormSubmit';
+import { Agent } from '@/types/agent';
 
 interface CreateAgentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string | undefined;
   clientName: string;
-  onAgentCreated: (agent: any) => void;
+  onAgentCreated: (agent: Agent) => void;
 }
 
 export function CreateAgentDialog({
@@ -82,7 +82,10 @@ export function CreateAgentDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => {
+                resetForm();
+                onOpenChange(false);
+              }}
               disabled={isSubmitting}
             >
               Cancel
