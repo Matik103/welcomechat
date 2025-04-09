@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -23,7 +22,7 @@ export async function createClientActivity(
   metadata: Record<string, any> = {}
 ) {
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('client_activities')
       .insert([
         {
@@ -34,16 +33,21 @@ export async function createClientActivity(
           description: description,
           metadata: metadata || {}
         }
-      ]);
+      ])
+      .select()
+      .single();
 
     if (error) {
       console.error('Error creating client activity:', error);
-      throw error;
+      throw new Error(error.message || 'Failed to create client activity');
     }
 
-    return true;
-  } catch (error) {
+    return data;
+  } catch (error: any) {
     console.error('Error in createClientActivity:', error);
+    if (error?.message?.includes('Foreign key violation')) {
+      throw new Error('Invalid client ID provided');
+    }
     throw error;
   }
 }
@@ -61,7 +65,8 @@ export async function logClientActivity(
       activity,
       details || {}
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error logging client activity:', error);
+    throw new Error(error.message || 'Failed to log client activity');
   }
 }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DocumentUpload } from '@/components/client/DocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -76,6 +75,15 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         setPermissionStatus('Upload successful');
         toast.success('Document uploaded successfully');
         
+        // If it's a PDF, track its processing status
+        if (result.fileType === 'application/pdf' && result.documentId) {
+          setProcessingDocuments(prev => ({
+            ...prev,
+            [result.documentId!]: true
+          }));
+          toast.info('PDF text extraction started...');
+        }
+        
         // Log activity
         await createClientActivity(
           clientId,
@@ -93,18 +101,16 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         // Call the parent's upload complete handler
         await logClientActivity();
         if (onUploadComplete) onUploadComplete();
-      } catch (activityError) {
+      } catch (activityError: any) {
         console.error("Error logging activity:", activityError);
-        setLastError(`Upload succeeded but failed to log activity: ${activityError instanceof Error ? activityError.message : String(activityError)}`);
+        const errorMessage = activityError?.message || activityError?.error?.message || 'Failed to log document activity';
+        setLastError(`Upload succeeded but activity logging failed: ${errorMessage}`);
+        toast.error(errorMessage);
       }
     } else {
-      console.error("Upload failed:", result.error);
-      setLastError(result.error || "Unknown error during upload");
-      
-      // If it's a permissions error, offer to fix it automatically
-      if (result.error && (result.error.includes('row-level security') || result.error.includes('permission denied') || result.error.includes('policy'))) {
-        setPermissionStatus('Permission denied. Click "Fix Permissions" to resolve this issue.');
-      }
+      const errorMessage = result.error?.message || 'Unknown error occurred during upload';
+      setLastError(errorMessage);
+      toast.error(errorMessage);
     }
   };
   
