@@ -1,208 +1,157 @@
-# Welcome.Chat - AI Document Processing System
+# Welcome Chat Client Management
 
-A TypeScript-based system for processing and querying PDF documents using AI. Built with Supabase Edge Functions and OpenAI.
+A client management dashboard built with React, TypeScript, and Supabase, developed for [lovable.dev](https://lovable.dev).
 
 ## Features
 
-- PDF document upload and storage in Supabase
-- Google Drive link support for PDF documents
-- Advanced PDF text extraction with chunked processing
-- AI-powered document querying using OpenAI
-- Real-time document status tracking
-- Progress tracking for large documents
-- Automatic retry mechanism for failed operations
-- CORS-enabled API endpoints
+- Client Management Dashboard
+- Real-time Client List with Search
+- Client Status Tracking
+- Responsive Design with Modern UI
+- Integration with Supabase Backend
 
-## Architecture
+## Tech Stack
 
-The system consists of several Supabase Edge Functions:
+- **Frontend Framework**: React with TypeScript
+- **UI Components**: Shadcn/ui
+- **Styling**: Tailwind CSS
+- **Backend**: Supabase
+- **State Management**: React Hooks
+- **Build Tool**: Vite
+- **Package Manager**: npm
 
-1. `upload-file-to-openai`: Handles document upload and storage (supports both direct uploads and Google Drive links)
-2. `extract-pdf-content`: Advanced text extraction from PDF documents with chunked processing
-3. `query-document`: Natural language querying of document content using OpenAI
-4. `give-assistant-access`: Manages assistant access to documents
-5. `check-document-status`: Monitors document processing status
+## Prerequisites
 
-## Setup
+- Node.js (v18 or higher)
+- npm
+- Supabase Account
 
-1. Configure Supabase project environment variables:
+## Environment Setup
+
+1. Clone the repository
+2. Install dependencies:
    ```bash
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-   OPENAI_API_KEY=your_openai_api_key
+   npm install
+   ```
+3. Create a `.env` file with your Supabase credentials:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
-2. Deploy Edge Functions:
-   ```bash
-   supabase functions deploy upload-file-to-openai --no-verify-jwt
-   supabase functions deploy extract-pdf-content --no-verify-jwt
-   supabase functions deploy query-document --no-verify-jwt
-   supabase functions deploy give-assistant-access --no-verify-jwt
-   supabase functions deploy check-document-status --no-verify-jwt
-   ```
+## Development
 
-## API Endpoints
+To start the development server:
 
-### Upload Document
-```http
-POST /functions/v1/upload-file-to-openai
-Content-Type: application/json
-
-# For direct file upload:
-{
-  "client_id": "string",
-  "file_data": "base64_string",
-  "file_type": "application/pdf",
-  "file_name": "string",
-  "assistant_id": "string"
-}
-
-# For Google Drive link:
-{
-  "client_id": "string",
-  "drive_link": "string",
-  "assistant_id": "string"
-}
+```bash
+npm run dev
 ```
 
-### Extract PDF Content
-```http
-POST /functions/v1/extract-pdf-content
-Content-Type: application/json
+The application will be available at `http://localhost:8080`
 
-{
-  "document_id": "string",
-  "chunk_size": "number (optional, default: 1MB)",
-  "max_chunks": "number (optional, default: 5)",
-  "continue_from": "number (optional, for resuming)"
-}
+## Building for Production
 
-Response:
-{
-  "status": "success",
-  "message": "PDF extraction completed/Chunk processing completed",
-  "metadata": {
-    "size": "number",
-    "chunks_processed": "number",
-    "total_chunks": "number",
-    "current_position": "number",
-    "extraction_method": "string",
-    "start_time": "string",
-    "last_updated": "string",
-    "retries": "number",
-    "errors": "string[]",
-    "is_complete": "boolean"
-  },
-  "text_preview": "string",
-  "next_chunk": "number | null"
-}
+```bash
+npm run build
 ```
 
-### Query Document
-```http
-POST /functions/v1/query-document
-Content-Type: application/json
+## Project Structure
 
-{
-  "prompt": "string",
-  "document_id": "string",
-  "assistant_id": "string",
-  "client_id": "string"
-}
-
-Response:
-{
-  "status": "success",
-  "response": "string (AI-generated response)"
-}
+```
+src/
+  ├── components/     # React components
+  ├── hooks/         # Custom React hooks
+  ├── integrations/  # External service integrations
+  ├── pages/         # Page components
+  ├── types/         # TypeScript type definitions
+  └── utils/         # Utility functions
 ```
 
-### Give Assistant Access
-```http
-POST /functions/v1/give-assistant-access
-Content-Type: application/json
+## Contributing
 
-{
-  "document_id": "string",
-  "assistant_id": "string",
-  "client_id": "string"
-}
-```
-
-### Check Status
-```http
-POST /functions/v1/check-document-status
-Content-Type: application/json
-
-{
-  "document_id": "string",
-  "assistant_id": "string"
-}
-```
-
-## PDF Processing Implementation
-
-The PDF text extraction uses an advanced chunked processing approach:
-
-1. **Chunked Processing**
-   - Processes large PDFs in configurable chunks (default 1MB)
-   - Tracks progress and allows resuming from interruptions
-   - Automatic retries for failed chunks
-   - Memory-efficient processing of large documents
-
-2. **Text Extraction Features**
-   - PDF structure parsing (handles PDF objects and text streams)
-   - Support for PDF text encoding (octal and escape sequences)
-   - Preservation of important whitespace characters
-   - Accurate text marker handling
-
-3. **Progress Tracking**
-   - Detailed metadata about extraction progress
-   - Error tracking and retry counts
-   - Processing timestamps
-   - Chunk statistics
-
-4. **Error Handling**
-   - Automatic retries for failed chunks
-   - Detailed error logging
-   - Graceful continuation after recoverable errors
-   - Validation of processing results
-
-## Document Querying Implementation
-
-The system provides natural language querying of document content:
-
-1. **Query Processing**
-   - Natural language understanding using OpenAI
-   - Context-aware responses
-   - Access control verification
-   - Detailed response formatting
-
-2. **Security Features**
-   - Assistant access verification
-   - Client ID validation
-   - Document access control
-   - Error handling for unauthorized access
-
-3. **Response Handling**
-   - Formatted JSON responses
-   - Error details for failed queries
-   - Preview of document content
-   - Processing metadata
-
-## Future Improvements
-
-1. Support for additional document formats
-2. Enhanced metadata extraction
-3. Multi-document comparison
-4. Advanced query capabilities
-5. Batch processing optimization
-6. Real-time processing updates
-7. Enhanced error recovery
-8. Document version control
-9. Content summarization
-10. Custom extraction rules
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-MIT
+This project is proprietary and confidential. All rights reserved by [lovable.dev](https://lovable.dev).
+
+# PDF Processing Test Suite
+
+This repository contains tools for testing large-scale PDF text extraction capabilities using the RapidAPI PDF-to-Text converter service.
+
+## Features
+
+- Generates large PDF files with structured content
+- Tests PDF-to-text conversion with files of various sizes
+- Provides detailed conversion metrics and content verification
+- Supports files up to 50MB with proper formatting
+
+## Requirements
+
+- bash
+- enscript
+- ghostscript (ps2pdf)
+- curl
+- RapidAPI account with PDF-to-Text converter API key
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/pdf-processing-tests.git
+cd pdf-processing-tests
+```
+
+2. Install required tools:
+```bash
+# macOS
+brew install enscript ghostscript
+
+# Ubuntu/Debian
+sudo apt-get install enscript ghostscript
+```
+
+3. Set up your RapidAPI key in the script or as an environment variable:
+```bash
+export RAPIDAPI_KEY="your_api_key_here"
+```
+
+## Usage
+
+1. Make the script executable:
+```bash
+chmod +x test-pdf-api.sh
+```
+
+2. Run the test:
+```bash
+./test-pdf-api.sh
+```
+
+The script will:
+- Generate a large PDF file with 500 chapters
+- Convert the PDF to text using RapidAPI
+- Show samples of the extracted text
+- Provide conversion metrics
+
+## Output
+
+The script creates a `test-assets` directory containing:
+- `large-test.pdf`: The generated test PDF
+- `large-test_response.txt`: The extracted text from the PDF
+
+## Configuration
+
+You can modify these variables in the script:
+- Number of chapters (default: 500)
+- Content per chapter
+- PDF formatting settings
+- Output directory
+
+## License
+
+MIT License - feel free to use and modify as needed.

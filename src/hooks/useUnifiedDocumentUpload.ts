@@ -1,211 +1,222 @@
-// Streamlined document upload hook with direct RapidAPI integration
-import { useState } from 'react';
+
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
+import { useClientActivity } from './useClientActivity';
+import { API_CONFIG, isProduction, PDF_PROCESSING } from '@/config/env';
 
+// Export this interface so other components can use it
 export interface UploadResult {
   success: boolean;
   documentId?: string;
   error?: string;
-  url?: string;
-  path?: string;
+  publicUrl?: string;
+  fileName?: string;
 }
 
-interface UseUnifiedDocumentUploadOptions {
+interface UseUnifiedDocumentUploadProps {
   clientId: string;
   onSuccess?: (result: UploadResult) => void;
-  onError?: (error: Error | string) => void;
+  onError?: (error: unknown) => void;
   onProgress?: (progress: number) => void;
 }
 
-interface DocumentMetadata {
-  [key: string]: string | number | null | undefined;
-  filename?: string;
-  file_type?: string;
-  size?: number;
-  upload_path?: string;
-  url?: string;
-  uploadedAt?: string;
-  processing_status?: string;
-  error?: string;
-  extracted_at?: string;
-  text_length?: number;
-}
-
-interface DocumentData {
-  id: number;
-  metadata?: DocumentMetadata;
-}
-
-export const useUnifiedDocumentUpload = ({
+export function useUnifiedDocumentUpload({
   clientId,
   onSuccess,
   onError,
-  onProgress
-}: UseUnifiedDocumentUploadOptions) => {
+  onProgress,
+}: UseUnifiedDocumentUploadProps) {
+  const { logClientActivity } = useClientActivity(clientId);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const IS_PRODUCTION = isProduction();
 
-  const upload = async (file: File): Promise<UploadResult> => {
-    if (!clientId) {
-      const error = new Error("Client ID is required for document upload");
-      if (onError) onError(error);
-      return { success: false, error: error.message };
-    }
-
-    setIsLoading(true);
-    setUploadProgress(0);
-    
-    try {
-      // Generate unique ID for the document
-      const documentId = uuidv4();
-      
-      // Create a file path for storage
-      const fileExtension = file.name.split('.').pop() || '';
-      const filePath = `${clientId}/${documentId}.${fileExtension}`;
-      
-      setUploadProgress(20);
-      
-      // Upload the file to storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client_documents')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type,
-        });
-        
-      if (uploadError) {
-        throw new Error(`Storage upload failed: ${uploadError.message}`);
+  const upload = useCallback(
+    async (file: File): Promise<UploadResult> => {
+      if (!clientId) {
+        toast.error('Client ID is required');
+        return { success: false, error: 'Client ID is required' };
       }
-      
-      setUploadProgress(50);
-      
-      // Get the public URL for the uploaded file
-      const { data: urlData } = await supabase.storage
-        .from('client_documents')
-        .getPublicUrl(filePath);
-      
-      const url = urlData?.publicUrl || '';
-      
-      // Create document record in the database
-      const { data: documentData, error: documentError } = await supabase
-        .from('document_content')
-        .insert({
-          client_id: clientId,
-          document_id: documentId,
-          content: null,
-          metadata: {
-            filename: file.name,
-            file_type: file.type,
-            size: file.size,
-            upload_path: filePath,
-            url: url,
-            uploadedAt: new Date().toISOString(),
-            processing_status: file.type === 'application/pdf' ? 'pending_extraction' : 'ready'
-          } as DocumentMetadata,
-          file_type: file.type,
-          filename: file.name
-        })
-        .select('id, metadata')
-        .single();
+
+      setIsLoading(true);
+      try {
+        // Update progress for UI feedback
+        if (onProgress) onProgress(10);
+        setUploadProgress(10);
         
-      if (documentError) {
-        throw new Error(`Document record creation failed: ${documentError.message}`);
-      }
-      
-      setUploadProgress(80);
-      
-      // If it's a PDF, process it with RapidAPI
-      if (file.type === 'application/pdf') {
-        try {
-          // Create form data
-          const formData = new FormData();
-          formData.append('file', file);
+        const uploadWithRetry = async (file: File, retryCount = 0): Promise<UploadResult> => {
+          try {
+            // Set the timeout duration based on file size and environment
+            const timeoutDuration = calculateTimeoutDuration(file.size);
+            
+            // Create AbortController for timeout handling
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
-          // Call RapidAPI endpoint
-          const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
-            method: 'POST',
-            headers: {
-              'x-rapidapi-host': 'pdf-to-text-converter.p.rapidapi.com',
-              'x-rapidapi-key': import.meta.env.VITE_RAPIDAPI_KEY
-            },
-            body: formData
-          });
+            // Update progress
+            if (onProgress) onProgress(20);
+            setUploadProgress(20);
 
-          if (!response.ok) {
-            throw new Error(`RapidAPI request failed: ${response.status} ${response.statusText}`);
-          }
+            // Generate a unique file name
+            const fileName = `${uuidv4()}-${file.name}`;
 
-          const extractedText = await response.text();
+            // Upload the file to Supabase storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('client_documents')
+              .upload(`${clientId}/${fileName}`, file, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: file.type,
+                // Remove the signal property as it's not supported in FileOptions
+              });
 
-          // Update document with extracted text
-          const { error: updateError } = await supabase
-            .from('document_content')
-            .update({
-              content: extractedText,
-              metadata: {
-                ...(documentData.metadata as DocumentMetadata),
-                processing_status: 'extraction_complete',
-                extraction_method: 'rapidapi',
-                text_length: extractedText.length,
-                extracted_at: new Date().toISOString()
+            // Update progress
+            if (onProgress) onProgress(50);
+            setUploadProgress(50);
+
+            if (uploadError) {
+              console.error('File upload error:', uploadError);
+              clearTimeout(timeoutId); // Clear timeout if upload fails
+              if (retryCount < PDF_PROCESSING.maxRetries) {
+                const delay = PDF_PROCESSING.retryDelay * (retryCount + 1);
+                console.log(`Retrying upload in ${delay}ms (attempt ${retryCount + 1}/${PDF_PROCESSING.maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return uploadWithRetry(file, retryCount + 1); // Recursive retry
+              } else {
+                toast.error(`File upload failed after multiple retries: ${uploadError.message}`);
+                return { success: false, error: `File upload failed after multiple retries: ${uploadError.message}` };
               }
-            })
-            .eq('id', documentData.id);
+            }
 
-          if (updateError) {
-            throw new Error(`Failed to update document content: ${updateError.message}`);
+            // Clear the timeout if the upload is successful
+            clearTimeout(timeoutId);
+            
+            // Update progress
+            if (onProgress) onProgress(70);
+            setUploadProgress(70);
+
+            // Get the public URL of the uploaded file
+            const { data: publicUrlData } = supabase.storage
+              .from('client_documents')
+              .getPublicUrl(`${clientId}/${fileName}`);
+
+            if (!uploadData?.path) {
+              console.error('File path is missing in upload response');
+              return { success: false, error: 'File path is missing in upload response' };
+            }
+
+            // Update progress
+            if (onProgress) onProgress(80);
+            setUploadProgress(80);
+
+            // Create a record in the database
+            const { data: documentData, error: documentError } = await supabase
+              .from('client_documents')
+              .insert([
+                {
+                  client_id: clientId,
+                  file_name: file.name,
+                  file_type: file.type,
+                  file_size: file.size,
+                  storage_path: uploadData.path,
+                  storage_url: publicUrlData.publicUrl,
+                  user_id: (await supabase.auth.getUser()).data.user?.id
+                }
+              ])
+              .select()
+              .single();
+
+            if (documentError) {
+              console.error('Database insert error:', documentError);
+              return { success: false, error: `Database insert error: ${documentError.message}` };
+            }
+
+            // Update progress
+            if (onProgress) onProgress(90);
+            setUploadProgress(90);
+
+            // Log client activity
+            await logClientActivity('document_uploaded', `Document "${file.name}" uploaded`, {
+              file_name: file.name,
+              file_type: file.type,
+              file_size: file.size,
+              storage_path: uploadData.path,
+              storage_url: publicUrlData.publicUrl,
+            });
+
+            // Update progress to complete
+            if (onProgress) onProgress(100);
+            setUploadProgress(100);
+
+            // Call onSuccess callback
+            if (onSuccess) {
+              onSuccess({
+                success: true,
+                documentId: documentData.id,
+                publicUrl: publicUrlData.publicUrl,
+                fileName: file.name,
+              });
+            }
+
+            return {
+              success: true,
+              documentId: documentData.id,
+              publicUrl: publicUrlData.publicUrl,
+              fileName: file.name,
+            };
+          } catch (error) {
+            console.error('Upload error:', error);
+            
+            // Check if the error is an AbortError (timeout)
+            if (error instanceof DOMException && error.name === 'AbortError') {
+              const calculatedTimeoutDuration = calculateTimeoutDuration(file.size);
+              toast.error(`File upload timed out after ${calculatedTimeoutDuration / 60000} minutes. Please try again with a smaller file or a better connection.`);
+              return { success: false, error: `File upload timed out after ${calculatedTimeoutDuration / 60000} minutes.` };
+            }
+            
+            if (onError) {
+              onError(error);
+            }
+            return { success: false, error: error instanceof Error ? error.message : String(error) };
           }
-        } catch (error) {
-          console.error('PDF processing error:', error);
+        };
+
+        // Helper function to calculate appropriate timeout duration based on file size
+        const calculateTimeoutDuration = (fileSize: number): number => {
+          const baseDuration = IS_PRODUCTION ? 900000 : 600000; // 15 mins prod, 10 mins dev
           
-          // Update document status to indicate failure
-          await supabase
-            .from('document_content')
-            .update({
-              metadata: {
-                ...(documentData.metadata as DocumentMetadata),
-                processing_status: 'extraction_failed',
-                error: error instanceof Error ? error.message : 'Unknown error',
-                failed_at: new Date().toISOString()
-              }
-            })
-            .eq('id', documentData.id);
-        }
-      }
-      
-      setUploadProgress(100);
-      
-      const result: UploadResult = {
-        success: true,
-        documentId,
-        url,
-        path: filePath
-      };
-      
-      if (onSuccess) onSuccess(result);
-      
-      return result;
-    } catch (error) {
-      console.error('Document upload error:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      if (onError) onError(errorMessage);
-      
-      return { 
-        success: false, 
-        error: errorMessage
-      };
-    } finally {
-      setIsLoading(false);
-    }
-  };
+          // For very large files (>100MB), increase timeout further
+          if (fileSize > 100 * 1024 * 1024) {
+            return baseDuration * 1.5; // 22.5 mins prod, 15 mins dev
+          }
+          
+          return baseDuration;
+        };
 
-  return {
-    upload,
-    isLoading,
-    uploadProgress
+        return await uploadWithRetry(file, 0);
+      } catch (error) {
+        console.error('Top-level upload error:', error);
+        if (onError) {
+          onError(error);
+        }
+        return { 
+          success: false, 
+          error: error instanceof Error ? error.message : String(error)
+        };
+      } finally {
+        setIsLoading(false);
+        // Reset progress
+        setUploadProgress(0);
+      }
+    },
+    [clientId, onSuccess, onError, onProgress, logClientActivity, IS_PRODUCTION]
+  );
+
+  return { 
+    upload, 
+    isLoading, 
+    uploadProgress 
   };
-};
+}

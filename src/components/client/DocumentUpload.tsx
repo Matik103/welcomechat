@@ -1,482 +1,137 @@
-import React, { useState, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Upload, File, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { fixDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
-import { Json } from '@/types/document-processing';
-import { toast } from 'react-hot-toast';
 
-interface UploadResult {
-  success: boolean;
-  error?: string;
-  documentId?: string;
-  publicUrl?: string;
-  fileName?: string;
-  fileType?: string;
-}
+import React, { useCallback, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { toast } from 'sonner';
+import { useUnifiedDocumentUpload } from '../../hooks/useUnifiedDocumentUpload';
+import { Loader2 } from 'lucide-react';
+import { PDF_PROCESSING } from '@/config/env';
 
 interface DocumentUploadProps {
   clientId: string;
-  onUploadComplete?: (result: UploadResult) => void;
+  onUploadComplete?: (result: { success: boolean; documentId?: string; error?: string; publicUrl?: string; fileName?: string }) => void;
 }
 
-// Type-safe metadata interface
-interface DocumentMetadata {
-  size: number;
-  storage_path: string;
-  storage_url: string;
-  uploadedAt: string;
-  processing_status?: string;
-  error?: string;
-  [key: string]: any;
-}
-
-export const DocumentUpload: React.FC<DocumentUploadProps> = ({
-  clientId,
-  onUploadComplete
-}) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
-  const [isFixingPermissions, setIsFixingPermissions] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setSelectedFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
-
-  const handleFixPermissions = async () => {
-    setIsFixingPermissions(true);
-    try {
-      const result = await fixDocumentContentRLS();
-      
-      if (result.success) {
-        setUploadResult({
-          success: false,
-          error: "Permissions fixed. Please try uploading again."
-        });
-      } else {
-        setUploadResult({
-          success: false,
-          error: `Failed to fix permissions: ${result.message}`
-        });
+  const { upload } = useUnifiedDocumentUpload({
+    clientId,
+    onSuccess: (result) => {
+      if (onUploadComplete) {
+        onUploadComplete(result);
       }
-    } catch (error) {
-      console.error("Error fixing permissions:", error);
-      setUploadResult({
-        success: false,
-        error: `Error fixing permissions: ${error instanceof Error ? error.message : String(error)}`
-      });
-    } finally {
-      setIsFixingPermissions(false);
+    },
+    onProgress: (progress) => {
+      setUploadProgress(progress);
     }
-  };
+  });
 
-  const handleUpload = async () => {
-    if (!selectedFile) return;
-    
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (!clientId) {
+      toast.error('Client ID is required');
+      return;
+    }
+
     setIsUploading(true);
-    setUploadResult(null);
-    setUploadProgress(10);
-    
     try {
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return prev;
+      for (const file of acceptedFiles) {
+        setUploadProgress(0);
+        
+        // File size check
+        if (file.size > PDF_PROCESSING.maxFileSize) {
+          toast.error(`File ${file.name} is too large (${(file.size / (1024 * 1024)).toFixed(2)}MB). Maximum allowed size is ${PDF_PROCESSING.maxFileSize / (1024 * 1024)}MB.`);
+          continue;
+        }
+        
+        // Display file size for large files
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        const isLargeFile = file.size > 10 * 1024 * 1024;
+        
+        if (isLargeFile) {
+          toast.info(
+            `Processing large file: ${file.name} (${fileSizeMB}MB)`, 
+            { description: "This may take several minutes. Please don't close this tab." }
+          );
+        } else {
+          toast.info(`Uploading ${file.name} (${fileSizeMB}MB)...`);
+        }
+        
+        const result = await upload(file);
+        
+        if (result.success && result.documentId) {
+          toast.success(`${file.name} uploaded successfully!`);
+          if (onUploadComplete) {
+            onUploadComplete(result);
           }
-          return prev + 10;
-        });
-      }, 300);
-
-      // Generate a unique file path using client ID and UUID
-      const uniqueId = crypto.randomUUID();
-      const filePath = `${clientId}/${uniqueId}/${selectedFile.name}`;
-      
-      console.log(`Starting document upload for client ${clientId}:`, {
-        fileName: selectedFile.name,
-        fileSize: selectedFile.size,
-        fileType: selectedFile.type,
-        filePath
-      });
-      
-      let pdfData;
-      // If it's a PDF, convert to base64 for direct API submission
-      if (selectedFile.type === 'application/pdf') {
-        // Read the file to send directly to RapidAPI
-        const reader = new FileReader();
-        pdfData = await new Promise((resolve) => {
-          reader.onload = () => resolve(reader.result);
-          reader.readAsDataURL(selectedFile);
-        });
-      }
-      
-      // Upload file to storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client_documents')
-        .upload(filePath, selectedFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
-        
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        throw new Error(`Failed to upload file: ${uploadError.message}`);
-      }
-      
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('client_documents')
-        .getPublicUrl(filePath);
-
-      console.log('File uploaded successfully, public URL:', publicUrl);
-
-      // Get the client's assistant
-      const { data: assistant, error: assistantError } = await supabase
-        .from('ai_agents')
-        .select('id, openai_assistant_id')
-        .eq('client_id', clientId)
-        .eq('interaction_type', 'config')
-        .single();
-
-      if (assistantError) {
-        console.log('No assistant found - continuing without assistant association');
-      }
-
-      // Create document metadata
-      const documentMetadata = {
-        size: selectedFile.size,
-        storage_path: filePath,
-        storage_url: publicUrl,
-        uploadedAt: new Date().toISOString(),
-        processing_status: selectedFile.type === 'application/pdf' ? 'pending_extraction' : 'ready'
-      };
-
-      // Create document record in document_content table
-      const { data: document, error: docError } = await supabase
-        .from('document_content')
-        .insert({
-          client_id: clientId,
-          document_id: uniqueId,
-          content: null,
-          filename: selectedFile.name,
-          file_type: selectedFile.type,
-          metadata: documentMetadata
-        })
-        .select()
-        .single();
-
-      if (docError) {
-        console.error('Error creating document record:', docError);
-        
-        // Try to clean up the uploaded file
-        const { error: removeError } = await supabase.storage
-          .from('client_documents')
-          .remove([filePath]);
-          
-        if (removeError) {
-          console.error('Failed to clean up file after document record error:', removeError);
-        }
-        
-        if (docError.message.includes('row-level security policy') || 
-            docError.message.includes('permission denied')) {
-          throw new Error('Permission denied. Please try the "Fix Permissions" button below.');
-        }
-        
-        throw new Error(`Failed to create document record: ${docError.message}`);
-      }
-
-      console.log('Document record created:', document);
-
-      // Create record in assistant_documents table if we found an assistant
-      if (assistant && assistant.openai_assistant_id) {
-        try {
-          const { error: assistantDocError } = await supabase
-            .from('assistant_documents')
-            .insert({
-              assistant_id: assistant.openai_assistant_id,
-              client_id: clientId,
-              filename: selectedFile.name,
-              file_type: selectedFile.type,
-              storage_path: filePath,
-              metadata: {
-                size: selectedFile.size,
-                storage_url: publicUrl,
-                uploadedAt: new Date().toISOString()
-              }
-            });
-
-          if (assistantDocError) {
-            console.error('Error creating assistant document record:', assistantDocError);
-            // We'll continue anyway since the main document was created successfully
-          }
-        } catch (error) {
-          console.warn('Error linking document to assistant (non-critical):', error);
-          // Non-critical error, continue
+        } else {
+          toast.error(`Failed to upload ${file.name}: ${result.error || 'Unknown error'}`);
         }
       }
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      // If it's a PDF, trigger the extraction process
-      if (selectedFile.type === 'application/pdf') {
-        try {
-          const { data: extractionResponse, error: extractionError } = await supabase
-            .functions.invoke('process-pdf', {
-              body: { 
-                document_id: document.id, 
-                storage_path: filePath,
-                pdf_data: pdfData // Pass PDF data directly to the function
-              }
-            });
-
-          if (extractionError) {
-            console.error('PDF extraction error:', extractionError);
-            // This is non-fatal, so we'll continue
-          }
-        } catch (extractionError) {
-          console.error('Failed to invoke PDF extraction:', extractionError);
-          // This is also non-fatal
-        }
-      }
-
-      const result = {
-        success: true,
-        documentId: document.id.toString(),
-        publicUrl,
-        fileName: selectedFile.name,
-        fileType: selectedFile.type
-      };
-      
-      setUploadResult(result);
-      if (onUploadComplete) onUploadComplete(result);
-      
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      
-      return result;
     } catch (error) {
-      console.error('Error uploading document:', error);
-      
-      setUploadProgress(0);
-      
-      const errorResult = {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        fileName: selectedFile.name,
-        fileType: selectedFile.type
-      };
-      
-      setUploadResult(errorResult);
-      if (onUploadComplete) onUploadComplete(errorResult);
-      
-      return null;
+      console.error('Upload error:', error);
+      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
-  };
+  }, [clientId, upload, onUploadComplete]);
 
-  const handleClearFile = () => {
-    setSelectedFile(null);
-    setUploadResult(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    disabled: isUploading,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'text/plain': ['.txt'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+    },
+    maxSize: PDF_PROCESSING.maxFileSize // Set max file size based on configuration
+  });
 
   return (
-    <>
+    <div className="space-y-4">
       <div 
-        className={`border-2 border-dashed rounded-lg p-6 text-center ${
-          isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
-        }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
+        {...getRootProps()} 
+        className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer
+          ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+          ${isUploading ? 'opacity-70 cursor-not-allowed' : ''}`}
       >
-        <div className="flex flex-col items-center justify-center gap-2">
-          <Upload className="h-10 w-10 text-gray-400" />
-          <p className="text-sm text-gray-600">
-            Drag and drop a file here, or{' '}
-            <Button 
-              variant="link" 
-              className="p-0 h-auto text-sm text-primary"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              browse
-            </Button>
-          </p>
-          <p className="text-xs text-gray-500">
-            Supported formats: PDF, DOCX, TXT, CSV (Max 50MB)
-          </p>
-          <input 
-            type="file" 
-            ref={fileInputRef}
-            onChange={handleFileChange} 
-            className="hidden" 
-            accept=".pdf,.docx,.txt,.csv"
-          />
-        </div>
+        <input {...getInputProps()} />
+        {isUploading ? (
+          <div className="flex flex-col items-center justify-center space-y-2">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+            <p>Uploading... {uploadProgress > 0 ? `${uploadProgress}%` : ''}</p>
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-500 transition-all duration-300 ease-in-out" 
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {uploadProgress > 40 && uploadProgress < 80 ? 
+                "Processing PDF text - this may take several minutes for large files..." : 
+                ""}
+            </p>
+          </div>
+        ) : isDragActive ? (
+          <p>Drop the files here...</p>
+        ) : (
+          <div>
+            <p>Drag and drop files here, or click to select files</p>
+            <p className="text-sm text-gray-500 mt-2">Supports: PDF, Word, Excel, and Text files</p>
+            <p className="text-xs text-gray-500">Maximum file size: {PDF_PROCESSING.maxFileSize / (1024 * 1024)}MB</p>
+          </div>
+        )}
       </div>
-
-      {selectedFile && (
-        <div className="mt-4 border rounded-md p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <File className="h-5 w-5 text-blue-500" />
-              <span className="text-sm font-medium truncate max-w-[200px]">
-                {selectedFile.name}
-              </span>
-              <span className="text-xs text-gray-500">
-                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-              </span>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleClearFile}
-              disabled={isUploading}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {isUploading && (
-            <div className="mt-3 space-y-2">
-              <Progress value={uploadProgress} className="h-2" />
-              <p className="text-xs text-gray-500 text-right">{uploadProgress}%</p>
-            </div>
-          )}
-
-          <div className="mt-3">
-            <Button 
-              onClick={handleUpload} 
-              disabled={isUploading || !selectedFile}
-              className="w-full"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                'Upload Document'
-              )}
-            </Button>
-          </div>
+      
+      {isUploading && (
+        <div className="text-xs text-gray-500 italic px-2">
+          <p>Large PDF files require more processing time. Please be patient.</p>
+          <p>For best results, ensure your PDF is text-searchable rather than scanned images.</p>
         </div>
       )}
-      
-      {uploadResult && uploadResult.success && (
-        <Alert className="bg-green-50 border-green-200 mt-4">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-800">Document uploaded successfully</AlertTitle>
-          <AlertDescription className="text-green-700">
-            Your document has been uploaded successfully.
-            {uploadResult.publicUrl && (
-              <div className="mt-2">
-                <a 
-                  href={uploadResult.publicUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 underline"
-                >
-                  View document
-                </a>
-              </div>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      {uploadResult && !uploadResult.success && (
-        <Alert variant="destructive" className="mt-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Upload Failed</AlertTitle>
-          <AlertDescription>{uploadResult.error}</AlertDescription>
-          {uploadResult.error?.includes('Permission denied') && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              onClick={handleFixPermissions}
-              disabled={isFixingPermissions}
-            >
-              {isFixingPermissions ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Fixing Permissions...
-                </>
-              ) : (
-                'Fix Permissions'
-              )}
-            </Button>
-          )}
-          {uploadResult.error?.includes('extraction failed') && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              onClick={async () => {
-                try {
-                  const { data: extractionResponse, error: extractionError } = await supabase
-                    .functions.invoke('process-pdf', {
-                      body: { 
-                        document_id: uploadResult.documentId,
-                        storage_path: uploadResult.fileName,
-                        retry: true
-                      }
-                    });
-
-                  if (extractionError) {
-                    console.error('PDF extraction retry error:', extractionError);
-                    toast.error('Failed to retry PDF extraction');
-                  } else {
-                    toast.success('PDF extraction retried successfully');
-                    // Clear the error state
-                    setUploadResult(prev => prev ? { ...prev, error: undefined } : null);
-                  }
-                } catch (error) {
-                  console.error('Failed to retry PDF extraction:', error);
-                  toast.error('Failed to retry PDF extraction');
-                }
-              }}
-            >
-              Retry PDF Extraction
-            </Button>
-          )}
-        </Alert>
-      )}
-    </>
+    </div>
   );
-};
+}

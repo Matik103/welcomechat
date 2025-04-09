@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { WidgetSettings } from '@/types/widget-settings';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getAnswerFromOpenAIAssistant } from '@/utils/openAIDocumentSync';
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -52,34 +52,14 @@ export const WidgetPreview = ({
       
       console.log(`Sending query to assistant for client ${clientId}: "${userMessage}"`);
       
-      const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
-        body: {
-          client_id: clientId,
-          query: userMessage
-        }
-      });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(`Edge function error: ${error.message || 'Unknown error'}`);
+      const result = await getAnswerFromOpenAIAssistant(clientId, userMessage);
+      
+      if (result.error) {
+        console.error('Assistant query error:', result.error);
+        throw new Error(result.error);
       }
-
-      console.log('Assistant response:', data);
-
-      if (data?.answer) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
-      } else if (typeof data === 'string') {
-        setMessages(prev => [...prev, { role: 'assistant', content: data }]);
-      } else if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
-        const assistantMessage = data.messages[data.messages.length - 1]?.content || 
-          "Sorry, I couldn't generate a response.";
-        setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
-      } else {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: "Sorry, I couldn't generate a response." 
-        }]);
-      }
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: result.answer }]);
 
       if (onTestInteraction) {
         onTestInteraction();
@@ -162,7 +142,6 @@ export const WidgetPreview = ({
       return (
         <div className="relative h-full w-full bg-gray-100 rounded-lg p-4">
           <div className="flex h-full">
-            {/* Sidebar tab - always visible */}
             <div 
               className={`flex items-center justify-center h-full cursor-pointer transition-all ${isSidebarOpen ? 'w-8' : 'w-14'}`}
               onClick={handleToggleSidebar}
@@ -173,7 +152,6 @@ export const WidgetPreview = ({
               </div>
             </div>
             
-            {/* Chat panel - visible when open */}
             {isSidebarOpen && (
               <div className="flex-1 flex flex-col bg-white overflow-hidden border-t border-r border-b rounded-tr-lg rounded-br-lg shadow-md">
                 <ChatHeader 
@@ -215,7 +193,6 @@ export const WidgetPreview = ({
             )}
           </div>
           
-          {/* Example of showing initial closed state with a button to open */}
           {!isSidebarOpen && !messages.length && (
             <div className="absolute top-4 right-4 p-3 bg-white border rounded-lg shadow-md">
               <p className="text-sm mb-4">This is how the sidebar appears when collapsed. Click the tab on the left to expand it.</p>
@@ -294,4 +271,3 @@ export const WidgetPreview = ({
       );
   }
 };
-

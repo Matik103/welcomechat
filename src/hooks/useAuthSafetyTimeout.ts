@@ -39,8 +39,8 @@ export const useAuthSafetyTimeout = ({
       }
     }
     
-    // Use a shorter timeout - 1 second is enough to prevent blank screens
-    const timeoutDuration = 1000;
+    // Increase timeout to 5 seconds to give more time for resources to load
+    const timeoutDuration = 5000;
     
     const safetyTimeout = setTimeout(() => {
       if (isLoading) {

@@ -41,7 +41,7 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({
     uploadProgress
   } = useUnifiedDocumentUpload({
     clientId,
-    onSuccess: (result) => {
+    onSuccess: () => {
       if (onUploadComplete) onUploadComplete();
       toast.success('Document uploaded successfully');
     },
