@@ -1,8 +1,9 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
+import { DOCUMENTS_BUCKET, ensureBucketExists } from '@/utils/ensureStorageBuckets';
 
 // Define the return type for the upload function
 export interface UploadResult {
@@ -26,7 +27,7 @@ export function useUnifiedDocumentUpload(options: {
   const [isUploading, setIsUploading] = useState(false);
   const { clientId, onSuccess, onProgress } = options;
 
-  const upload = async (file: File): Promise<UploadResult> => {
+  const upload = useCallback(async (file: File): Promise<UploadResult> => {
     if (!clientId) {
       return { success: false, error: 'Client ID is required' };
     }
@@ -38,46 +39,54 @@ export function useUnifiedDocumentUpload(options: {
     setIsUploading(true);
 
     try {
+      // First, ensure the bucket exists
+      const bucketExists = await ensureBucketExists(DOCUMENTS_BUCKET);
+      if (!bucketExists) {
+        return { 
+          success: false, 
+          error: `Storage bucket "${DOCUMENTS_BUCKET}" not found and couldn't be created automatically.`,
+          fileName: file.name
+        };
+      }
+      
       // Generate a unique filename
       const fileExt = file.name.split('.').pop();
-      const fileName = `${uuidv4()}.${fileExt}`;
+      const uniqueId = uuidv4();
+      const fileName = `${uniqueId}.${fileExt}`;
       const filePath = `${clientId}/${fileName}`;
 
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
-        .from('documents')
+        .from(DOCUMENTS_BUCKET)
         .upload(filePath, file);
 
       if (error) {
         console.error('Error uploading file:', error);
-        return { success: false, error: error.message };
+        
+        if (error.message.includes('bucket not found')) {
+          // Try to recreate the bucket and retry upload
+          const recreated = await ensureBucketExists(DOCUMENTS_BUCKET);
+          if (recreated) {
+            // Retry upload
+            const retryUpload = await supabase.storage
+              .from(DOCUMENTS_BUCKET)
+              .upload(filePath, file);
+              
+            if (retryUpload.error) {
+              throw new Error(`Bucket was recreated but upload still failed: ${retryUpload.error.message}`);
+            }
+          } else {
+            throw new Error(`Bucket not found and could not be recreated`);
+          }
+        } else {
+          return { success: false, error: error.message, fileName: file.name };
+        }
       }
 
       // Get the public URL
-      const { data: urlData } = await supabase.storage
-        .from('documents')
+      const { data: urlData } = supabase.storage
+        .from(DOCUMENTS_BUCKET)
         .getPublicUrl(filePath);
-
-      // Add the document to the documents table
-      const { data: docData, error: docError } = await supabase
-        .from('documents')
-        .insert([
-          {
-            client_id: clientId,
-            file_name: file.name,
-            storage_path: filePath,
-            file_type: file.type,
-            file_size: file.size,
-            status: 'uploaded'
-          }
-        ])
-        .select()
-        .single();
-
-      if (docError) {
-        console.error('Error inserting document record:', docError);
-        return { success: false, error: docError.message };
-      }
 
       // Get the client's assistant
       const { data: assistantData, error: assistantError } = await supabase
@@ -86,75 +95,106 @@ export function useUnifiedDocumentUpload(options: {
         .eq('client_id', clientId)
         .single();
         
-      if (!assistantError && assistantData?.openai_assistant_id) {
-        // Store document in document_content table
-        const { data: contentData, error: contentError } = await supabase
-          .from('document_content')
-          .insert({
-            client_id: clientId,
-            document_id: docData.id,
-            content: null, // This will be filled when processed
-            filename: file.name,
-            file_type: file.type,
-            metadata: {
-              size: file.size,
-              storage_path: filePath,
-              storage_url: urlData.publicUrl,
-              uploadedAt: new Date().toISOString(),
-              processing_status: file.type === 'application/pdf' ? 'pending_extraction' : 'ready'
-            }
-          })
-          .select()
-          .single();
+      if (assistantError) {
+        console.error('Error finding assistant for client:', assistantError);
+        // Continue anyway, we'll just store the document without associating with assistant
+      }
 
-        if (contentError) {
-          console.error('Error storing document content:', contentError);
-        } else {
-          // Give assistant access to the document
-          try {
-            const { data: assistDocData, error: assistDocError } = await supabase
-              .from('assistant_documents')
-              .insert({
-                assistant_id: assistantData.openai_assistant_id,
-                document_id: contentData.id,
-                client_id: clientId,
-                status: 'ready'
-              });
-              
-            if (assistDocError) {
-              console.error('Error associating document with assistant:', assistDocError);
-            } else {
-              console.log('Assistant now has access to document:', contentData.id);
-            }
-            
-            // If it's a PDF, trigger the extraction process
-            if (file.type === 'application/pdf') {
-              try {
-                const { error: extractionError } = await supabase.functions.invoke('process-pdf', {
-                  body: { 
-                    document_id: contentData.id.toString(),
-                    storage_path: filePath
-                  }
-                });
-
-                if (extractionError) {
-                  console.error('PDF extraction error:', extractionError);
-                }
-              } catch (extractionError) {
-                console.error('Failed to invoke PDF extraction:', extractionError);
-              }
-            }
-          } catch (error) {
-            console.error('Error in assistant document access:', error);
+      // Store document metadata in the document_content table
+      const { data: documentData, error: documentError } = await supabase
+        .from('document_content')
+        .insert({
+          client_id: clientId,
+          document_id: uniqueId,
+          content: null,
+          filename: file.name,
+          file_type: file.type,
+          metadata: {
+            size: file.size,
+            storage_path: filePath,
+            storage_url: urlData.publicUrl,
+            uploadedAt: new Date().toISOString(),
+            processing_status: file.type === 'application/pdf' ? 'pending_extraction' : 'ready'
           }
+        })
+        .select()
+        .single();
+
+      if (documentError) {
+        console.error('Error storing document metadata:', documentError);
+        
+        // Try to clean up the uploaded file
+        const { error: removeError } = await supabase.storage
+          .from(DOCUMENTS_BUCKET)
+          .remove([filePath]);
+          
+        if (removeError) {
+          console.error('Failed to clean up file after document error:', removeError);
+        }
+        
+        // Check if it's a permissions issue
+        if (documentError.message.includes('permission denied')) {
+          // Try to fix permissions
+          try {
+            const { data: permissionResult, error: permissionError } = await supabase
+              .rpc('verify_document_content_permissions');
+              
+            if (permissionError) {
+              console.error('Error verifying document content permissions:', permissionError);
+            } else {
+              console.log('Permission verification result:', permissionResult);
+            }
+          } catch (permErr) {
+            console.error('Exception in permission verification:', permErr);
+          }
+        }
+        
+        return { 
+          success: false, 
+          error: documentError.message,
+          fileName: file.name,
+          fileType: file.type
+        };
+      }
+
+      // If we have an assistant, associate the document with it
+      if (assistantData?.openai_assistant_id) {
+        const { error: assistantDocError } = await supabase
+          .from('assistant_documents')
+          .insert({
+            assistant_id: assistantData.openai_assistant_id,
+            document_id: documentData.document_id,
+            client_id: clientId,
+            status: file.type === 'application/pdf' ? 'pending' : 'ready'
+          });
+
+        if (assistantDocError) {
+          console.error('Error associating document with assistant:', assistantDocError);
+          // Continue anyway, the document is already stored
+        }
+      }
+
+      // If it's a PDF, trigger the extraction process
+      if (file.type === 'application/pdf') {
+        try {
+          const { data: extractionResponse, error: extractionError } = await supabase
+            .functions.invoke('extract-pdf-content', {
+              body: { document_id: documentData.id.toString() }
+            });
+
+          if (extractionError) {
+            console.error('PDF extraction error:', extractionError);
+          }
+        } catch (extractionError) {
+          console.error('Failed to invoke PDF extraction:', extractionError);
         }
       }
 
       const result = {
         success: true,
-        documentId: docData.id,
-        fileName: file.name,
-        publicUrl: urlData.publicUrl
+        documentId: documentData.id.toString(),
+        documentUrl: urlData.publicUrl,
+        fileName: file.name
       };
       
       if (onSuccess) {
@@ -166,12 +206,13 @@ export function useUnifiedDocumentUpload(options: {
       console.error('Document upload error:', err);
       return {
         success: false,
-        error: err instanceof Error ? err.message : 'Unknown error during upload'
+        error: err instanceof Error ? err.message : 'Unknown error during upload',
+        fileName: file.name
       };
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [clientId, onSuccess]);
 
   return {
     upload,
