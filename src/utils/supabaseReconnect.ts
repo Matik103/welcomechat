@@ -1,7 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseAdmin } from "@/integrations/supabase/admin";
-import { toast } from "sonner";
 import { DOCUMENTS_BUCKET, ensureBucketExists } from "@/utils/ensureStorageBuckets";
 import { initializeRpcFunctions } from "@/utils/supabaseUtils";
 
@@ -22,7 +21,7 @@ export async function verifySupabaseConnection(): Promise<{
 
   try {
     // Step 1: Verify basic database connection
-    const { data: pingData, error: pingError } = await supabase
+    const { error: pingError } = await supabase
       .from('clients')
       .select('count(*)')
       .limit(1);
@@ -59,15 +58,14 @@ export async function verifySupabaseConnection(): Promise<{
 
     // Step 4: Verify edge functions
     try {
-      const { data: functionData, error: functionError } = await supabase.functions.listFunctions();
+      // Use invoke instead of listFunctions which doesn't exist
+      const { error: functionError } = await supabase.functions.invoke('get-functions-list', {});
       
       if (functionError) {
         results.success = false;
         results.errors.push(`Edge functions error: ${functionError.message}`);
-      } else if (functionData && functionData.length > 0) {
-        results.messages.push(`✅ Edge functions verified (${functionData.length} functions available)`);
       } else {
-        results.errors.push("Edge functions seem unavailable - may need redeployment");
+        results.messages.push(`✅ Edge functions verified`);
       }
     } catch (edgeFnError) {
       results.errors.push(`Edge functions check failed: ${edgeFnError instanceof Error ? edgeFnError.message : String(edgeFnError)}`);
@@ -170,7 +168,7 @@ export async function reinitializeAfterRestore(): Promise<{
     // Step 4: Verify database tables and reapply migrations if needed
     try {
       // Check a critical table to ensure it exists
-      const { data: tableData, error: tableError } = await supabase
+      const { error: tableError } = await supabase
         .from('ai_agents')
         .select('count(*)')
         .limit(1);

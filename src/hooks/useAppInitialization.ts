@@ -8,12 +8,12 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
   const [adminConfigError, setAdminConfigError] = useState<boolean>(false);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [initializationAttempted, setInitializationAttempted] = useState<boolean>(false);
-  const [initializationErrors, setInitializationErrors] = useState<string[]>([]);
+  const [initializationErrors] = useState<string[]>([]);
   
   // Use refs to track initialization state without causing rerenders
   const initializationRef = useRef<boolean>(false);
   
-  // Optimized app initialization
+  // Optimized app initialization with shorter timeouts
   useEffect(() => {
     // Only initialize once and prevent duplicate initialization
     if (initializationAttempted || initializationRef.current) return;
@@ -27,12 +27,14 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
       if (!isInitializing) return;
       
       const isAuthCallback = location.pathname.includes('/auth/callback');
-      if (!isAuthCallback) {
-        // Only clear callback flag if we're not on a callback URL
+      const isDatabaseReconnect = location.pathname.includes('/database-reconnect');
+      
+      if (!isAuthCallback && !isDatabaseReconnect) {
+        // Only clear callback flag if we're not on a callback URL or database reconnect
         sessionStorage.removeItem('auth_callback_processed');
       } else {
-        // On callback URL, don't double-initialize
-        console.log('Skipping initialization on auth callback');
+        // On callback URL or database page, don't double-initialize
+        console.log('Skipping initialization on special page');
         setIsInitializing(false);
         setIsLoading(false);
         return;
@@ -51,9 +53,9 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
           // Initialize bucket but don't wait too long
           try {
             const bucketInitPromise = initializeBotLogosBucket();
-            // Use a shorter timeout
+            // Use a shorter timeout (500ms)
             const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Bucket initialization timeout')), 1000)
+              setTimeout(() => reject(new Error('Bucket initialization timeout')), 500)
             );
             
             await Promise.race([bucketInitPromise, timeoutPromise]);
@@ -82,7 +84,7 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
         setIsInitializing(false);
         setIsLoading(false);
       }
-    }, 1000);
+    }, 800); // Reduced from 1000 to 800ms
     
     return () => clearTimeout(timeoutId);
   }, [location.pathname, user, userRole, isLoading, isInitializing, setIsLoading, initializationAttempted]);

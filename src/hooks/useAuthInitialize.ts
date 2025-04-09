@@ -52,12 +52,12 @@ export const useAuthInitialize = ({
           // Get user role with a timeout to prevent hanging
           const rolePromise = getUserRole();
           
-          // Race between role fetch and timeout
+          // Race between role fetch and timeout - use a shorter timeout (1.5 sec)
           try {
             const role = await Promise.race([
               rolePromise,
               new Promise<null>((_, reject) => 
-                setTimeout(() => reject(new Error('Role fetch timeout')), 2500)
+                setTimeout(() => reject(new Error('Role fetch timeout')), 1500)
               )
             ]);
             
@@ -87,14 +87,14 @@ export const useAuthInitialize = ({
     
     initializeAuth();
     
-    // Add a safety timeout that will complete initialization after 3 seconds no matter what
+    // Add a safety timeout that will complete initialization after 2 seconds (shorter than before)
     const safetyTimeout = setTimeout(() => {
       if (!authInitialized) {
         console.log("Safety timeout reached - forcing auth initialization completion");
         setIsLoading(false);
         setAuthInitialized(true);
       }
-    }, 3000);
+    }, 2000);
     
     return () => clearTimeout(safetyTimeout);
     

@@ -1,5 +1,5 @@
 
-import React, { useMemo, useCallback, Suspense, useEffect } from "react";
+import { useMemo, useCallback, Suspense, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { PublicRoutes } from "./components/routes/PublicRoutes";
@@ -22,7 +22,7 @@ function App() {
         console.log("Force ending loading state after timeout");
         setIsLoading(false);
       }
-    }, 5000); // 5 seconds timeout
+    }, 3000); // Reduced from 5 seconds to 3 seconds to prevent long loading
     
     return () => clearTimeout(timeout);
   }, [isLoading, setIsLoading]);
@@ -36,6 +36,7 @@ function App() {
   const isContactPage = useMemo(() => location.pathname === '/contact', [location.pathname]);
   const isAdminPage = useMemo(() => location.pathname.startsWith('/admin'), [location.pathname]);
   const isClientPage = useMemo(() => location.pathname.startsWith('/client'), [location.pathname]);
+  const isDatabaseReconnectPage = useMemo(() => location.pathname === '/database-reconnect', [location.pathname]);
   
   // Create a stable isPublicRoute value with useCallback to prevent unnecessary recalculations
   const isPublicRoute = useCallback(() => {
@@ -45,9 +46,10 @@ function App() {
       isAuthCallback || 
       isHomePage || 
       isAboutPage || 
-      isContactPage
+      isContactPage ||
+      isDatabaseReconnectPage
     );
-  }, [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage]);
+  }, [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage, isDatabaseReconnectPage]);
 
   // Debug information
   console.log({
@@ -62,10 +64,19 @@ function App() {
 
   // Use useMemo to avoid unnecessary re-renders of entire route components
   const routeComponent = useMemo(() => {
-    // Show minimal loading for auth-related operations only
+    // Safeguard - if user is on database reconnect page, always show it without auth
+    if (isDatabaseReconnectPage) {
+      return (
+        <ErrorBoundary>
+          <PublicRoutes />
+        </ErrorBoundary>
+      );
+    }
+    
+    // Show minimal loading for auth-related operations only, with shorter timeout
     if (isLoading && (isAuthCallback || (!user && isAdminPage))) {
       console.log("Rendering loading fallback for auth operations");
-      return <LoadingFallback message="Loading application..." />;
+      return <LoadingFallback message="Loading application..." timeoutSeconds={2} />;
     }
 
     // Public routes for non-authenticated users
@@ -94,7 +105,7 @@ function App() {
         console.log("Rendering admin routes");
         return (
           <ErrorBoundary>
-            <Suspense fallback={<LoadingFallback message="Loading admin dashboard..." timeoutSeconds={DEFAULT_LOADING_TIMEOUT} />}>
+            <Suspense fallback={<LoadingFallback message="Loading admin dashboard..." timeoutSeconds={2} />}>
               <AdminRoutes />
             </Suspense>
           </ErrorBoundary>
@@ -105,24 +116,24 @@ function App() {
         console.log("Rendering client routes");
         return (
           <ErrorBoundary>
-            <Suspense fallback={<LoadingFallback message="Loading dashboard..." timeoutSeconds={DEFAULT_LOADING_TIMEOUT} />}>
+            <Suspense fallback={<LoadingFallback message="Loading dashboard..." timeoutSeconds={2} />}>
               <ClientRoutes />
             </Suspense>
           </ErrorBoundary>
         );
       }
       
-      // If user is authenticated but role not determined yet, show loading for max 3 seconds
+      // If user is authenticated but role not determined yet, show loading for max 2 seconds
       if (!userRole) {
         console.log("Role not determined, showing loading");
-        return <LoadingFallback message="Verifying account..." timeoutSeconds={3} />;
+        return <LoadingFallback message="Verifying account..." timeoutSeconds={2} />;
       }
     }
     
     // Default to home page as fallback
     console.log("No matching route condition, navigating to home");
     return <Navigate to="/" replace />;
-  }, [user, userRole, isLoading, isPublicRoute, isAuthCallback, isAdminPage, isClientPage]);
+  }, [user, userRole, isLoading, isPublicRoute, isAuthCallback, isAdminPage, isClientPage, isDatabaseReconnectPage]);
   
   // Return the memoized route component
   return routeComponent;
