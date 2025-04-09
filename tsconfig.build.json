@@ -28,7 +28,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    
+    /* Type Definitions */
+    "types": ["node", "react", "react-dom"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]
