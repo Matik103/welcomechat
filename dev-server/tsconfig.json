@@ -1,3 +1,4 @@
+
 {
   "extends": "./tsconfig.node.json",
   "compilerOptions": {
@@ -11,4 +12,4 @@
   },
   "include": ["./**/*.ts"],
   "exclude": ["node_modules", "dist"]
-} 
+}
