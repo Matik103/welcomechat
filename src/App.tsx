@@ -1,4 +1,3 @@
-
 import { useMemo, useCallback, Suspense } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
@@ -8,10 +7,10 @@ import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
 import { ErrorBoundary } from "@/components";
 import { LoadingFallback } from "./components/routes/LoadingFallback";
-import { DEFAULT_LOADING_TIMEOUT, AUTH_LOADING_TIMEOUT } from "./config/env";
+import { DEFAULT_LOADING_TIMEOUT } from "./config/env";
 
 function App() {
-  const { user, userRole, isLoading, session } = useAuth();
+  const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
   
   // Memoize route checks to prevent unnecessary re-renders
