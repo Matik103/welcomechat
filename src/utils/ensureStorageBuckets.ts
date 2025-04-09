@@ -23,7 +23,7 @@ export const ensureBucketExists = async (bucketName: string): Promise<boolean> =
     }
     
     // Check if our bucket exists
-    const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+    const bucketExists = buckets?.some(bucket => bucket.name === bucketName || bucket.id === bucketName);
     
     if (bucketExists) {
       console.log(`Bucket ${bucketName} already exists`);
@@ -37,7 +37,15 @@ export const ensureBucketExists = async (bucketName: string): Promise<boolean> =
       try {
         const { error } = await supabaseAdmin.storage.createBucket(bucketName, {
           public: bucketName === BOT_LOGOS_BUCKET, // Bot logos are public, documents are not
-          fileSizeLimit: bucketName === DOCUMENTS_BUCKET ? 20971520 : 5242880 // 20MB for docs, 5MB for logos
+          fileSizeLimit: bucketName === DOCUMENTS_BUCKET ? 20971520 : 5242880, // 20MB for docs, 5MB for logos
+          allowedMimeTypes: bucketName === DOCUMENTS_BUCKET ? [
+            'application/pdf',
+            'text/plain',
+            'application/vnd.google-apps.document',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/msword',
+            'text/csv'
+          ] : undefined
         });
         
         if (error) {
@@ -72,7 +80,14 @@ export const ensureBucketExists = async (bucketName: string): Promise<boolean> =
       // As a last resort, try regular client (might work if user has proper permissions)
       try {
         const { error } = await supabase.storage.createBucket(bucketName, {
-          public: bucketName === BOT_LOGOS_BUCKET
+          public: bucketName === BOT_LOGOS_BUCKET,
+          fileSizeLimit: bucketName === DOCUMENTS_BUCKET ? 20971520 : undefined,
+          allowedMimeTypes: bucketName === DOCUMENTS_BUCKET ? [
+            'application/pdf',
+            'text/plain',
+            'application/vnd.google-apps.document',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          ] : undefined
         });
         
         if (error) {

@@ -3,7 +3,7 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '../../hooks/useUnifiedDocumentUpload';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { DOCUMENTS_BUCKET, ensureBucketExists, handleBucketNotFoundError } from '@/utils/ensureStorageBuckets';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
