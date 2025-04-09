@@ -27,7 +27,6 @@
   "include": ["src"],
   "exclude": ["node_modules", "dev-server"],
   "references": [
-    { "path": "./tsconfig.node.json" },
-    { "path": "./dev-server" }
+    { "path": "tsconfig.node.json" }
   ]
 }

@@ -9,7 +9,9 @@
     "outDir": "dist",
     "rootDir": ".",
     "declaration": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "noEmit": false
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "dev-server/**/*.ts"],
+  "references": []
 }
