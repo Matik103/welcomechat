@@ -23,6 +23,6 @@
     "baseUrl": ".",
     "composite": true
   },
-  "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
-  "references": []
+  "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+  // Removed empty references array that was causing issues
 }
