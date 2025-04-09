@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -32,4 +31,8 @@ export default defineConfig(({ mode }) => ({
     // Use the build config that can emit files
     emptyOutDir: true,
   },
+  // Add TypeScript configuration
+  typescript: {
+    configFile: 'tsconfig.dev.json'
+  }
 }));
