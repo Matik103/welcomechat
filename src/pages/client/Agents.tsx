@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,10 +43,16 @@ const ClientAgents: React.FC = () => {
         setClientName(clientData.client_name || '');
       }
 
-      // Then get all agents for this client - updated query to ensure we get all relevant agents
+      // Then get all agents for this client with additional stats
       const { data, error: agentsError } = await supabase
         .from('ai_agents')
-        .select('*')
+        .select(`
+          *,
+          interactions:chat_interactions(
+            count,
+            avg_response_time:response_time_ms(avg)
+          )
+        `)
         .eq('client_id', clientId)
         .eq('interaction_type', 'config')
         .order('created_at', { ascending: false });
@@ -57,10 +62,9 @@ const ClientAgents: React.FC = () => {
         throw agentsError;
       }
       
-      if (!data || data.length === 0) {
-        setAgents([]);
-      } else {
-        const formattedAgents: Agent[] = (data || []).map(agent => ({
+      const formattedAgents: Agent[] = (data || []).map(agent => {
+        const interactions = agent.interactions?.[0] || { count: 0, avg_response_time: 0 };
+        return {
           id: agent.id,
           client_id: agent.client_id || '',
           client_name: agent.client_name || clientName,
@@ -76,14 +80,13 @@ const ClientAgents: React.FC = () => {
           settings: agent.settings || {},
           openai_assistant_id: agent.openai_assistant_id || '',
           deepseek_assistant_id: agent.deepseek_assistant_id || '',
-          total_interactions: 0,
-          average_response_time: 0,
+          total_interactions: interactions.count || 0,
+          average_response_time: interactions.avg_response_time ? Number(interactions.avg_response_time) / 1000 : 0,
           last_active: agent.updated_at || new Date().toISOString()
-        }));
+        };
+      });
 
-        setAgents(formattedAgents);
-      }
-      
+      setAgents(formattedAgents);
       setError(null);
     } catch (err) {
       console.error('Error fetching agents:', err);
