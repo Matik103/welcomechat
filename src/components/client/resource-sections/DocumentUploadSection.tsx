@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DocumentUpload } from '@/components/client/DocumentUpload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { fixDocumentContentRLS, checkDocumentContentRLS } from '@/utils/applyDoc
 import { toast } from 'sonner';
 import { UploadResult } from '@/hooks/useUnifiedDocumentUpload';
 import { Spinner } from '@/components/ui/spinner';
+import { RAPIDAPI_KEY } from '@/config/env';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -46,6 +48,16 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     };
     
     checkPermissions();
+  }, []);
+
+  // Check if RapidAPI key is configured
+  useEffect(() => {
+    if (!RAPIDAPI_KEY) {
+      console.warn("RapidAPI key is not configured. PDF text extraction may not work properly.");
+      setPermissionStatus("Warning: PDF extraction API key not detected");
+    } else {
+      console.log("RapidAPI key is configured:", RAPIDAPI_KEY.substring(0, 5) + '...');
+    }
   }, []);
   
   const handleFixPermissions = async () => {
