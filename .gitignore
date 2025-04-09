@@ -92,3 +92,11 @@ test.pdf
 
 # Test assets
 test-assets/
+
+# npm
+package.json
+package-lock.json
+vite.config.ts
+tsconfig.node.json
+tsconfig.build.json
+tsconfig.app.json
