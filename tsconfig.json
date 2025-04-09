@@ -22,8 +22,13 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "composite": false
   },
   "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "exclude": ["node_modules", "dev-server"],
+  "references": [
+    { "path": "./tsconfig.node.json" },
+    { "path": "./dev-server" }
+  ]
 }
