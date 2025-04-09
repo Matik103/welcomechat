@@ -19,29 +19,31 @@ export const useAuthStateChange = ({
   setIsLoading
 }: UseAuthStateChangeProps) => {
   useEffect(() => {
-    const handleAuthChange = async (event: string, session: Session | null) => {
-      if (event === 'SIGNED_IN' && session) {
-        setIsLoading(true);
-        setSession(session);
-        setUser(session.user);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         
-        // Get user role
-        const role = await getUserRole();
-        setUserRole(role);
+        setSession(session);
+        setUser(session?.user || null);
+        
+        if (session?.user) {
+          try {
+            const role = await getUserRole();
+            setUserRole(role);
+            console.log('Role set to:', role);
+          } catch (error) {
+            console.error('Error getting user role:', error);
+          }
+        } else {
+          setUserRole(null);
+        }
+        
         setIsLoading(false);
-      } else if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        setUserRole(null);
       }
-    };
+    );
     
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
-    
-    // Cleanup subscription on unmount
     return () => {
       subscription.unsubscribe();
     };
-  }, [setIsLoading, setSession, setUser, setUserRole]);
+  }, [setSession, setUser, setUserRole, setIsLoading]);
 };

@@ -1,9 +1,9 @@
 
-import { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Session, User } from '@supabase/supabase-js';
-import { UserRole } from '@/contexts/AuthContext';
-import { getUserRole } from '@/services/authService';
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Session, User } from "@supabase/supabase-js";
+import { UserRole } from "@/contexts/AuthContext";
+import { getUserRole } from "@/services/authService";
 
 interface UseAuthInitializeProps {
   authInitialized: boolean;
@@ -24,7 +24,9 @@ export const useAuthInitialize = ({
   setIsLoading,
   setAuthInitialized
 }: UseAuthInitializeProps) => {
+  // The error happens here - we need to ensure the hook is used properly
   useEffect(() => {
+    // Only run this effect when the component mounts
     // Skip initialization if we're on the callback URL or if already initialized
     if (isCallbackUrl || authInitialized) return;
     
