@@ -12,7 +12,7 @@ interface ErrorDisplayProps {
   onRetry?: () => void;
 }
 
-const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ title, message, details, onRetry }) => {
+export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ title, message, details, onRetry }) => {
   return (
     <Card className="p-6 max-w-4xl mx-auto my-8">
       <Alert variant="destructive" className="mb-4">
@@ -24,7 +24,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ title, message, details, on
       {details && (
         <div className="mt-4 text-sm text-muted-foreground bg-muted p-4 rounded-md whitespace-pre-wrap">
           <h4 className="font-semibold mb-2">Technical Details:</h4>
-          <div className="overflow-auto max-h-60">
+          <div className="overflow-auto">
             {details}
           </div>
         </div>
@@ -33,9 +33,9 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ title, message, details, on
       <div className="mt-4 text-sm text-muted-foreground">
         <h4 className="font-semibold mb-2">Next Steps:</h4>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Check that all required environment variables are properly set</li>
-          <li>Verify your network connection to the backend services</li>
-          <li>Refresh and try again</li>
+          <li>Check that <code className="bg-muted p-1 rounded">VITE_SUPABASE_SERVICE_ROLE_KEY</code> is properly set in your .env file</li>
+          <li>Make sure you've copied the Service Role Key (not the anon/public key) from your Supabase project</li>
+          <li>Restart your development server after updating environment variables</li>
         </ul>
       </div>
       

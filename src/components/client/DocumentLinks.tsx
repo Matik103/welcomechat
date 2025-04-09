@@ -1,125 +1,91 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
-import { DocumentLinksList } from './drive-links/DocumentLinksList';
-import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { DocumentType } from '@/types/document-processing';
-import { toast } from 'sonner';
+import React, { useState } from 'react';
 import { useUnifiedDocumentUpload } from '@/hooks/useUnifiedDocumentUpload';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Upload, File } from 'lucide-react';
 
 interface DocumentLinksProps {
   clientId: string;
-  onResourceChange?: () => void;
-  logClientActivity: () => Promise<void>;
-  onUploadComplete?: () => void;
 }
 
-export function DocumentLinks({ 
-  clientId, 
-  onResourceChange,
-  logClientActivity,
-  onUploadComplete
-}: DocumentLinksProps) {
-  const {
-    documentLinks,
-    isLoading,
-    addDocumentLink,
-    deleteDocumentLink,
-    refetch
-  } = useDocumentLinks(clientId);
+export function DocumentLinks({ clientId }: DocumentLinksProps) {
+  const { uploadDocument, isUploading } = useUnifiedDocumentUpload(clientId);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const {
-    upload,
-    isLoading: isUploading,
-    uploadProgress
-  } = useUnifiedDocumentUpload({
-    clientId,
-    onSuccess: () => {
-      if (onUploadComplete) onUploadComplete();
-      toast.success('Document uploaded successfully');
-    },
-    onError: (error) => {
-      toast.error(`Upload failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  });
-
-  const handleAddLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
-    try {
-      const enhancedData = {
-        ...data,
-        document_type: (data.document_type || 'google_drive') as DocumentType
-      };
-      await addDocumentLink.mutateAsync(enhancedData);
-      
-      if (refetch) await refetch();
-      if (onResourceChange) onResourceChange();
-    } catch (error) {
-      toast.error(`Failed to add link: ${error instanceof Error ? error.message : String(error)}`);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
     }
   };
 
-  const handleDeleteLink = async (id: number) => {
-    try {
-      await deleteDocumentLink.mutateAsync(id);
-      
-      if (refetch) await refetch();
-      if (onResourceChange) onResourceChange();
-    } catch (error) {
-      toast.error(`Failed to delete link: ${error instanceof Error ? error.message : String(error)}`);
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      toast.error("Please select a file to upload");
+      return;
     }
-  };
 
-  const handleDocumentUpload = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    
     try {
-      const result = await upload(file);
-      if (result?.success) {
-        await logClientActivity();
+      const result = await uploadDocument(formData);
+      if (result.success) {
+        toast.success("Document uploaded successfully!");
+        setSelectedFile(null);
+        // Reset file input
+        const fileInput = document.getElementById('document') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+      } else {
+        toast.error(`Failed to upload document: ${result.message}`);
       }
-    } catch (error) {
-      console.error('Upload failed:', error);
+    } catch (error: any) {
+      toast.error(`Error: ${error.message}`);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Document Resources</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="links">
-          <TabsList>
-            <TabsTrigger value="links">Google Drive Links</TabsTrigger>
-            <TabsTrigger value="upload">Upload Document</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="links" className="pt-4">
-            <DocumentLinkForm 
-              onSubmit={handleAddLink} 
-              isSubmitting={addDocumentLink.isPending}
-              agentName="AI Assistant"
-            />
-            <div className="h-4" />
-            <DocumentLinksList 
-              links={documentLinks || []} 
-              isLoading={isLoading}
-              onDelete={handleDeleteLink}
-              isDeleting={deleteDocumentLink.isPending}
-              deletingId={deleteDocumentLink.variables}
-            />
-          </TabsContent>
-          
-          <TabsContent value="upload" className="pt-4">
-            <DocumentUploadForm
-              onSubmitDocument={handleDocumentUpload}
-              isUploading={isUploading}
-              uploadProgress={uploadProgress}
-            />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
+    <Card className="p-4">
+      <h3 className="text-lg font-semibold mb-4">Document Upload</h3>
+      <form onSubmit={handleUpload} className="space-y-4">
+        <div className="flex items-center">
+          <Input
+            id="document"
+            type="file"
+            onChange={handleFileChange}
+            className="flex-1"
+          />
+        </div>
+        {selectedFile && (
+          <div className="text-sm text-gray-500 flex items-center">
+            <File className="h-4 w-4 mr-2" />
+            Selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(2)} KB)
+          </div>
+        )}
+        <Button 
+          type="submit" 
+          disabled={isUploading || !selectedFile}
+          className="w-full"
+        >
+          {isUploading ? (
+            <span className="flex items-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Uploading...
+            </span>
+          ) : (
+            <span className="flex items-center">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Document
+            </span>
+          )}
+        </Button>
+      </form>
     </Card>
   );
 }

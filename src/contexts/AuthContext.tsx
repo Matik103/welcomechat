@@ -1,203 +1,313 @@
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Session, User } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
+import { UserRole } from '@/types/auth';
 import { getUserRole } from '@/services/authService';
-import { useAuthInitialize } from '@/hooks/useAuthInitialize';
-import { useAuthStateChange } from '@/hooks/useAuthStateChange';
-import { useAuthCallback } from '@/hooks/useAuthCallback';
-import { useAuthState } from '@/hooks/useAuthState';
 
-// Define UserRole type
-export type UserRole = 'admin' | 'client' | null;
-
-type AuthContextType = {
+export interface AuthContextType {
+  isAuthenticated: boolean;
+  user: any;
   session: Session | null;
-  user: User | null;
-  userRole: UserRole;
-  isLoading: boolean;
-  setIsLoading: (isLoading: boolean) => void;
+  signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
-  clientId: string | null; // Add clientId property
-};
+  loading: boolean;
+  isLoading: boolean;
+  error: string | null;
+  signUp: (email: string, password: string) => Promise<any>;
+  resetPassword: (email: string) => Promise<any>;
+  updatePassword: (password: string) => Promise<any>;
+  userId: string | null;
+  clientId: string | null;
+  userRole: UserRole;
+  userClientId: string | null;
+  refreshUserRole: () => Promise<void>;
+}
 
-// Create context with default values
 const AuthContext = createContext<AuthContextType>({
-  session: null,
+  isAuthenticated: false,
   user: null,
-  userRole: null,
-  isLoading: true,
-  setIsLoading: () => {},
+  session: null,
+  signIn: async () => ({}),
   signOut: async () => {},
-  clientId: null, // Default value for clientId
+  loading: true,
+  isLoading: true,
+  error: null,
+  signUp: async () => ({}),
+  resetPassword: async () => ({}),
+  updatePassword: async () => ({}),
+  userId: null,
+  clientId: null,
+  userRole: null,
+  userClientId: null,
+  refreshUserRole: async () => {},
 });
 
-// Define the provider component
-function AuthProviderInner({ children }: { children: React.ReactNode }) {
-  // Create local state for auth
-  const [authInitialized, setAuthInitialized] = useState<boolean>(false);
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
-  const [clientId, setClientId] = useState<string | null>(null); // Add state for clientId
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  
-  const location = useLocation();
-  const isCallbackUrl = location.pathname.includes('/auth/callback');
+  const [userClientId, setUserClientId] = useState<string | null>(null);
 
-  // Extract clientId from user metadata when user changes
-  useEffect(() => {
-    if (user && user.user_metadata) {
-      // Try to get client_id from user metadata
-      const metadataClientId = user.user_metadata.client_id;
-      if (metadataClientId) {
-        console.log("Found client_id in user metadata:", metadataClientId);
-        setClientId(metadataClientId);
-      }
+  // Refresh user role function
+  const refreshUserRole = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const role = await getUserRole();
+      setUserRole(role);
+      // Don't return the role, just return nothing to match Promise<void>
+    } catch (err) {
+      console.error("Error refreshing user role:", err);
     }
-  }, [user]);
+  };
 
-  // Persist auth state to sessionStorage on updates
   useEffect(() => {
-    if (session && user && userRole) {
-      console.log("Persisting auth state to session storage");
-      sessionStorage.setItem('auth_state', JSON.stringify({
-        session,
-        user,
-        userRole,
-        clientId, // Include clientId in stored state
-        timestamp: Date.now()
-      }));
-    }
-  }, [session, user, userRole, clientId]);
+    const loadSession = async () => {
+      try {
+        setLoading(true);
+        setIsLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
 
-  // Try to restore auth state from sessionStorage on mount
-  useEffect(() => {
-    if (!authInitialized && !isCallbackUrl && !user) {
-      const storedState = sessionStorage.getItem('auth_state');
-      if (storedState) {
-        try {
-          console.log("Attempting to restore auth state from session storage");
-          const { session: storedSession, user: storedUser, userRole: storedRole, clientId: storedClientId, timestamp } = JSON.parse(storedState);
-          // Only restore if the stored state is less than 1 hour old
-          if (Date.now() - timestamp < 60 * 60 * 1000) {
-            console.log("Restoring auth state from session storage");
-            setSession(storedSession);
-            setUser(storedUser);
-            setUserRole(storedRole);
-            setClientId(storedClientId); // Restore clientId
-            
-            // Verify the session is still valid with Supabase
-            supabase.auth.getSession().then(({ data, error }) => {
-              if (error || !data.session) {
-                console.warn("Restored session is invalid, clearing state");
-                setSession(null);
-                setUser(null);
-                setUserRole(null);
-                setClientId(null); // Clear clientId
-                sessionStorage.removeItem('auth_state');
-              } else {
-                console.log("Session verified with Supabase");
-              }
-              setIsLoading(false);
-            });
-          } else {
-            console.log("Stored auth state is too old, removing");
-            sessionStorage.removeItem('auth_state');
-            setIsLoading(false);
+        setSession(session);
+        setIsAuthenticated(!!session);
+        setUser(session?.user || null);
+        setUserId(session?.user?.id || null);
+
+        // Get user role if we have a session
+        if (session?.user) {
+          try {
+            const role = await getUserRole();
+            setUserRole(role);
+          } catch (err) {
+            console.error("Error getting user role:", err);
+            setUserRole(null);
           }
-        } catch (error) {
-          console.error('Error restoring auth state:', error);
-          sessionStorage.removeItem('auth_state');
-          setIsLoading(false);
+        }
+
+        // Fetch client ID if user is authenticated
+        if (session?.user?.id) {
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('client_id')
+              .eq('id', session.user.id)
+              .single();
+
+            if (profileError && !profileError.message.includes("does not exist")) {
+              console.error("Error fetching client ID:", profileError);
+              setError(profileError.message);
+            } else if (profileData?.client_id) {
+              setClientId(profileData.client_id);
+              setUserClientId(profileData.client_id);
+            }
+          } catch (err: any) {
+            console.error("Error in client ID fetch:", err);
+          }
+        } else {
+          setClientId(null);
+          setUserClientId(null);
+        }
+      } catch (err: any) {
+        setError(err.message || 'An unexpected error occurred');
+      } finally {
+        setLoading(false);
+        setIsLoading(false);
+      }
+    };
+
+    loadSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event);
+      setIsAuthenticated(!!session);
+      setUser(session?.user || null);
+      setSession(session);
+      setUserId(session?.user?.id || null);
+
+      // Get user role on auth state change
+      if (session?.user) {
+        try {
+          const role = await getUserRole();
+          setUserRole(role);
+        } catch (err) {
+          console.error("Error getting user role on auth change:", err);
+          setUserRole(null);
         }
       } else {
-        setIsLoading(false);
+        setUserRole(null);
       }
-      setAuthInitialized(true);
-    }
-  }, [authInitialized, isCallbackUrl, user, setIsLoading]);
-  
-  // Initialize auth - check for existing session
-  useAuthInitialize({
-    authInitialized,
-    isCallbackUrl,
-    setSession,
-    setUser,
-    setUserRole,
-    setIsLoading,
-    setAuthInitialized
-  });
-  
-  // Set up auth state change listener
-  useAuthStateChange({
-    setSession,
-    setUser,
-    setUserRole,
-    setIsLoading
-  });
-  
-  // Handle auth callback specifically
-  useAuthCallback({
-    isCallbackUrl,
-    setSession,
-    setUser,
-    setUserRole,
-    setIsLoading
-  });
-  
-  // Automatic loading timeout - never get stuck in loading
-  useEffect(() => {
-    if (isLoading) {
-      const timeout = setTimeout(() => {
-        console.log('Auth loading timeout reached - forcing completion');
-        setIsLoading(false);
-      }, 5000);
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [isLoading, setIsLoading]);
-  
-  // Sign out handler
-  const signOut = async () => {
+
+      // Fetch client ID on auth state change
+      if (session?.user?.id) {
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('client_id')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError && !profileError.message.includes("does not exist")) {
+            console.error("Error fetching client ID on auth change:", profileError);
+            setError(profileError.message);
+            setClientId(null);
+            setUserClientId(null);
+          } else if (profileData?.client_id) {
+            setClientId(profileData.client_id);
+            setUserClientId(profileData.client_id);
+          }
+        } catch (err: any) {
+          console.error("Error in client ID fetch on auth change:", err);
+          setClientId(null);
+          setUserClientId(null);
+        }
+      } else {
+        setClientId(null);
+        setUserClientId(null);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  const signIn = async (email: string, password: string) => {
+    setLoading(true);
     setIsLoading(true);
+    setError(null);
     try {
-      await supabase.auth.signOut();
-      setSession(null);
-      setUser(null);
-      setUserRole(null);
-      setClientId(null); // Clear clientId on sign out
-      // Clear any auth-related local storage
-      sessionStorage.removeItem('auth_callback_processed');
-      sessionStorage.removeItem('auth_callback_processing');
-      sessionStorage.removeItem('user_role_set');
-      sessionStorage.removeItem('auth_state');
-    } catch (error) {
-      console.error('Error signing out:', error);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        return { error };
+      }
+      return { data };
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+      return { error: err };
     } finally {
+      setLoading(false);
       setIsLoading(false);
     }
   };
-  
-  // Memoize the context value to prevent unnecessary re-renders
-  const contextValue = useMemo(() => ({
-    session,
-    user,
-    userRole,
-    isLoading,
-    setIsLoading,
-    signOut,
-    clientId  // Include clientId in the context value
-  }), [session, user, userRole, isLoading, clientId]);
-  
-  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
-}
 
-// Export the provider as a named component to ensure proper naming in React DevTools
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  return <AuthProviderInner>{children}</AuthProviderInner>;
+  const signUp = async (email: string, password: string) => {
+    setLoading(true);
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        setError(error.message);
+        return { error };
+      }
+      return { data };
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+      return { error: err };
+    } finally {
+      setLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    setLoading(true);
+    setIsLoading(true);
+    setError(null);
+    try {
+      await supabase.auth.signOut();
+      setIsAuthenticated(false);
+      setUser(null);
+      setSession(null);
+      setUserId(null);
+      setClientId(null);
+      setUserClientId(null);
+      setUserRole(null);
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    setLoading(true);
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
+      if (error) {
+        setError(error.message);
+        return { error };
+      }
+      return { data };
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+      return { error: err };
+    } finally {
+      setLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  const updatePassword = async (password: string) => {
+    setLoading(true);
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        setError(error.message);
+        return { error };
+      }
+      return { data };
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+      return { error: err };
+    } finally {
+      setLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  const value: AuthContextType = {
+    isAuthenticated,
+    user,
+    session,
+    signIn,
+    signOut,
+    loading,
+    isLoading,
+    error,
+    signUp,
+    resetPassword,
+    updatePassword,
+    userId,
+    clientId,
+    userRole,
+    userClientId,
+    refreshUserRole,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// Export the hook
 export const useAuth = () => useContext(AuthContext);
+
+export default AuthContext;

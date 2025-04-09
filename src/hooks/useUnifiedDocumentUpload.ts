@@ -1,198 +1,157 @@
 
-// Streamlined document upload hook with direct RapidAPI integration
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { v4 as uuidv4 } from 'uuid';
-import { RAPIDAPI_CONFIG } from '@/config/env';
 import { toast } from 'sonner';
+import { IS_PRODUCTION } from '@/config/env';
 
+// Define and export the upload result type
 export interface UploadResult {
   success: boolean;
-  documentId?: string;
-  error?: string;
-  extractedText?: string;
-  publicUrl?: string;
+  data?: any;
+  error?: any;
+  message?: string;
   fileName?: string;
-  fileType?: string;
+  documentId?: string | number;
+  publicUrl?: string;
 }
 
-interface UseUnifiedDocumentUploadOptions {
-  clientId?: string;
-  onSuccess?: (result: UploadResult) => void;
-  onError?: (error: Error | string) => void;
-  onProgress?: (progress: number) => void;
-}
+export function useUnifiedDocumentUpload(clientId: string) {
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [progress, setProgress] = useState<number>(0);
+  const [error, setError] = useState<Error | null>(null);
 
-export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOptions = {}) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-
-  const upload = async (file: File, clientId?: string): Promise<UploadResult> => {
-    // Use the clientId from options if not provided directly
-    const effectiveClientId = clientId || options.clientId;
-    
-    if (!effectiveClientId) {
-      const error = new Error("Client ID is required");
-      if (options.onError) options.onError(error);
-      toast.error("Client ID is required");
-      return { success: false, error: error.message };
+  // Upload document function
+  const uploadDocument = useCallback(async (formData: FormData): Promise<UploadResult> => {
+    if (!clientId) {
+      const error = new Error('Client ID is required');
+      setError(error);
+      return { success: false, error, message: 'Client ID is required' };
     }
 
-    setIsLoading(true);
-    setUploadProgress(0);
-    if (options.onProgress) options.onProgress(0);
+    setIsUploading(true);
+    setProgress(0);
+    setError(null);
 
     try {
-      if (options.onProgress) options.onProgress(20);
-      setUploadProgress(20);
-
-      // Generate document ID
-      const documentId = uuidv4();
-
-      // Upload to storage bucket first
-      const filePath = `${effectiveClientId}/${documentId}/${file.name}`;
+      // Get file from FormData
+      const file = formData.get('file') as File;
       
+      if (!file) {
+        throw new Error('No file provided');
+      }
+
+      // Validate file size (5MB max)
+      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      if (file.size > maxSize) {
+        throw new Error('File size exceeds 5MB limit');
+      }
+
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 300);
+
+      // Generate a unique file name
+      const timestamp = new Date().getTime();
+      const fileExt = file.name.split('.').pop();
+      const filePath = `documents/${clientId}/${timestamp}-${file.name}`;
+
+      // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client_documents')
+        .from('client-documents')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
         });
 
       if (uploadError) {
-        throw new Error(`Error uploading file to storage: ${uploadError.message}`);
+        throw uploadError;
       }
-      
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('client_documents')
+
+      // Get public URL for the uploaded file
+      const { data: urlData } = await supabase.storage
+        .from('client-documents')
         .getPublicUrl(filePath);
-      
-      setUploadProgress(40);
-      if (options.onProgress) options.onProgress(40);
 
-      // If it's a PDF, extract text using RapidAPI
-      let extractedText = '';
-      let processingStatus = 'ready';
-      
-      if (file.type === 'application/pdf') {
-        processingStatus = 'pending_extraction';
-        try {
-          if (!RAPIDAPI_CONFIG.KEY || RAPIDAPI_CONFIG.KEY === '' || !RAPIDAPI_CONFIG.HOST) {
-            console.warn('RapidAPI configuration is incomplete. Text extraction will be skipped.');
-            processingStatus = 'extraction_skipped';
-            throw new Error('RapidAPI configuration is incomplete');
-          }
+      const documentUrl = urlData?.publicUrl;
 
-          // Create form data for RapidAPI
-          const formData = new FormData();
-          formData.append('file', file);
-
-          // Extract text using RapidAPI
-          const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
-            method: 'POST',
-            headers: {
-              'x-rapidapi-host': RAPIDAPI_CONFIG.HOST,
-              'x-rapidapi-key': RAPIDAPI_CONFIG.KEY
-            },
-            body: formData
-          });
-
-          if (!response.ok) {
-            processingStatus = 'extraction_failed';
-            console.warn(`Text extraction API responded with status: ${response.status}. Will continue without text extraction.`);
-            throw new Error(`Text extraction failed with status: ${response.status}`);
-          }
-
-          const data = await response.text();
-          if (!data) {
-            processingStatus = 'extraction_failed';
-            throw new Error('No text extracted from PDF');
-          }
-
-          extractedText = data;
-          processingStatus = 'extraction_complete';
-        } catch (extractionError) {
-          console.warn("Text extraction failed but will continue with document upload:", extractionError);
-          if (processingStatus === 'pending_extraction') {
-            processingStatus = 'extraction_failed';
-          }
-          toast.error("PDF text extraction failed, but file will be uploaded");
-          // Don't throw here - we want to continue even if text extraction fails
-        }
-      }
-      
-      setUploadProgress(60);
-      if (options.onProgress) options.onProgress(60);
-
-      // Store document and extracted text in database
-      const documentContent = {
-        client_id: effectiveClientId,
-        document_id: documentId,
-        content: extractedText || null,  // Ensure we pass null, not empty string if no content
-        filename: file.name,
-        file_type: file.type,
-        metadata: {
-          filename: file.name,
-          file_type: file.type,
-          size: file.size,
-          storage_path: filePath,
-          storage_url: publicUrl,
-          uploadedAt: new Date().toISOString(),
-          processing_status: processingStatus,
-          extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
-          text_length: extractedText ? extractedText.length : 0,
-          extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
-          extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null,
-          rapidapi_configured: !!(RAPIDAPI_CONFIG.KEY && RAPIDAPI_CONFIG.HOST)
-        }
-      };
-
-      const { data: documentData, error: documentError } = await supabase
-        .from('document_content')
-        .insert(documentContent)
+      // Store document reference in the database
+      const { data: docData, error: docError } = await supabase
+        .from('document_links')
+        .insert([{
+          client_id: clientId,
+          document_url: documentUrl,
+          document_type: fileExt || 'unknown',
+          status: 'uploaded'
+        }])
         .select()
         .single();
 
-      if (documentError) {
-        console.error('Failed to store document:', documentError);
-        throw new Error(`Failed to store document: ${documentError.message}`);
+      if (docError) {
+        throw docError;
       }
 
-      setUploadProgress(100);
-      if (options.onProgress) options.onProgress(100);
-
-      const result: UploadResult = {
-        success: true,
-        documentId: documentData?.id ? documentData.id.toString() : documentId,
-        extractedText,
-        publicUrl,
+      // Clean up progress interval
+      clearInterval(progressInterval);
+      setProgress(100);
+      
+      // Return success result
+      return { 
+        success: true, 
+        data: { document: docData, url: documentUrl },
+        message: 'Document uploaded successfully',
         fileName: file.name,
-        fileType: file.type
+        documentId: docData?.id,
+        publicUrl: documentUrl
       };
-
-      if (options.onSuccess) options.onSuccess(result);
-      return result;
-
-    } catch (error) {
-      console.error('Document processing error:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (options.onError) options.onError(errorMessage);
+    } catch (err: any) {
+      console.error('Document upload error:', err);
+      setError(err);
+      
+      // Return error result
       return { 
         success: false, 
-        error: errorMessage,
-        fileName: file.name,
-        fileType: file.type
+        error: err.message || 'Failed to upload document',
+        message: err.message || 'Failed to upload document'
       };
-
     } finally {
-      setIsLoading(false);
+      // Small delay before resetting isUploading to allow progress animation to complete
+      setTimeout(() => {
+        setIsUploading(false);
+      }, 500);
     }
-  };
+  }, [clientId]);
+
+  // Function to handle success
+  const handleSuccess = useCallback((result: UploadResult) => {
+    if (result.success) {
+      toast.success(result.message || 'Document uploaded successfully');
+      return true;
+    }
+    return false;
+  }, []);
+
+  // Function to handle error
+  const handleError = useCallback((result: UploadResult) => {
+    if (!result.success) {
+      toast.error(result.message || 'Upload failed');
+      return true;
+    }
+    return false;
+  }, []);
 
   return {
-    upload,
-    isLoading,
-    uploadProgress
+    uploadDocument,
+    isUploading,
+    progress,
+    error,
+    handleSuccess,
+    handleError
   };
-};
+}

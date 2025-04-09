@@ -2,23 +2,18 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    allowedHosts: ['all'] // Allow all hosts, including the lovable.dev subdomain
+    allowedHosts: ['.lovableproject.com', 'localhost', 'all'] // Allow all lovableproject.com subdomains specifically
   },
   plugins: [
     react(),
-    mode === 'development' && (() => {
-      // This is a simplified replacement for the componentTagger without dependency
-      return {
-        name: 'lovable-dev-plugin',
-        // Basic plugin functionality without external dependencies
-      };
-    })(),
+    mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {
