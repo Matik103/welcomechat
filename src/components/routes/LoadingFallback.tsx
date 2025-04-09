@@ -43,8 +43,8 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
     };
   }, [onTimeoutAction, timeoutSeconds, message]);
 
-  // Show the refresh button much sooner
-  const showRefreshButton = secondsElapsed >= 5; 
+  // Show the refresh button much sooner - after 3 seconds
+  const showRefreshButton = secondsElapsed >= 3; 
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">

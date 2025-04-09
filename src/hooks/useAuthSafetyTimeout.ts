@@ -39,9 +39,8 @@ export const useAuthSafetyTimeout = ({
       }
     }
     
-    // Use an even shorter timeout - 600ms is enough to prevent blank screens
-    // without causing issues during deployment
-    const timeoutDuration = 600;
+    // Use an even shorter timeout - 500ms is enough to prevent blank screens
+    const timeoutDuration = 500;
     
     const safetyTimeout = setTimeout(() => {
       if (isLoading) {

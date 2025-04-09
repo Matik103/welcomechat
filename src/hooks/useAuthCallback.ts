@@ -74,7 +74,7 @@ export const useAuthCallback = ({
               console.log('Role fetch in callback timed out, using default');
               setUserRole('admin'); // Default to admin to prevent UI hang
               resolve(null);
-            }, 1000))
+            }, 800))  // Reduced timeout to 800ms
           ]).finally(() => {
             // Mark as completed after role fetch attempt
             sessionStorage.setItem('auth_callback_processed', 'true');
@@ -96,7 +96,7 @@ export const useAuthCallback = ({
     
     getSession();
     
-    // Safety timeout to ensure we never get stuck
+    // Safety timeout to ensure we never get stuck (reduced to 1.5 seconds)
     const safetyTimeout = setTimeout(() => {
       if (sessionStorage.getItem('auth_callback_processing') === 'true') {
         console.log('Auth callback safety timeout reached');
@@ -104,7 +104,7 @@ export const useAuthCallback = ({
         sessionStorage.removeItem('auth_callback_processing');
         setIsLoading(false);
       }
-    }, 2000);
+    }, 1500);
     
     return () => clearTimeout(safetyTimeout);
     
