@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Agent } from '@/types/agent';
+import { AgentCard } from '@/components/agents/AgentCard';
 
 const ClientAgents: React.FC = () => {
   const { user, clientId } = useAuth();
@@ -78,6 +80,7 @@ const ClientAgents: React.FC = () => {
           logo_storage_path: agent.logo_storage_path || '',
           settings: agent.settings || {},
           openai_assistant_id: agent.openai_assistant_id || '',
+          deepseek_assistant_id: agent.deepseek_assistant_id || '',
           total_interactions: 0,
           average_response_time: 0,
           last_active: agent.updated_at || new Date().toISOString()
@@ -171,7 +174,12 @@ const ClientAgents: React.FC = () => {
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">AI Agents</h1>
+        <div>
+          <h1 className="text-2xl font-bold">AI Agents</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage your AI assistants for {clientName}
+          </p>
+        </div>
         <Button onClick={() => setIsAgentDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Create Agent
         </Button>
@@ -198,32 +206,11 @@ const ClientAgents: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {agents.map((agent) => (
-            <Card key={agent.id} className="p-6 flex flex-col">
-              <div className="flex items-center mb-4">
-                {agent.logo_url && (
-                  <div className="w-10 h-10 rounded-full bg-gray-100 mr-4 flex items-center justify-center overflow-hidden">
-                    <img 
-                      src={agent.logo_url} 
-                      alt={`${agent.name} logo`}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  </div>
-                )}
-                <h2 className="text-xl font-semibold">{agent.name}</h2>
-              </div>
-              <p className="text-gray-600 mb-4">{(agent.agent_description || 'No description provided.')}</p>
-              <div className="mt-auto">
-                <div className="text-sm text-gray-500 mt-4">Created: {new Date(agent.created_at).toLocaleDateString()}</div>
-                <div className="flex justify-end mt-2">
-                  <Button variant="outline" className="text-sm" onClick={() => toast.info('Agent configuration coming soon!')}>
-                    Configure
-                  </Button>
-                </div>
-              </div>
-            </Card>
+            <AgentCard 
+              key={agent.id} 
+              agent={agent}
+              onRefresh={fetchAgents}
+            />
           ))}
         </div>
       )}

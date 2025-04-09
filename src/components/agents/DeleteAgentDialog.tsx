@@ -1,4 +1,5 @@
 
+import React, { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,9 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useState } from 'react';
-import { updateAgentStatus } from '@/services/agentService';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DeleteAgentDialogProps {
   open: boolean;
@@ -32,18 +32,21 @@ export function DeleteAgentDialog({
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    
     try {
-      // Instead of hard-deleting, we just set the status to "inactive"
-      const success = await updateAgentStatus(agentId, 'inactive');
+      // Soft delete by updating the status to 'deleted'
+      const { error } = await supabase
+        .from('ai_agents')
+        .update({
+          status: 'deleted',
+          deleted_at: new Date().toISOString()
+        })
+        .eq('id', agentId);
+
+      if (error) throw error;
       
-      if (!success) {
-        throw new Error('Failed to delete agent');
-      }
-      
-      toast.success(`Agent "${agentName}" deleted successfully`);
-      onAgentDeleted();
+      toast.success(`Agent "${agentName}" has been deleted`);
       onOpenChange(false);
+      onAgentDeleted();
     } catch (error) {
       console.error('Error deleting agent:', error);
       toast.error(`Failed to delete agent: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -58,20 +61,21 @@ export function DeleteAgentDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Are you sure you want to delete this agent?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will deactivate the agent "{agentName}". This action cannot be undone.
+            This will permanently delete the "{agentName}" agent and all associated data.
+            This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
+          <AlertDialogAction 
             onClick={(e) => {
               e.preventDefault();
               handleDelete();
             }}
             disabled={isDeleting}
-            className="bg-red-600 hover:bg-red-700"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeleting ? 'Deleting...' : 'Delete'}
+            {isDeleting ? "Deleting..." : "Yes, Delete Agent"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
