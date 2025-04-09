@@ -11,12 +11,8 @@ export interface UploadResult {
   error?: string;
   documentId?: string;
   fileName?: string;
+  fileType?: string;
   publicUrl?: string;
-}
-
-interface UploadOptions {
-  onSuccess?: (result: UploadResult) => void;
-  onProgress?: (progress: number) => void;
 }
 
 export function useUnifiedDocumentUpload(options: {
@@ -44,7 +40,7 @@ export function useUnifiedDocumentUpload(options: {
       if (!bucketExists) {
         return { 
           success: false, 
-          error: `Storage bucket "${DOCUMENTS_BUCKET}" not found and couldn't be created automatically.`,
+          error: `Storage bucket "${DOCUMENTS_BUCKET}" not found.`,
           fileName: file.name
         };
       }
@@ -62,25 +58,7 @@ export function useUnifiedDocumentUpload(options: {
 
       if (error) {
         console.error('Error uploading file:', error);
-        
-        if (error.message.includes('bucket not found')) {
-          // Try to recreate the bucket and retry upload
-          const recreated = await ensureBucketExists(DOCUMENTS_BUCKET);
-          if (recreated) {
-            // Retry upload
-            const retryUpload = await supabase.storage
-              .from(DOCUMENTS_BUCKET)
-              .upload(filePath, file);
-              
-            if (retryUpload.error) {
-              throw new Error(`Bucket was recreated but upload still failed: ${retryUpload.error.message}`);
-            }
-          } else {
-            throw new Error(`Bucket not found and could not be recreated`);
-          }
-        } else {
-          return { success: false, error: error.message, fileName: file.name };
-        }
+        return { success: false, error: error.message, fileName: file.name };
       }
 
       // Get the public URL
@@ -132,23 +110,6 @@ export function useUnifiedDocumentUpload(options: {
           console.error('Failed to clean up file after document error:', removeError);
         }
         
-        // Check if it's a permissions issue
-        if (documentError.message.includes('permission denied')) {
-          // Try to fix permissions
-          try {
-            const { data: permissionResult, error: permissionError } = await supabase
-              .rpc('verify_document_content_permissions');
-              
-            if (permissionError) {
-              console.error('Error verifying document content permissions:', permissionError);
-            } else {
-              console.log('Permission verification result:', permissionResult);
-            }
-          } catch (permErr) {
-            console.error('Exception in permission verification:', permErr);
-          }
-        }
-        
         return { 
           success: false, 
           error: documentError.message,
@@ -193,7 +154,7 @@ export function useUnifiedDocumentUpload(options: {
       const result = {
         success: true,
         documentId: documentData.id.toString(),
-        documentUrl: urlData.publicUrl,
+        publicUrl: urlData.publicUrl,
         fileName: file.name
       };
       

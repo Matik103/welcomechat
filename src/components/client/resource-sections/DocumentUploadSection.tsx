@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { fixDocumentContentRLS, checkDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 import { toast } from 'sonner';
 import { UploadResult } from '@/hooks/useUnifiedDocumentUpload';
+import { Spinner } from '@/components/ui/spinner';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -154,7 +155,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
                   >
                     {isFixingPermissions ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Spinner className="h-4 w-4" />
                         Fixing permissions...
                       </>
                     ) : (

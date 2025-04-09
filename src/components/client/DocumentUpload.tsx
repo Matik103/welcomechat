@@ -3,11 +3,11 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { useUnifiedDocumentUpload } from '../../hooks/useUnifiedDocumentUpload';
-import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
-import { DOCUMENTS_BUCKET, ensureBucketExists, ensureAllBucketsExist, handleBucketNotFoundError } from '@/utils/ensureStorageBuckets';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { DOCUMENTS_BUCKET, ensureBucketExists, handleBucketNotFoundError } from '@/utils/ensureStorageBuckets';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
+import { Spinner } from '@/components/ui/spinner';
 
 interface DocumentUploadProps {
   clientId: string;
@@ -20,7 +20,6 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
   const [bucketError, setBucketError] = useState<string | null>(null);
   const [isBucketVerified, setIsBucketVerified] = useState(false);
   const [isFixingBucket, setIsFixingBucket] = useState(false);
-  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   
   const { upload } = useUnifiedDocumentUpload({
     clientId,
@@ -34,47 +33,26 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
     }
   });
   
-  // Verify bucket exists on component mount and try to fix connection issues
+  // Verify bucket exists on component mount
   useEffect(() => {
-    const verifyAndFixBuckets = async () => {
-      setIsCheckingConnection(true);
+    const verifyBucket = async () => {
       try {
-        console.log("Checking Supabase connection and storage buckets...");
+        const bucketExists = await ensureBucketExists(DOCUMENTS_BUCKET);
+        setIsBucketVerified(bucketExists);
         
-        // First try to refresh the session to ensure connection is active
-        try {
-          const { data } = await supabase.auth.refreshSession();
-          console.log("Auth refresh result:", data ? "Success" : "No data");
-        } catch (refreshErr) {
-          console.warn("Session refresh error:", refreshErr);
-          // Continue anyway, the bucket check will try again
-        }
-        
-        // Then verify all buckets exist
-        const allBucketsExist = await ensureAllBucketsExist();
-        
-        if (allBucketsExist) {
-          console.log("All storage buckets verified successfully");
-          setIsBucketVerified(true);
-          setBucketError(null);
+        if (!bucketExists) {
+          setBucketError(`Storage bucket "${DOCUMENTS_BUCKET}" not found. Please click "Fix Storage" to resolve this issue.`);
         } else {
-          // Try one more time specifically for the documents bucket
-          const documentBucketExists = await ensureBucketExists(DOCUMENTS_BUCKET);
-          setIsBucketVerified(documentBucketExists);
-          
-          if (!documentBucketExists) {
-            setBucketError(`Storage bucket "${DOCUMENTS_BUCKET}" not found. Please click "Fix Storage" to resolve this issue.`);
-          }
+          setBucketError(null);
         }
       } catch (error) {
-        console.error('Error verifying buckets:', error);
+        console.error('Error verifying bucket:', error);
         setBucketError(`Error verifying storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      } finally {
-        setIsCheckingConnection(false);
+        setIsBucketVerified(false);
       }
     };
     
-    verifyAndFixBuckets();
+    verifyBucket();
   }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -115,7 +93,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
         } else {
           // Check if error is due to bucket not found
           if (result.error && (result.error.includes('bucket not found') || result.error.includes('not found'))) {
-            setBucketError(`Bucket not found. Please click "Fix Storage" to resolve this issue.`);
+            setBucketError(`Storage bucket not found. Please click "Fix Storage" to resolve this issue.`);
             setIsBucketVerified(false);
           }
           toast.error(`Failed to upload ${file.name}: ${result.error || 'Unknown error'}`);
@@ -127,7 +105,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
       // Check if error is due to bucket not found
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (errorMessage.includes('bucket not found') || errorMessage.includes('not found')) {
-        setBucketError(`Bucket not found. Please click "Fix Storage" to resolve this issue.`);
+        setBucketError(`Storage bucket not found. Please click "Fix Storage" to resolve this issue.`);
         setIsBucketVerified(false);
       }
       
@@ -140,7 +118,7 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    disabled: isUploading || !isBucketVerified || isFixingBucket || isCheckingConnection,
+    disabled: isUploading || !isBucketVerified || isFixingBucket,
     accept: {
       'application/pdf': ['.pdf'],
       'application/msword': ['.doc'],
@@ -154,19 +132,6 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
   const handleFixStorage = async () => {
     setIsFixingBucket(true);
     try {
-      // First try to refresh the connection
-      try {
-        const { error } = await supabase.auth.refreshSession();
-        if (error) {
-          console.warn("Session refresh error during fix:", error);
-        } else {
-          console.log("Auth session refreshed successfully");
-        }
-      } catch (refreshErr) {
-        console.warn("Failed to refresh session:", refreshErr);
-      }
-      
-      // Now try to fix the bucket
       const fixed = await handleBucketNotFoundError(DOCUMENTS_BUCKET);
       if (fixed) {
         setBucketError(null);
@@ -183,72 +148,27 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
     }
   };
 
-  const handleRetryConnection = async () => {
-    setIsCheckingConnection(true);
-    try {
-      // Try to refresh the session
-      const { error } = await supabase.auth.refreshSession();
-      if (error) {
-        toast.error(`Failed to reconnect: ${error.message}`);
-      } else {
-        toast.success("Connection refreshed successfully");
-        
-        // Verify buckets again
-        const allBucketsExist = await ensureAllBucketsExist();
-        setIsBucketVerified(allBucketsExist);
-        
-        if (allBucketsExist) {
-          setBucketError(null);
-          toast.success("Storage buckets verified successfully");
-        } else {
-          setBucketError("Storage buckets still not available. Try fixing storage.");
-        }
-      }
-    } catch (error) {
-      console.error("Error retrying connection:", error);
-      toast.error(`Failed to reconnect: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsCheckingConnection(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {isCheckingConnection && (
-        <Alert variant="default" className="bg-blue-50 border border-blue-200">
-          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-          <AlertDescription>Checking connection to storage...</AlertDescription>
-        </Alert>
-      )}
-      
       {bucketError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{bucketError}</AlertDescription>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={handleFixStorage} 
-              disabled={isFixingBucket || isCheckingConnection}
+              disabled={isFixingBucket}
             >
               {isFixingBucket ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Spinner className="h-4 w-4 mr-2" />
                   Fixing Storage...
                 </>
               ) : (
                 'Fix Storage'
               )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRetryConnection}
-              disabled={isCheckingConnection}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isCheckingConnection ? 'animate-spin' : ''}`} />
-              Reconnect
             </Button>
           </div>
         </Alert>
@@ -258,12 +178,12 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
         {...getRootProps()} 
         className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer
           ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-          ${(isUploading || !isBucketVerified || isFixingBucket || isCheckingConnection) ? 'opacity-70 cursor-not-allowed' : ''}`}
+          ${(isUploading || !isBucketVerified || isFixingBucket) ? 'opacity-70 cursor-not-allowed' : ''}`}
       >
         <input {...getInputProps()} />
         {isUploading ? (
           <div className="flex flex-col items-center justify-center space-y-2">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+            <Spinner className="h-6 w-6 text-blue-500" />
             <p>Uploading... {uploadProgress > 0 ? `${uploadProgress}%` : ''}</p>
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
               <div 
@@ -271,11 +191,6 @@ export function DocumentUpload({ clientId, onUploadComplete }: DocumentUploadPro
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
-          </div>
-        ) : isCheckingConnection ? (
-          <div className="flex flex-col items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-            <p className="mt-2">Verifying storage connection...</p>
           </div>
         ) : isDragActive ? (
           <p>Drop the files here...</p>
