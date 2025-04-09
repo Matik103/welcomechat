@@ -1,166 +1,101 @@
-import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Input } from '@/components/ui/input';
+
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
-import { validateDocumentLink } from '@/utils/documentProcessing';
-import { supabase } from '@/integrations/supabase/client';
-
-const formSchema = z.object({
-  link: z.string()
-    .url({ message: 'Please enter a valid URL' })
-    .refine(
-      (url) => url.includes('docs.google.com') || url.includes('drive.google.com'),
-      { message: 'Please enter a valid Google Drive, Docs, Sheets, or Slides URL' }
-    ),
-  refresh_rate: z.number().min(1).max(1440),
-});
-
-type FormData = z.infer<typeof formSchema> & {
-  document_type?: string;
-};
+import { DocumentLinkFormData } from '@/types/document-processing';
 
 interface DocumentLinkFormProps {
-  onSubmit: (data: FormData) => Promise<void>;
-  isSubmitting: boolean;
+  onSubmit: (data: DocumentLinkFormData) => Promise<void>;
+  isSubmitting?: boolean;
   agentName?: string;
 }
 
-export function DocumentLinkForm({ onSubmit, isSubmitting, agentName = 'AI Assistant' }: DocumentLinkFormProps) {
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [aiProcessingAvailable, setAiProcessingAvailable] = useState<boolean>(true);
+export function DocumentLinkForm({
+  onSubmit,
+  isSubmitting = false,
+  agentName = 'AI Assistant'
+}: DocumentLinkFormProps) {
+  const [link, setLink] = useState('');
+  const [refreshRate, setRefreshRate] = useState(7); // Default 7 days
 
-  useEffect(() => {
-    const checkAiProcessingAvailable = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('get-secrets', {
-          body: {
-            keys: ['OPENAI_API_KEY']
-          }
-        });
-        
-        setAiProcessingAvailable(!!data?.OPENAI_API_KEY);
-      } catch (err) {
-        console.error('Error checking AI processing availability:', err);
-        setAiProcessingAvailable(false);
-      }
-    };
+  const validateLink = (link: string): boolean => {
+    // Simple validation for Google Drive links
+    return link.includes('drive.google.com') || 
+           link.includes('docs.google.com') || 
+           link.includes('sheets.google.com') || 
+           link.includes('slides.google.com');
+  };
 
-    checkAiProcessingAvailable();
-  }, []);
-
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      link: '',
-      refresh_rate: 24,
-    },
-  });
-
-  const handleSubmit = async (data: FormData) => {
-    const validation = validateDocumentLink(data.link);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    if (!validation.isValid) {
-      setValidationError(validation.errors.join('. '));
+    if (!validateLink(link)) {
+      alert('Please enter a valid Google Drive link');
       return;
     }
     
-    setValidationError(null);
-    
     try {
       await onSubmit({
-        ...data,
-        document_type: 'google_drive',
+        link,
+        refresh_rate: refreshRate,
+        document_type: 'google_drive'
       });
       
-      form.reset({
-        link: '',
-        refresh_rate: 24,
-      });
+      // Clear form after successful submission
+      setLink('');
     } catch (error) {
       console.error('Error submitting document link:', error);
-      setValidationError(error instanceof Error ? error.message : 'Failed to add document link');
+      // Error will be handled by the parent component
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="link"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Document URL</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="https://docs.google.com/..." 
-                  {...field} 
-                />
-              </FormControl>
-              <FormDescription>
-                Add document links from Google Drive, Sheets, or other sources
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="google-link">Google Drive Link</Label>
+        <Input
+          id="google-link"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="https://drive.google.com/... or https://docs.google.com/..."
+          required
         />
-
-        <FormField
-          control={form.control}
-          name="refresh_rate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Refresh Rate (hours)</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number"
-                  min={1}
-                  max={1440}
-                  {...field}
-                  onChange={(e) => field.onChange(Number(e.target.value))}
-                />
-              </FormControl>
-              <FormDescription>
-                How often should we check for updates to this document?
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
+        <p className="text-xs text-muted-foreground">
+          Enter a Google Drive folder, Doc, Sheet, or Slides URL
+        </p>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="refresh-rate">Refresh Rate (days)</Label>
+        <Input
+          id="refresh-rate"
+          type="number"
+          min="1"
+          max="90"
+          value={refreshRate}
+          onChange={(e) => setRefreshRate(parseInt(e.target.value) || 7)}
         />
-
-        {validationError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{validationError}</AlertDescription>
-          </Alert>
+        <p className="text-xs text-muted-foreground">
+          How often the content should be refreshed
+        </p>
+      </div>
+      
+      <Button 
+        type="submit" 
+        disabled={isSubmitting || !link}
+        className="w-full sm:w-auto"
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Adding...
+          </>
+        ) : (
+          'Add Document'
         )}
-
-        {!aiProcessingAvailable && (
-          <Alert variant="warning">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              AI processing is currently unavailable. Documents will be stored but not processed by {agentName}.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Adding Document...
-            </>
-          ) : (
-            'Add Document Link'
-          )}
-        </Button>
-      </form>
-    </Form>
+      </Button>
+    </form>
   );
 }

@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Agent } from '@/types/agent';
-import { Button } from '@/components/ui/button';
 import { AgentDetailsTab } from './configure-tabs/AgentDetailsTab';
+import { KnowledgeBaseTab } from './configure-tabs/KnowledgeBaseTab';
 
 interface AgentConfigureDialogProps {
   open: boolean;
@@ -45,17 +45,11 @@ export function AgentConfigureDialog({
           </TabsContent>
           
           <TabsContent value="knowledge">
-            <div className="space-y-4 py-4">
-              <div className="text-center py-8">
-                <h3 className="text-lg font-medium">Knowledge Base Configuration</h3>
-                <p className="text-muted-foreground mt-2">
-                  Coming soon: Connect documents, websites, and other knowledge sources to your AI agent.
-                </p>
-                <Button className="mt-4" variant="outline" onClick={() => setActiveTab('details')}>
-                  Go Back to Details
-                </Button>
-              </div>
-            </div>
+            <KnowledgeBaseTab 
+              clientId={agent.client_id}
+              agentName={agent.name}
+              onResourceChange={onUpdateAgent}
+            />
           </TabsContent>
         </Tabs>
       </DialogContent>
