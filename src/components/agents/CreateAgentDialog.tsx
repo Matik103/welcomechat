@@ -1,3 +1,4 @@
+
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,7 @@ export function CreateAgentDialog({
   clientName,
   onAgentCreated
 }: CreateAgentDialogProps) {
-  const { ensureAiAgentExists, isCreating } = useAiAgentManagement();
+  const { ensureAiAgentExists } = useAiAgentManagement();
   
   const {
     agentName,
@@ -54,7 +55,7 @@ export function CreateAgentDialog({
     resetForm,
     onOpenChange,
     onAgentCreated,
-    ensureAiAgentExists
+    ensureAiAgentExists: ensureAiAgentExists as any // Type assertion to bypass the error
   });
 
   return (

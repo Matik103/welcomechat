@@ -15,10 +15,10 @@ interface Message {
 
 interface AssistantPreviewProps {
   clientId: string;
-  assistantId: string;
+  assistantId?: string; // Made optional
 }
 
-export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProps) {
+export function AssistantPreview({ clientId }: AssistantPreviewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -101,7 +101,7 @@ export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProp
                 >
                   <ReactMarkdown components={{
                     // Apply styling to the content wrapper
-                    p: ({ children }) => <p className="prose dark:prose-invert max-w-none">{children}</p>
+                    p: ({ children }: { children: React.ReactNode }) => <p className="prose dark:prose-invert max-w-none">{children}</p>
                   }}>
                     {message.content}
                   </ReactMarkdown>
