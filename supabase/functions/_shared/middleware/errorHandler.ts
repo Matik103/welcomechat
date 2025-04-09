@@ -1,56 +1,62 @@
 
 import { corsHeaders } from "./cors.ts";
 
+// Error codes for better error handling
+export const errorCodes = {
+  UNAUTHORIZED: 'unauthorized',
+  INVALID_INPUT: 'invalid_input',
+  DATABASE_ERROR: 'database_error',
+  NOT_FOUND: 'not_found',
+  OPENAI_ERROR: 'openai_error',
+  DEEPSEEK_ERROR: 'deepseek_error',
+  RATE_LIMIT: 'rate_limit',
+  INTERNAL_ERROR: 'internal_error'
+};
+
+// Custom error class with additional metadata
 export class AppError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-    public code?: string,
-    public details?: unknown
-  ) {
+  statusCode: number;
+  errorCode: string;
+  context?: any;
+
+  constructor(statusCode: number, message: string, errorCode: string, context?: any) {
     super(message);
-    this.name = "AppError";
+    this.statusCode = statusCode;
+    this.errorCode = errorCode;
+    this.context = context;
+    this.name = 'AppError';
   }
 }
 
-export const handleError = (error: unknown): Response => {
-  console.error("Error:", error);
-
+// Unified error handler for edge functions
+export function handleError(error: unknown) {
+  console.error("Error caught by handleError:", error);
+  
   if (error instanceof AppError) {
     return new Response(
       JSON.stringify({
         error: error.message,
-        code: error.code,
-        details: error.details,
+        code: error.errorCode,
+        context: error.context,
       }),
       {
-        status: error.status,
+        status: error.statusCode,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }
 
-  // Handle unexpected errors
+  // Handle other types of errors
+  const message = error instanceof Error ? error.message : "An unknown error occurred";
+  
   return new Response(
     JSON.stringify({
-      error: "Internal server error",
-      code: "INTERNAL_ERROR",
+      error: message,
+      code: errorCodes.INTERNAL_ERROR,
     }),
     {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     }
   );
-};
-
-export const errorCodes = {
-  INVALID_INPUT: "INVALID_INPUT",
-  RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
-  FILE_TOO_LARGE: "FILE_TOO_LARGE",
-  UNAUTHORIZED: "UNAUTHORIZED",
-  NOT_FOUND: "NOT_FOUND",
-  OPENAI_ERROR: "OPENAI_ERROR",
-  DATABASE_ERROR: "DATABASE_ERROR",
-} as const;
-
-export type ErrorCode = typeof errorCodes[keyof typeof errorCodes]; 
+}

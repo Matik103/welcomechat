@@ -1,71 +1,60 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { ActivityType } from '@/types/activity';
+import { supabase } from "@/integrations/supabase/client";
 
-export async function createClientActivity(
+/**
+ * Creates a new client activity record
+ */
+export const createClientActivity = async (
   clientId: string,
-  agentName?: string,
-  activityType: string = 'page_view', // Changed from ActivityType.PAGE_VIEW to a string literal
-  description: string = 'User viewed page',
+  clientName: string,
+  activityType: string,
+  description: string,
   activityData: Record<string, any> = {}
-): Promise<void> {
-  if (!clientId) {
-    console.error('Client ID is required for activity logging');
-    throw new Error('Client ID is required');
-  }
-
+): Promise<boolean> => {
   try {
-    console.log(`Logging activity for client ${clientId}:`, {
-      type: activityType,
-      description: description,
-      data: activityData
-    });
-
-    // Instead of using the standard client, we'll use a function call to log the activity
-    // This will bypass RLS since the function can be set up with SECURITY DEFINER
-    const { error } = await supabase.rpc('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: activityType,
-      description_param: description,
-      metadata_param: {
-        ...activityData,
-        agent_name: agentName,
-        date: new Date().toISOString()
-      }
-    });
-
-    if (error) {
-      console.error('Error creating client activity:', error);
-      throw error;
+    if (!clientId || !activityType) {
+      console.error("Missing required parameters for activity logging");
+      return false;
     }
-
-    return;
+    
+    const { error } = await supabase.from("client_activities").insert({
+      client_id: clientId,
+      activity_type: activityType,
+      description: description,
+      activity_data: activityData
+    });
+    
+    if (error) {
+      console.error("Error creating client activity:", error);
+      return false;
+    }
+    
+    return true;
   } catch (error) {
-    console.error('Failed to log client activity:', error);
-    throw error;
+    console.error("Error in createClientActivity:", error);
+    return false;
   }
-}
+};
 
-export async function getRecentClientActivities(
-  clientId: string,
-  limit: number = 10
-) {
+/**
+ * Retrieves client activities for a specific client
+ */
+export const getClientActivities = async (clientId: string) => {
   try {
     const { data, error } = await supabase
-      .from('client_activities')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
+      .from("client_activities")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+    
     if (error) {
-      console.error('Error fetching client activities:', error);
-      throw error;
+      console.error("Error fetching client activities:", error);
+      return [];
     }
-
+    
     return data || [];
   } catch (error) {
-    console.error('Failed to fetch client activities:', error);
-    throw error;
+    console.error("Error in getClientActivities:", error);
+    return [];
   }
-}
+};

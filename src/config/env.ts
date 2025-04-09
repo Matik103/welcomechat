@@ -24,6 +24,7 @@ export const EDGE_FUNCTIONS_URL = SUPABASE_URL;
 
 // API keys
 export const RESEND_API_KEY = getEnvVar('VITE_RESEND_API_KEY', 're_4YMVyqm2_Bzysfnt8rzVEjewRp1haXciL');
+export const DEEPSEEK_API_KEY = getEnvVar('VITE_DEEPSEEK_API_KEY', 'sk-59ec5a04cb1048bd9247d176dd39426f');
 
 // App settings
 export const APP_VERSION = '1.0.0';
@@ -51,6 +52,7 @@ if (typeof window !== 'undefined' && !window.hasOwnProperty('__ENV')) {
     VITE_RAPIDAPI_HOST: RAPIDAPI_HOST,
     VITE_RAPIDAPI_KEY: RAPIDAPI_KEY || '',
     VITE_RESEND_API_KEY: RESEND_API_KEY,
+    VITE_DEEPSEEK_API_KEY: DEEPSEEK_API_KEY,
     PROD: IS_PRODUCTION.toString()
   };
 }

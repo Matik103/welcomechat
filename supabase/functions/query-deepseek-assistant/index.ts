@@ -105,7 +105,7 @@ serve(async (req) => {
       throw new AppError(
         deepseekResponse.status,
         `DeepSeek API error: ${errorBody}`,
-        errorCodes.OPENAI_ERROR
+        errorCodes.DEEPSEEK_ERROR
       );
     }
     
@@ -117,7 +117,7 @@ serve(async (req) => {
       throw new AppError(
         500,
         "Invalid response from DeepSeek API",
-        errorCodes.OPENAI_ERROR
+        errorCodes.DEEPSEEK_ERROR
       );
     }
     
