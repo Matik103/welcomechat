@@ -1,14 +1,12 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { DocumentUpload } from "@/components/client/DocumentUpload";
 import { createClientActivity } from "@/services/clientActivityService";
 import { ActivityType } from "@/types/activity";
-import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { InfoIcon, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner"; // Import toast from sonner
 
 export interface DocumentsTabProps {
   clientId: string;
@@ -21,7 +19,7 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
   const handleDocumentUploadComplete = async (result: any) => {
     if (result.success) {
       toast.success("Document uploaded successfully", {
-        description: "Document was successfully uploaded and processed."
+        description: "Document was successfully uploaded and is being processed."
       });
       
       try {
@@ -29,7 +27,7 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
         await createClientActivity(
           clientId,
           undefined,
-          ActivityType.DOCUMENT_ADDED,
+          ActivityType.DOCUMENT_ADDED, // Using DOCUMENT_ADDED instead of DOCUMENT_UPLOADED
           `Document uploaded: ${result.fileName || "Unknown"}`,
           {
             document_id: result.documentId,
@@ -61,13 +59,6 @@ export const DocumentsTab = ({ clientId, onSuccess }: DocumentsTabProps) => {
       </div>
 
       <Separator />
-
-      <Alert className="bg-blue-50 border-blue-200">
-        <CheckCircle2 className="h-4 w-4 text-blue-500" />
-        <AlertDescription className="text-blue-700">
-          Documents will be securely stored and made available to your AI assistant for knowledge retrieval.
-        </AlertDescription>
-      </Alert>
 
       <Tabs defaultValue="upload" className="w-full">
         <TabsList className="grid w-full grid-cols-2">

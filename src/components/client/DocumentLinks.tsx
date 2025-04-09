@@ -37,7 +37,7 @@ export function DocumentLinks({
     uploadProgress
   } = useUnifiedDocumentUpload({
     clientId,
-    onSuccess: () => {
+    onSuccess: (result) => {
       if (onUploadComplete) onUploadComplete();
       toast.success('Document uploaded successfully');
     },

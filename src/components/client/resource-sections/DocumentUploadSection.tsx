@@ -9,7 +9,6 @@ import { AlertTriangle, RefreshCw, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fixDocumentContentRLS, checkDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 import { toast } from 'sonner';
-import { UploadResult } from '@/hooks/useUnifiedDocumentUpload';
 
 interface DocumentUploadSectionProps {
   clientId: string;
@@ -68,7 +67,13 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     }
   };
 
-  const handleUploadComplete = async (result: UploadResult) => {
+  const handleUploadComplete = async (result: {
+    success: boolean;
+    error?: string;
+    documentId?: string;
+    publicUrl?: string;
+    fileName?: string;
+  }) => {
     if (result.success) {
       try {
         setLastError(null);
@@ -112,7 +117,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
       <CardHeader>
         <CardTitle>Document Upload</CardTitle>
         <CardDescription>
-          Upload documents to be processed and stored for your assistant
+          Upload documents to be processed by your AI Assistant
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

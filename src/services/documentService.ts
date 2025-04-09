@@ -18,18 +18,6 @@ interface UploadOptions {
   shouldProcessWithOpenAI?: boolean;
 }
 
-interface DocumentMetadata {
-  clientId: string;
-  originalName: string;
-  fileType: string;
-  fileSize: number;
-  uploadedAt: string;
-  processing_status?: string;
-  extraction_method?: string;
-  text_length?: number;
-  [key: string]: any;
-}
-
 /**
  * Unified document upload service that handles storage and database updates
  */
@@ -153,7 +141,7 @@ export const uploadDocument = async (
       try {
         const { data: extractionResponse, error: extractionError } = await supabase
           .functions.invoke('extract-pdf-content', {
-            body: { document_id: documentData.id.toString() }
+            body: { document_id: documentData.id }
           });
 
         if (extractionError) {
@@ -185,45 +173,3 @@ export const uploadDocument = async (
     };
   }
 };
-
-export async function getDocumentContent(documentId: string) {
-  const { data, error } = await supabase
-    .from('document_content')
-    .select('*')
-    .eq('id', parseInt(documentId))
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to fetch document content: ${error.message}`);
-  }
-
-  return data;
-}
-
-export async function updateDocumentContent(documentId: string, content: string, metadata: DocumentMetadata) {
-  const { error } = await supabase
-    .from('document_content')
-    .update({ 
-      content,
-      metadata: {
-        ...metadata,
-        updated_at: new Date().toISOString()
-      }
-    })
-    .eq('id', parseInt(documentId));
-
-  if (error) {
-    throw new Error(`Failed to update document content: ${error.message}`);
-  }
-}
-
-export async function deleteDocument(documentId: string) {
-  const { error } = await supabase
-    .from('document_content')
-    .delete()
-    .eq('id', parseInt(documentId));
-
-  if (error) {
-    throw new Error(`Failed to delete document: ${error.message}`);
-  }
-}
