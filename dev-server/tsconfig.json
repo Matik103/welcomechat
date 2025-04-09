@@ -1,4 +1,3 @@
-
 {
   "compilerOptions": {
     "target": "ES2020",
@@ -13,8 +12,9 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noEmit": false,
-    "composite": true
+    "noEmit": true,
+    "composite": true,
+    "types": ["node"]
   },
   "include": ["./**/*.ts"],
   "exclude": ["node_modules", "dist"]
