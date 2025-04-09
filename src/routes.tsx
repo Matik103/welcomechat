@@ -16,7 +16,7 @@ export function AppRoutes() {
       <Route path="/contact" element={<Contact />} />
       <Route path="/widget-settings" element={<WidgetSettings />} />
       <Route path="/auth" element={<Auth />} />
-      <Route path="/error" element={<ErrorDisplay />} />
+      <Route path="/error" element={<ErrorDisplay title="Error" message="An error occurred" />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

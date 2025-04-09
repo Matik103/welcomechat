@@ -30,6 +30,58 @@ export enum ActivityType {
   USER_ACTION = 'USER_ACTION'
 }
 
+export type ActivityTypeString = 
+  | 'CLIENT_CREATED'
+  | 'CLIENT_UPDATED'
+  | 'CLIENT_DELETED'
+  | 'DOCUMENT_ADDED'
+  | 'DOCUMENT_REMOVED'
+  | 'DOCUMENT_PROCESSED'
+  | 'URL_ADDED'
+  | 'URL_REMOVED'
+  | 'URL_PROCESSED'
+  | 'AGENT_CREATED'
+  | 'AGENT_UPDATED'
+  | 'AGENT_DELETED'
+  | 'INTERACTION_STARTED'
+  | 'INTERACTION_COMPLETED'
+  | 'SETTING_UPDATED'
+  | 'SYSTEM_ACTION'
+  | 'USER_ACTION'
+  | 'agent_created' // Lowercase variants for compatibility
+  | 'client_created'
+  | 'client_updated'
+  | 'client_deleted'
+  | 'client_recovered'
+  | 'widget_updated'
+  | 'website_url_added'
+  | 'url_deleted'
+  | 'drive_link_added'
+  | 'drive_link_deleted'
+  | 'document_added'
+  | 'document_removed'
+  | 'document_processed'
+  | 'system_update'
+  | 'webhook_sent'
+  | 'error_logged'
+  | 'chat_interaction'
+  | 'widget_settings_updated'
+  | 'logo_uploaded'
+  | 'widget_previewed'
+  | 'profile_updated';
+
+export interface Activity {
+  id: string;
+  user_id?: string;
+  client_id?: string;
+  agent_id?: string;
+  document_id?: string;
+  activity_type: ActivityType | ActivityTypeString;
+  created_at: string;
+  activity_data?: Record<string, any>;
+  agent_name?: string;
+}
+
 export interface ClientActivity {
   id: string;
   client_id: string;
@@ -38,4 +90,14 @@ export interface ClientActivity {
   description: string;
   metadata?: Record<string, any>;
   created_at: string;
+}
+
+export interface ActivityRequest {
+  activity_type: ActivityType | ActivityTypeString;
+  client_id: string;
+  user_id?: string;
+  agent_id?: string;
+  document_id?: string;
+  activity_data?: Record<string, any>;
+  agent_name?: string;
 }
