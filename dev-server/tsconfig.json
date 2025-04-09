@@ -9,8 +9,10 @@
     "outDir": "../dist/dev-server",
     "rootDir": ".",
     "composite": true,
-    "types": ["node"]
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
   },
-  "include": ["./**/*"],
-  "exclude": ["node_modules"]
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 } 
