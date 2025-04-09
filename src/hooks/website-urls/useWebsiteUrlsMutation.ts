@@ -1,71 +1,58 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { WebsiteUrlFormData, WebsiteUrl } from '@/types/website-url';
+import { WebsiteUrlFormData } from '@/types/website-url';
 
 export function useWebsiteUrlsMutation(clientId: string | undefined) {
   const queryClient = useQueryClient();
 
-  // Add a website URL
+  // Add website URL mutation
   const addWebsiteUrlMutation = useMutation({
-    mutationFn: async (data: WebsiteUrlFormData) => {
-      if (!clientId) {
+    mutationFn: async (data: WebsiteUrlFormData & { client_id?: string }) => {
+      if (!clientId && !data.client_id) {
         throw new Error('Client ID is required');
       }
-
-      const { data: newUrl, error } = await supabase
+      
+      const websiteUrl = {
+        client_id: data.client_id || clientId,
+        url: data.url,
+        refresh_rate: data.refresh_rate || 24, // Default to 24 hours
+        created_at: new Date().toISOString()
+      };
+      
+      const { data: result, error } = await supabase
         .from('website_urls')
-        .insert([
-          {
-            url: data.url,
-            refresh_rate: data.refresh_rate,
-            client_id: clientId,
-            status: 'pending',
-            metadata: data.metadata || {}
-          }
-        ])
+        .insert([websiteUrl])
         .select()
         .single();
-
+      
       if (error) throw error;
-      return newUrl as WebsiteUrl;
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['websiteUrls', clientId] });
     }
   });
 
-  // Delete a website URL
+  // Delete website URL mutation
   const deleteWebsiteUrlMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (urlId: number) => {
       const { error } = await supabase
         .from('website_urls')
         .delete()
-        .eq('id', id)
+        .eq('id', urlId)
         .eq('client_id', clientId);
-
+      
       if (error) throw error;
-      return id;
+      return urlId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['websiteUrls', clientId] });
     }
   });
 
-  // Helper function to add a website URL
-  const addWebsiteUrl = async (data: WebsiteUrlFormData) => {
-    return await addWebsiteUrlMutation.mutateAsync(data);
-  };
-
-  // Helper function to delete a website URL
-  const deleteWebsiteUrl = async (id: number) => {
-    return await deleteWebsiteUrlMutation.mutateAsync(id);
-  };
-
   return {
     addWebsiteUrlMutation,
-    deleteWebsiteUrlMutation,
-    addWebsiteUrl,
-    deleteWebsiteUrl
+    deleteWebsiteUrlMutation
   };
 }
