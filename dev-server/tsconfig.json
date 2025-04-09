@@ -1,7 +1,12 @@
-
 {
-  "extends": "./tsconfig.node.json",
   "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
     "outDir": "../dist/dev-server",
     "rootDir": ".",
     "composite": true,
