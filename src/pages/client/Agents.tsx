@@ -22,7 +22,6 @@ const ClientAgents: React.FC = () => {
   const fetchAgents = async () => {
     try {
       setLoading(true);
-      console.log('Fetching agents for client ID:', clientId);
       
       if (!clientId) {
         console.error('No client ID available');
@@ -41,12 +40,10 @@ const ClientAgents: React.FC = () => {
       if (clientError && clientError.code !== 'PGRST116') {
         console.error('Error fetching client name:', clientError);
       } else if (clientData) {
-        console.log('Found client name:', clientData.client_name);
         setClientName(clientData.client_name || '');
       }
 
       // Then get all agents for this client
-      console.log('Querying ai_agents table for client_id:', clientId);
       const { data, error: agentsError } = await supabase
         .from('ai_agents')
         .select('*')
@@ -58,11 +55,8 @@ const ClientAgents: React.FC = () => {
         console.error('Error fetching agents:', agentsError);
         throw agentsError;
       }
-
-      console.log(`Fetched ${data?.length || 0} agents:`, data);
       
       if (!data || data.length === 0) {
-        console.log('No agents found for client ID:', clientId);
         setAgents([]);
       } else {
         const formattedAgents: Agent[] = (data || []).map(agent => ({
@@ -100,7 +94,6 @@ const ClientAgents: React.FC = () => {
 
   useEffect(() => {
     if (clientId) {
-      console.log('Client ID detected, fetching agents:', clientId);
       fetchAgents();
 
       // Subscribe to changes in the ai_agents table for this client
@@ -115,7 +108,6 @@ const ClientAgents: React.FC = () => {
             filter: `client_id=eq.${clientId}`,
           },
           (payload) => {
-            console.log('Received real-time update:', payload);
             fetchAgents();
           }
         )
@@ -125,21 +117,15 @@ const ClientAgents: React.FC = () => {
         subscription.unsubscribe();
       };
     } else {
-      console.log('No client ID available, cannot fetch agents');
       setLoading(false);
       setError('No client ID available');
     }
   }, [clientId]);
 
   const handleAgentCreated = async (agent: Agent) => {
-    console.log('Agent created, refreshing agent list:', agent);
     await fetchAgents();
     toast.success('Agent created successfully!');
   };
-
-  console.log('Current agents state:', agents);
-  console.log('Loading state:', loading);
-  console.log('Error state:', error);
 
   if (loading) {
     return (
