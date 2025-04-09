@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -123,7 +124,7 @@ export function useUnifiedDocumentUpload(options: {
           .from('assistant_documents')
           .insert({
             assistant_id: assistantData.openai_assistant_id,
-            document_id: parseInt(documentData.document_id),
+            document_id: documentData.document_id,
             client_id: clientId,
             status: file.type === 'application/pdf' ? 'pending' : 'ready'
           });
@@ -139,11 +140,7 @@ export function useUnifiedDocumentUpload(options: {
         try {
           const { data: extractionResponse, error: extractionError } = await supabase
             .functions.invoke('extract-pdf-content', {
-              body: { 
-                document_id: documentData.id.toString(),
-                storage_path: filePath,
-                retry: false
-              }
+              body: { document_id: documentData.id.toString() }
             });
 
           if (extractionError) {

@@ -3,7 +3,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -14,8 +14,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "noEmit": false,
-    "composite": true,
-    "types": ["node"]
+    "composite": true
   },
   "include": ["./**/*.ts"],
   "exclude": ["node_modules", "dist"]
