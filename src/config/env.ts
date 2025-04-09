@@ -30,7 +30,7 @@ export const DEEPSEEK_API_KEY = getEnvVar('VITE_DEEPSEEK_API_KEY', 'sk-59ec5a04c
 export const APP_VERSION = '1.0.0';
 export const IS_PRODUCTION = getEnvVar('PROD', 'false') === 'true';
 
-// RapidAPI Configuration - Use specified key with fallback to empty string
+// RapidAPI Configuration - Set the exact key provided by the user
 export const RAPIDAPI_CONFIG = {
   HOST: getEnvVar('VITE_RAPIDAPI_HOST', 'pdf-to-text-converter.p.rapidapi.com'),
   KEY: getEnvVar('VITE_RAPIDAPI_KEY', '109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d')

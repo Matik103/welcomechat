@@ -1,3 +1,4 @@
+
 /// <reference types="https://deno.land/std@0.168.0/http/server.ts" />
 /// <reference types="https://esm.sh/@supabase/supabase-js@2.38.4" />
 
@@ -82,10 +83,8 @@ serve(async (req: Request) => {
       throw new Error('No PDF data available for processing');
     }
     
-    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
-    if (!rapidApiKey) {
-      throw new Error('RAPIDAPI_KEY environment variable is not set');
-    }
+    // Using the specific RapidAPI key provided by the user
+    const rapidApiKey = '109e60ef56msh033c6355bf5052cp149673jsnec27c0641c4d';
     
     // Create form data for the file upload
     const formData = new FormData();
