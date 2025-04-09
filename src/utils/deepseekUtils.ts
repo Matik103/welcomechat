@@ -1,45 +1,30 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 /**
- * Creates or updates a DeepSeek assistant for a client
+ * Creates a DeepSeek assistant for a client
  */
-export const createDeepseekAssistant = async (
+export async function createDeepseekAssistant(
   clientId: string,
   agentName: string,
   agentDescription?: string
-): Promise<string> => {
+) {
   try {
     if (!clientId) {
-      throw new Error('Client ID is required');
+      throw new Error('Client ID is required to create DeepSeek assistant');
     }
     
     if (!agentName) {
-      throw new Error('Agent name is required');
+      throw new Error('Agent name is required to create DeepSeek assistant');
     }
     
-    console.log(`Creating/updating DeepSeek assistant for client ${clientId}`, {
-      agent_name: agentName,
-      agent_description: agentDescription
-    });
+    console.log(`Creating DeepSeek assistant for client ${clientId} with name "${agentName}"`);
     
-    // Get client name if available
-    const { data: client } = await supabase
-      .from('clients')
-      .select('client_name')
-      .eq('id', clientId)
-      .maybeSingle();
-    
-    const clientName = client?.client_name || '';
-    
-    // Call the Supabase Edge Function to create the assistant
     const { data, error } = await supabase.functions.invoke('create-deepseek-assistant', {
       body: {
         client_id: clientId,
         agent_name: agentName,
-        agent_description: agentDescription || '',
-        client_name: clientName
+        agent_description: agentDescription
       }
     });
     
@@ -48,31 +33,61 @@ export const createDeepseekAssistant = async (
       throw new Error(`Failed to create DeepSeek assistant: ${error.message}`);
     }
     
-    if (!data || !data.assistant_id) {
-      throw new Error('No assistant ID returned from DeepSeek');
+    if (!data?.success) {
+      const errorMessage = data?.error || 'Unknown error';
+      console.error('Error response from DeepSeek assistant creation:', errorMessage);
+      throw new Error(`Failed to create DeepSeek assistant: ${errorMessage}`);
     }
     
-    console.log('DeepSeek assistant created successfully:', data.assistant_id);
-    
-    // Update the AI agent record with the assistant ID
-    const { error: updateError } = await supabase
-      .from('ai_agents')
-      .update({ 
-        deepseek_assistant_id: data.assistant_id,
-        updated_at: new Date().toISOString()
-      })
-      .eq('client_id', clientId)
-      .eq('interaction_type', 'config');
-      
-    if (updateError) {
-      console.error('Error updating AI agent with assistant ID:', updateError);
-      // We'll continue despite this error since we still have the assistant ID
-    }
-    
-    return data.assistant_id;
+    console.log('DeepSeek assistant created successfully:', data);
+    return data;
   } catch (error) {
-    console.error('Error in createDeepseekAssistant:', error);
-    toast.error(error instanceof Error ? error.message : 'Failed to create DeepSeek assistant');
+    console.error('Exception creating DeepSeek assistant:', error);
     throw error;
   }
-};
+}
+
+/**
+ * Queries a DeepSeek assistant
+ */
+export async function queryDeepseekAssistant(
+  clientId: string,
+  query: string,
+  messages?: Array<{ role: string; content: string }>
+) {
+  try {
+    if (!clientId) {
+      throw new Error('Client ID is required to query DeepSeek assistant');
+    }
+    
+    if (!query) {
+      throw new Error('Query is required to query DeepSeek assistant');
+    }
+    
+    console.log(`Querying DeepSeek assistant for client ${clientId} with query "${query}"`);
+    
+    const { data, error } = await supabase.functions.invoke('query-deepseek-assistant', {
+      body: {
+        client_id: clientId,
+        query: query,
+        messages: messages
+      }
+    });
+    
+    if (error) {
+      console.error('Error querying DeepSeek assistant:', error);
+      throw new Error(`Failed to query DeepSeek assistant: ${error.message}`);
+    }
+    
+    if (data?.error) {
+      console.error('Error response from DeepSeek assistant query:', data.error);
+      throw new Error(`Failed to query DeepSeek assistant: ${data.error}`);
+    }
+    
+    console.log('DeepSeek assistant response:', data);
+    return data;
+  } catch (error) {
+    console.error('Exception querying DeepSeek assistant:', error);
+    throw error;
+  }
+}
