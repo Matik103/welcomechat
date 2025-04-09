@@ -17,6 +17,10 @@ interface DocumentUploadSectionProps {
   onUploadComplete?: () => void;
 }
 
+interface ProcessingDocuments {
+  [key: string]: boolean;
+}
+
 export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   clientId,
   logClientActivity,
@@ -25,6 +29,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const [lastError, setLastError] = useState<string | null>(null);
   const [isFixingPermissions, setIsFixingPermissions] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<string | null>(null);
+  const [processingDocuments, setProcessingDocuments] = useState<ProcessingDocuments>({});
   
   // Check RLS permissions when component mounts
   useEffect(() => {
@@ -77,7 +82,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         
         // If it's a PDF, track its processing status
         if (result.fileType === 'application/pdf' && result.documentId) {
-          setProcessingDocuments(prev => ({
+          setProcessingDocuments((prev: ProcessingDocuments) => ({
             ...prev,
             [result.documentId!]: true
           }));
@@ -108,7 +113,8 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         toast.error(errorMessage);
       }
     } else {
-      const errorMessage = result.error?.message || 'Unknown error occurred during upload';
+      const error = typeof result.error === 'string' ? { message: result.error } : result.error;
+      const errorMessage = error?.message || 'Unknown error occurred during upload';
       setLastError(errorMessage);
       toast.error(errorMessage);
     }
