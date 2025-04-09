@@ -42,7 +42,7 @@ export const sendDeletionEmail = async (
     });
     
     // Create the recovery URL - ensure we have the correct origin
-    const origin = window.location.origin || 'https://welcomeai.io';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://welcomeai.io';
     const recoveryUrl = `${origin}/client/auth?recovery=${recoveryToken}`;
     
     // Call the Supabase Edge Function with proper error handling

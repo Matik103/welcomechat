@@ -80,6 +80,7 @@ export const DeleteClientConfirmDialog = ({
       }
       
       // Send email notification to the client
+      console.log("Attempting to send deletion email notification to:", client.email);
       let emailSent = false;
       let emailError;
       try {

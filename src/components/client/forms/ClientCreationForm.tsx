@@ -86,6 +86,12 @@ export function ClientCreationForm({ onSuccess }: ClientCreationFormProps) {
       if (agentId) {
         await saveClientTempPassword(agentId, values.email, tempPassword);
         
+        console.log("Sending welcome email with these credentials:", {
+          email: values.email,
+          clientName: values.clientName,
+          passwordHint: tempPassword ? tempPassword.substring(0, 3) + '...' : 'none'
+        });
+        
         const emailResult = await sendWelcomeEmail(
           values.email,
           values.clientName,

@@ -48,7 +48,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
 
   while (retries <= MAX_RETRIES) {
     try {
-      console.log(`Attempt ${retries + 1} of ${MAX_RETRIES + 1} to send email to: ${options.to}`);
+      console.log(`Attempt ${retries + 1} of ${MAX_RETRIES + 1} to send email to: ${Array.isArray(options.to) ? options.to.join(', ') : options.to}`);
       
       // Validate required fields
       if (!options.to || !options.subject || !options.html) {
@@ -66,7 +66,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
           to: options.to,
           subject: options.subject,
           html: options.html,
-          from: options.from
+          from: options.from || 'Welcome.Chat <admin@welcome.chat>'
         },
         // Add a timeout to prevent hanging requests
         responseType: 'json'
