@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Navigate, useSearchParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,26 +19,28 @@ const ClientAuth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const { user, isLoading, userRole } = useAuth();
   const [loadTimeout, setLoadTimeout] = useState(false);
-  const [searchParams] = useSearchParams();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const recoveryToken = queryParams.get('recovery');
 
+  // Show loading state visually after a short delay to avoid flashes
   useEffect(() => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
-    }, 1000);
+    }, 200); // Shorter timeout for better UX
     
     return () => clearTimeout(timeout);
   }, []);
 
+  // Debug logging
   useEffect(() => {
-    console.log("Current user state:", { user, userRole, isLoading });
+    console.log("ClientAuth component rendered with state:", { user, userRole, isLoading });
   }, [user, userRole, isLoading]);
 
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoverySuccess, setRecoverySuccess] = useState(false);
 
+  // Handle account recovery flow
   useEffect(() => {
     const handleRecovery = async () => {
       if (recoveryToken) {
@@ -67,6 +70,8 @@ const ClientAuth = () => {
     handleRecovery();
   }, [recoveryToken]);
 
+  // Show loading spinner while auth is initializing, but with a timeout
+  // to avoid infinite spinner if auth gets stuck
   if (isLoading && !loadTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
@@ -75,6 +80,7 @@ const ClientAuth = () => {
     );
   }
 
+  // Redirect if user is already authenticated
   if (user) {
     if (userRole === 'client') {
       console.log("Redirecting client to client dashboard");
@@ -85,13 +91,16 @@ const ClientAuth = () => {
     } else {
       console.log("User role not yet determined, showing loading");
       return (
-        <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FA]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+          <p className="mt-4 text-sm text-gray-500">Verifying your account...</p>
+          <p className="mt-2 text-xs text-gray-400">This should only take a moment</p>
         </div>
       );
     }
   }
 
+  // Account recovery UI
   if (isRecovering) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -110,6 +119,7 @@ const ClientAuth = () => {
     );
   }
 
+  // Recovery success UI
   if (recoverySuccess) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -138,6 +148,7 @@ const ClientAuth = () => {
     );
   }
 
+  // Main login form
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -149,6 +160,7 @@ const ClientAuth = () => {
     try {
       console.log("Starting email login for:", email);
       
+      // Check if this email corresponds to a client
       const { data: clientData, error: clientLookupError } = await supabase
         .from('ai_agents')
         .select('id, client_id')
@@ -163,10 +175,22 @@ const ClientAuth = () => {
         console.log("Found client_id for email:", clientData.client_id || clientData.id);
       }
         
-      const { error } = await supabase.auth.signInWithPassword({
+      // Attempt login with timeout
+      const signInPromise = supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
+      // Race against a timeout to prevent hanging
+      const { data, error } = await Promise.race([
+        signInPromise,
+        new Promise<{data: null, error: Error}>(resolve => 
+          setTimeout(() => resolve({
+            data: null, 
+            error: new Error('Login attempt timed out')
+          }), 5000)
+        )
+      ]);
         
       if (error) {
         throw error;
@@ -179,6 +203,8 @@ const ClientAuth = () => {
       
       if (error.message?.includes("Invalid login credentials")) {
         setErrorMessage("Invalid email or password. Please try again.");
+      } else if (error.message?.includes("timed out")) {
+        setErrorMessage("Login attempt timed out. Please try again.");
       } else {
         setErrorMessage(error.message || "Failed to sign in");
       }

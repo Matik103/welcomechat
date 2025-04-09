@@ -9,7 +9,7 @@ export interface LoadingFallbackProps {
 
 export const LoadingFallback: React.FC<LoadingFallbackProps> = ({ 
   onTimeoutAction, 
-  timeoutSeconds = 5,
+  timeoutSeconds = 3,
   message
 }) => {
   const [timedOut, setTimedOut] = useState(false);
@@ -43,6 +43,9 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
     };
   }, [onTimeoutAction, timeoutSeconds, message]);
 
+  // Show the refresh button much sooner
+  const showRefreshButton = secondsElapsed >= 5; 
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -52,7 +55,7 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
           Taking longer than expected...
         </p>
       )}
-      {secondsElapsed > 10 && (
+      {showRefreshButton && (
         <button 
           onClick={() => window.location.reload()} 
           className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"

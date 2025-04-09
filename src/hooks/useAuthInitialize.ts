@@ -24,13 +24,10 @@ export const useAuthInitialize = ({
   setIsLoading,
   setAuthInitialized
 }: UseAuthInitializeProps) => {
-  // The error happens here - we need to ensure the hook is used properly
   useEffect(() => {
-    // Only run this effect when the component mounts
     // Skip initialization if we're on the callback URL or if already initialized
     if (isCallbackUrl || authInitialized) return;
     
-    // Create a race condition between the auth initialization and a timeout
     const initializeAuth = async () => {
       setIsLoading(true);
       
@@ -49,32 +46,41 @@ export const useAuthInitialize = ({
           setSession(data.session);
           setUser(data.session.user);
           
-          // Get user role with a timeout to prevent hanging
-          const rolePromise = getUserRole();
-          
-          // Race between role fetch and timeout - use a shorter timeout (1.5 sec)
+          // Instead of racing promises, use a simpler approach
           try {
+            // Set a reasonable timeout for role fetch
+            const rolePromise = new Promise<UserRole>(async (resolve) => {
+              try {
+                const role = await getUserRole();
+                resolve(role);
+              } catch (err) {
+                console.warn("Error fetching role:", err);
+                // Extract role from user metadata as a fallback
+                const metadataRole = data.session.user?.user_metadata?.role;
+                if (metadataRole === 'admin' || metadataRole === 'client') {
+                  resolve(metadataRole);
+                } else {
+                  // Default to admin role to prevent hanging UI
+                  resolve('admin');
+                }
+              }
+            });
+            
+            // Add a time limit for role fetching (1 second)
             const role = await Promise.race([
               rolePromise,
-              new Promise<null>((_, reject) => 
-                setTimeout(() => reject(new Error('Role fetch timeout')), 1500)
-              )
+              new Promise<UserRole>((resolve) => setTimeout(() => {
+                console.log("Role fetch timeout reached, defaulting to admin");
+                resolve('admin');
+              }, 1000))
             ]);
             
             setUserRole(role);
-            console.log("Role set:", role);
-          } catch (timeoutErr) {
-            console.warn("Role fetch timed out, using default:", timeoutErr);
-            // Extract role from user metadata as a fallback
-            const metadataRole = data.session.user?.user_metadata?.role;
-            if (metadataRole === 'admin' || metadataRole === 'client') {
-              setUserRole(metadataRole);
-              console.log("Using metadata role:", metadataRole);
-            } else {
-              // Default to admin to prevent hanging UI
-              setUserRole('admin');
-              console.log("Defaulting to admin role due to timeout");
-            }
+            console.log("Role set to:", role);
+          } catch (err) {
+            console.error("Error setting user role:", err);
+            // Default to admin as fallback
+            setUserRole('admin');
           }
         }
       } catch (err) {
@@ -87,14 +93,14 @@ export const useAuthInitialize = ({
     
     initializeAuth();
     
-    // Add a safety timeout that will complete initialization after 2 seconds (shorter than before)
+    // Add a safety timeout that will complete initialization after 1.5 seconds (shortened from before)
     const safetyTimeout = setTimeout(() => {
       if (!authInitialized) {
         console.log("Safety timeout reached - forcing auth initialization completion");
         setIsLoading(false);
         setAuthInitialized(true);
       }
-    }, 2000);
+    }, 1500);
     
     return () => clearTimeout(safetyTimeout);
     

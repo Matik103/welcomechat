@@ -29,13 +29,24 @@ export const getUserRole = async (): Promise<UserRole> => {
       }
     }
     
-    // Option 2: Check user_roles table
+    // Option 2: Check user_roles table with a short timeout
     try {
-      const { data: roleData, error: roleError } = await supabase
+      const rolePromise = supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
         .maybeSingle();
+      
+      // Add a timeout to prevent hanging
+      const { data: roleData, error: roleError } = await Promise.race([
+        rolePromise,
+        new Promise<{data: null, error: Error}>(resolve => 
+          setTimeout(() => resolve({
+            data: null, 
+            error: new Error('Role query timeout')
+          }), 800)
+        )
+      ]);
       
       if (!roleError && roleData && roleData.role) {
         console.log("Role found in user_roles table:", roleData.role);
@@ -55,14 +66,25 @@ export const getUserRole = async (): Promise<UserRole> => {
       console.error("Error checking user_roles table:", roleErr);
     }
     
-    // Option 3: Check if user has a corresponding client in ai_agents
+    // Option 3: Check if user has a corresponding client in ai_agents (with timeout)
     try {
-      const { data: clientData, error: clientError } = await supabase
+      const clientPromise = supabase
         .from('ai_agents')
         .select('id')
         .eq('email', user.email)
         .eq('interaction_type', 'config')
         .maybeSingle();
+      
+      // Add a timeout to prevent hanging
+      const { data: clientData, error: clientError } = await Promise.race([
+        clientPromise,
+        new Promise<{data: null, error: Error}>(resolve => 
+          setTimeout(() => resolve({
+            data: null, 
+            error: new Error('Client query timeout')
+          }), 800)
+        )
+      ]);
       
       if (!clientError && clientData) {
         console.log("User found as client in ai_agents table");

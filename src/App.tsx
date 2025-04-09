@@ -8,7 +8,6 @@ import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
 import { ErrorBoundary } from "@/components";
 import { LoadingFallback } from "./components/routes/LoadingFallback";
-import { DEFAULT_LOADING_TIMEOUT } from "./config/env";
 
 function App() {
   const { user, userRole, isLoading, setIsLoading } = useAuth();
@@ -19,10 +18,10 @@ function App() {
     // Set timeout to ensure loading state never gets stuck
     const timeout = setTimeout(() => {
       if (isLoading) {
-        console.log("Force ending loading state after timeout");
+        console.log("App.tsx: Force ending loading state after timeout");
         setIsLoading(false);
       }
-    }, 3000); // Reduced from 5 seconds to 3 seconds to prevent long loading
+    }, 2000); // Reduced to 2 seconds to prevent long loading
     
     return () => clearTimeout(timeout);
   }, [isLoading, setIsLoading]);
@@ -51,8 +50,8 @@ function App() {
     );
   }, [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage, isDatabaseReconnectPage]);
 
-  // Debug information
-  console.log({
+  // Debug information - helpful for debugging auth issues
+  console.log("App.tsx render state:", {
     userRole,
     isLoading,
     pathname: location.pathname,
@@ -74,13 +73,13 @@ function App() {
     }
     
     // Show minimal loading for auth-related operations only, with shorter timeout
-    if (isLoading && (isAuthCallback || (!user && isAdminPage))) {
+    if (isLoading && (isAuthCallback || (!user && (isAdminPage || isClientAuthPage)))) {
       console.log("Rendering loading fallback for auth operations");
-      return <LoadingFallback message="Loading application..." timeoutSeconds={2} />;
+      return <LoadingFallback message="Loading application..." timeoutSeconds={1.5} />;
     }
 
-    // Public routes for non-authenticated users
-    if (!user && isPublicRoute()) {
+    // Public routes for non-authenticated users or public routes
+    if (isPublicRoute()) {
       console.log("Rendering public routes");
       return (
         <ErrorBoundary>
@@ -105,7 +104,7 @@ function App() {
         console.log("Rendering admin routes");
         return (
           <ErrorBoundary>
-            <Suspense fallback={<LoadingFallback message="Loading admin dashboard..." timeoutSeconds={2} />}>
+            <Suspense fallback={<LoadingFallback message="Loading admin dashboard..." timeoutSeconds={1.5} />}>
               <AdminRoutes />
             </Suspense>
           </ErrorBoundary>
@@ -116,17 +115,17 @@ function App() {
         console.log("Rendering client routes");
         return (
           <ErrorBoundary>
-            <Suspense fallback={<LoadingFallback message="Loading dashboard..." timeoutSeconds={2} />}>
+            <Suspense fallback={<LoadingFallback message="Loading dashboard..." timeoutSeconds={1.5} />}>
               <ClientRoutes />
             </Suspense>
           </ErrorBoundary>
         );
       }
       
-      // If user is authenticated but role not determined yet, show loading for max 2 seconds
+      // If user is authenticated but role not determined yet, show loading for max 1.5 seconds
       if (!userRole) {
-        console.log("Role not determined, showing loading");
-        return <LoadingFallback message="Verifying account..." timeoutSeconds={2} />;
+        console.log("Role not determined, showing loading with shorter timeout");
+        return <LoadingFallback message="Verifying account..." timeoutSeconds={1.5} />;
       }
     }
     
