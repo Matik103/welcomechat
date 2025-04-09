@@ -24,7 +24,7 @@
     "paths": {
       "@/*": ["*"]
     },
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client", "react", "react-dom"]
   },
   "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
   "exclude": ["node_modules"]
