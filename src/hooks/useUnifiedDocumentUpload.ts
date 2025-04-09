@@ -1,9 +1,9 @@
 
-import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { v4 as uuidv4 } from 'uuid';
-import { toast } from 'sonner';
-import { DOCUMENTS_BUCKET, ensureBucketExists } from '@/utils/ensureStorageBuckets';
+import { useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { v4 as uuidv4 } from "uuid";
+import { toast } from "sonner";
+import { DOCUMENTS_BUCKET, ensureBucketExists } from "@/utils/ensureStorageBuckets";
 
 // Define the return type for the upload function
 export interface UploadResult {
@@ -52,7 +52,7 @@ export function useUnifiedDocumentUpload(options: {
       const filePath = `${clientId}/${fileName}`;
 
       // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
         .upload(filePath, file);
 
@@ -138,14 +138,10 @@ export function useUnifiedDocumentUpload(options: {
       // If it's a PDF, trigger the extraction process
       if (file.type === 'application/pdf') {
         try {
-          const { data: extractionResponse, error: extractionError } = await supabase
+          await supabase
             .functions.invoke('extract-pdf-content', {
               body: { document_id: documentData.id.toString() }
             });
-
-          if (extractionError) {
-            console.error('PDF extraction error:', extractionError);
-          }
         } catch (extractionError) {
           console.error('Failed to invoke PDF extraction:', extractionError);
         }
@@ -173,7 +169,7 @@ export function useUnifiedDocumentUpload(options: {
     } finally {
       setIsUploading(false);
     }
-  }, [clientId, onSuccess]);
+  }, [clientId, onSuccess, onProgress]);
 
   return {
     upload,
