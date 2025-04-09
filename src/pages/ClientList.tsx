@@ -14,15 +14,6 @@ export default function ClientList() {
   const { clients, isLoading, error, searchQuery, handleSearch, refetch } = useClientList();
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   
-  // Log component state for debugging
-  useEffect(() => {
-    console.log('ClientList component state:', { 
-      clientsCount: clients.length, 
-      isLoading, 
-      hasError: !!error 
-    });
-  }, [clients, isLoading, error]);
-  
   useEffect(() => {
     if (isLoading) {
       toast.info('Loading clients...', { id: 'loading-clients' });

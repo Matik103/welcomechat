@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 import { WidgetDisplayMode } from './widget-settings';
 
@@ -32,7 +31,7 @@ export interface WidgetSettings {
   logo_storage_path: string;
   chat_color: string;
   background_color: string;
-  button_color: string; // Updated to be non-optional to match widget-settings.ts
+  button_color?: string;
   font_color: string;
   chat_font_color: string;
   background_opacity: number;
@@ -49,10 +48,6 @@ export interface WidgetSettings {
   placement?: string;
   primary_color?: string;
   font_family?: string;
-  // Optional fields for integration IDs
-  openai_assistant_id?: string;
-  deepseek_assistant_id?: string;
-  clientId?: string;
 }
 
 // Default widget settings
@@ -63,7 +58,7 @@ export const defaultSettings: WidgetSettings = {
   logo_storage_path: "",
   chat_color: "#4f46e5",
   background_color: "#ffffff",
-  button_color: "#4f46e5", // Ensure button_color is provided in defaults
+  button_color: "#4f46e5",
   font_color: "#111827",
   chat_font_color: "#ffffff",
   background_opacity: 1,

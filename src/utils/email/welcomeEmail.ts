@@ -1,60 +1,123 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { sendEmail } from './emailSender';
+import { generateClientInvitationTemplate } from './emailTemplates';
+import { supabaseAdmin } from '@/integrations/supabase/client-admin';
+import { User } from '@supabase/supabase-js';
 
-interface EmailResult {
-  emailSent: boolean;
-  emailError?: string;
-}
-
+/**
+ * Sends a welcome email to a newly created client with their login credentials
+ * @param email The client's email address
+ * @param clientName The client's name
+ * @param tempPassword The temporary password assigned to the client
+ * @returns Object indicating if the email was sent successfully
+ */
 export const sendWelcomeEmail = async (
-  email: string,
-  clientName: string,
-  password: string
-): Promise<EmailResult> => {
+  email: string, 
+  clientName: string, 
+  tempPassword: string
+): Promise<{ emailSent: boolean; emailError?: string }> => {
+  console.log("Sending welcome email to:", email);
+  
+  if (!email || !email.includes('@')) {
+    console.error("Invalid email address provided:", email);
+    return {
+      emailSent: false,
+      emailError: "Invalid email address"
+    };
+  }
+  
   try {
-    console.log(`Sending welcome email to ${email} for client ${clientName}`);
+    // Verify the client exists in Supabase Auth - using the correct API
+    const { data: userList, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     
-    // Call the Supabase Edge Function with proper error handling
-    const { data, error } = await supabase.functions.invoke('send-email', {
-      body: {
-        to: email,
-        subject: `Welcome to Welcome.Chat - Your Client Account`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
-            <h1 style="color: #4a6cf7;">Welcome to Welcome.Chat</h1>
-            <p>Hello ${clientName},</p>
-            <p>Your client account has been created successfully. Here are your login details:</p>
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin: 20px 0;">
-              <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Temporary Password:</strong> ${password}</p>
-            </div>
-            <p>Please login at <a href="https://welcome.chat/login" style="color: #4a6cf7;">welcome.chat/login</a> and change your password after your first login.</p>
-            <p>If you have any questions, please contact our support team.</p>
-            <p>Best regards,<br>The Welcome.Chat Team</p>
-          </div>
-        `,
-        from: 'Welcome.Chat <admin@welcome.chat>'
-      }
-    });
-
-    if (error) {
-      console.error("Error sending welcome email:", error);
+    if (listError) {
+      console.error("Error fetching users from Supabase Auth:", listError);
       return {
         emailSent: false,
-        emailError: error.message || "Unknown error occurred while sending email"
+        emailError: `Failed to fetch users: ${listError.message}`
       };
     }
-
-    console.log("Welcome email send result:", data);
     
+    // Find the user by email - explicitly typing the users array
+    const existingUser = userList.users.find((user: User) => user.email === email);
+    
+    if (!existingUser) {
+      console.log("User not found in Supabase Auth, creating user");
+      
+      // Create the user in Supabase Auth if they don't exist
+      const { data: createdUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: clientName,
+          role: 'client'
+        }
+      });
+      
+      if (createError) {
+        console.error("Failed to create Supabase Auth user:", createError);
+        return {
+          emailSent: false,
+          emailError: `Failed to create auth user: ${createError.message}`
+        };
+      }
+      
+      console.log("Created Supabase Auth user successfully:", createdUser.user.id);
+    } else {
+      console.log("User found in Supabase Auth:", existingUser.id);
+      
+      // Update the existing user's password
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        existingUser.id,
+        { password: tempPassword }
+      );
+      
+      if (updateError) {
+        console.error("Failed to update user password:", updateError);
+        return {
+          emailSent: false,
+          emailError: `Failed to update user password: ${updateError.message}`
+        };
+      }
+      
+      console.log("Updated user password successfully");
+    }
+    
+    // Generate the HTML template
+    const html = generateClientInvitationTemplate({
+      clientName,
+      email,
+      tempPassword,
+      productName: "Welcome.Chat"
+    });
+    
+    // Send the email
+    const emailResult = await sendEmail({
+      to: email,
+      subject: 'Welcome to Welcome.Chat - Your Account Details',
+      html: html,
+      from: 'Welcome.Chat <admin@welcome.chat>'
+    });
+    
+    if (!emailResult.success) {
+      console.error("Error sending welcome email:", emailResult.error);
+      return {
+        emailSent: false,
+        emailError: emailResult.error || "Unknown error sending email"
+      };
+    }
+    
+    console.log("Welcome email sent successfully");
     return {
       emailSent: true
     };
-  } catch (error) {
-    console.error("Unexpected error in sendWelcomeEmail:", error);
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    console.error("Exception while sending welcome email:", error);
     return {
       emailSent: false,
-      emailError: error instanceof Error ? error.message : "Unknown error occurred"
+      emailError: error.message
     };
   }
 };

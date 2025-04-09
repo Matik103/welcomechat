@@ -1,6 +1,8 @@
+
 import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
@@ -8,7 +10,7 @@ import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { WidgetSettings } from '@/types/widget-settings';
 import { AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -31,7 +33,6 @@ export const WidgetPreview = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [needsAssistantSetup, setNeedsAssistantSetup] = useState(false);
   
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -43,16 +44,15 @@ export const WidgetPreview = ({
     setInputValue('');
     setIsLoading(true);
     setError(null);
-    setNeedsAssistantSetup(false);
     
     try {
       if (!clientId) {
         throw new Error('Client ID is required');
       }
       
-      console.log(`Sending query to DeepSeek assistant for client ${clientId}: "${userMessage}"`);
+      console.log(`Sending query to assistant for client ${clientId}: "${userMessage}"`);
       
-      const { data, error } = await supabase.functions.invoke('query-deepseek-assistant', {
+      const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
         body: {
           client_id: clientId,
           query: userMessage
@@ -65,15 +65,6 @@ export const WidgetPreview = ({
       }
 
       console.log('Assistant response:', data);
-
-      if (data?.noAssistant) {
-        setNeedsAssistantSetup(true);
-        throw new Error('No DeepSeek assistant configured for this client. Please create a DeepSeek assistant first.');
-      }
-
-      if (data?.missingKey) {
-        throw new Error('DeepSeek API key is missing. Please add it in the Supabase dashboard.');
-      }
 
       if (data?.answer) {
         setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
@@ -139,15 +130,7 @@ export const WidgetPreview = ({
           {error && (
             <Alert variant="destructive" className="m-3 py-2">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>
-                {error}
-                {needsAssistantSetup && (
-                  <div className="mt-2">
-                    <p>Please set up the DeepSeek assistant in the AI Assistant Settings tab.</p>
-                  </div>
-                )}
-              </AlertDescription>
+              <AlertDescription className="text-xs">{error}</AlertDescription>
             </Alert>
           )}
           
@@ -179,6 +162,7 @@ export const WidgetPreview = ({
       return (
         <div className="relative h-full w-full bg-gray-100 rounded-lg p-4">
           <div className="flex h-full">
+            {/* Sidebar tab - always visible */}
             <div 
               className={`flex items-center justify-center h-full cursor-pointer transition-all ${isSidebarOpen ? 'w-8' : 'w-14'}`}
               onClick={handleToggleSidebar}
@@ -189,6 +173,7 @@ export const WidgetPreview = ({
               </div>
             </div>
             
+            {/* Chat panel - visible when open */}
             {isSidebarOpen && (
               <div className="flex-1 flex flex-col bg-white overflow-hidden border-t border-r border-b rounded-tr-lg rounded-br-lg shadow-md">
                 <ChatHeader 
@@ -201,15 +186,7 @@ export const WidgetPreview = ({
                 {error && (
                   <Alert variant="destructive" className="m-3 py-2">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>
-                      {error}
-                      {needsAssistantSetup && (
-                        <div className="mt-2">
-                          <p>Please set up the DeepSeek assistant in the AI Assistant Settings tab.</p>
-                        </div>
-                      )}
-                    </AlertDescription>
+                    <AlertDescription className="text-xs">{error}</AlertDescription>
                   </Alert>
                 )}
                 
@@ -238,6 +215,7 @@ export const WidgetPreview = ({
             )}
           </div>
           
+          {/* Example of showing initial closed state with a button to open */}
           {!isSidebarOpen && !messages.length && (
             <div className="absolute top-4 right-4 p-3 bg-white border rounded-lg shadow-md">
               <p className="text-sm mb-4">This is how the sidebar appears when collapsed. Click the tab on the left to expand it.</p>
@@ -284,15 +262,7 @@ export const WidgetPreview = ({
                 {error && (
                   <Alert variant="destructive" className="m-3 py-2">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>
-                      {error}
-                      {needsAssistantSetup && (
-                        <div className="mt-2">
-                          <p>Please set up the DeepSeek assistant in the AI Assistant Settings tab.</p>
-                        </div>
-                      )}
-                    </AlertDescription>
+                    <AlertDescription className="text-xs">{error}</AlertDescription>
                   </Alert>
                 )}
                 
@@ -324,3 +294,4 @@ export const WidgetPreview = ({
       );
   }
 };
+

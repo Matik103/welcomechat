@@ -1,5 +1,6 @@
+
 import { toast } from 'sonner';
-import { createDeepseekAssistant } from '@/utils/deepseekUtils';
+import { createOpenAIAssistant } from '@/utils/openAIUtils';
 import { Agent } from '@/types/agent';
 
 interface UseAgentFormSubmitProps {
@@ -18,13 +19,12 @@ interface UseAgentFormSubmitProps {
     agentName: string,
     agentDescription?: string,
     logoUrl?: string,
-    logoStoragePath?: string,
-    clientName?: string,
-    skipActivityLog?: boolean
+    logoPath?: string,
+    clientName?: string
   ) => Promise<{
     success: boolean;
     agent?: any;
-    error: string;
+    error?: string;
   }>;
 }
 
@@ -60,13 +60,13 @@ export function useAgentFormSubmit({
     try {
       // Upload logo if provided
       let logoUrl = "";
-      let logoStoragePath = "";
+      let logoPath = "";
       
       if (logoFile) {
         // Logic to upload logo would go here
         // For now, just use the preview as the URL
         logoUrl = logoPreview || "";
-        logoStoragePath = `/client-logos/${clientId}/${logoFile.name}`;
+        logoPath = `/client-logos/${clientId}/${logoFile.name}`;
       }
       
       console.log('Creating agent with:', {
@@ -82,7 +82,7 @@ export function useAgentFormSubmit({
         agentName,
         agentDescription,
         logoUrl,
-        logoStoragePath,
+        logoPath,
         clientName
       );
       
@@ -92,12 +92,12 @@ export function useAgentFormSubmit({
       
       console.log('Agent created successfully:', agent);
       
-      // Try to create DeepSeek assistant
+      // Try to create OpenAI assistant
       try {
-        await createDeepseekAssistant(clientId, agentName, agentDescription);
-      } catch (deepSeekError) {
-        console.error('Error creating DeepSeek assistant:', deepSeekError);
-        // Continue with agent creation even if DeepSeek assistant creation fails
+        await createOpenAIAssistant(clientId, agentName, agentDescription);
+      } catch (openAiError) {
+        console.error('Error creating OpenAI assistant:', openAiError);
+        // Continue with agent creation even if OpenAI assistant creation fails
       }
       
       toast.success(`Agent "${agentName}" created successfully`);
@@ -116,9 +116,9 @@ export function useAgentFormSubmit({
           interaction_type: agent.interaction_type,
           agent_description: agent.agent_description || agentDescription || '',
           logo_url: agent.logo_url || logoUrl,
-          logo_storage_path: agent.logo_storage_path || logoStoragePath,
+          logo_storage_path: agent.logo_storage_path || logoPath,
           settings: agent.settings,
-          deepseek_assistant_id: agent.deepseek_assistant_id,
+          openai_assistant_id: agent.openai_assistant_id,
           total_interactions: 0,
           average_response_time: 0,
           last_active: agent.updated_at

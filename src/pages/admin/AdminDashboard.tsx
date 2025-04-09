@@ -9,36 +9,18 @@ import { StatsCardsSection } from '@/components/admin/dashboard/StatsCardsSectio
 import { ActivityChartsSection } from '@/components/admin/dashboard/ActivityChartsSection';
 import { DashboardHeader } from '@/components/client-dashboard/DashboardHeader';
 import { DashboardLoading } from '@/components/client-dashboard/DashboardLoading';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const { isLoading, dashboardData, fetchDashboardData } = useAdminDashboardData();
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [isManuallyRefreshing, setIsManuallyRefreshing] = useState(false);
-  const [loadTimeout, setLoadTimeout] = useState(false);
-  
-  // Set a timeout to show content even if loading takes too long
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (isLoading) {
-        setLoadTimeout(true);
-      }
-    }, 3000); // Show fallback content after 3 seconds
-    
-    return () => clearTimeout(timer);
-  }, [isLoading]);
   
   // Memoize the manual refresh handler to prevent unnecessary re-renders
   const handleManualRefresh = useCallback(async () => {
     try {
       setIsManuallyRefreshing(true);
-      setError(null);
       await fetchDashboardData(true);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to refresh data'));
     } finally {
       setTimeout(() => {
         setIsManuallyRefreshing(false);
@@ -48,9 +30,8 @@ export default function AdminDashboardPage() {
   
   // Memoize the dashboard content to prevent unnecessary re-renders
   const dashboardContent = useMemo(() => {
-    // If we're loading for too long, show partial content
-    if (isLoading && !loadTimeout) {
-      return <DashboardLoading message="Loading dashboard data..." />;
+    if (isLoading && !isManuallyRefreshing) {
+      return <DashboardLoading />;
     }
     
     return (
@@ -59,7 +40,7 @@ export default function AdminDashboardPage() {
         <ActivityChartsSection activityCharts={dashboardData.activityCharts} />
       </>
     );
-  }, [isLoading, loadTimeout, dashboardData]);
+  }, [isLoading, isManuallyRefreshing, dashboardData]);
   
   useEffect(() => {
     let activitiesChannel: any = null;
@@ -113,67 +94,54 @@ export default function AdminDashboardPage() {
     
     initializeDashboard();
     
-    // Set a timeout to fetch data if it takes too long
-    const timeoutId = setTimeout(() => {
-      if (!isSetupComplete) {
-        setIsSetupComplete(true);
-        fetchDashboardData(true);
-      }
-    }, 2000); // 2 seconds timeout
-    
     // Cleanup function
     return () => {
-      clearTimeout(timeoutId);
       if (activitiesChannel) supabase.removeChannel(activitiesChannel);
       if (agentsChannel) supabase.removeChannel(agentsChannel);
     };
   }, [fetchDashboardData]);
   
+  // Show loading state while setup is in progress
+  if (!isSetupComplete) {
+    return (
+      <AdminLayout>
+        <DashboardLoading message="Initializing dashboard..." />
+      </AdminLayout>
+    );
+  }
+  
+  // Show error state if there was an error
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="container py-8">
+          <div className="bg-red-50 border border-red-200 rounded-md p-6 text-center">
+            <h2 className="text-lg font-semibold text-red-700 mb-2">Dashboard Error</h2>
+            <p className="text-red-600 mb-4">{error.message}</p>
+            <button 
+              onClick={() => {
+                setError(null);
+                fetchDashboardData(true);
+              }}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+  
   return (
     <AdminLayout>
       <div className="container py-8 max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <Button
-            onClick={handleManualRefresh}
-            variant="outline"
-            disabled={isManuallyRefreshing}
-            className="ml-auto"
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isManuallyRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
+        <DashboardHeader
+          isRefreshing={isLoading || isManuallyRefreshing}
+          onRefresh={handleManualRefresh}
+        />
         
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription className="flex items-center justify-between">
-              <span>Error loading dashboard: {error.message}</span>
-              <Button variant="outline" size="sm" onClick={() => {
-                setError(null);
-                fetchDashboardData(true);
-              }}>
-                Try Again
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        {/* Show partial content if loading for more than timeout duration */}
-        {(isLoading && !loadTimeout) ? (
-          <DashboardLoading message="Loading dashboard data..." />
-        ) : (
-          <>
-            <StatsCardsSection dashboardData={dashboardData} />
-            <ActivityChartsSection activityCharts={dashboardData.activityCharts} />
-          </>
-        )}
-        
-        {loadTimeout && isLoading && (
-          <div className="mt-4 p-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-md text-sm">
-            Taking longer than usual to load... showing partial data.
-          </div>
-        )}
+        {dashboardContent}
       </div>
     </AdminLayout>
   );

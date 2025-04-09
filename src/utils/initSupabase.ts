@@ -1,5 +1,5 @@
-
-import { getDocumentStorageBucket, setupStoragePolicies } from './supabaseStorage';
+import { createDocumentStorageRpcFunctions } from './applyDocumentLinksRLS';
+import { getDocumentStorageBucket } from './supabaseStorage';
 
 /**
  * Initialize Supabase resources required for the application
@@ -9,23 +9,20 @@ export async function initializeSupabaseResources(): Promise<boolean> {
   try {
     console.log('Initializing Supabase resources...');
     
-    // Verify and create document storage bucket if needed
+    // Verify document storage bucket is accessible
     try {
       await getDocumentStorageBucket();
-      console.log('Client documents bucket is ready');
-      
-      // Ensure storage policies are set up
-      await setupStoragePolicies();
-      console.log('Storage policies are configured');
+      console.log('Client documents bucket is accessible');
     } catch (storageError) {
-      console.error('Error setting up document storage:', storageError);
+      console.error('Error accessing client documents bucket:', storageError);
       return false;
     }
     
-    // Since createDocumentStorageRpcFunctions doesn't exist, we'll just return success
-    console.log('Client documents RPC functions setup skipped');
+    // Create RPC functions for document storage
+    const rpcResult = await createDocumentStorageRpcFunctions();
+    console.log('Client documents RPC functions creation result:', rpcResult.success);
     
-    return true;
+    return rpcResult.success;
   } catch (error) {
     console.error('Error initializing Supabase resources:', error);
     return false;

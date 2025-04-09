@@ -10,7 +10,7 @@ export interface WidgetSettings {
   logo_storage_path: string;
   chat_color: string;
   background_color: string;
-  button_color: string; // Required in this definition
+  button_color: string;
   font_color: string;
   chat_font_color: string;
   background_opacity: number;

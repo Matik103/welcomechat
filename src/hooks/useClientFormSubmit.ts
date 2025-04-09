@@ -4,6 +4,7 @@ import { ClientFormValues } from "@/components/client/forms/ClientCreationForm";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { generateTempPassword, saveClientTempPassword } from "@/utils/passwordUtils";
+import { setupOpenAIAssistant } from "@/utils/clientOpenAIUtils";
 import { sendWelcomeEmail } from "@/utils/email/welcomeEmail";
 
 export function useClientFormSubmit(onSuccess: () => void) {
@@ -20,7 +21,7 @@ export function useClientFormSubmit(onSuccess: () => void) {
       const clientId = crypto.randomUUID();
       const tempPassword = generateTempPassword();
       
-      // Create client record in ai_agents table
+      // Create AI agent (which creates the client record)
       const insertData = {
         client_id: clientId,
         client_name: values.clientName,
@@ -36,20 +37,23 @@ export function useClientFormSubmit(onSuccess: () => void) {
         },
         status: "active",
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        type: "client_created"
       };
       
-      // Insert into supabase
-      const { data, error: insertError } = await fetch('/api/clients', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(insertData),
-      }).then(res => res.json());
+      // Insert into supabase handled by ClientCreationForm component
 
-      if (insertError) {
-        throw new Error(insertError.message || "Failed to create client");
+      // Set up OpenAI assistant - ensure OpenAI connection is established
+      try {
+        await setupOpenAIAssistant(
+          clientId,
+          values.agentName || "AI Assistant",
+          values.agentDescription || "A helpful assistant for " + values.clientName,
+          values.clientName
+        );
+      } catch (openAiError) {
+        console.error("Error setting up OpenAI assistant:", openAiError);
+        toast.warning("Client created, but OpenAI assistant setup failed. You can retry setup later.");
       }
       
       const agentId = clientId;
@@ -59,7 +63,6 @@ export function useClientFormSubmit(onSuccess: () => void) {
         await saveClientTempPassword(agentId, values.email, tempPassword);
         
         // Send welcome email with credentials
-        console.log("Attempting to send welcome email...");
         const emailResult = await sendWelcomeEmail(
           values.email,
           values.clientName,
@@ -68,13 +71,12 @@ export function useClientFormSubmit(onSuccess: () => void) {
         
         if (emailResult.emailSent) {
           toast.success("Client created and welcome email sent successfully!");
-          console.log("Welcome email sent successfully");
         } else {
-          console.error("Failed to send welcome email:", emailResult.emailError);
           toast.warning(`Client created but failed to send welcome email: ${emailResult.emailError}`);
+          console.error("Failed to send welcome email:", emailResult.emailError);
         }
       } catch (error) {
-        console.error("Error saving temporary password or sending email:", error);
+        console.error("Error saving temporary password:", error);
         toast.warning("Client created but failed to set up login credentials.");
       }
       

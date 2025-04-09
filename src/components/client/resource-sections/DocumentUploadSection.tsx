@@ -10,17 +10,11 @@ import { Button } from '@/components/ui/button';
 import { fixDocumentContentRLS, checkDocumentContentRLS } from '@/utils/applyDocumentContentRLS';
 import { toast } from 'sonner';
 import { UploadResult } from '@/hooks/useUnifiedDocumentUpload';
-import { Spinner } from '@/components/ui/spinner';
-import { RAPIDAPI_KEY } from '@/config/env';
 
 interface DocumentUploadSectionProps {
   clientId: string;
   logClientActivity: () => Promise<void>;
   onUploadComplete?: () => void;
-}
-
-interface ProcessingDocuments {
-  [key: string]: boolean;
 }
 
 export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
@@ -31,7 +25,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const [lastError, setLastError] = useState<string | null>(null);
   const [isFixingPermissions, setIsFixingPermissions] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<string | null>(null);
-  const [processingDocuments, setProcessingDocuments] = useState<ProcessingDocuments>({});
   
   // Check RLS permissions when component mounts
   useEffect(() => {
@@ -48,16 +41,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
     };
     
     checkPermissions();
-  }, []);
-
-  // Check if RapidAPI key is configured
-  useEffect(() => {
-    if (!RAPIDAPI_KEY) {
-      console.warn("RapidAPI key is not configured. PDF text extraction may not work properly.");
-      setPermissionStatus("Warning: PDF extraction API key not detected");
-    } else {
-      console.log("RapidAPI key is configured:", RAPIDAPI_KEY.substring(0, 5) + '...');
-    }
   }, []);
   
   const handleFixPermissions = async () => {
@@ -92,15 +75,6 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         setPermissionStatus('Upload successful');
         toast.success('Document uploaded successfully');
         
-        // If it's a PDF, track its processing status
-        if (result.fileType === 'application/pdf' && result.documentId) {
-          setProcessingDocuments((prev: ProcessingDocuments) => ({
-            ...prev,
-            [result.documentId!]: true
-          }));
-          toast.info('PDF text extraction started...');
-        }
-        
         // Log activity
         await createClientActivity(
           clientId,
@@ -118,17 +92,18 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
         // Call the parent's upload complete handler
         await logClientActivity();
         if (onUploadComplete) onUploadComplete();
-      } catch (activityError: any) {
+      } catch (activityError) {
         console.error("Error logging activity:", activityError);
-        const errorMessage = activityError?.message || activityError?.error?.message || 'Failed to log document activity';
-        setLastError(`Upload succeeded but activity logging failed: ${errorMessage}`);
-        toast.error(errorMessage);
+        setLastError(`Upload succeeded but failed to log activity: ${activityError instanceof Error ? activityError.message : String(activityError)}`);
       }
     } else {
-      const error = typeof result.error === 'string' ? { message: result.error } : result.error;
-      const errorMessage = error?.message || 'Unknown error occurred during upload';
-      setLastError(errorMessage);
-      toast.error(errorMessage);
+      console.error("Upload failed:", result.error);
+      setLastError(result.error || "Unknown error during upload");
+      
+      // If it's a permissions error, offer to fix it automatically
+      if (result.error && (result.error.includes('row-level security') || result.error.includes('permission denied') || result.error.includes('policy'))) {
+        setPermissionStatus('Permission denied. Click "Fix Permissions" to resolve this issue.');
+      }
     }
   };
   
@@ -179,7 +154,7 @@ export const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
                   >
                     {isFixingPermissions ? (
                       <>
-                        <Spinner className="h-4 w-4" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                         Fixing permissions...
                       </>
                     ) : (

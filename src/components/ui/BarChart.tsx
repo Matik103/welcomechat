@@ -38,7 +38,7 @@ export function BarChart({ data, color = '#4F46E5', animated = true }: BarChartP
   return (
     <div className="w-full">
       <div className="flex flex-col space-y-2">
-        {currentData.map((item: BarChartDataItem, index: number) => (
+        {currentData.map((item, index) => (
           <div key={index} className="flex items-center">
             <div className="w-24 text-sm text-gray-600">{item.name}</div>
             <div className="flex-1">

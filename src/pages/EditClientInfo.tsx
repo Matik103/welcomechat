@@ -1,130 +1,246 @@
-
-import { useParams, useNavigate } from 'react-router-dom';
-import { ClientForm } from '@/components/client/ClientForm';
+import React, { useEffect, useState } from 'react';
 import { useClientData } from '@/hooks/useClientData';
-import { ClientFormData } from '@/types/client-form';
+import { useParams } from 'react-router-dom';
+import { PageHeading } from '@/components/dashboard/PageHeading';
+import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ClientFormData } from '@/types/client-form';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useClientActivity } from '@/hooks/useClientActivity';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigation } from '@/hooks/useNavigation';
+import { ClientResourceSections } from '@/components/client/ClientResourceSections';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { isAdminClientConfigured } from '@/integrations/supabase/client-admin';
+import ErrorDisplay from '@/components/ErrorDisplay';
+import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 
-export default function EditClientInfo() {
+export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  
-  const { client, isLoading, error, refetch } = useClientData(id);
-  const { logClientActivity } = useClientActivity();
-  
+  const { userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
+  const navigation = useNavigation();
+  const [activeTab, setActiveTab] = useState('profile');
+  const [serviceKeyError, setServiceKeyError] = useState<boolean>(!isAdminClientConfigured());
+  const [isApplyingRLS, setIsApplyingRLS] = useState(true);
+
+  const { 
+    client, 
+    isLoadingClient,
+    error,
+    clientMutation,
+    clientId,
+    refetchClient
+  } = useClientData(id);
+
+  useEffect(() => {
+    if (isApplyingRLS) {
+      const applyRLS = async () => {
+        try {
+          const { fixDocumentContentRLS } = await import('@/utils/applyDocumentContentRLS');
+          
+          await fixDocumentContentRLS();
+          console.log("Successfully applied document content RLS policies");
+        } catch (error) {
+          console.error("Failed to apply RLS policies:", error);
+        } finally {
+          setIsApplyingRLS(false);
+        }
+      };
+      
+      applyRLS();
+    }
+  }, [isApplyingRLS]);
+
+  useEffect(() => {
+    if (error) {
+      console.error("Error loading client data:", error);
+      toast.error(`Error loading client: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }, [error]);
+
   const handleSubmit = async (data: ClientFormData) => {
-    if (!id) {
-      toast.error('Client ID is required');
-      return;
-    }
-
     try {
-      // Update the client record
-      const { error } = await supabase
-        .from('ai_agents')
-        .update({
-          client_name: data.client_name,
-          name: data.agent_name,
+      if (!client) {
+        toast.error("Client information not available");
+        return;
+      }
+      
+      const updateClientId = client.id || client.client_id || clientId;
+      
+      if (!updateClientId) {
+        toast.error("Client ID not found");
+        return;
+      }
+      
+      console.log("Submitting client update with data:", data);
+      console.log("Using client ID:", updateClientId);
+      
+      const currentWidgetSettings = client.widget_settings || {};
+      
+      await clientMutation.mutateAsync({
+        client_id: updateClientId,
+        client_name: data.client_name,
+        email: data.email,
+        agent_name: data.agent_name,
+        agent_description: data.agent_description,
+        logo_url: data.logo_url,
+        logo_storage_path: data.logo_storage_path,
+        widget_settings: {
+          ...(typeof currentWidgetSettings === 'object' ? currentWidgetSettings : {}),
+          agent_name: data.agent_name,
           agent_description: data.agent_description,
-          email: data.email,
           logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('client_id', id)
-        .eq('interaction_type', 'config');
-
-      if (error) throw error;
-
-      // Log the client update activity
-      await logClientActivity({
-        client_id: id,
-        activity_type: 'CLIENT_UPDATED',
-        activity_data: {
-          updated_by: user?.id || 'unknown',
-          client_name: data.client_name,
-          email: data.email,
+          logo_storage_path: data.logo_storage_path
         },
+        company: client.company || '',
+        description: client.description || '',
+        status: client.status || 'active',
+        created_at: client.created_at,
+        updated_at: new Date().toISOString(),
+        deleted_at: client.deleted_at,
+        deletion_scheduled_at: client.deletion_scheduled_at,
+        last_active: client.last_active,
+        is_error: false
       });
-
-      toast.success('Client information updated successfully');
       
-      // Refresh the client data
-      await refetch();
-      
-      // Navigate back to the client view
-      navigate(`/admin/clients/view/${id}`);
+      toast.success("Client information updated successfully");
+      await refetchClient();
     } catch (error) {
-      console.error('Error updating client:', error);
-      toast.error(`Failed to update client: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Error updating client:", error);
+      toast.error(`Failed to update client: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
-  const handleBack = () => {
-    navigate(`/admin/clients/view/${id}`);
+  const handleNavigateBack = () => {
+    navigation.goBack();
   };
 
-  if (isLoading) {
+  const handleRetryServiceKey = () => {
+    setServiceKeyError(!isAdminClientConfigured());
+  };
+
+  const logClientActivity = async () => {
+    try {
+      console.log("Logging client activity for client:", client?.id || clientId);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error logging client activity:", error);
+      return Promise.reject(error);
+    }
+  };
+
+  if (serviceKeyError) {
     return (
-      <div className="max-w-3xl mx-auto p-6">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
-      </div>
+      <ErrorDisplay 
+        title="Supabase Service Role Key Missing"
+        message="The Supabase service role key is missing or invalid. Logo upload functionality requires this key."
+        details="To fix this issue, add your Supabase service role key to the .env file as VITE_SUPABASE_SERVICE_ROLE_KEY. This key is required for logo uploads and storage bucket management."
+        onRetry={handleRetryServiceKey}
+      />
     );
   }
 
-  if (error) {
+  if (error && !client) {
     return (
-      <div className="max-w-3xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700">
-          <p className="text-lg font-semibold">Error loading client</p>
-          <p>{error}</p>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/admin/clients')}
-            className="mt-4"
-          >
-            Back to Clients
-          </Button>
-        </div>
-      </div>
+      <ErrorDisplay 
+        title="Error Loading Client"
+        message={`Unable to load client data: ${error instanceof Error ? error.message : String(error)}`}
+        details={`Client ID: ${id || 'unknown'}`}
+        onRetry={refetchClient}
+      />
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <div className="mb-6 flex items-center">
-        <Button
-          variant="ghost"
-          onClick={handleBack}
-          className="mr-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        <h1 className="text-2xl font-bold">Edit Client Information</h1>
-      </div>
+    <div className="container mx-auto py-8">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="mb-4 flex items-center gap-1"
+        onClick={handleNavigateBack}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Clients
+      </Button>
+      
+      <PageHeading>
+        Edit Client Information
+        <p className="text-sm font-normal text-muted-foreground">
+          Update client details and manage resources
+        </p>
+      </PageHeading>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Client Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ClientForm
-            initialData={client || null}
-            onSubmit={handleSubmit}
-            submitButtonText="Save Changes"
-          />
-        </CardContent>
-      </Card>
+      {isLoadingClient ? (
+        <div className="mt-6 animate-pulse space-y-4">
+          <div className="h-8 w-1/3 bg-gray-200 rounded"></div>
+          <div className="h-24 bg-gray-200 rounded"></div>
+          <div className="h-12 w-1/4 bg-gray-200 rounded"></div>
+        </div>
+      ) : (
+        <div className="mt-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="profile">Profile Information</TabsTrigger>
+              <TabsTrigger value="resources">Resources</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="profile" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <ClientForm 
+                    initialData={client}
+                    onSubmit={handleSubmit}
+                    isLoading={isLoadingClient || clientMutation.isPending}
+                    error={error ? (error instanceof Error ? error.message : String(error)) : null}
+                    submitButtonText="Update Client"
+                  />
+                </div>
+                <div className="lg:col-span-1">
+                  <ClientDetailsCard 
+                    client={client} 
+                    isLoading={isLoadingClient} 
+                    logClientActivity={logClientActivity}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-4">
+                <Button 
+                  type="button" 
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                  onClick={() => setActiveTab('resources')}
+                >
+                  Next: Resources <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="resources">
+              {client && (
+                <ClientResourceSections 
+                  clientId={client.id || client.client_id}
+                  logClientActivity={logClientActivity}
+                  onResourceChange={refetchClient}
+                />
+              )}
+              
+              <div className="flex justify-start mt-4">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => setActiveTab('profile')}
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back to Profile
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
     </div>
   );
 }
+
+export default EditClientInfo;

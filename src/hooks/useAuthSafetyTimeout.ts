@@ -23,7 +23,7 @@ export const useAuthSafetyTimeout = ({
     // Only set a timeout if we're in loading state
     if (!isLoading) return;
     
-    console.log("Setting up auth safety timeout for loading state");
+    console.log("Setting up safety timeout for loading state");
     
     // Store current auth state in session storage to help with page refreshes
     if (session) {
@@ -39,12 +39,13 @@ export const useAuthSafetyTimeout = ({
       }
     }
     
-    // Use an even shorter timeout - 500ms is enough to prevent blank screens
-    const timeoutDuration = 500;
+    // Use a shorter timeout - 800ms is enough to prevent blank screens
+    // without causing issues during deployment
+    const timeoutDuration = 800;
     
     const safetyTimeout = setTimeout(() => {
       if (isLoading) {
-        console.log("Auth safety timeout completing - preventing blank screen");
+        console.log("Safety timeout completing - preventing blank screen");
         setIsLoading(false);
       }
     }, timeoutDuration);

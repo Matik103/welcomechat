@@ -9,42 +9,21 @@ export interface LoadingFallbackProps {
 
 export const LoadingFallback: React.FC<LoadingFallbackProps> = ({ 
   onTimeoutAction, 
-  timeoutSeconds = 3,
+  timeoutSeconds = 5,
   message
 }) => {
   const [timedOut, setTimedOut] = useState(false);
-  const [secondsElapsed, setSecondsElapsed] = useState(0);
 
   useEffect(() => {
-    console.log(`LoadingFallback mounted with timeout: ${timeoutSeconds}s, message: ${message}`);
-    
-    const mainTimer = setTimeout(() => {
-      console.log("Loading timeout reached, showing timeout message");
+    const timer = setTimeout(() => {
       setTimedOut(true);
       if (onTimeoutAction) {
-        console.log("Executing timeout action");
         onTimeoutAction();
       }
     }, timeoutSeconds * 1000);
 
-    // Add a secondary timer to track elapsed time
-    const intervalId = setInterval(() => {
-      setSecondsElapsed(prev => {
-        const next = prev + 1;
-        console.log(`Loading time elapsed: ${next}s`);
-        return next;
-      });
-    }, 1000);
-
-    return () => {
-      console.log("LoadingFallback unmounting, clearing timers");
-      clearTimeout(mainTimer);
-      clearInterval(intervalId);
-    };
-  }, [onTimeoutAction, timeoutSeconds, message]);
-
-  // Show the refresh button much sooner - after 3 seconds
-  const showRefreshButton = secondsElapsed >= 3; 
+    return () => clearTimeout(timer);
+  }, [onTimeoutAction, timeoutSeconds]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
@@ -54,14 +33,6 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
         <p className="text-sm text-muted-foreground">
           Taking longer than expected...
         </p>
-      )}
-      {showRefreshButton && (
-        <button 
-          onClick={() => window.location.reload()} 
-          className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-        >
-          Refresh Page
-        </button>
       )}
     </div>
   );

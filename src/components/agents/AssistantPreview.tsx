@@ -15,10 +15,10 @@ interface Message {
 
 interface AssistantPreviewProps {
   clientId: string;
-  assistantId?: string; // Made optional
+  assistantId: string;
 }
 
-export function AssistantPreview({ clientId }: AssistantPreviewProps) {
+export function AssistantPreview({ clientId, assistantId }: AssistantPreviewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +41,7 @@ export function AssistantPreview({ clientId }: AssistantPreviewProps) {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('query-deepseek-assistant', {
+      const { data, error } = await supabase.functions.invoke('query-openai-assistant', {
         body: {
           client_id: clientId,
           query: userMessage
@@ -57,8 +57,6 @@ export function AssistantPreview({ clientId }: AssistantPreviewProps) {
         const assistantMessage = data.messages[data.messages.length - 1]?.content || 
           "Sorry, I couldn't generate a response.";
         setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
-      } else if (data?.answer) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
       } else {
         setMessages(prev => [...prev, { 
           role: 'assistant', 
@@ -101,7 +99,7 @@ export function AssistantPreview({ clientId }: AssistantPreviewProps) {
                 >
                   <ReactMarkdown components={{
                     // Apply styling to the content wrapper
-                    p: ({ children }: { children: React.ReactNode }) => <p className="prose dark:prose-invert max-w-none">{children}</p>
+                    p: ({ children }) => <p className="prose dark:prose-invert max-w-none">{children}</p>
                   }}>
                     {message.content}
                   </ReactMarkdown>

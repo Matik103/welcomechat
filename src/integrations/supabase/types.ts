@@ -3965,21 +3965,21 @@ export type Database = {
           | {
               p_client_name: string
               p_email: string
-              p_agent_name: string
-              p_widget_settings: Json
-              p_status: string
-              p_website_url_refresh_rate: number
-              p_drive_link_refresh_rate: number
-            }
-          | {
-              p_client_name: string
-              p_email: string
               p_agent_name?: string
               p_agent_description?: string
               p_logo_url?: string
               p_logo_storage_path?: string
               p_widget_settings?: Json
               p_status?: string
+            }
+          | {
+              p_client_name: string
+              p_email: string
+              p_agent_name: string
+              p_widget_settings: Json
+              p_status: string
+              p_website_url_refresh_rate: number
+              p_drive_link_refresh_rate: number
             }
         Returns: string
       }
@@ -3996,7 +3996,7 @@ export type Database = {
         Returns: boolean
       }
       exec_sql: {
-        Args: { query: string } | { sql_query: string; query_params?: Json }
+        Args: { sql_query: string; query_params?: Json } | { query: string }
         Returns: Json
       }
       extract_google_drive_links: {
@@ -4191,7 +4191,7 @@ export type Database = {
         Returns: number
       }
       l2_normalize: {
-        Args: { "": unknown } | { "": unknown } | { "": string }
+        Args: { "": unknown } | { "": string } | { "": unknown }
         Returns: unknown
       }
       log_activity: {

@@ -1,178 +1,198 @@
 
-import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { v4 as uuidv4 } from "uuid";
-import { toast } from "sonner";
-import { DOCUMENTS_BUCKET, ensureBucketExists } from "@/utils/ensureStorageBuckets";
+// Streamlined document upload hook with direct RapidAPI integration
+import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
+import { RAPIDAPI_CONFIG } from '@/config/env';
+import { toast } from 'sonner';
 
-// Define the return type for the upload function
 export interface UploadResult {
   success: boolean;
-  error?: string;
   documentId?: string;
+  error?: string;
+  extractedText?: string;
+  publicUrl?: string;
   fileName?: string;
   fileType?: string;
-  publicUrl?: string;
 }
 
-export function useUnifiedDocumentUpload(options: {
-  clientId: string | undefined;
+interface UseUnifiedDocumentUploadOptions {
+  clientId?: string;
   onSuccess?: (result: UploadResult) => void;
+  onError?: (error: Error | string) => void;
   onProgress?: (progress: number) => void;
-}) {
-  const [isUploading, setIsUploading] = useState(false);
-  const { clientId, onSuccess, onProgress } = options;
+}
 
-  const upload = useCallback(async (file: File): Promise<UploadResult> => {
-    if (!clientId) {
-      return { success: false, error: 'Client ID is required' };
+export const useUnifiedDocumentUpload = (options: UseUnifiedDocumentUploadOptions = {}) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const upload = async (file: File, clientId?: string): Promise<UploadResult> => {
+    // Use the clientId from options if not provided directly
+    const effectiveClientId = clientId || options.clientId;
+    
+    if (!effectiveClientId) {
+      const error = new Error("Client ID is required");
+      if (options.onError) options.onError(error);
+      toast.error("Client ID is required");
+      return { success: false, error: error.message };
     }
 
-    if (!file) {
-      return { success: false, error: 'No file provided' };
-    }
-
-    setIsUploading(true);
+    setIsLoading(true);
+    setUploadProgress(0);
+    if (options.onProgress) options.onProgress(0);
 
     try {
-      // First, ensure the bucket exists
-      const bucketExists = await ensureBucketExists(DOCUMENTS_BUCKET);
-      if (!bucketExists) {
-        return { 
-          success: false, 
-          error: `Storage bucket "${DOCUMENTS_BUCKET}" not found.`,
-          fileName: file.name
-        };
+      if (options.onProgress) options.onProgress(20);
+      setUploadProgress(20);
+
+      // Generate document ID
+      const documentId = uuidv4();
+
+      // Upload to storage bucket first
+      const filePath = `${effectiveClientId}/${documentId}/${file.name}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client_documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw new Error(`Error uploading file to storage: ${uploadError.message}`);
       }
       
-      // Generate a unique filename
-      const fileExt = file.name.split('.').pop();
-      const uniqueId = uuidv4();
-      const fileName = `${uniqueId}.${fileExt}`;
-      const filePath = `${clientId}/${fileName}`;
-
-      // Upload to Supabase Storage
-      const { error } = await supabase.storage
-        .from(DOCUMENTS_BUCKET)
-        .upload(filePath, file);
-
-      if (error) {
-        console.error('Error uploading file:', error);
-        return { success: false, error: error.message, fileName: file.name };
-      }
-
       // Get the public URL
-      const { data: urlData } = supabase.storage
-        .from(DOCUMENTS_BUCKET)
+      const { data: { publicUrl } } = supabase.storage
+        .from('client_documents')
         .getPublicUrl(filePath);
+      
+      setUploadProgress(40);
+      if (options.onProgress) options.onProgress(40);
 
-      // Get the client's assistant
-      const { data: assistantData, error: assistantError } = await supabase
-        .from('ai_agents')
-        .select('openai_assistant_id, name')
-        .eq('client_id', clientId)
-        .single();
-        
-      if (assistantError) {
-        console.error('Error finding assistant for client:', assistantError);
-        // Continue anyway, we'll just store the document without associating with assistant
+      // If it's a PDF, extract text using RapidAPI
+      let extractedText = '';
+      let processingStatus = 'ready';
+      
+      if (file.type === 'application/pdf') {
+        processingStatus = 'pending_extraction';
+        try {
+          if (!RAPIDAPI_CONFIG.KEY || RAPIDAPI_CONFIG.KEY === '' || !RAPIDAPI_CONFIG.HOST) {
+            console.warn('RapidAPI configuration is incomplete. Text extraction will be skipped.');
+            processingStatus = 'extraction_skipped';
+            throw new Error('RapidAPI configuration is incomplete');
+          }
+
+          // Create form data for RapidAPI
+          const formData = new FormData();
+          formData.append('file', file);
+
+          // Extract text using RapidAPI
+          const response = await fetch('https://pdf-to-text-converter.p.rapidapi.com/api/pdf-to-text/convert', {
+            method: 'POST',
+            headers: {
+              'x-rapidapi-host': RAPIDAPI_CONFIG.HOST,
+              'x-rapidapi-key': RAPIDAPI_CONFIG.KEY
+            },
+            body: formData
+          });
+
+          if (!response.ok) {
+            processingStatus = 'extraction_failed';
+            console.warn(`Text extraction API responded with status: ${response.status}. Will continue without text extraction.`);
+            throw new Error(`Text extraction failed with status: ${response.status}`);
+          }
+
+          const data = await response.text();
+          if (!data) {
+            processingStatus = 'extraction_failed';
+            throw new Error('No text extracted from PDF');
+          }
+
+          extractedText = data;
+          processingStatus = 'extraction_complete';
+        } catch (extractionError) {
+          console.warn("Text extraction failed but will continue with document upload:", extractionError);
+          if (processingStatus === 'pending_extraction') {
+            processingStatus = 'extraction_failed';
+          }
+          toast.error("PDF text extraction failed, but file will be uploaded");
+          // Don't throw here - we want to continue even if text extraction fails
+        }
       }
+      
+      setUploadProgress(60);
+      if (options.onProgress) options.onProgress(60);
 
-      // Store document metadata in the document_content table
-      const { data: documentData, error: documentError } = await supabase
-        .from('document_content')
-        .insert({
-          client_id: clientId,
-          document_id: uniqueId,
-          content: null,
+      // Store document and extracted text in database
+      const documentContent = {
+        client_id: effectiveClientId,
+        document_id: documentId,
+        content: extractedText || null,  // Ensure we pass null, not empty string if no content
+        filename: file.name,
+        file_type: file.type,
+        metadata: {
           filename: file.name,
           file_type: file.type,
-          metadata: {
-            size: file.size,
-            storage_path: filePath,
-            storage_url: urlData.publicUrl,
-            uploadedAt: new Date().toISOString(),
-            processing_status: file.type === 'application/pdf' ? 'pending_extraction' : 'ready'
-          }
-        })
+          size: file.size,
+          storage_path: filePath,
+          storage_url: publicUrl,
+          uploadedAt: new Date().toISOString(),
+          processing_status: processingStatus,
+          extraction_method: file.type === 'application/pdf' ? 'rapidapi' : null,
+          text_length: extractedText ? extractedText.length : 0,
+          extracted_at: file.type === 'application/pdf' ? new Date().toISOString() : null,
+          extraction_success: file.type === 'application/pdf' ? (extractedText.length > 0) : null,
+          rapidapi_configured: !!(RAPIDAPI_CONFIG.KEY && RAPIDAPI_CONFIG.HOST)
+        }
+      };
+
+      const { data: documentData, error: documentError } = await supabase
+        .from('document_content')
+        .insert(documentContent)
         .select()
         .single();
 
       if (documentError) {
-        console.error('Error storing document metadata:', documentError);
-        
-        // Try to clean up the uploaded file
-        const { error: removeError } = await supabase.storage
-          .from(DOCUMENTS_BUCKET)
-          .remove([filePath]);
-          
-        if (removeError) {
-          console.error('Failed to clean up file after document error:', removeError);
-        }
-        
-        return { 
-          success: false, 
-          error: documentError.message,
-          fileName: file.name,
-          fileType: file.type
-        };
+        console.error('Failed to store document:', documentError);
+        throw new Error(`Failed to store document: ${documentError.message}`);
       }
 
-      // If we have an assistant, associate the document with it
-      if (assistantData?.openai_assistant_id) {
-        const { error: assistantDocError } = await supabase
-          .from('assistant_documents')
-          .insert({
-            assistant_id: assistantData.openai_assistant_id,
-            document_id: documentData.document_id,
-            client_id: clientId,
-            status: file.type === 'application/pdf' ? 'pending' : 'ready'
-          });
+      setUploadProgress(100);
+      if (options.onProgress) options.onProgress(100);
 
-        if (assistantDocError) {
-          console.error('Error associating document with assistant:', assistantDocError);
-          // Continue anyway, the document is already stored
-        }
-      }
-
-      // If it's a PDF, trigger the extraction process
-      if (file.type === 'application/pdf') {
-        try {
-          await supabase
-            .functions.invoke('extract-pdf-content', {
-              body: { document_id: documentData.id.toString() }
-            });
-        } catch (extractionError) {
-          console.error('Failed to invoke PDF extraction:', extractionError);
-        }
-      }
-
-      const result = {
+      const result: UploadResult = {
         success: true,
-        documentId: documentData.id.toString(),
-        publicUrl: urlData.publicUrl,
-        fileName: file.name
+        documentId: documentData?.id ? documentData.id.toString() : documentId,
+        extractedText,
+        publicUrl,
+        fileName: file.name,
+        fileType: file.type
       };
-      
-      if (onSuccess) {
-        onSuccess(result);
-      }
 
+      if (options.onSuccess) options.onSuccess(result);
       return result;
-    } catch (err) {
-      console.error('Document upload error:', err);
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : 'Unknown error during upload',
-        fileName: file.name
+
+    } catch (error) {
+      console.error('Document processing error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (options.onError) options.onError(errorMessage);
+      return { 
+        success: false, 
+        error: errorMessage,
+        fileName: file.name,
+        fileType: file.type
       };
+
     } finally {
-      setIsUploading(false);
+      setIsLoading(false);
     }
-  }, [clientId, onSuccess, onProgress]);
+  };
 
   return {
     upload,
-    isUploading
+    isLoading,
+    uploadProgress
   };
-}
+};

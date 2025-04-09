@@ -80,7 +80,6 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
           );
           
           // Send welcome email with credentials
-          console.log("Attempting to send welcome email with credentials");
           const emailResult = await sendWelcomeEmail(
             data.email,
             data.client_name,
@@ -94,7 +93,7 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
             console.error("Failed to send welcome email:", emailResult.emailError);
           }
         } catch (error) {
-          console.error("Error saving temporary password or sending email:", error);
+          console.error("Error saving temporary password:", error);
           toast.warning("Client created but failed to set up login credentials.");
         }
         

@@ -12,14 +12,13 @@ import { useAiAgentManagement } from '@/hooks/useAiAgentManagement';
 import { AgentFormFields } from './dialogs/AgentFormFields';
 import { useAgentFormState } from './dialogs/useAgentFormState';
 import { useAgentFormSubmit } from './dialogs/useAgentFormSubmit';
-import { Agent } from '@/types/agent';
 
 interface CreateAgentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string | undefined;
   clientName: string;
-  onAgentCreated: (agent: Agent) => void;
+  onAgentCreated: (agent: any) => void;
 }
 
 export function CreateAgentDialog({
@@ -29,7 +28,7 @@ export function CreateAgentDialog({
   clientName,
   onAgentCreated
 }: CreateAgentDialogProps) {
-  const { ensureAiAgentExists } = useAiAgentManagement();
+  const { ensureAiAgentExists, isCreating } = useAiAgentManagement();
   
   const {
     agentName,
@@ -55,7 +54,7 @@ export function CreateAgentDialog({
     resetForm,
     onOpenChange,
     onAgentCreated,
-    ensureAiAgentExists: ensureAiAgentExists as any // Type assertion to bypass the error
+    ensureAiAgentExists
   });
 
   return (
@@ -83,10 +82,7 @@ export function CreateAgentDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                resetForm();
-                onOpenChange(false);
-              }}
+              onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel

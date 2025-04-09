@@ -1,11 +1,13 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
+import { getUserRole } from '@/services/authService';
 import { useAuthInitialize } from '@/hooks/useAuthInitialize';
 import { useAuthStateChange } from '@/hooks/useAuthStateChange';
 import { useAuthCallback } from '@/hooks/useAuthCallback';
+import { useAuthState } from '@/hooks/useAuthState';
 
 // Define UserRole type
 export type UserRole = 'admin' | 'client' | null;
@@ -17,7 +19,7 @@ type AuthContextType = {
   isLoading: boolean;
   setIsLoading: (isLoading: boolean) => void;
   signOut: () => Promise<void>;
-  clientId: string | null;
+  clientId: string | null; // Add clientId property
 };
 
 // Create context with default values
@@ -28,7 +30,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   setIsLoading: () => {},
   signOut: async () => {},
-  clientId: null,
+  clientId: null, // Default value for clientId
 });
 
 // Define the provider component
@@ -38,7 +40,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
-  const [clientId, setClientId] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null); // Add state for clientId
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
   const location = useLocation();
@@ -56,24 +58,68 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  // Handle auth callback specifically
-  useAuthCallback({
-    isCallbackUrl,
-    setSession,
-    setUser,
-    setUserRole,
-    setIsLoading
-  });
+  // Persist auth state to sessionStorage on updates
+  useEffect(() => {
+    if (session && user && userRole) {
+      console.log("Persisting auth state to session storage");
+      sessionStorage.setItem('auth_state', JSON.stringify({
+        session,
+        user,
+        userRole,
+        clientId, // Include clientId in stored state
+        timestamp: Date.now()
+      }));
+    }
+  }, [session, user, userRole, clientId]);
+
+  // Try to restore auth state from sessionStorage on mount
+  useEffect(() => {
+    if (!authInitialized && !isCallbackUrl && !user) {
+      const storedState = sessionStorage.getItem('auth_state');
+      if (storedState) {
+        try {
+          console.log("Attempting to restore auth state from session storage");
+          const { session: storedSession, user: storedUser, userRole: storedRole, clientId: storedClientId, timestamp } = JSON.parse(storedState);
+          // Only restore if the stored state is less than 1 hour old
+          if (Date.now() - timestamp < 60 * 60 * 1000) {
+            console.log("Restoring auth state from session storage");
+            setSession(storedSession);
+            setUser(storedUser);
+            setUserRole(storedRole);
+            setClientId(storedClientId); // Restore clientId
+            
+            // Verify the session is still valid with Supabase
+            supabase.auth.getSession().then(({ data, error }) => {
+              if (error || !data.session) {
+                console.warn("Restored session is invalid, clearing state");
+                setSession(null);
+                setUser(null);
+                setUserRole(null);
+                setClientId(null); // Clear clientId
+                sessionStorage.removeItem('auth_state');
+              } else {
+                console.log("Session verified with Supabase");
+              }
+              setIsLoading(false);
+            });
+          } else {
+            console.log("Stored auth state is too old, removing");
+            sessionStorage.removeItem('auth_state');
+            setIsLoading(false);
+          }
+        } catch (error) {
+          console.error('Error restoring auth state:', error);
+          sessionStorage.removeItem('auth_state');
+          setIsLoading(false);
+        }
+      } else {
+        setIsLoading(false);
+      }
+      setAuthInitialized(true);
+    }
+  }, [authInitialized, isCallbackUrl, user, setIsLoading]);
   
-  // Set up auth state change listener - must be set up before initialize
-  useAuthStateChange({
-    setSession,
-    setUser,
-    setUserRole,
-    setIsLoading
-  });
-  
-  // Initialize auth - check for existing session (after setting up state change listener)
+  // Initialize auth - check for existing session
   useAuthInitialize({
     authInitialized,
     isCallbackUrl,
@@ -84,22 +130,34 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     setAuthInitialized
   });
   
-  // A stronger safety timeout - never get stuck in loading for more than 2 seconds, no matter what
+  // Set up auth state change listener
+  useAuthStateChange({
+    setSession,
+    setUser,
+    setUserRole,
+    setIsLoading
+  });
+  
+  // Handle auth callback specifically
+  useAuthCallback({
+    isCallbackUrl,
+    setSession,
+    setUser,
+    setUserRole,
+    setIsLoading
+  });
+  
+  // Automatic loading timeout - never get stuck in loading
   useEffect(() => {
     if (isLoading) {
       const timeout = setTimeout(() => {
-        console.log('Auth loading hard timeout reached - forcing completion');
+        console.log('Auth loading timeout reached - forcing completion');
         setIsLoading(false);
-        // If we have a user but no role, assign a default role to prevent UI issues
-        if (user && !userRole) {
-          console.log('Setting default role to admin due to timeout');
-          setUserRole('admin');
-        }
-      }, 2000); // Reduced from 3000ms to 2000ms
+      }, 5000);
       
       return () => clearTimeout(timeout);
     }
-  }, [isLoading, user, userRole, setIsLoading]);
+  }, [isLoading, setIsLoading]);
   
   // Sign out handler
   const signOut = async () => {
@@ -109,7 +167,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       setSession(null);
       setUser(null);
       setUserRole(null);
-      setClientId(null);
+      setClientId(null); // Clear clientId on sign out
       // Clear any auth-related local storage
       sessionStorage.removeItem('auth_callback_processed');
       sessionStorage.removeItem('auth_callback_processing');
@@ -130,7 +188,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     isLoading,
     setIsLoading,
     signOut,
-    clientId
+    clientId  // Include clientId in the context value
   }), [session, user, userRole, isLoading, clientId]);
   
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

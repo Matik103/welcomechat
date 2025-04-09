@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { createClientActivity } from '@/services/clientActivityService';
@@ -143,8 +144,7 @@ export const useAiAgentManagement = () => {
       console.error("Error ensuring AI agent exists:", error);
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-        agent: undefined
+        error: error instanceof Error ? error.message : "Unknown error occurred" 
       };
     } finally {
       setIsCreating(false);

@@ -24,9 +24,8 @@ export interface Client {
   // Adding name field for backward compatibility
   name?: string;
   is_error?: boolean;
-  user_id?: string;
-  openai_assistant_id?: string;
-  deepseek_assistant_id?: string;
+  user_id?: string; // Added for compatibility
+  openai_assistant_id?: string; // Added for OpenAI integration
 }
 
 // Export these types from client-dashboard.ts to avoid circular dependencies

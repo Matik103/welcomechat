@@ -49,7 +49,7 @@ export function ClientForm({
     console.log("ClientForm initialData:", initialData);
   }, [initialData]);
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || '',
@@ -114,11 +114,15 @@ export function ClientForm({
     try {
       setIsUploadingLogo(true);
       
-      // Delete the file from storage
+      // Parse the storage path to get the bucket and file path
+      const pathParts = logoStoragePath.split('/');
       const bucket = 'bot-logos';
+      const filePath = logoStoragePath;
+      
+      // Delete the file from storage
       const { error } = await supabase.storage
         .from(bucket)
-        .remove([logoStoragePath]);
+        .remove([filePath]);
         
       if (error) {
         toast.error(`Failed to remove logo: ${error.message}`);
@@ -150,8 +154,8 @@ export function ClientForm({
       // Include logo URL and storage path in the form data
       await onSubmit({
         ...data,
-        logo_url: logoUrl || '',
-        logo_storage_path: logoStoragePath || ''
+        logo_url: logoUrl,
+        logo_storage_path: logoStoragePath
       });
     } catch (error) {
       console.error("Error submitting form:", error);

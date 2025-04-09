@@ -1,30 +1,35 @@
 
-import { useWebsiteUrlsFetch } from './website-urls/useWebsiteUrlsFetch';
-import { useWebsiteUrlsMutation } from './website-urls/useWebsiteUrlsMutation';
+import { useWebsiteUrlsFetch } from "./website-urls/useWebsiteUrlsFetch";
+import { useWebsiteUrlsMutation } from "./website-urls/useWebsiteUrlsMutation";
+import { WebsiteUrlFormData } from "@/types/website-url";
 
 export function useWebsiteUrls(clientId: string | undefined) {
-  const {
-    websiteUrls,
-    isLoading,
-    isError,
-    refetchWebsiteUrls
+  // Use specialized hooks
+  const { 
+    websiteUrls, 
+    isLoading, 
+    isError, 
+    refetchWebsiteUrls 
   } = useWebsiteUrlsFetch(clientId);
   
-  const {
-    addWebsiteUrlMutation,
-    deleteWebsiteUrlMutation
+  const { 
+    addWebsiteUrlMutation, 
+    deleteWebsiteUrlMutation, 
+    addWebsiteUrl, 
+    deleteWebsiteUrl 
   } = useWebsiteUrlsMutation(clientId);
-  
+
   return {
+    // Fetch related
     websiteUrls,
+    refetchWebsiteUrls,
     isLoading,
     isError,
-    refetchWebsiteUrls,
-    addWebsiteUrl: addWebsiteUrlMutation.mutateAsync,
-    deleteWebsiteUrl: deleteWebsiteUrlMutation.mutateAsync,
-    isAdding: addWebsiteUrlMutation.isPending,
-    isDeleting: deleteWebsiteUrlMutation.isPending,
-    addError: addWebsiteUrlMutation.error,
-    deleteError: deleteWebsiteUrlMutation.error
+    
+    // Mutation related
+    addWebsiteUrlMutation,
+    deleteWebsiteUrlMutation,
+    addWebsiteUrl,
+    deleteWebsiteUrl
   };
 }

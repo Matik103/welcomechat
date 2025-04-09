@@ -1,13 +1,13 @@
 
-import { useState } from "react";
+import { useState } from 'react';
 
 export function useAgentFormState() {
-  const [agentName, setAgentName] = useState("");
-  const [agentDescription, setAgentDescription] = useState("");
+  const [agentName, setAgentName] = useState('');
+  const [agentDescription, setAgentDescription] = useState('');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -21,22 +21,24 @@ export function useAgentFormState() {
       reader.readAsDataURL(file);
     }
   };
-
+  
   const resetForm = () => {
-    setAgentName("");
-    setAgentDescription("");
+    setAgentName('');
+    setAgentDescription('');
     setLogoFile(null);
     setLogoPreview(null);
     setIsSubmitting(false);
   };
-
+  
   return {
     agentName,
     setAgentName,
     agentDescription,
     setAgentDescription,
     logoFile,
+    setLogoFile,
     logoPreview,
+    setLogoPreview,
     isSubmitting,
     setIsSubmitting,
     handleLogoChange,

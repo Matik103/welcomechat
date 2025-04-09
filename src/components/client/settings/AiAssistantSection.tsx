@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -7,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { createDeepseekAssistant } from "@/utils/deepseekUtils";
+import { createOpenAIAssistant } from "@/utils/openAIUtils";
 import { toast } from "sonner";
 import { EmbedCodeCard } from "@/components/widget/EmbedCodeCard";
 
@@ -32,7 +31,7 @@ export function AiAssistantSection({
     
     setIsUpdatingAssistant(true);
     
-    createDeepseekAssistant(
+    createOpenAIAssistant(
       clientId,
       settings.agent_name,
       settings.agent_description
@@ -40,10 +39,10 @@ export function AiAssistantSection({
       .then((assistantId) => {
         toast.success("AI Assistant updated successfully");
         // Update settings with the assistant ID
-        if (settings.hasOwnProperty('deepseek_assistant_id')) {
+        if (settings.hasOwnProperty('openai_assistant_id')) {
           // If the property already exists
           onSettingsChange({
-            deepseek_assistant_id: assistantId
+            openai_assistant_id: assistantId
           } as any); // Use type assertion as a workaround
         } else {
           // Just update other properties
@@ -51,7 +50,7 @@ export function AiAssistantSection({
         }
       })
       .catch((error) => {
-        console.error("Error updating DeepSeek assistant:", error);
+        console.error("Error updating OpenAI assistant:", error);
         toast.error("Failed to update AI Assistant");
       })
       .finally(() => {

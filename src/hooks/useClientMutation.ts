@@ -47,11 +47,6 @@ export const useClientMutation = () => {
         currentSettings = typeof existingAgent.settings === 'object' 
           ? existingAgent.settings 
           : {};
-          
-        console.log('Found existing agent with ID:', existingAgent.id);
-      } else {
-        console.warn('No AI agent found with client_id:', client.client_id);
-        throw new Error(`No AI agent found with client_id: ${client.client_id}`);
       }
       
       // Prepare the settings object with synced fields
@@ -65,27 +60,50 @@ export const useClientMutation = () => {
         email: email
       };
       
-      // Update existing AI agent - ALWAYS update, never insert a new one
-      const { error: updateError } = await supabase
-        .from('ai_agents')
-        .update({ 
-          name: agentName,
-          agent_description: agentDescription,
-          client_name: clientName,
-          email: email,
-          logo_url: logoUrl,
-          logo_storage_path: logoStoragePath,
-          settings: updatedSettings,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingAgent.id);
+      if (existingAgent) {
+        // Update existing AI agent
+        const { error: updateError } = await supabase
+          .from('ai_agents')
+          .update({ 
+            name: agentName,
+            agent_description: agentDescription,
+            client_name: clientName,
+            email: email,
+            logo_url: logoUrl,
+            logo_storage_path: logoStoragePath,
+            settings: updatedSettings,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingAgent.id);
           
-      if (updateError) {
-        console.error('Error updating AI agent:', updateError);
-        throw updateError;
+        if (updateError) {
+          console.error('Error updating AI agent:', updateError);
+          throw updateError;
+        }
+      } else {
+        // Create new AI agent if it doesn't exist
+        const { error: createError } = await supabase
+          .from('ai_agents')
+          .insert({
+            client_id: client.client_id,
+            name: agentName,
+            agent_description: agentDescription,
+            client_name: clientName,
+            email: email,
+            logo_url: logoUrl,
+            logo_storage_path: logoStoragePath,
+            interaction_type: 'config',
+            settings: updatedSettings,
+            status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+          
+        if (createError) {
+          console.error('Error creating AI agent:', createError);
+          throw createError;
+        }
       }
-      
-      console.log('AI agent updated successfully, ID:', existingAgent.id);
       
       // Wait briefly to avoid race conditions before invalidating queries
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -99,7 +117,7 @@ export const useClientMutation = () => {
       // Invalidate widget settings to ensure bidirectional sync
       queryClient.invalidateQueries({ queryKey: ['widget-settings', client.client_id] });
       
-      console.log('All queries invalidated successfully');
+      console.log('AI agent updated successfully');
       
     } catch (error) {
       console.error('Error in client mutation:', error);

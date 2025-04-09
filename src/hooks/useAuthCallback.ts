@@ -41,8 +41,6 @@ export const useAuthCallback = ({
         if (error) {
           console.error('Error getting session in callback:', error);
           setIsLoading(false);
-          sessionStorage.setItem('auth_callback_processed', 'true');
-          sessionStorage.removeItem('auth_callback_processing');
           return;
         }
         
@@ -50,37 +48,24 @@ export const useAuthCallback = ({
           setSession(data.session);
           setUser(data.session.user);
           
-          // Set a default role from metadata immediately to prevent UI hanging
-          if (data.session.user?.user_metadata?.role) {
-            const metadataRole = data.session.user.user_metadata.role;
-            if (metadataRole === 'admin' || metadataRole === 'client') {
-              setUserRole(metadataRole);
-              console.log('Set initial user role from metadata:', metadataRole);
+          // Get role immediately to avoid flashing wrong content
+          try {
+            const role = await getUserRole();
+            setUserRole(role);
+            console.log('Set user role in callback:', role); // Debug log
+            
+            // Store role in session storage as a fallback
+            if (role) {
+              sessionStorage.setItem('user_role', role);
             }
-          }
-          
-          // Get role in the background - don't block UI on this
-          Promise.race([
-            getUserRole().then(role => {
-              setUserRole(role);
-              console.log('Set user role in callback:', role);
-              
-              // Store role in session storage as a fallback
-              if (role) {
-                sessionStorage.setItem('user_role', role);
-              }
-            }),
-            new Promise(resolve => setTimeout(() => {
-              console.log('Role fetch in callback timed out, using default');
-              setUserRole('admin'); // Default to admin to prevent UI hang
-              resolve(null);
-            }, 800))  // Reduced timeout to 800ms
-          ]).finally(() => {
-            // Mark as completed after role fetch attempt
+          } catch (error) {
+            console.error('Error getting user role in callback:', error);
+          } finally {
+            // Mark as completed regardless of outcome
             sessionStorage.setItem('auth_callback_processed', 'true');
             sessionStorage.removeItem('auth_callback_processing');
             setIsLoading(false);
-          });
+          }
         } else {
           setIsLoading(false);
           sessionStorage.setItem('auth_callback_processed', 'true');
@@ -95,18 +80,5 @@ export const useAuthCallback = ({
     };
     
     getSession();
-    
-    // Safety timeout to ensure we never get stuck (reduced to 1.5 seconds)
-    const safetyTimeout = setTimeout(() => {
-      if (sessionStorage.getItem('auth_callback_processing') === 'true') {
-        console.log('Auth callback safety timeout reached');
-        sessionStorage.setItem('auth_callback_processed', 'true');
-        sessionStorage.removeItem('auth_callback_processing');
-        setIsLoading(false);
-      }
-    }, 1500);
-    
-    return () => clearTimeout(safetyTimeout);
-    
   }, [isCallbackUrl, setSession, setUser, setUserRole, setIsLoading]);
 };
