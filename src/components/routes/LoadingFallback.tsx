@@ -16,19 +16,28 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
   useEffect(() => {
+    console.log(`LoadingFallback mounted with timeout: ${timeoutSeconds}s, message: ${message}`);
+    
     const mainTimer = setTimeout(() => {
+      console.log("Loading timeout reached, showing timeout message");
       setTimedOut(true);
       if (onTimeoutAction) {
+        console.log("Executing timeout action");
         onTimeoutAction();
       }
     }, timeoutSeconds * 1000);
 
     // Add a secondary timer to track elapsed time
     const intervalId = setInterval(() => {
-      setSecondsElapsed(prev => prev + 1);
+      setSecondsElapsed(prev => {
+        const next = prev + 1;
+        console.log(`Loading time elapsed: ${next}s`);
+        return next;
+      });
     }, 1000);
 
     return () => {
+      console.log("LoadingFallback unmounting, clearing timers");
       clearTimeout(mainTimer);
       clearInterval(intervalId);
     };

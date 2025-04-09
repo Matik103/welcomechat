@@ -1,5 +1,5 @@
 
-import React, { useMemo, useCallback, Suspense } from "react";
+import React, { useMemo, useCallback, Suspense, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { PublicRoutes } from "./components/routes/PublicRoutes";
@@ -11,8 +11,21 @@ import { LoadingFallback } from "./components/routes/LoadingFallback";
 import { DEFAULT_LOADING_TIMEOUT } from "./config/env";
 
 function App() {
-  const { user, userRole, isLoading } = useAuth();
+  const { user, userRole, isLoading, setIsLoading } = useAuth();
   const location = useLocation();
+  
+  // Add effect to ensure loading state doesn't get stuck
+  useEffect(() => {
+    // Set timeout to ensure loading state never gets stuck
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.log("Force ending loading state after timeout");
+        setIsLoading(false);
+      }
+    }, 5000); // 5 seconds timeout
+    
+    return () => clearTimeout(timeout);
+  }, [isLoading, setIsLoading]);
   
   // Memoize route checks to prevent unnecessary re-renders
   const isAuthCallback = useMemo(() => location.pathname.includes('/auth/callback'), [location.pathname]);
@@ -34,15 +47,26 @@ function App() {
     );
   }, [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage]);
 
+  // Debug information
+  console.log({
+    userRole,
+    isLoading,
+    pathname: location.pathname,
+    isPublicRoute: isPublicRoute(),
+    isAuthCallback
+  });
+
   // Use useMemo to avoid unnecessary re-renders of entire route components
   const routeComponent = useMemo(() => {
     // Show minimal loading for auth-related operations only
     if (isLoading && !isAuthCallback) {
+      console.log("Rendering loading fallback");
       return <LoadingFallback message="Loading application..." />;
     }
 
     // Public routes for non-authenticated users
     if (!user && isPublicRoute()) {
+      console.log("Rendering public routes");
       return (
         <ErrorBoundary>
           <PublicRoutes />
@@ -52,6 +76,7 @@ function App() {
 
     // Non-authenticated user routes
     if (!user) {
+      console.log("Rendering unauthenticated routes");
       return (
         <ErrorBoundary>
           <UnauthenticatedRoutes />
@@ -62,6 +87,7 @@ function App() {
     // Render based on user role - only calculate this when user and userRole are available
     if (user) {
       if (userRole === 'admin') {
+        console.log("Rendering admin routes");
         return (
           <ErrorBoundary>
             <Suspense fallback={<LoadingFallback message="Loading admin dashboard..." timeoutSeconds={DEFAULT_LOADING_TIMEOUT} />}>
@@ -72,6 +98,7 @@ function App() {
       }
       
       if (userRole === 'client') {
+        console.log("Rendering client routes");
         return (
           <ErrorBoundary>
             <Suspense fallback={<LoadingFallback message="Loading dashboard..." timeoutSeconds={DEFAULT_LOADING_TIMEOUT} />}>
@@ -81,13 +108,15 @@ function App() {
         );
       }
       
-      // If user is authenticated but role not determined yet, show loading
+      // If user is authenticated but role not determined yet, show loading for max 3 seconds
       if (!userRole) {
+        console.log("Role not determined, showing loading");
         return <LoadingFallback message="Verifying account..." timeoutSeconds={3} />;
       }
     }
     
     // Default to home page as fallback
+    console.log("No matching route condition, navigating to home");
     return <Navigate to="/" replace />;
   }, [user, userRole, isLoading, isPublicRoute, isAuthCallback]);
   
