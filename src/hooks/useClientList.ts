@@ -28,6 +28,8 @@ export const useClientList = () => {
     // Don't fetch if we've fetched recently, unless forced
     if (!force && now - lastFetchTime.current < 10000 && cachedClients.current.size > 0) {
       console.log('Using cached client data (less than 10s since last fetch)');
+      setClients(Array.from(cachedClients.current.values()));
+      setIsLoading(false);
       return;
     }
     

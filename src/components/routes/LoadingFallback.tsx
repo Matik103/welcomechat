@@ -41,7 +41,7 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
       clearTimeout(mainTimer);
       clearInterval(intervalId);
     };
-  }, [onTimeoutAction, timeoutSeconds]);
+  }, [onTimeoutAction, timeoutSeconds, message]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">

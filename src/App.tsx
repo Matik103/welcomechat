@@ -34,6 +34,8 @@ function App() {
   const isHomePage = useMemo(() => location.pathname === '/', [location.pathname]);
   const isAboutPage = useMemo(() => location.pathname === '/about', [location.pathname]);
   const isContactPage = useMemo(() => location.pathname === '/contact', [location.pathname]);
+  const isAdminPage = useMemo(() => location.pathname.startsWith('/admin'), [location.pathname]);
+  const isClientPage = useMemo(() => location.pathname.startsWith('/client'), [location.pathname]);
   
   // Create a stable isPublicRoute value with useCallback to prevent unnecessary recalculations
   const isPublicRoute = useCallback(() => {
@@ -53,14 +55,16 @@ function App() {
     isLoading,
     pathname: location.pathname,
     isPublicRoute: isPublicRoute(),
-    isAuthCallback
+    isAuthCallback,
+    isAdminPage,
+    isClientPage,
   });
 
   // Use useMemo to avoid unnecessary re-renders of entire route components
   const routeComponent = useMemo(() => {
     // Show minimal loading for auth-related operations only
-    if (isLoading && !isAuthCallback) {
-      console.log("Rendering loading fallback");
+    if (isLoading && (isAuthCallback || (!user && isAdminPage))) {
+      console.log("Rendering loading fallback for auth operations");
       return <LoadingFallback message="Loading application..." />;
     }
 
@@ -86,7 +90,7 @@ function App() {
 
     // Render based on user role - only calculate this when user and userRole are available
     if (user) {
-      if (userRole === 'admin') {
+      if (userRole === 'admin' || (isAdminPage && !userRole)) {
         console.log("Rendering admin routes");
         return (
           <ErrorBoundary>
@@ -97,7 +101,7 @@ function App() {
         );
       }
       
-      if (userRole === 'client') {
+      if (userRole === 'client' || (isClientPage && !userRole)) {
         console.log("Rendering client routes");
         return (
           <ErrorBoundary>
@@ -118,7 +122,7 @@ function App() {
     // Default to home page as fallback
     console.log("No matching route condition, navigating to home");
     return <Navigate to="/" replace />;
-  }, [user, userRole, isLoading, isPublicRoute, isAuthCallback]);
+  }, [user, userRole, isLoading, isPublicRoute, isAuthCallback, isAdminPage, isClientPage]);
   
   // Return the memoized route component
   return routeComponent;
