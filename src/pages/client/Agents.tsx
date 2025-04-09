@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Agent } from '@/types/agent';
 import { AgentCard } from '@/components/agents/AgentCard';
+import { EmptyState } from '@/components/client/LoadingStates';
 
 const ClientAgents: React.FC = () => {
   const { user, clientId } = useAuth();
@@ -43,13 +44,13 @@ const ClientAgents: React.FC = () => {
         setClientName(clientData.client_name || '');
       }
 
-      // Then get all agents for this client
+      // Then get all agents for this client - updated query to ensure we get all relevant agents
       const { data, error: agentsError } = await supabase
         .from('ai_agents')
         .select('*')
         .eq('client_id', clientId)
         .eq('interaction_type', 'config')
-        .eq('status', 'active');
+        .order('created_at', { ascending: false });
 
       if (agentsError) {
         console.error('Error fetching agents:', agentsError);
@@ -180,12 +181,11 @@ const ClientAgents: React.FC = () => {
       />
 
       {agents.length === 0 ? (
-        <div className="text-center p-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No AI agents found</h3>
-          <p className="text-gray-500 mb-6">
-            Create your first AI agent to start providing automated assistance to your users.
-          </p>
-          <Button onClick={() => setIsAgentDialogOpen(true)}>
+        <div className="flex flex-col items-center justify-center py-12">
+          <Button 
+            onClick={() => setIsAgentDialogOpen(true)}
+            className="mx-auto"
+          >
             <Plus className="mr-2 h-4 w-4" /> Create Your First Agent
           </Button>
         </div>
