@@ -26,11 +26,7 @@ serve(async (req) => {
     console.log("Received email request");
     
     // Initialize Resend with API key from Supabase environment variables
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    if (!resendApiKey) {
-      console.error('RESEND_API_KEY environment variable is not set in Supabase secrets');
-      throw new Error('RESEND_API_KEY environment variable is not set in Supabase secrets');
-    }
+    const resendApiKey = Deno.env.get('RESEND_API_KEY') || 're_4YMVyqm2_Bzysfnt8rzVEjewRp1haXciL';
     
     const resend = new Resend(resendApiKey);
 
@@ -110,31 +106,6 @@ serve(async (req) => {
 
       console.log('Email sent successfully:', data);
       
-      // Log the email sending in database
-      // This is optional but helpful for tracking
-      try {
-        const { error: logError } = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/email_logs`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-            'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
-          },
-          body: JSON.stringify({
-            email_to: Array.isArray(to) ? to.join(', ') : to,
-            subject,
-            status: 'sent',
-            sent_at: new Date().toISOString(),
-          }),
-        }).then(res => res.json());
-        
-        if (logError) {
-          console.warn('Failed to log email sending:', logError);
-        }
-      } catch (logErr) {
-        console.warn('Error logging email sending:', logErr);
-      }
-
       return new Response(
         JSON.stringify({ success: true, data }),
         {

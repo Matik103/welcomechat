@@ -28,12 +28,7 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
-    "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
-    "paths": {
-      "http/server": ["./node_modules/@types/deno-std/http/server.d.ts"],
-      "@supabase/supabase-js": ["./node_modules/@supabase/supabase-js"]
-    }
+    "allowSyntheticDefaultImports": true
   },
   "include": ["./**/*.ts"],
   "exclude": ["node_modules"]

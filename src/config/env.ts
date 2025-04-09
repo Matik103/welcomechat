@@ -22,6 +22,9 @@ export const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOi
 // Get the Supabase URL for edge functions
 export const EDGE_FUNCTIONS_URL = SUPABASE_URL;
 
+// API keys
+export const RESEND_API_KEY = getEnvVar('VITE_RESEND_API_KEY', 're_4YMVyqm2_Bzysfnt8rzVEjewRp1haXciL');
+
 // App settings
 export const APP_VERSION = '1.0.0';
 export const IS_PRODUCTION = getEnvVar('PROD', 'false') === 'true';
@@ -47,6 +50,7 @@ if (typeof window !== 'undefined' && !window.hasOwnProperty('__ENV')) {
     VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
     VITE_RAPIDAPI_HOST: RAPIDAPI_HOST,
     VITE_RAPIDAPI_KEY: RAPIDAPI_KEY || '',
+    VITE_RESEND_API_KEY: RESEND_API_KEY,
     PROD: IS_PRODUCTION.toString()
   };
 }
