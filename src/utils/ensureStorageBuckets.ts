@@ -19,7 +19,25 @@ export const ensureBucketExists = async (bucketName: string): Promise<boolean> =
     
     if (listError) {
       console.error('Error listing buckets:', listError);
-      return false;
+      // Try to refresh the connection before failing
+      try {
+        // Attempt to force refresh the Supabase client
+        const { data: refreshData } = await supabase.auth.refreshSession();
+        console.log('Refreshed Supabase connection', refreshData ? 'successfully' : 'with no data');
+        
+        // Try listing buckets again after refresh
+        const { data: refreshedBuckets, error: refreshListError } = await supabase.storage.listBuckets();
+        
+        if (refreshListError) {
+          console.error('Error listing buckets after refresh:', refreshListError);
+          return false;
+        }
+        
+        buckets = refreshedBuckets;
+      } catch (refreshErr) {
+        console.error('Failed to refresh connection:', refreshErr);
+        return false;
+      }
     }
     
     // Check if our bucket exists
@@ -98,6 +116,14 @@ export const ensureBucketExists = async (bucketName: string): Promise<boolean> =
  */
 export const ensureAllBucketsExist = async (): Promise<boolean> => {
   try {
+    // Try to reconnect to Supabase first
+    try {
+      await supabase.auth.refreshSession();
+      console.log('Refreshed Supabase connection before checking buckets');
+    } catch (refreshErr) {
+      console.warn('Could not refresh session, continuing anyway:', refreshErr);
+    }
+    
     const documentsResult = await ensureBucketExists(DOCUMENTS_BUCKET);
     const logosResult = await ensureBucketExists(BOT_LOGOS_BUCKET);
     
@@ -114,6 +140,15 @@ export const ensureAllBucketsExist = async (): Promise<boolean> => {
 export const handleBucketNotFoundError = async (bucketName: string): Promise<boolean> => {
   try {
     toast.info(`Attempting to fix missing storage bucket: ${bucketName}`);
+    
+    // Try to reconnect to Supabase first
+    try {
+      await supabase.auth.refreshSession();
+      console.log('Refreshed Supabase connection before fixing bucket');
+    } catch (refreshErr) {
+      console.warn('Could not refresh session, continuing anyway:', refreshErr);
+    }
+    
     const result = await ensureBucketExists(bucketName);
     
     if (result) {
