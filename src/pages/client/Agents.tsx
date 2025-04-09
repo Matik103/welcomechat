@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,16 +44,10 @@ const ClientAgents: React.FC = () => {
         setClientName(clientData.client_name || '');
       }
 
-      // Then get all agents for this client with additional stats
+      // Fetch agents without attempting to join with chat_interactions
       const { data, error: agentsError } = await supabase
         .from('ai_agents')
-        .select(`
-          *,
-          interactions:chat_interactions(
-            count,
-            avg_response_time:response_time_ms(avg)
-          )
-        `)
+        .select('*')
         .eq('client_id', clientId)
         .eq('interaction_type', 'config')
         .order('created_at', { ascending: false });
@@ -61,14 +56,41 @@ const ClientAgents: React.FC = () => {
         console.error('Error fetching agents:', agentsError);
         throw agentsError;
       }
-      
-      const formattedAgents: Agent[] = (data || []).map(agent => {
-        const interactions = agent.interactions?.[0] || { count: 0, avg_response_time: 0 };
+
+      // Fetch interaction stats separately for each agent
+      const formattedAgents = await Promise.all((data || []).map(async (agent) => {
+        // Get interaction count
+        const { count, error: countError } = await supabase
+          .from('ai_interactions')
+          .select('*', { count: 'exact', head: true })
+          .eq('client_id', clientId)
+          .eq('agent_name', agent.name || '');
+
+        if (countError) {
+          console.error('Error fetching interaction count:', countError);
+        }
+
+        // Get average response time
+        const { data: timeData, error: timeError } = await supabase
+          .from('ai_interactions')
+          .select('response_time_ms')
+          .eq('client_id', clientId)
+          .eq('agent_name', agent.name || '')
+          .not('response_time_ms', 'is', null);
+
+        if (timeError) {
+          console.error('Error fetching response times:', timeError);
+        }
+
+        const avgResponseTime = timeData && timeData.length > 0
+          ? timeData.reduce((sum, item) => sum + (item.response_time_ms || 0), 0) / timeData.length / 1000 // Convert to seconds
+          : 0;
+
         return {
           id: agent.id,
           client_id: agent.client_id || '',
           client_name: agent.client_name || clientName,
-          name: agent.name,
+          name: agent.name || '',
           description: agent.description || '',
           status: agent.status || 'active',
           created_at: agent.created_at || new Date().toISOString(),
@@ -80,11 +102,11 @@ const ClientAgents: React.FC = () => {
           settings: agent.settings || {},
           openai_assistant_id: agent.openai_assistant_id || '',
           deepseek_assistant_id: agent.deepseek_assistant_id || '',
-          total_interactions: interactions.count || 0,
-          average_response_time: interactions.avg_response_time ? Number(interactions.avg_response_time) / 1000 : 0,
+          total_interactions: count || 0,
+          average_response_time: avgResponseTime,
           last_active: agent.updated_at || new Date().toISOString()
         };
-      });
+      }));
 
       setAgents(formattedAgents);
       setError(null);
@@ -154,9 +176,29 @@ const ClientAgents: React.FC = () => {
   if (error) {
     return (
       <div className="container mx-auto p-6">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-2xl font-bold">AI Agents</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your AI assistants for {clientName}
+            </p>
+          </div>
+          <Button onClick={() => setIsAgentDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Create Agent
+          </Button>
+        </div>
+        
         <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700">
           {error}
         </div>
+
+        <CreateAgentDialog
+          open={isAgentDialogOpen}
+          onOpenChange={setIsAgentDialogOpen}
+          clientId={clientId || undefined}
+          clientName={clientName}
+          onAgentCreated={handleAgentCreated}
+        />
       </div>
     );
   }
