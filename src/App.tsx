@@ -1,4 +1,5 @@
-import { useMemo, useCallback, Suspense } from "react";
+
+import React, { useMemo, useCallback, Suspense } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { PublicRoutes } from "./components/routes/PublicRoutes";
@@ -82,7 +83,7 @@ function App() {
       
       // If user is authenticated but role not determined yet, show loading
       if (!userRole) {
-        return <LoadingFallback message="Verifying account..." />;
+        return <LoadingFallback message="Verifying account..." timeoutSeconds={3} />;
       }
     }
     

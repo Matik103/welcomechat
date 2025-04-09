@@ -3,11 +3,9 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
-import { getUserRole } from '@/services/authService';
 import { useAuthInitialize } from '@/hooks/useAuthInitialize';
 import { useAuthStateChange } from '@/hooks/useAuthStateChange';
 import { useAuthCallback } from '@/hooks/useAuthCallback';
-import { useAuthState } from '@/hooks/useAuthState';
 
 // Define UserRole type
 export type UserRole = 'admin' | 'client' | null;
@@ -153,7 +151,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       const timeout = setTimeout(() => {
         console.log('Auth loading timeout reached - forcing completion');
         setIsLoading(false);
-      }, 5000);
+      }, 3000); // Reduced from 5000ms to 3000ms for faster experience
       
       return () => clearTimeout(timeout);
     }

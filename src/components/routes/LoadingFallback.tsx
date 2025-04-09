@@ -13,16 +13,25 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
   message
 }) => {
   const [timedOut, setTimedOut] = useState(false);
+  const [secondsElapsed, setSecondsElapsed] = useState(0);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const mainTimer = setTimeout(() => {
       setTimedOut(true);
       if (onTimeoutAction) {
         onTimeoutAction();
       }
     }, timeoutSeconds * 1000);
 
-    return () => clearTimeout(timer);
+    // Add a secondary timer to track elapsed time
+    const intervalId = setInterval(() => {
+      setSecondsElapsed(prev => prev + 1);
+    }, 1000);
+
+    return () => {
+      clearTimeout(mainTimer);
+      clearInterval(intervalId);
+    };
   }, [onTimeoutAction, timeoutSeconds]);
 
   return (
@@ -33,6 +42,14 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
         <p className="text-sm text-muted-foreground">
           Taking longer than expected...
         </p>
+      )}
+      {secondsElapsed > 10 && (
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+        >
+          Refresh Page
+        </button>
       )}
     </div>
   );
