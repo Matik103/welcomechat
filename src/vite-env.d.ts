@@ -1,5 +1,6 @@
 
 /// <reference types="vite/client" />
-/// <reference types="react" />
-/// <reference types="react-dom" />
 /// <reference types="node" />
+
+// This file is created by Vite automatically
+// It provides TypeScript definitions for Vite's client-specific environment variables and modules
