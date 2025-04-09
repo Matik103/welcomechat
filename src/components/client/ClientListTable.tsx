@@ -90,7 +90,14 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
                     )}
                   </TableCell>
                   <TableCell>
-                    <div
+                    <Badge
+                      variant={
+                        isScheduledForDeletion 
+                          ? "destructive" 
+                          : client.status === "active" 
+                            ? "default" 
+                            : "secondary"
+                      }
                       className={`
                         inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
                         ${isScheduledForDeletion
@@ -103,7 +110,7 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
                       {isScheduledForDeletion 
                         ? "Deletion Scheduled" 
                         : client.status || 'active'}
-                    </div>
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-gray-500">
                     {client.created_at 

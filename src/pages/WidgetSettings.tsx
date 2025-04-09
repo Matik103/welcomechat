@@ -5,7 +5,7 @@ import { useParams } from "react-router-dom";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettingsService";
 import { handleLogoUpload } from "@/services/uploadService";
 import { defaultSettings } from "@/types/widget-settings";
@@ -16,33 +16,29 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useClientData } from "@/hooks/useClientData";
 import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
-import { ErrorBoundary } from "@/components";
 
 export default function WidgetSettings() {
   const { clientId } = useParams<{ clientId: string }>();
   const { user, userRole } = useAuth();
   const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
-  
-  // Ensure clientId exists before initializing these hooks
-  const { logClientActivity } = useClientActivity(clientId || "");
+  const { logClientActivity } = useClientActivity(clientId);
   const widgetSettingsHook = useWidgetSettings(clientId || "");
   
   // Get client data to sync agent name
-  const { client, isLoadingClient, refetchClient, error: clientError } = useClientData(clientId || "");
+  const { client, isLoadingClient, refetchClient } = useClientData(clientId);
 
   // Fetch widget settings
-  const { data: settings, isLoading, refetch, error: settingsError } = useQuery({
+  const { data: settings, isLoading, refetch } = useQuery({
     queryKey: ["widget-settings", clientId],
-    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve({...defaultSettings}),
+    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
     enabled: !!clientId,
   });
 
   // Ensure settings has the clientId
-  const enhancedSettings = settings 
-    ? { ...settings, clientId } 
-    : { ...defaultSettings, clientId };
+  const enhancedSettings = settings ? { ...settings, clientId } : { ...defaultSettings, clientId };
 
   // Sync agent name from client data when settings load
   useEffect(() => {
@@ -64,27 +60,29 @@ export default function WidgetSettings() {
   // Update widget settings mutation
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
-      if (!clientId) throw new Error('Client ID is required');
-      
-      // Ensure clientId is included
-      await updateWidgetSettings(clientId, { ...newSettings, clientId });
-      
-      // Make sure we have a client name for the activity log
-      const clientName = client?.client_name || newSettings.agent_name || "Unknown";
-      
-      // Log the activity with safe activity type and client name
-      await logClientActivity("widget_settings_updated", 
-        `Widget settings updated for "${clientName}"`, 
-        {
-          client_name: clientName,
-          agent_name: newSettings.agent_name,
-          settings_changed: true
-        });
+      if (clientId) {
+        // Ensure clientId is included
+        await updateWidgetSettings(clientId, { ...newSettings, clientId });
+        
+        // Make sure we have a client name for the activity log
+        const clientName = client?.client_name || newSettings.agent_name || "Unknown";
+        
+        // Log the activity with safe activity type and client name
+        await logClientActivity("widget_settings_updated", 
+          `Widget settings updated for "${clientName}"`, 
+          {
+            client_name: clientName,
+            agent_name: newSettings.agent_name,
+            settings_changed: true
+          });
+      }
     },
     onSuccess: () => {
       refetch();
       // Also invalidate client queries to ensure bidirectional sync
       if (clientId) {
+        queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+        // Also refetch client data to ensure bidirectional sync
         refetchClient();
       }
       
@@ -104,10 +102,7 @@ export default function WidgetSettings() {
   };
 
   const handleLogoUploadChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!clientId) {
-      toast.error("Client ID is required for logo upload");
-      return;
-    }
+    if (!clientId) return;
     
     setIsUploading(true);
     try {
@@ -143,21 +138,6 @@ export default function WidgetSettings() {
   if (isLoading || isLoadingClient) {
     return <ClientViewLoading />;
   }
-  
-  if (settingsError || clientError) {
-    const errorMessage = settingsError || clientError;
-    return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Widget Settings</h2>
-          <p className="text-gray-800 mb-4">
-            {errorMessage instanceof Error ? errorMessage.message : String(errorMessage)}
-          </p>
-          <Button onClick={() => { refetch(); refetchClient(); }}>Retry</Button>
-        </div>
-      </div>
-    );
-  }
 
   // Create a wrapper for updateSettingsMutation to match expected props
   const updateSettingsWrapper = {
@@ -179,31 +159,29 @@ export default function WidgetSettings() {
   };
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="mb-4 flex items-center gap-1"
-            onClick={handleNavigateBack}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Clients
-          </Button>
-          
-          <WidgetSettingsContainer
-            clientId={clientId}
-            settings={enhancedSettings}
-            isClientView={!isAdmin}
-            isUploading={isUploading}
-            updateSettingsMutation={updateSettingsWrapper}
-            handleBack={handleNavigateBack}
-            handleLogoUpload={handleLogoUploadChange}
-            logClientActivity={logActivityWrapper}
-          />
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-6">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="mb-4 flex items-center gap-1"
+          onClick={handleNavigateBack}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Clients
+        </Button>
+        
+        <WidgetSettingsContainer
+          clientId={clientId}
+          settings={enhancedSettings}
+          isClientView={!isAdmin}
+          isUploading={isUploading}
+          updateSettingsMutation={updateSettingsWrapper}
+          handleBack={handleNavigateBack}
+          handleLogoUpload={handleLogoUploadChange}
+          logClientActivity={logActivityWrapper}
+        />
       </div>
-    </ErrorBoundary>
+    </div>
   );
 }

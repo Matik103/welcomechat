@@ -10,7 +10,7 @@ export interface WidgetSettings {
   logo_storage_path: string;
   chat_color: string;
   background_color: string;
-  button_color: string;
+  button_color?: string;
   font_color: string;
   chat_font_color: string;
   background_opacity: number;
@@ -23,8 +23,7 @@ export interface WidgetSettings {
   response_time_text: string;
   display_mode: WidgetDisplayMode;
   openai_assistant_id?: string;
-  deepseek_assistant_id?: string;
-  clientId?: string;
+  clientId?: string; // Added clientId property
 }
 
 // Default widget settings

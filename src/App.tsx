@@ -6,9 +6,13 @@ import { PublicRoutes } from "./components/routes/PublicRoutes";
 import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes";
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
-import { ErrorBoundary } from "@/components";
-import { LoadingFallback } from "./components/routes/LoadingFallback";
-import { DEFAULT_LOADING_TIMEOUT, AUTH_LOADING_TIMEOUT } from "./config/env";
+
+// Simple loading fallback component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+  </div>
+);
 
 function App() {
   const { user, userRole, isLoading, session } = useAuth();
@@ -38,52 +42,40 @@ function App() {
   const routeComponent = useMemo(() => {
     // Show minimal loading for auth-related operations only
     if (isLoading && !isAuthCallback) {
-      return <LoadingFallback message="Loading application..." />;
+      return <LoadingFallback />;
     }
 
     // Public routes for non-authenticated users
     if (!user && isPublicRoute()) {
-      return (
-        <ErrorBoundary>
-          <PublicRoutes />
-        </ErrorBoundary>
-      );
+      return <PublicRoutes />;
     }
 
     // Non-authenticated user routes
     if (!user) {
-      return (
-        <ErrorBoundary>
-          <UnauthenticatedRoutes />
-        </ErrorBoundary>
-      );
+      return <UnauthenticatedRoutes />;
     }
 
     // Render based on user role - only calculate this when user and userRole are available
     if (user) {
       if (userRole === 'admin') {
         return (
-          <ErrorBoundary>
-            <Suspense fallback={<LoadingFallback message="Loading admin dashboard..." timeoutSeconds={DEFAULT_LOADING_TIMEOUT} />}>
-              <AdminRoutes />
-            </Suspense>
-          </ErrorBoundary>
+          <Suspense fallback={<LoadingFallback />}>
+            <AdminRoutes />
+          </Suspense>
         );
       }
       
       if (userRole === 'client') {
         return (
-          <ErrorBoundary>
-            <Suspense fallback={<LoadingFallback message="Loading dashboard..." timeoutSeconds={DEFAULT_LOADING_TIMEOUT} />}>
-              <ClientRoutes />
-            </Suspense>
-          </ErrorBoundary>
+          <Suspense fallback={<LoadingFallback />}>
+            <ClientRoutes />
+          </Suspense>
         );
       }
       
       // If user is authenticated but role not determined yet, show loading
       if (!userRole) {
-        return <LoadingFallback message="Verifying account..." />;
+        return <LoadingFallback />;
       }
     }
     

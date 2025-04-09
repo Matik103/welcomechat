@@ -1,13 +1,11 @@
 
-// Client admin service for Supabase
+// Determine if we should add the necessary exports or just check the existing file and add the missing exports
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { SUPABASE_URL } from './client';
 
-// Get the service role key - use a fallback for development on lovable.dev
-const SUPABASE_SERVICE_ROLE_KEY = 
-  (typeof window !== 'undefined' && (window as any).__ENV?.VITE_SUPABASE_SERVICE_ROLE_KEY) || 
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
+// Get the service role key from environment
+const SUPABASE_SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
 
 // Create a singleton instance for the admin client
 let supabaseAdminInstance: ReturnType<typeof createClient<Database>> | null = null;
@@ -108,7 +106,9 @@ export const supabaseAdmin = (() => {
 
 export default supabaseAdmin;
 
-// Initialize storage buckets
+/**
+ * Initialize storage buckets
+ */
 export const initializeStorage = async () => {
   try {
     // Create bot logos bucket if it doesn't exist
@@ -118,7 +118,7 @@ export const initializeStorage = async () => {
       fileSizeLimit: 1024 * 1024 * 2 // 2MB
     });
 
-    if (error && !error.message.includes('already exists')) {
+    if (error) {
       console.error('Error creating bot logos bucket:', error);
     }
 
@@ -134,7 +134,7 @@ export const initializeStorage = async () => {
       fileSizeLimit: 1024 * 1024 * 20 // 20MB
     });
 
-    if (docError && !docError.message.includes('already exists')) {
+    if (docError) {
       console.error('Error creating client documents bucket:', docError);
     }
 
